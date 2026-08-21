@@ -553,7 +553,29 @@ export const WORD_INDEX: Record<string, any> = {
   "exhausted": { hint: "Past the point rest alone fixes", matches: ["Overwhelm"] },
   "drained": { hint: "Someone or something took it out of you", matches: ["Overwhelm"] },
   "worn out": { hint: "Wear from a long stretch, not one day", matches: ["Overwhelm", "Sadness"] },
-  "depleted": { hint: "Nothing left to give", matches: ["Overwhelm"] }
+  "depleted": { hint: "Nothing left to give", matches: ["Overwhelm"] },
+  "confident": { hint: "Self-assured, trusting in your capacity", matches: ["Pride", "Contentment", "Joy"] },
+  "confidence": { hint: "Trust in your ability and worth", matches: ["Pride", "Contentment", "Joy"] },
+  "secure": { hint: "Safe and settled in your standing", matches: ["Serenity", "Contentment"] },
+  "peaceful": { hint: "Unusually settled and quiet inside", matches: ["Serenity", "Contentment"] },
+  "peace": { hint: "Stillness, resolve, and inner ease", matches: ["Serenity"] },
+  "optimistic": { hint: "Expecting positive outcomes ahead", matches: ["Hope", "Anticipation"] },
+  "inspired": { hint: "Moved to create, act, or connect", matches: ["Awe", "Joy"] },
+  "motivated": { hint: "Energy directed toward a clear purpose", matches: ["Excitement", "Hope"] },
+  "empowered": { hint: "Feeling capability and personal agency", matches: ["Pride", "Joy"] },
+  "discouraged": { hint: "Disheartened by setbacks or resistance", matches: ["Sadness", "Frustration"] },
+  "anxious": { hint: "Tension and apprehension about what is ahead", matches: ["Anxiety"] },
+  "afraid": { hint: "Direct response to real or perceived threat", matches: ["Fear"] },
+  "satisfied": { hint: "Pleased with what has been completed", matches: ["Contentment", "Pride"] },
+  "unsettled": { hint: "Something feels off balance", matches: ["Anxiety", "Sadness"] },
+  "lonely": { hint: "A gap in genuine connection", matches: ["Loneliness"] },
+  "appreciated": { hint: "Feeling valued and acknowledged", matches: ["Gratitude", "Love"] },
+  "valued": { hint: "Recognized for who you are", matches: ["Love", "Pride"] },
+  "restless": { hint: "Agitated energy looking for direction", matches: ["Anxiety", "Frustration"] },
+  "helpless": { hint: "Feeling unable to influence the situation", matches: ["Sadness", "Fear"] },
+  "hopeless": { hint: "Struggling to locate possibility", matches: ["Sadness", "Grief"] },
+  "clarity": { hint: "Understanding what is true for you", matches: ["Serenity", "Contentment"] },
+  "burnout": { hint: "Chronic depletion from sustained demand", matches: ["Overwhelm", "Sadness"] }
 };
 
 export const SURFACE = {

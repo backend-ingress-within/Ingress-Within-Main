@@ -485,30 +485,35 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
   };
 
   // Free text search
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (e, queryOverride) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const query = (typeof queryOverride === 'string' ? queryOverride : searchQuery).trim();
+    if (!query) return;
+
+    if (query !== searchQuery) {
+      setSearchQuery(query);
+    }
 
     setSearchLoading(true);
     try {
-      const res = await fetch(`/api/knowledge/search?q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`/api/knowledge/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data.success) {
         const { matchedEmotions } = data.results;
         if (matchedEmotions && matchedEmotions.length > 0) {
           setSearchResults({
-            breadcrumb: searchQuery,
-            transMsg: `Search results for "<strong>${searchQuery}</strong>" mapped in dictionary:`,
+            breadcrumb: query,
+            transMsg: `Search results for "<strong>${query}</strong>" mapped in dictionary:`,
             list: matchedEmotions.map(m => m.name),
             noMatch: false
           });
         } else {
           setSearchResults({
-            breadcrumb: searchQuery,
+            breadcrumb: query,
             transMsg: '',
             list: [],
             noMatch: true,
-            noMatchWord: searchQuery
+            noMatchWord: query
           });
         }
         setExploreScreen('matches');
@@ -953,10 +958,9 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
                             if (w.isStandard) {
                               openEmotionDirect(w.name);
                             } else if (w.matches && w.matches.length > 0) {
-                              pickSurface(w.original, 'expression from your diaries', w.matches);
+                              pickSurface(w.original, w.aka || 'expression from your diaries', w.matches);
                             } else {
-                              setSearchQuery(w.original);
-                              handleSearch();
+                              handleSearch(null, w.original);
                             }
                           }}
                         >
@@ -1105,7 +1109,7 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
                   </div>
                   <div className="trans-card">
                     {searchResults.noMatch ? (
-                      `We don't have "<strong>${searchResults.noMatchWord}</strong>" mapped to a word yet.`
+                      <span>We don't have "<strong>{searchResults.noMatchWord}</strong>" mapped to a dictionary emotion yet.</span>
                     ) : (
                       <span dangerouslySetInnerHTML={{ __html: searchResults.transMsg }} />
                     )}

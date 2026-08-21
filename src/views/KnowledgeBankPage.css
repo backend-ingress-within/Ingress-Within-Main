@@ -78,11 +78,13 @@
 .kb-app .trail-badge{
   display:none;
   background:var(--terracotta);
-  color:var(--teal-black);
-  border-radius:20px;
-  padding:1px 6px;
+  color:#ffffff;
+  border-radius:12px;
+  padding:2px 7px;
   font-size:10px;
-  font-weight:600;
+  font-weight:700;
+  line-height:1;
+  margin-left:4px;
 }
 
 /* ── Content ── */
@@ -835,9 +837,9 @@
   text-transform: uppercase;
 }
 .trail-stat-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--ocean-sage);
+  color: #ffffff;
 }
 
 .discoveries-grid {
