@@ -60,43 +60,32 @@ export default function NotFoundPage({ user, profile }) {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10 max-w-[540px] mx-auto text-center space-y-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-8 relative z-10 max-w-[540px] mx-auto text-center space-y-6">
         
-        {/* Animated 404 Visual Treatment */}
+        {/* Animated Path Visual (Standalone) */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[320px] h-[180px] flex items-center justify-center mb-2"
+          className="relative w-full max-w-[240px] h-[80px] flex items-center justify-center"
         >
           {/* Background blurred radial shadow */}
-          <div className="absolute w-[200px] h-[100px] rounded-full bg-secondary/15 blur-2xl pointer-events-none" />
+          <div className="absolute w-[160px] h-[60px] rounded-full bg-secondary/10 blur-xl pointer-events-none" />
 
-          {/* Integrated Vector SVG */}
-          <svg className="w-full h-full overflow-visible z-20 pointer-events-none" viewBox="0 0 320 180" fill="none">
-            {/* Centered Serif '404' Text inside SVG for perfect pixel alignment */}
-            <text
-              x="160"
-              y="110"
-              textAnchor="middle"
-              className="font-serif select-none pointer-events-none fill-primary/8 font-light"
-              style={{ fontSize: '110px', letterSpacing: '10px' }}
-            >
-              404
-            </text>
-
-            {/* Thread Path 1: Soft, elegant sweeping dashed wave */}
+          {/* Clean Vector SVG */}
+          <svg className="w-full h-full overflow-visible z-20 pointer-events-none" viewBox="0 0 240 80" fill="none">
+            {/* Thread Path 1: Sweeping dashed wave */}
             <motion.path
-              d="M 30,90 C 80,55 110,55 160,90 C 210,125 240,125 290,90"
+              d="M 20,40 Q 80,15, 120,40 T 220,40"
               stroke="#8DBFB4"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeDasharray="4, 4"
               animate={{
                 d: [
-                  "M 30,90 C 80,55 110,55 160,90 C 210,125 240,125 290,90",
-                  "M 30,92 C 78,60 112,50 160,88 C 208,126 242,120 290,92",
-                  "M 30,90 C 82,50 108,60 160,92 C 212,124 238,130 290,90"
+                  "M 20,40 Q 80,15, 120,40 T 220,40",
+                  "M 20,42 Q 78,20, 122,38 T 220,42",
+                  "M 20,40 Q 82,10, 118,42 T 220,40"
                 ]
               }}
               transition={{
@@ -107,17 +96,17 @@ export default function NotFoundPage({ user, profile }) {
               }}
             />
 
-            {/* Thread Path 2: Continuous loop winding through the zero digit */}
+            {/* Thread Path 2: Winding solid wave */}
             <motion.path
-              d="M 40,105 C 100,55 140,55 160,85 C 180,115 190,115 200,85 C 210,55 240,75 280,105"
+              d="M 30,55 C 70,30 100,20 120,40 C 140,60 150,60 160,40 C 170,20 190,30 210,55"
               stroke="#E0A898"
               strokeWidth="2"
               strokeLinecap="round"
               animate={{
                 d: [
-                  "M 40,105 C 100,55 140,55 160,85 C 180,115 190,115 200,85 C 210,55 240,75 280,105",
-                  "M 40,103 C 98,58 138,58 160,83 C 182,112 188,118 200,83 C 212,52 238,78 280,103",
-                  "M 40,107 C 102,52 142,52 160,87 C 178,118 192,112 200,87 C 208,58 242,72 280,107"
+                  "M 30,55 C 70,30 100,20 120,40 C 140,60 150,60 160,40 C 170,20 190,30 210,55",
+                  "M 30,53 C 68,32 98,22 120,38 C 142,58 148,62 160,38 C 172,18 188,32 210,53",
+                  "M 30,57 C 72,28 102,18 120,42 C 138,62 152,58 160,42 C 168,22 192,28 210,57"
                 ]
               }}
               transition={{
@@ -130,15 +119,25 @@ export default function NotFoundPage({ user, profile }) {
 
             {/* Pulsing connection anchor node */}
             <motion.circle
-              cx="160"
-              cy="85"
-              r="4"
+              cx="120"
+              cy="40"
+              r="3.5"
               fill="#E0A898"
               animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0.9, 0.6] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             />
           </svg>
         </motion.div>
+
+        {/* Clean, distinct 404 Text */}
+        <motion.h2 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 0.85, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="font-serif text-[72px] md:text-[84px] font-normal tracking-[0.18em] text-primary/70 leading-none select-none pl-[0.18em] !mt-1 !mb-1"
+        >
+          404
+        </motion.h2>
 
         {/* Text Copy */}
         <div className="space-y-4">
