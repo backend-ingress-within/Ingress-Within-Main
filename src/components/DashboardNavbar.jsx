@@ -25,7 +25,7 @@ export default function DashboardNavbar({ activeTab }) {
 
   return (
     <>
-      <header className="glass-nav border-b border-primary/5 px-6 py-4 sticky top-0 z-50 bg-warm-paper/85 backdrop-blur-md">
+      <header className="glass-nav border-b border-primary/5 px-4 sm:px-6 py-3.5 sm:py-4 sticky top-0 z-50 bg-warm-paper/85 backdrop-blur-md">
         <div className="max-w-[1140px] mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-semibold text-[15px] cursor-pointer group" onClick={() => window.navigateTo('/dashboard')}>
             <img 

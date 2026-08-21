@@ -448,25 +448,25 @@ export default function DashboardPage({ user, profile, onSignOut }) {
   const yesterdayPreview = yesterdayEntry.length > 80 ? yesterdayEntry.substring(0, 80) + '...' : yesterdayEntry;
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20 sm:pb-24">
       {/* Meditative Top Navbar */}
       <DashboardNavbar activeTab="home" />
 
       {/* Main Page Layout */}
-      <main className="max-w-[1140px] mx-auto px-6 pt-6 space-y-6">
+      <main className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-6 sm:space-y-8">
         
         {/* Welcome Section */}
-        <section className="space-y-0.5">
+        <section className="space-y-1">
           <div className="text-[10px] uppercase tracking-widest text-secondary font-semibold">{getGreeting()}</div>
-          <h1 className="font-serif text-[26px] text-primary font-normal">Welcome back, {displayName}.</h1>
-          <p className="text-xs text-mid">
+          <h1 className="font-serif text-[26px] sm:text-[28px] text-primary font-normal">Welcome back, {displayName}.</h1>
+          <p className="text-xs sm:text-[13px] text-mid">
             Cycle {cycleInfo ? cycleInfo.cycleNumber : data.cycleInfo.cycleNumber} · Day {cycleInfo ? cycleInfo.currentDay : data.cycleInfo.currentDay} of {cycleInfo ? cycleInfo.totalDays : data.cycleInfo.totalDays} · {cycleInfo ? (cycleInfo.status === 'COMPLETED' ? 'Cycle Completed' : (data.cycleInfo.hasWrittenToday ? 'You wrote today' : "Ready for today's reflection")) : (data.cycleInfo.hasWrittenToday ? 'You wrote today' : "Ready for today's reflection")}
           </p>
         </section>
 
         {/* Current Cycle Card */}
         {cycleInfo && (
-          <div className="bg-white border border-[#1E2A2E]/8 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between text-left shadow-xs gap-4">
+          <div className="bg-white border border-primary/10 rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between text-left shadow-xs gap-5">
             <div className="flex items-center gap-5">
               {/* Progress Ring */}
               <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
@@ -502,7 +502,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 <h2 className="font-serif text-lg text-primary font-normal">Cycle {cycleInfo.cycleNumber}</h2>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-mid">
                   <span>Day {cycleInfo.currentDay} of {cycleInfo.totalDays}</span>
-                  <span className="text-[#1E2A2E]/20">•</span>
+                  <span className="text-primary/20">•</span>
                   <span>{cycleInfo.daysRemaining} days remaining</span>
                   {cycleInfo.streak > 0 && (
                     <>
@@ -542,7 +542,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white-paper border border-accent/30 rounded-xl p-4.5 shadow-xs relative overflow-hidden pl-5 text-left"
+                className="bg-white-paper border border-accent/30 rounded-xl p-5 sm:p-6 shadow-xs relative overflow-hidden pl-6 sm:pl-7 text-left space-y-4"
               >
                 <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-accent" />
                 

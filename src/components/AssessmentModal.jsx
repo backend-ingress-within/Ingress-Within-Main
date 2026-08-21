@@ -21,16 +21,16 @@ export const AssessmentModal = React.memo(({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white-paper border border-primary/10 rounded-xl max-w-[560px] w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left shadow-xl"
+          className="bg-white-paper border border-primary/10 rounded-2xl max-w-[560px] w-full p-6 sm:p-8 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left shadow-xl"
         >
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 text-mid hover:text-primary cursor-pointer border-none bg-transparent"
+            className="absolute top-5 right-5 text-mid hover:text-primary cursor-pointer border-none bg-transparent"
           >
             <X size={18} />
           </button>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <div className="text-[10px] uppercase font-semibold tracking-widest text-accent mb-1">Cycle Transition Assessment</div>
               <h2 className="font-serif text-lg text-primary leading-snug">
@@ -41,7 +41,7 @@ export const AssessmentModal = React.memo(({
               </p>
             </div>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-1">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold uppercase tracking-widest text-secondary">
                   1. What patterns of cognitive rigidity or avoidance did you notice during this cycle?
@@ -50,7 +50,7 @@ export const AssessmentModal = React.memo(({
                   value={answers.q1}
                   onChange={(e) => setAnswers(prev => ({ ...prev, q1: e.target.value }))}
                   placeholder="Reflect on when you felt stuck, defensive, or depleted..."
-                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-2.5 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
+                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
                 />
               </div>
 
@@ -62,7 +62,7 @@ export const AssessmentModal = React.memo(({
                   value={answers.q2}
                   onChange={(e) => setAnswers(prev => ({ ...prev, q2: e.target.value }))}
                   placeholder="Reflect on emotional intensity, clarity, or emotional vocabulary shifts..."
-                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-2.5 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
+                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
                 />
               </div>
 
@@ -74,7 +74,7 @@ export const AssessmentModal = React.memo(({
                   value={answers.q3}
                   onChange={(e) => setAnswers(prev => ({ ...prev, q3: e.target.value }))}
                   placeholder="Set your intention for the next 30 days..."
-                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-2.5 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
+                  className="w-full min-h-[90px] border border-primary/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
                 />
               </div>
               
@@ -85,7 +85,7 @@ export const AssessmentModal = React.memo(({
               )}
             </div>
 
-            <div className="flex gap-3 pt-2 border-t border-primary/5">
+            <div className="flex gap-3 pt-3 border-t border-primary/5">
               <button 
                 onClick={onSave}
                 disabled={!answers.q1.trim() || !answers.q2.trim() || !answers.q3.trim() || isSubmitting}

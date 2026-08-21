@@ -165,15 +165,15 @@ export default function InterventionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between pb-20 sm:pb-24">
       <div>
         <DashboardNavbar activeTab="interventions" />
 
-        <main className="max-w-[1140px] mx-auto px-6 py-8">
+        <main className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
           {/* Header */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-mid mb-1">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-secondary mb-1">
                 Evidence-Based Self-Help Bank ·
               </div>
               <h1 className="font-serif text-3xl md:text-4xl text-primary font-normal">
@@ -191,8 +191,8 @@ export default function InterventionsPage() {
                   if (viewMode !== 'history') fetchHistory();
                 }}
                 className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider border transition-all cursor-pointer ${viewMode === 'history'
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white border-primary/10 text-mid hover:border-primary/30'
+                  ? 'bg-accent text-white border-accent shadow-xs'
+                  : 'bg-white-paper border-primary/10 text-mid hover:border-primary/30'
                   }`}
               >
                 {viewMode === 'history' ? 'Back to Catalog' : 'My History'}
@@ -202,7 +202,7 @@ export default function InterventionsPage() {
 
           {/* Search & Filter Bar */}
           {viewMode === 'grid' && (
-            <div className="bg-white/80 backdrop-blur-md rounded-xl p-4 border border-primary/5 shadow-xs mb-8 space-y-4">
+            <div className="bg-white-paper/90 backdrop-blur-md rounded-xl p-4 sm:p-5 border border-primary/10 shadow-xs mb-6 sm:mb-8 space-y-4">
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative flex-1 w-full">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mid/60" />

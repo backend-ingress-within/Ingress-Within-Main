@@ -372,8 +372,8 @@ export default function WritePage({ user, profile, onSignOut }) {
       {screenState === 'main' && (
         <>
           {/* Sub Navbar Mode Selector */}
-          <div className="bg-[#F5F8F8] border-b border-[#1E2A2E]/10 py-2.5 px-6 flex items-center gap-2 text-xs shrink-0 select-none">
-            <span className="text-[10px] tracking-wider uppercase text-[#8DBFB4] font-bold mr-2">Mode:</span>
+          <div className="bg-warm-paper/60 border-b border-primary/10 py-3 px-4 sm:px-6 flex items-center gap-2.5 text-xs shrink-0 select-none">
+            <span className="text-[10px] tracking-wider uppercase text-secondary font-bold mr-2">Mode:</span>
             <button 
               onClick={() => setWriteMode('fresh')}
               className={`px-3.5 py-1 rounded-full border text-[11.5px] font-medium transition-all cursor-pointer ${
@@ -397,7 +397,7 @@ export default function WritePage({ user, profile, onSignOut }) {
           </div>
 
           {/* Writing Area */}
-          <div className="flex-1 max-w-[620px] mx-auto w-full px-6 pt-8 flex flex-col space-y-6">
+          <div className="flex-1 max-w-[620px] mx-auto w-full px-4 sm:px-6 pt-8 pb-12 flex flex-col space-y-6">
             <AnimatePresence>
               {showRecoveredMsg && (
                 <motion.div
@@ -416,7 +416,7 @@ export default function WritePage({ user, profile, onSignOut }) {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white-paper border border-accent/30 rounded-xl p-5 shadow-xs space-y-4 relative overflow-hidden text-left"
+                className="bg-white-paper border border-accent/30 rounded-xl p-5 sm:p-6 shadow-xs space-y-4 relative overflow-hidden text-left"
               >
                 <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-accent" />
                 
@@ -511,9 +511,9 @@ export default function WritePage({ user, profile, onSignOut }) {
           </div>
 
           {/* Bottom Toolbar */}
-          <div className="border-t border-[#1E2A2E]/10 bg-white px-6 py-3.5 flex items-center justify-between shrink-0 sticky bottom-0 z-40 relative">
+          <div className="border-t border-primary/10 bg-white-paper px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shrink-0 sticky bottom-0 z-40 relative">
             <div className="flex items-center gap-5">
-              <span className="text-[12px] text-[#8DBFB4]">
+              <span className="text-[12px] text-secondary font-medium">
                 Cycle {data?.cycleInfo?.cycleNumber || 2} · Day {data?.cycleInfo?.currentDay || 20}
               </span>
               <button 

@@ -22,16 +22,16 @@ export const ReflectionModal = React.memo(({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white-paper border border-primary/10 rounded-xl max-w-[560px] w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left shadow-xl"
+          className="bg-white-paper border border-primary/10 rounded-2xl max-w-[560px] w-full p-6 sm:p-8 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left shadow-xl"
         >
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 text-mid hover:text-primary cursor-pointer border-none bg-transparent"
+            className="absolute top-5 right-5 text-mid hover:text-primary cursor-pointer border-none bg-transparent"
           >
             <X size={18} />
           </button>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <div className="text-[10px] uppercase font-semibold tracking-widest text-accent mb-1">Continue Your Reflection</div>
               <h3 className="font-serif italic text-lg text-primary leading-relaxed">
@@ -64,7 +64,7 @@ export const ReflectionModal = React.memo(({
                 value={reflectionAnswerText}
                 onChange={(e) => setReflectionAnswerText(e.target.value)}
                 placeholder="Write what is actually there — no structure, no editing."
-                className="w-full min-h-[140px] border border-primary/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
+                className="w-full min-h-[140px] border border-primary/15 rounded-lg p-3.5 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
               />
               {error && (
                 <div className="text-[11px] text-error font-medium">{error}</div>
@@ -74,7 +74,7 @@ export const ReflectionModal = React.memo(({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-3">
               <button 
                 onClick={onSave}
                 disabled={!reflectionAnswerText.trim() || isSaving}

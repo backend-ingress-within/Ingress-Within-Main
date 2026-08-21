@@ -134,58 +134,58 @@ export default function VocabPage({ user, profile, onSignOut }) {
   const activeShiftSignals = stats?.shiftSignals?.[ssScope] || [];
 
   return (
-    <div className="min-h-screen bg-[#ECEFF0] text-[#1E2A2E] font-sans pb-24 relative">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20 sm:pb-24 relative">
       <DashboardNavbar activeTab="home" />
 
-      <main className="max-w-[680px] mx-auto px-6 pt-32">
-        <div className="space-y-6">
+      <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+        <div className="space-y-6 sm:space-y-8">
           
           {/* Back button */}
           <button 
             onClick={() => window.navigateTo('/dashboard')}
-            className="flex items-center gap-2 text-xs font-semibold text-[#4A6A64] hover:text-[#1E2A2E] transition-colors cursor-pointer border-none bg-transparent"
+            className="flex items-center gap-2 text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
           >
-            <ArrowLeft size={14} /> Back to home
+            <ArrowLeft size={14} /> Back to dashboard
           </button>
 
-          <div>
-            <h1 className="font-serif text-[22px] text-[#1E2A2E] mb-1 font-normal">Emotional vocabulary</h1>
-            <p className="text-[13px] text-[#4A6A64] leading-relaxed">The words you reach for across your entire practice — and what they say about where you actually are.</p>
+          <div className="space-y-1">
+            <h1 className="font-serif text-[22px] sm:text-[24px] text-primary mb-1 font-normal">Emotional vocabulary</h1>
+            <p className="text-[13px] sm:text-sm text-mid leading-relaxed">The words you reach for across your entire practice — and what they say about where you actually are.</p>
           </div>
 
           {/* Stats strip */}
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-3.5 shadow-[0_4px_20px_rgba(30,42,46,0.01)] text-left">
-              <div className="text-[22px] font-bold font-mono text-[#1E2A2E] leading-none">{entriesCount}</div>
-              <div className="text-[11px] text-[#4A6A64] mt-1.5 leading-normal">entries tracked</div>
-              <div className="text-[10px] text-[#8DBFB4] mt-0.5">across {cycles.length} cycles</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white-paper border border-primary/10 rounded-xl p-4 sm:p-5 shadow-xs text-left">
+              <div className="text-[22px] font-bold font-mono text-primary leading-none">{entriesCount}</div>
+              <div className="text-[11px] text-mid mt-1.5 leading-normal">entries tracked</div>
+              <div className="text-[10px] text-secondary mt-0.5">across {cycles.length} cycles</div>
             </div>
             
             <div 
               onClick={() => { if (isAvailable) setAwpOpen(!awpOpen); }}
-              className={`bg-white border border-[#1E2A2E]/10 rounded-xl p-3.5 shadow-[0_4px_20px_rgba(30,42,46,0.01)] text-left transition-all ${
-                isAvailable ? 'cursor-pointer hover:shadow-md hover:border-[#1E2A2E]/20' : ''
+              className={`bg-white-paper border border-primary/10 rounded-xl p-4 sm:p-5 shadow-xs text-left transition-all ${
+                isAvailable ? 'cursor-pointer hover:shadow-sm hover:border-primary/20' : ''
               }`}
             >
-              <div className="text-[22px] font-bold font-mono text-[#1E2A2E] leading-none flex items-center">
+              <div className="text-[22px] font-bold font-mono text-primary leading-none flex items-center">
                 {isAvailable ? distinctWordCount : 0}
                 {isAvailable && (
                   <ChevronDown 
                     size={14} 
-                    className={`text-[#8DBFB4] ml-1 transition-transform ${awpOpen ? 'rotate-180' : ''}`} 
+                    className={`text-secondary ml-1 transition-transform ${awpOpen ? 'rotate-180' : ''}`} 
                   />
                 )}
               </div>
-              <div className="text-[11px] text-[#4A6A64] mt-1.5 leading-normal">distinct emotion words</div>
-              <div className="text-[10px] text-[#8DBFB4] mt-0.5">all time · tap to see them</div>
+              <div className="text-[11px] text-mid mt-1.5 leading-normal">distinct emotion words</div>
+              <div className="text-[10px] text-secondary mt-0.5">all time · tap to see them</div>
             </div>
 
-            <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-3.5 shadow-[0_4px_20px_rgba(30,42,46,0.01)] text-left">
-              <div className="text-[22px] font-bold text-[#8A3020] font-mono leading-none truncate">
+            <div className="bg-white-paper border border-primary/10 rounded-xl p-4 sm:p-5 shadow-xs text-left">
+              <div className="text-[22px] font-bold text-accent font-mono leading-none truncate">
                 {isAvailable && mostUsedWord !== 'none' ? `"${mostUsedWord}"` : '—'}
               </div>
-              <div className="text-[11px] text-[#4A6A64] mt-1.5 leading-normal">most reached-for word</div>
-              <div className="text-[10px] text-[#8DBFB4] mt-0.5">
+              <div className="text-[11px] text-mid mt-1.5 leading-normal">most reached-for word</div>
+              <div className="text-[10px] text-secondary mt-0.5">
                 {isAvailable && mostUsedFrequency > 0 ? `${mostUsedFrequency}× all-time` : '—'}
               </div>
             </div>

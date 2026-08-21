@@ -373,31 +373,31 @@ export default function PatternsPage({ user, profile, onSignOut }) {
   const quietPatterns = overview.patterns.filter(p => p.status === 'quiet').slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20 sm:pb-24">
       <DashboardNavbar activeTab="patterns" />
 
-      <main className="max-w-[680px] mx-auto px-6 pt-6">
+      <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
         {viewState === 'list' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <button
               onClick={() => window.navigateTo('/dashboard')}
-              className="flex items-center gap-2 text-xs font-semibold text-[#4A6A64] hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
+              className="flex items-center gap-2 text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
             >
               <ArrowLeft size={14} /> Back to dashboard
             </button>
 
-            <div>
-              <h1 className="font-serif text-[22px] text-primary mb-0.5 font-normal">Patterns</h1>
-              <p className="text-xs text-mid">Recurring themes the system has identified across your writing. Not diagnoses — observations about what keeps showing up.</p>
+            <div className="space-y-1">
+              <h1 className="font-serif text-[22px] sm:text-[24px] text-primary mb-1 font-normal">Patterns</h1>
+              <p className="text-xs sm:text-[13px] text-mid leading-relaxed">Recurring themes the system has identified across your writing. Not diagnoses — observations about what keeps showing up.</p>
             </div>
 
-            <div className="text-[12px] italic text-[#8DBFB4] pb-0.5">
+            <div className="text-[12px] italic text-secondary pb-0.5">
               Patterns surface, shift, and go quiet based on what your entries show. The system doesn't declare anything finished.
             </div>
 
             {/* Summary strip */}
-            <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-4 shadow-xs space-y-2.5">
-              <p className="text-[12.5px] text-primary leading-relaxed">
+            <div className="bg-white-paper border border-primary/10 rounded-xl p-5 shadow-xs space-y-3">
+              <p className="text-[12.5px] sm:text-xs text-primary leading-relaxed">
                 {overview.summary.sentence}
               </p>
               <div className="flex gap-4 flex-wrap text-xs text-[#4A6A64]">

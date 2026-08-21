@@ -2092,7 +2092,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
       `}} />
       <DashboardNavbar activeTab="reports" />
 
-      <main className={`${viewState === 'list' ? 'max-w-[680px]' : 'max-w-[900px]'} mx-auto px-6 pt-6 transition-all duration-300`}>
+      <main className={`${viewState === 'list' ? 'max-w-[680px]' : 'max-w-[900px]'} mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 sm:pb-24 transition-all duration-300`}>
         {loading && (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
             <Loader2 className="animate-spin text-secondary" size={32} />
@@ -2101,7 +2101,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
         )}
 
         {error && !loading && (
-          <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-6 text-center space-y-4 my-10 shadow-xs">
+          <div className="bg-white border border-primary/10 rounded-xl p-6 text-center space-y-4 my-10 shadow-xs">
             <AlertCircle size={36} className="mx-auto text-accent" />
             <h2 className="font-serif text-lg text-primary">Connection Interrupted</h2>
             <p className="text-xs text-mid leading-relaxed max-w-sm mx-auto">
@@ -2118,10 +2118,10 @@ export default function ReportsPage({ user, profile, onSignOut }) {
 
         {/* View State: LIST */}
         {!loading && !error && viewState === 'list' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <button
               onClick={() => window.navigateTo('/dashboard')}
-              className="flex items-center gap-2 text-xs font-semibold text-[#4A6A64] hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
+              className="flex items-center gap-2 text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
             >
               <ArrowLeft size={14} /> Back to dashboard
             </button>
