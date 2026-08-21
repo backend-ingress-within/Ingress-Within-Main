@@ -52,7 +52,7 @@ export default function Navbar() {
         />
         <div className="flex flex-col justify-center">
           <span className="logo-name font-serif text-xl font-normal text-primary tracking-[0.01em] leading-none">
-            ingress <span className="font-semibold text-secondary">within</span>
+            ingress <span className="font-semibold text-accent">within</span>
           </span>
           <span className="logo-tagline font-sans text-[9px] font-medium text-mid/75 tracking-[0.14em] uppercase leading-tight mt-1">
             Understand. Grow. Continue
@@ -73,7 +73,7 @@ export default function Navbar() {
           <a
             href="/auth"
             onClick={handleStartWriting}
-            className="nav-cta bg-primary text-mint-grey hover:bg-[#2A3A3E] hover:translate-y-[-1px] px-[22px] py-[9px] rounded font-medium tracking-[0.03em] transition-all no-underline"
+            className="nav-cta bg-accent text-white hover:bg-[#654652] hover:translate-y-[-1px] px-[22px] py-[9px] rounded font-medium tracking-[0.03em] transition-all no-underline shadow-xs"
           >
             Start writing
           </a>

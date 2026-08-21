@@ -506,8 +506,8 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                   <span>{cycleInfo.daysRemaining} days remaining</span>
                   {cycleInfo.streak > 0 && (
                     <>
-                      <span className="text-[#1E2A2E]/20">•</span>
-                      <span className="flex items-center gap-0.5">🔥 {cycleInfo.streak} day streak</span>
+                      <span className="text-primary/20">•</span>
+                      <span className="flex items-center gap-0.5 text-milestone font-medium">🔥 {cycleInfo.streak} day streak</span>
                     </>
                   )}
                 </div>
@@ -516,7 +516,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
             
             <div className="flex items-center gap-3 sm:text-right">
               <div className="flex flex-col sm:items-end space-y-0.5">
-                <span className="text-[8px] font-bold text-secondary uppercase tracking-widest">Consistency</span>
+                <span className="text-[8px] font-semibold text-secondary uppercase tracking-widest">Consistency</span>
                 <span className="font-serif text-base text-primary font-normal">{cycleInfo.writingConsistency}% of days written</span>
               </div>
             </div>
@@ -542,13 +542,13 @@ export default function DashboardPage({ user, profile, onSignOut }) {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-[#E0A898]/30 rounded-xl p-4.5 shadow-xs relative overflow-hidden pl-5 text-left"
+                className="bg-white-paper border border-accent/30 rounded-xl p-4.5 shadow-xs relative overflow-hidden pl-5 text-left"
               >
-                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#E0A898]" />
+                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-accent" />
                 
                 <div className="flex justify-between items-start mb-2">
                   <div className="space-y-0.5">
-                    <span className="text-[8px] font-semibold text-[#E0A898] uppercase tracking-widest">Reflection Continuity</span>
+                    <span className="text-[8px] font-semibold text-accent uppercase tracking-widest">Reflection Continuity</span>
                     <h3 className="text-[13.5px] font-semibold text-primary">You have an unanswered reflection from your last entry.</h3>
                   </div>
                   {data?.entries?.[0]?.date && (
@@ -559,13 +559,13 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 </div>
 
                 <div className="space-y-3">
-                  <p className="font-serif italic text-[14px] text-[#E0A898] leading-relaxed">
+                  <p className="font-serif italic text-[14px] text-accent leading-relaxed">
                     "{reflectionToAnswer.closing_question}"
                   </p>
                   
                   {reflectionToAnswer.reflection_text && (
-                    <div className="bg-mint-grey/30 border border-[#1E2A2E]/5 rounded-lg p-2.5 flex items-start gap-2">
-                      <Sparkles size={11} className="text-[#5A4A8A] mt-0.5 shrink-0" />
+                    <div className="bg-accent/6 border border-accent/15 rounded-lg p-2.5 flex items-start gap-2">
+                      <Sparkles size={11} className="text-accent mt-0.5 shrink-0" />
                       <p className="text-[11.5px] text-mid leading-relaxed font-normal">
                         <span className="font-semibold text-primary/80">Context:</span> {reflectionToAnswer.reflection_text.length > 120 ? reflectionToAnswer.reflection_text.substring(0, 120) + '...' : reflectionToAnswer.reflection_text}
                       </p>
@@ -575,7 +575,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                   <div className="flex justify-end pt-1">
                     <button
                       onClick={handleOpenReflectionModal}
-                      className="px-4 py-2 bg-primary text-white hover:bg-[#2A3A3E] text-[11px] font-semibold uppercase tracking-wider rounded transition-all cursor-pointer border-none"
+                      className="px-4 py-2 bg-accent text-white hover:bg-[#654652] text-[11px] font-semibold uppercase tracking-wider rounded transition-all cursor-pointer border-none shadow-xs"
                     >
                       Answer Reflection
                     </button>

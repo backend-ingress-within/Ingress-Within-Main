@@ -247,8 +247,8 @@ export default function InterventionsPage() {
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={`px-3 py-1.5 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer ${selectedCategory === null
-                    ? 'bg-primary text-white font-semibold'
-                    : 'bg-mint-grey/80 text-mid hover:bg-mint-grey hover:text-primary'
+                    ? 'bg-accent text-white font-semibold shadow-xs'
+                    : 'bg-warm-paper text-mid hover:bg-warm-paper/80 hover:text-primary border border-primary/5'
                     }`}
                 >
                   All Categories
@@ -258,10 +258,10 @@ export default function InterventionsPage() {
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
                     className={`px-3 py-1.5 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer ${selectedCategory === cat.id
-                      ? 'bg-primary text-white font-semibold'
+                      ? 'bg-accent text-white font-semibold shadow-xs'
                       : cat.is_crisis
-                        ? 'bg-[#E0A898]/20 text-[#8a3020] hover:bg-[#E0A898]/30 font-semibold'
-                        : 'bg-mint-grey/80 text-mid hover:bg-mint-grey hover:text-primary'
+                        ? 'bg-supporting/25 text-primary hover:bg-supporting/35 font-semibold'
+                        : 'bg-warm-paper text-mid hover:bg-warm-paper/80 hover:text-primary border border-primary/5'
                       }`}
                   >
                     {cat.name || cat.label || cat.id} ({cat.technique_count})

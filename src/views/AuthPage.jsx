@@ -438,7 +438,7 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                   >
                     {/* Phone input wrapper */}
                     <div className="relative">
-                      <div className="flex items-center bg-white border border-primary/10 rounded-md px-4 py-3.5 focus-within:border-secondary/50 focus-within:ring-1 focus-within:ring-secondary/20 transition-all shadow-xs">
+                      <div className="flex items-center bg-white-paper border border-primary/10 rounded-md px-4 py-3.5 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20 transition-all shadow-xs">
                         <span className="font-sans text-[15px] text-primary/45 select-none pr-3 border-r border-primary/10 mr-3">+91</span>
                         <input 
                           type="tel"
@@ -453,7 +453,7 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                       </div>
                       
                       {errorMsg && (
-                        <p className="font-sans text-[13px] text-[#b37361] text-left mt-2 pl-1 leading-relaxed">
+                        <p className="font-sans text-[13px] text-error text-left mt-2 pl-1 leading-relaxed">
                           {errorMsg}
                         </p>
                       )}
@@ -463,7 +463,7 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                     <button 
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-primary hover:bg-[#2A3A3E] text-mint-grey py-3.5 rounded-md font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
+                      className="w-full bg-accent hover:bg-[#654652] text-white py-3.5 rounded-md font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
                     >
                       {isSubmitting ? "Sending..." : "Continue"}
                     </button>
@@ -513,19 +513,19 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                         onPaste={handleOtpPaste}
                         disabled={isSubmitting}
-                        className="w-11 h-14 bg-white border border-primary/10 rounded-md text-center font-sans text-xl font-light text-primary outline-none focus:border-secondary/50 focus:ring-1 focus:ring-secondary/20 transition-all shadow-xs disabled:opacity-50"
+                        className="w-11 h-14 bg-white-paper border border-primary/10 rounded-md text-center font-sans text-xl font-light text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all shadow-xs disabled:opacity-50"
                       />
                     ))}
                   </div>
 
                   {errorMsg && (
-                    <p className="font-sans text-[13px] text-[#b37361] leading-relaxed">
+                    <p className="font-sans text-[13px] text-error leading-relaxed">
                       {errorMsg}
                     </p>
                   )}
 
                   {successMsg && (
-                    <p className="font-sans text-[13px] text-secondary-dark leading-relaxed">
+                    <p className="font-sans text-[13px] text-secondary font-medium leading-relaxed">
                       {successMsg}
                     </p>
                   )}
@@ -542,7 +542,7 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                       <button 
                         onClick={handleResendOtp}
                         disabled={isSubmitting}
-                        className="font-sans text-xs text-accent hover:text-[#d49888] font-semibold tracking-wide bg-transparent border-none p-0 cursor-pointer transition-colors"
+                        className="font-sans text-xs text-accent hover:text-[#654652] font-semibold tracking-wide bg-transparent border-none p-0 cursor-pointer transition-colors"
                       >
                         Resend code
                       </button>

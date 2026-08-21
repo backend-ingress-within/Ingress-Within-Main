@@ -378,8 +378,8 @@ export default function WritePage({ user, profile, onSignOut }) {
               onClick={() => setWriteMode('fresh')}
               className={`px-3.5 py-1 rounded-full border text-[11.5px] font-medium transition-all cursor-pointer ${
                 writeMode === 'fresh' 
-                  ? 'bg-primary text-white border-primary' 
-                  : 'bg-transparent text-mid border-[#1E2A2E]/15 hover:text-primary'
+                  ? 'bg-accent text-white border-accent shadow-xs' 
+                  : 'bg-transparent text-mid border-primary/15 hover:text-primary'
               }`}
             >
               Fresh entry
@@ -388,8 +388,8 @@ export default function WritePage({ user, profile, onSignOut }) {
               onClick={() => setWriteMode('question')}
               className={`px-3.5 py-1 rounded-full border text-[11.5px] font-medium transition-all cursor-pointer ${
                 writeMode === 'question' 
-                  ? 'bg-primary text-white border-primary' 
-                  : 'bg-transparent text-mid border-[#1E2A2E]/15 hover:text-primary'
+                  ? 'bg-accent text-white border-accent shadow-xs' 
+                  : 'bg-transparent text-mid border-primary/15 hover:text-primary'
               }`}
             >
               Open question
@@ -404,7 +404,7 @@ export default function WritePage({ user, profile, onSignOut }) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-[#8DBFB4]/10 border border-[#8DBFB4]/20 text-primary px-4 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2 select-none overflow-hidden"
+                  className="bg-secondary/10 border border-secondary/25 text-primary px-4 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2 select-none overflow-hidden"
                 >
                   <CheckCircle2 size={14} className="text-secondary shrink-0 animate-pulse" />
                   <span>Your last draft has been automatically restored.</span>
@@ -416,12 +416,12 @@ export default function WritePage({ user, profile, onSignOut }) {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-[#E0A898]/40 rounded-xl p-5 shadow-sm space-y-4 relative overflow-hidden text-left"
+                className="bg-white-paper border border-accent/30 rounded-xl p-5 shadow-xs space-y-4 relative overflow-hidden text-left"
               >
-                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#E0A898]" />
+                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-accent" />
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#E0A898]">Continue Your Reflection</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-widest text-accent">Continue Your Reflection</span>
                   <div className="flex items-center gap-1.5 text-[10px] text-mid">
                     <span>From {new Date(data?.entries?.[0]?.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
                   </div>
@@ -436,11 +436,11 @@ export default function WritePage({ user, profile, onSignOut }) {
                     value={reflectionAnswer}
                     onChange={(e) => setReflectionAnswer(e.target.value)}
                     placeholder="Reflect on this question before you write a new entry..."
-                    className="w-full min-h-[110px] border border-[#1E2A2E]/10 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-primary font-sans text-primary placeholder-mid/30 bg-mint-grey/5 resize-y"
+                    className="w-full min-h-[110px] border border-primary/10 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper resize-y"
                   />
                   
                   {reflectionSaveError && (
-                    <p className="text-[11px] text-[#8a3020] font-medium">{reflectionSaveError}</p>
+                    <p className="text-[11px] text-error font-medium">{reflectionSaveError}</p>
                   )}
 
                   <div className="flex items-center justify-between pt-1">
@@ -448,7 +448,7 @@ export default function WritePage({ user, profile, onSignOut }) {
                       {reflectionAutosaveStatus === 'Saving' && (
                         <>
                           <div className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-                          <span className="italic">Autosaving...</span>
+                          <span className="italic text-accent font-semibold">Autosaving...</span>
                         </>
                       )}
                       {reflectionAutosaveStatus === 'Saved' && (
@@ -458,17 +458,14 @@ export default function WritePage({ user, profile, onSignOut }) {
                         </>
                       )}
                       {reflectionAutosaveStatus === 'Error' && (
-                        <>
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                          <span className="text-red-400">Autosave failed</span>
-                        </>
+                        <span className="text-error font-semibold">Save failed</span>
                       )}
                     </div>
 
                     <button
-                      onClick={handleSaveReflection}
+                      onClick={handleSaveReflectionAnswer}
                       disabled={!reflectionAnswer.trim() || isSavingReflection}
-                      className="px-4 py-1.5 bg-primary text-white hover:bg-[#2A3A3E] disabled:bg-primary/25 disabled:cursor-not-allowed text-[11px] font-semibold uppercase tracking-wider rounded transition-all cursor-pointer border-none"
+                      className="px-4 py-1.5 bg-accent text-white hover:bg-[#654652] disabled:bg-accent/25 disabled:cursor-not-allowed text-[11px] font-semibold uppercase tracking-wider rounded transition-all cursor-pointer border-none shadow-xs"
                     >
                       {isSavingReflection ? 'Saving...' : 'Save Reflection'}
                     </button>
@@ -477,27 +474,27 @@ export default function WritePage({ user, profile, onSignOut }) {
               </motion.div>
             )}
 
-            <div className="text-[10px] tracking-wider uppercase text-[#8DBFB4] font-semibold">
+            <div className="text-[10px] tracking-wider uppercase text-secondary font-semibold">
               {getFormattedDate()}
             </div>
 
             {/* Context Blocks based on Mode */}
             {writeMode === 'continue' && (
-              <div className="mb-4 pb-4 border-b border-[#1E2A2E]/5 space-y-1">
-                <div className="text-[9px] tracking-wider uppercase text-[#8DBFB4] font-bold">Yesterday</div>
-                <p className="text-[13.5px] text-[#1E2A2E]/40 italic font-serif leading-relaxed">
+              <div className="mb-4 pb-4 border-b border-primary/5 space-y-1">
+                <div className="text-[9px] tracking-wider uppercase text-secondary font-semibold">Yesterday</div>
+                <p className="text-[13.5px] text-primary/60 italic font-serif leading-relaxed">
                   "{yesterdayEntryText || 'No entry logged yesterday.'}"
                 </p>
-                <div className="text-[10px] text-[#C0D4CE] mt-0.5 font-light">
+                <div className="text-[10px] text-mid/60 mt-0.5 font-light">
                   {yesterdayWordCount} words · {yesterdayDate}
                 </div>
               </div>
             )}
 
             {writeMode === 'question' && (
-              <div className="mb-4 pb-4 border-b border-[#1E2A2E]/5 space-y-1">
-                <div className="text-[9px] tracking-wider uppercase text-[#8DBFB4] font-bold">Still open</div>
-                <p className="text-[13.5px] text-[#4A6A64] italic font-serif leading-relaxed">
+              <div className="mb-4 pb-4 border-b border-primary/5 space-y-1">
+                <div className="text-[9px] tracking-wider uppercase text-accent font-semibold">Still open</div>
+                <p className="text-[13.5px] text-primary/80 italic font-serif leading-relaxed">
                   "{openThreadQuestion}"
                 </p>
               </div>
@@ -508,7 +505,7 @@ export default function WritePage({ user, profile, onSignOut }) {
               value={entryText}
               onChange={(e) => setEntryText(e.target.value)}
               placeholder={placeholders[writeMode]}
-              className="flex-1 w-full text-[17px] leading-loose bg-transparent border-none outline-none resize-none focus:ring-0 focus:outline-none p-0 text-primary placeholder-[#1E2A2E]/25 font-serif min-h-[350px] caret-[#E0A898]"
+              className="flex-1 w-full text-[17px] leading-loose bg-transparent border-none outline-none resize-none focus:ring-0 focus:outline-none p-0 text-primary placeholder-primary/30 font-serif min-h-[350px] caret-[#795663]"
               autoFocus
             />
           </div>

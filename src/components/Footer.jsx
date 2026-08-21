@@ -24,7 +24,7 @@ export default function Footer({ onOpenPolicy }) {
               className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] flex-shrink-0" 
             />
             <div className="footer-logo-name font-serif text-xl font-normal text-white/95 leading-none">
-              ingress <span className="font-semibold text-[#8DBFB4]">within</span>
+              ingress <span className="font-semibold text-accent">within</span>
             </div>
           </div>
           <div className="footer-tagline font-sans text-[10px] font-medium text-white/45 tracking-[0.14em] uppercase">

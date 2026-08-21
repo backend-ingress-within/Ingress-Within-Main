@@ -1,18 +1,43 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors from the source of truth reference designs */
-  --color-primary: #1E2A2E;
-  --color-mint-grey: #ECEFF0;
-  --color-accent: #E0A898;
-  --color-secondary: #8DBFB4;
-  --color-secondary-dark: #2B4E47;
-  --color-supporting: #B8A8D4;
-  --color-white: #FFFFFF;
-  --color-mid: #4A6A64;
-  --color-light-mid: #D8ECEA;
-  --color-on-primary: #ECEFF0;
-  --color-on-surface-variant: #4A6A64;
+  /* Brand Palette (The Source of Truth) */
+  --color-warm-paper: #F6F1EA;
+  --color-white-paper: #FDFBF8;
+  --color-royal-scepter: #795663;
+  --color-royal-scepter-hover: #654652;
+  --color-royal-scepter-active: #533842;
+  --color-dusky-rose: #D9BCAF;
+  --color-thistle: #8AA688;
+  --color-hawthorne: #283D38;
+  --color-blue-noir: #011627;
+  --color-old-brass: #B8964A;
+  --color-fog-blue: #BFCAD7;
+
+  /* Semantic Color Roles */
+  --color-primary: #011627;
+  --color-primary-dark: #283D38;
+  --color-mint-grey: #F6F1EA; /* Maps legacy mint-grey directly to Warm Paper */
+  --color-accent: #795663; /* Royal Scepter as Primary Brand Accent */
+  --color-secondary: #8AA688; /* Thistle for Calm Supporting / Growth */
+  --color-secondary-dark: #283D38; /* Hawthorne */
+  --color-supporting: #D9BCAF; /* Dusky Rose */
+  --color-white: #FDFBF8; /* White Paper */
+  --color-mid: #4F635E; /* Softer Hawthorne Neutral */
+  --color-light-mid: #DCE5E2;
+  --color-milestone: #B8964A; /* Old Brass for Special Moments */
+  --color-on-primary: #F6F1EA;
+  --color-on-surface-variant: #4F635E;
+
+  /* Status Colors */
+  --color-success: #8AA688;
+  --color-success-subtle: #EDF3ED;
+  --color-warning: #B8964A;
+  --color-warning-subtle: #FBF5E8;
+  --color-error: #B34B46;
+  --color-error-subtle: #FDF2F1;
+  --color-info: #BFCAD7;
+  --color-info-subtle: #F1F4F8;
 
   /* Font Families: Instrument Sans (UI) & Lora (Reflective) */
   --font-serif: var(--font-reflective, 'Lora', Georgia, serif);
@@ -39,8 +64,8 @@
 
 @layer base {
   body {
-    background-color: var(--color-mint-grey);
-    color: var(--color-primary);
+    background-color: var(--color-warm-paper, #F6F1EA);
+    color: var(--color-blue-noir, #011627);
     font-family: var(--font-sans);
     font-size: 15px;
     line-height: 1.6;
@@ -67,16 +92,28 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(74, 106, 100, 0.2);
+    background: rgba(40, 61, 56, 0.2);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(74, 106, 100, 0.4);
+    background: rgba(121, 86, 99, 0.4);
   }
 }
 
 :root {
+  --color-warm-paper: #F6F1EA;
+  --color-white-paper: #FDFBF8;
+  --color-royal-scepter: #795663;
+  --color-royal-scepter-hover: #654652;
+  --color-royal-scepter-active: #533842;
+  --color-dusky-rose: #D9BCAF;
+  --color-thistle: #8AA688;
+  --color-hawthorne: #283D38;
+  --color-blue-noir: #011627;
+  --color-old-brass: #B8964A;
+  --color-fog-blue: #BFCAD7;
+
   --font-serif: var(--font-reflective, 'Lora', Georgia, serif);
   --font-sans: var(--font-ui, 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   --font-ui: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

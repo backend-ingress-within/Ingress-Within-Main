@@ -53,7 +53,7 @@ export default function NotFoundPage({ user, profile }) {
           />
           <div className="flex flex-col justify-center text-left">
             <span className="logo-name font-serif text-xl font-normal text-primary tracking-[0.01em] leading-none">
-              ingress <span className="font-semibold text-secondary">within</span>
+              ingress <span className="font-semibold text-accent">within</span>
             </span>
           </div>
         </a>
@@ -70,14 +70,14 @@ export default function NotFoundPage({ user, profile }) {
           className="relative w-full max-w-[240px] h-[80px] flex items-center justify-center"
         >
           {/* Background blurred radial shadow */}
-          <div className="absolute w-[160px] h-[60px] rounded-full bg-secondary/10 blur-xl pointer-events-none" />
+          <div className="absolute w-[160px] h-[60px] rounded-full bg-accent/10 blur-xl pointer-events-none" />
 
           {/* Clean Vector SVG */}
           <svg className="w-full h-full overflow-visible z-20 pointer-events-none" viewBox="0 0 240 80" fill="none">
-            {/* Thread Path 1: Sweeping dashed wave */}
+            {/* Thread Path 1: Sweeping dashed wave (Thistle) */}
             <motion.path
               d="M 20,40 Q 80,15, 120,40 T 220,40"
-              stroke="#8DBFB4"
+              stroke="#8AA688"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeDasharray="4, 4"
@@ -96,10 +96,10 @@ export default function NotFoundPage({ user, profile }) {
               }}
             />
 
-            {/* Thread Path 2: Winding solid wave */}
+            {/* Thread Path 2: Winding solid wave (Royal Scepter) */}
             <motion.path
               d="M 30,55 C 70,30 100,20 120,40 C 140,60 150,60 160,40 C 170,20 190,30 210,55"
-              stroke="#E0A898"
+              stroke="#795663"
               strokeWidth="2"
               strokeLinecap="round"
               animate={{
@@ -122,7 +122,7 @@ export default function NotFoundPage({ user, profile }) {
               cx="120"
               cy="40"
               r="3.5"
-              fill="#E0A898"
+              fill="#795663"
               animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0.9, 0.6] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             />
@@ -166,7 +166,7 @@ export default function NotFoundPage({ user, profile }) {
           {/* Primary Action */}
           <button
             onClick={handleGoBack}
-            className="w-full bg-primary text-mint-grey hover:bg-[#2A3A3E] hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 border-none cursor-pointer shadow-xs flex items-center justify-center gap-2"
+            className="w-full bg-accent text-white hover:bg-[#654652] hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 border-none cursor-pointer shadow-xs flex items-center justify-center gap-2"
           >
             <ArrowLeft size={14} />
             <span>Take me back</span>
@@ -178,16 +178,16 @@ export default function NotFoundPage({ user, profile }) {
               {/* Secondary Action */}
               <button
                 onClick={handleGoDashboard}
-                className="w-full bg-transparent border border-primary/10 text-primary hover:border-primary/25 hover:bg-white/40 px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full bg-transparent border border-primary/10 text-primary hover:border-accent hover:bg-accent/5 px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
               >
-                <Compass size={14} className="text-secondary" />
+                <Compass size={14} className="text-accent" />
                 <span>Go to Dashboard</span>
               </button>
 
               {/* Subtle Auxiliary Option */}
               <button
                 onClick={handleStartFresh}
-                className="mt-2 text-[11px] font-sans font-medium text-accent hover:text-accent/85 hover:underline border-none bg-transparent cursor-pointer py-1"
+                className="mt-2 text-[11px] font-sans font-medium text-accent hover:text-[#654652] hover:underline border-none bg-transparent cursor-pointer py-1"
               >
                 Start fresh with a new entry &rarr;
               </button>

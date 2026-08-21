@@ -11,21 +11,21 @@ export default function DashboardNavbar({ activeTab }) {
     const isActive = activeTab === tab;
     return `text-[12px] font-semibold uppercase tracking-wider pb-0.5 border-b-2 transition-all cursor-pointer ${
       isActive 
-        ? 'text-primary border-secondary font-semibold' 
-        : 'text-mid hover:text-primary border-transparent hover:border-primary/10 font-medium'
+        ? 'text-accent border-accent font-semibold' 
+        : 'text-mid hover:text-primary border-transparent hover:border-accent/30 font-medium'
     }`;
   };
 
   const getMobileTabClass = (tab) => {
     const isActive = activeTab === tab;
     return `flex flex-col items-center justify-center flex-1 py-1 text-[9px] font-bold uppercase tracking-widest transition-all cursor-pointer border-none bg-transparent relative ${
-      isActive ? 'text-primary font-semibold' : 'text-mid/50 hover:text-primary font-medium'
+      isActive ? 'text-accent font-semibold' : 'text-mid/50 hover:text-primary font-medium'
     }`;
   };
 
   return (
     <>
-      <header className="glass-nav border-b border-[#1E2A2E]/5 px-6 py-4 sticky top-0 z-50 bg-[#ECEFF0]/85 backdrop-blur-md">
+      <header className="glass-nav border-b border-primary/5 px-6 py-4 sticky top-0 z-50 bg-warm-paper/85 backdrop-blur-md">
         <div className="max-w-[1140px] mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-semibold text-[15px] cursor-pointer group" onClick={() => window.navigateTo('/dashboard')}>
             <img 
@@ -34,7 +34,7 @@ export default function DashboardNavbar({ activeTab }) {
               className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-105" 
             />
             <span className="tracking-tight font-serif text-[16px] text-primary">
-              ingress <em className="text-secondary font-serif not-italic font-semibold">within</em>
+              ingress <em className="text-accent font-serif not-italic font-semibold">within</em>
             </span>
           </div>
           
@@ -53,8 +53,8 @@ export default function DashboardNavbar({ activeTab }) {
               onClick={() => window.navigateTo('/support')}
               className={`px-3 py-1.5 rounded-lg border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 activeTab === 'support' 
-                  ? 'bg-[#E0A898] border-[#E0A898] text-[#1E2A2E]' 
-                  : 'bg-[#E0A898]/15 border-[#E0A898]/30 text-[#8a3020] hover:bg-[#E0A898]/25'
+                  ? 'bg-accent border-accent text-white' 
+                  : 'bg-supporting/20 border-supporting/40 text-primary hover:bg-supporting/30'
               }`}
             >
               Find Support
@@ -63,8 +63,8 @@ export default function DashboardNavbar({ activeTab }) {
               onClick={() => window.navigateTo('/settings')}
               className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
                 activeTab === 'settings' 
-                  ? 'bg-primary border-primary text-white' 
-                  : 'bg-white border-[#1E2A2E]/10 text-mid hover:border-primary/30'
+                  ? 'bg-accent border-accent text-white' 
+                  : 'bg-white-paper border-primary/10 text-mid hover:border-accent/40'
               }`}
               title="Settings"
             >
@@ -76,41 +76,41 @@ export default function DashboardNavbar({ activeTab }) {
 
       {/* Mobile Bottom Navigation Bar */}
       {!isMobileNavHidden && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#ECEFF0]/90 backdrop-blur-md border-t border-[#1E2A2E]/10 flex items-center justify-around py-1 shadow-[0_-4px_24px_rgba(30,42,46,0.04)] px-2 pb-safe">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-warm-paper/95 backdrop-blur-md border-t border-primary/10 flex items-center justify-around py-1 shadow-[0_-4px_24px_rgba(40,61,56,0.04)] px-2 pb-safe">
           <button onClick={() => window.navigateTo('/dashboard')} className={getMobileTabClass('home')}>
-            <Home size={17} className={activeTab === 'home' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <Home size={17} className={activeTab === 'home' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Home</span>
-            {activeTab === 'home' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'home' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/write')} className={getMobileTabClass('write')}>
-            <PenLine size={17} className={activeTab === 'write' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <PenLine size={17} className={activeTab === 'write' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Write</span>
-            {activeTab === 'write' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'write' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/interventions')} className={getMobileTabClass('interventions')}>
-            <Compass size={17} className={activeTab === 'interventions' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <Compass size={17} className={activeTab === 'interventions' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Practice</span>
-            {activeTab === 'interventions' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'interventions' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/reports')} className={getMobileTabClass('reports')}>
-            <FileText size={17} className={activeTab === 'reports' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <FileText size={17} className={activeTab === 'reports' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Reports</span>
-            {activeTab === 'reports' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'reports' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/patterns')} className={getMobileTabClass('patterns')}>
-            <TrendingUp size={17} className={activeTab === 'patterns' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <TrendingUp size={17} className={activeTab === 'patterns' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Patterns</span>
-            {activeTab === 'patterns' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'patterns' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/knowledge')} className={getMobileTabClass('knowledge')}>
-            <BookOpen size={17} className={activeTab === 'knowledge' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <BookOpen size={17} className={activeTab === 'knowledge' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Knowledge</span>
-            {activeTab === 'knowledge' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'knowledge' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
           <button onClick={() => window.navigateTo('/settings')} className={getMobileTabClass('settings')}>
-            <Settings size={17} className={activeTab === 'settings' ? 'text-secondary mb-0.5' : 'text-mid/50 mb-0.5'} />
+            <Settings size={17} className={activeTab === 'settings' ? 'text-accent mb-0.5' : 'text-mid/50 mb-0.5'} />
             <span>Settings</span>
-            {activeTab === 'settings' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-secondary" />}
+            {activeTab === 'settings' && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-accent" />}
           </button>
         </nav>
       )}

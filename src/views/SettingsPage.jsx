@@ -1348,22 +1348,22 @@ export default function SettingsPage({ user, profile, onSignOut }) {
       {/* CSS Stylesheet Embed (Matches references HTML completely) */}
       <style>{`
         :root {
-          --dark: #1E2A2E;
-          --light: #ECEFF0;
-          --terra: #E0A898;
-          --sage: #8DBFB4;
-          --iris: #B8A8D4;
-          --body-dk: #D8ECEA;
-          --muted-dk: #A8D4CE;
-          --body-lt: #4A6A64;
-          --logo: #2E7A70;
-          --terra-deep: #8A3020;
-          --iris-deep: #4A3A6A;
-          --sage-deep: #1A5040;
-          --border: rgba(30,42,46,0.09);
-          --border-md: rgba(30,42,46,0.15);
-          --bg: #F0F3F2;
-          --surface: #fff;
+          --dark: #011627;
+          --light: #F6F1EA;
+          --terra: #795663;
+          --sage: #8AA688;
+          --iris: #D9BCAF;
+          --body-dk: #011627;
+          --muted-dk: #4F635E;
+          --body-lt: #4F635E;
+          --logo: #283D38;
+          --terra-deep: #533842;
+          --iris-deep: #795663;
+          --sage-deep: #283D38;
+          --border: rgba(40,61,56,0.09);
+          --border-md: rgba(40,61,56,0.15);
+          --bg: #F6F1EA;
+          --surface: #FDFBF8;
           --fs: var(--font-ui, 'Instrument Sans', system-ui, sans-serif);
           --ff: var(--font-reflective, 'Lora', 'Georgia', serif);
         }
@@ -1371,9 +1371,9 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         /* Topbar and layout wrapper */
         .settings-topbar {
           height: 56px;
-          background: rgba(240, 243, 242, 0.96);
+          background: rgba(246, 241, 234, 0.96);
           backdrop-filter: blur(14px);
-          border-bottom: 1px solid rgba(30, 42, 46, 0.09);
+          border-bottom: 1px solid rgba(40, 61, 56, 0.09);
         }
         .settings-layout {
           height: calc(100vh - 56px);
@@ -1387,17 +1387,17 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         .sb-btn.on {
           color: var(--dark);
           font-weight: 600;
-          background: rgba(141, 191, 180, 0.1);
-          border-left-color: var(--sage);
+          background: rgba(121, 86, 99, 0.08);
+          border-left-color: var(--terra);
         }
         .sb-btn.danger {
           color: var(--terra-deep);
         }
         .sb-btn.danger:hover {
-          background: rgba(224, 168, 152, 0.07);
+          background: rgba(121, 86, 99, 0.07);
         }
         .sb-btn.danger.on {
-          background: rgba(224, 168, 152, 0.09);
+          background: rgba(121, 86, 99, 0.09);
           border-left-color: var(--terra);
         }
 

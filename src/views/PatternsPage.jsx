@@ -19,24 +19,24 @@ const legendItems = [
   { label: 'Shifting', color: 'bg-[#8DBFB4]' },
   { label: 'Quiet', color: 'bg-primary/20 border border-primary/20' },
   { label: 'Not present', color: 'bg-primary/5 border border-dashed border-primary/20' },
-  { label: 'New', color: 'bg-[#B8A8D4]' },
-  { label: 'Returned', color: 'bg-[#E0A898]/60' }
+  { label: 'New', color: 'bg-accent/60' },
+  { label: 'Returned', color: 'bg-supporting/80' }
 ];
 
 const getStatusBadge = (status) => {
   switch (status) {
     case 'present':
-      return { text: 'Present', className: 'bg-[#e0a898]/12 text-[#8a3020] border border-[#e0a898]/20' };
+      return { text: 'Present', className: 'bg-accent/12 text-accent border border-accent/25' };
     case 'new':
-      return { text: 'New', className: 'bg-[#B8A8D4]/15 text-[#5A4A8A] border border-[#B8A8D4]/20' };
+      return { text: 'New', className: 'bg-accent/15 text-accent border border-accent/30' };
     case 'shifting':
-      return { text: 'Shifting', className: 'bg-[#8DBFB4]/12 text-[#1A5040] border border-[#8DBFB4]/20' };
+      return { text: 'Shifting', className: 'bg-secondary/15 text-primary border border-secondary/30' };
     case 'quiet':
       return { text: 'Gone quiet', className: 'bg-primary/5 text-mid border border-primary/10' };
     case 'returned':
-      return { text: 'Returned', className: 'bg-[#e0a898]/30 text-[#8a3020] border border-[#e0a898]/40' };
+      return { text: 'Returned', className: 'bg-supporting/25 text-primary border border-supporting/40' };
     default:
-      return { text: 'Present', className: 'bg-[#e0a898]/12 text-[#8a3020] border border-[#e0a898]/20' };
+      return { text: 'Present', className: 'bg-accent/12 text-accent border border-accent/25' };
   }
 };
 

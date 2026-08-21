@@ -1036,16 +1036,16 @@ export default function ReportsPage({ user, profile, onSignOut }) {
           <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
           <style>
             :root {
-              --navy: #1c2733;
-              --sage: #9db9a8;
-              --sage-dark: #6b8b78;
-              --bg: #fbfaf8;
-              --border: #e7e3da;
-              --terracotta-bg: #f2dccb;
-              --terracotta-text: #9c5a2e;
-              --ink: #22262b;
-              --muted: #767c72;
-              --cream: #f4efe4;
+              --navy: #011627;
+              --sage: #8AA688;
+              --sage-dark: #283D38;
+              --bg: #F6F1EA;
+              --border: rgba(40, 61, 56, 0.12);
+              --terracotta-bg: rgba(121, 86, 99, 0.08);
+              --terracotta-text: #795663;
+              --ink: #011627;
+              --muted: #4F635E;
+              --cream: #FDFBF8;
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; background: #fff; padding: 40px; color: var(--ink); }

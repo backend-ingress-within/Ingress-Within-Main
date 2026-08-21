@@ -17,12 +17,12 @@ export const ReflectionModal = React.memo(({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-[#1E2A2E]/40 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-[#011627]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-xl max-w-[560px] w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left"
+          className="bg-white-paper border border-primary/10 rounded-xl max-w-[560px] w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto text-left shadow-xl"
         >
           <button 
             onClick={onClose}
@@ -33,26 +33,26 @@ export const ReflectionModal = React.memo(({
 
           <div className="space-y-4">
             <div>
-              <div className="text-[10px] uppercase font-semibold tracking-widest text-[#E0A898] mb-1">Continue Your Reflection</div>
+              <div className="text-[10px] uppercase font-semibold tracking-widest text-accent mb-1">Continue Your Reflection</div>
               <h3 className="font-serif italic text-lg text-primary leading-relaxed">
                 "{reflectionToAnswer.closing_question}"
               </h3>
             </div>
 
             {reflectionToAnswer.reflection_text && (
-              <div className="bg-mint-grey rounded-lg p-4 space-y-1.5 text-xs text-mid leading-relaxed">
-                <div className="font-semibold uppercase tracking-widest text-secondary text-[9px]">AI Observation</div>
+              <div className="bg-accent/8 border border-accent/15 rounded-lg p-4 space-y-1.5 text-xs text-mid leading-relaxed">
+                <div className="font-semibold uppercase tracking-widest text-accent text-[9px]">AI Observation</div>
                 <p className="font-serif italic text-[13.5px] text-primary/90 leading-relaxed">"{reflectionToAnswer.reflection_text}"</p>
               </div>
             )}
 
             {entryText && (
-              <details className="group border border-[#1E2A2E]/10 rounded-lg bg-mint-grey/20 p-3.5 transition-all text-xs">
+              <details className="group border border-primary/10 rounded-lg bg-warm-paper/50 p-3.5 transition-all text-xs">
                 <summary className="flex items-center justify-between font-semibold uppercase tracking-widest text-secondary text-[9px] cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
                   <span>Re-read your writing</span>
                   <span className="text-mid/60 group-open:rotate-180 transition-transform duration-200">▼</span>
                 </summary>
-                <div className="mt-2.5 max-h-[160px] overflow-y-auto whitespace-pre-wrap italic font-serif text-primary leading-relaxed border-t border-[#1E2A2E]/5 pt-2.5 pr-2 custom-scrollbar">
+                <div className="mt-2.5 max-h-[160px] overflow-y-auto whitespace-pre-wrap italic font-serif text-primary leading-relaxed border-t border-primary/5 pt-2.5 pr-2 custom-scrollbar">
                   "{entryText}"
                 </div>
               </details>
@@ -64,12 +64,12 @@ export const ReflectionModal = React.memo(({
                 value={reflectionAnswerText}
                 onChange={(e) => setReflectionAnswerText(e.target.value)}
                 placeholder="Write what is actually there — no structure, no editing."
-                className="w-full min-h-[140px] border border-[#1E2A2E]/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-primary font-sans text-primary placeholder-mid/30"
+                className="w-full min-h-[140px] border border-primary/15 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder-mid/40 bg-white-paper"
               />
               {error && (
-                <div className="text-[11px] text-[#8a3020] font-medium">{error}</div>
+                <div className="text-[11px] text-error font-medium">{error}</div>
               )}
-              <div className="text-[10px] text-mid italic">
+              <div className="text-[10px] text-mid/70 italic">
                 Your response is saved securely and supports your self-reflection journey.
               </div>
             </div>
@@ -78,13 +78,13 @@ export const ReflectionModal = React.memo(({
               <button 
                 onClick={onSave}
                 disabled={!reflectionAnswerText.trim() || isSaving}
-                className="flex-1 py-2.5 bg-primary text-white hover:bg-[#2A3A3E] disabled:bg-primary/25 disabled:cursor-not-allowed rounded text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer border-none"
+                className="flex-1 py-2.5 bg-accent text-white hover:bg-[#654652] disabled:bg-accent/25 disabled:cursor-not-allowed rounded text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer border-none shadow-xs"
               >
                 {isSaving ? 'Saving...' : 'Save Reflection'}
               </button>
               <button 
                 onClick={onClose}
-                className="px-4 py-2.5 border border-[#1E2A2E]/15 rounded text-xs font-semibold text-mid hover:bg-mint-grey transition-colors cursor-pointer bg-white"
+                className="px-4 py-2.5 border border-primary/15 rounded text-xs font-semibold text-mid hover:bg-warm-paper transition-colors cursor-pointer bg-white-paper"
               >
                 Cancel
               </button>

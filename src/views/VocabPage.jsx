@@ -337,17 +337,17 @@ export default function VocabPage({ user, profile, onSignOut }) {
                 </div>
 
                 {/* Shift Signal */}
-                <div className="bg-[#B8A8D4]/5 border border-[#B8A8D4]/15 rounded-xl p-4.5 mb-4.5">
+                <div className="bg-accent/6 border border-accent/15 rounded-xl p-4.5 mb-4.5">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="text-[10px] font-bold tracking-wider uppercase text-[#7A6A9E]">
+                    <div className="text-[10px] font-semibold tracking-wider uppercase text-accent">
                       How your vocabulary has shifted
                     </div>
                     {hasShiftSignals && (
-                      <div className="flex gap-1 bg-white/60 rounded-lg p-0.5 border border-[#B8A8D4]/10">
+                      <div className="flex gap-1 bg-white-paper rounded-lg p-0.5 border border-primary/10">
                         <button 
                           onClick={() => setSsScope('last')}
                           className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md transition-colors border-none cursor-pointer ${
-                            ssScope === 'last' ? 'bg-[#5A4A8A] text-white shadow-xs' : 'text-[#7A6A9E] bg-transparent hover:bg-[#7A6A9E]/10'
+                            ssScope === 'last' ? 'bg-accent text-white shadow-xs' : 'text-accent bg-transparent hover:bg-accent/10'
                           }`}
                         >
                           Last cycle
@@ -356,7 +356,7 @@ export default function VocabPage({ user, profile, onSignOut }) {
                           <button 
                             onClick={() => setSsScope('six')}
                             className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md transition-colors border-none cursor-pointer ${
-                              ssScope === 'six' ? 'bg-[#5A4A8A] text-white shadow-xs' : 'text-[#7A6A9E] bg-transparent hover:bg-[#7A6A9E]/10'
+                              ssScope === 'six' ? 'bg-accent text-white shadow-xs' : 'text-accent bg-transparent hover:bg-accent/10'
                             }`}
                           >
                             Last 6 cycles
@@ -365,7 +365,7 @@ export default function VocabPage({ user, profile, onSignOut }) {
                         <button 
                           onClick={() => setSsScope('all')}
                           className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md transition-colors border-none cursor-pointer ${
-                            ssScope === 'all' ? 'bg-[#5A4A8A] text-white shadow-xs' : 'text-[#7A6A9E] bg-transparent hover:bg-[#7A6A9E]/10'
+                            ssScope === 'all' ? 'bg-accent text-white shadow-xs' : 'text-accent bg-transparent hover:bg-accent/10'
                           }`}
                         >
                           Since Cycle 1

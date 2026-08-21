@@ -101,7 +101,7 @@ export default function LandingPage({ onOpenPolicy }) {
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-5">
             <a
               href="#auth"
-              className="bg-primary text-mint-grey hover:bg-[#2A3A3E] hover:translate-y-[-2px] px-8 py-4 rounded font-sans text-sm font-medium tracking-[0.04em] transition-all duration-200 no-underline shadow-sm"
+              className="bg-accent text-white hover:bg-[#654652] hover:translate-y-[-2px] px-8 py-4 rounded font-sans text-sm font-medium tracking-[0.04em] transition-all duration-200 no-underline shadow-sm"
             >
               Start writing free
             </a>
@@ -138,7 +138,7 @@ export default function LandingPage({ onOpenPolicy }) {
                 <span>{typedText}</span>
                 <span className="inline-block w-[2px] h-[18px] bg-accent animate-[blink_1.1s_infinite] ml-[2px] align-middle" />
               </div>
-              <button className="w-full bg-accent text-primary border-none rounded-md py-3 font-sans text-[13px] lg:text-sm font-medium tracking-[0.04em] cursor-default transition-opacity opacity-90">
+              <button className="w-full bg-accent text-white border-none rounded-md py-3 font-sans text-[13px] lg:text-sm font-medium tracking-[0.04em] cursor-default transition-opacity shadow-xs">
                 Reflect &rarr;
               </button>
 
