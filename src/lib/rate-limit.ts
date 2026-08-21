@@ -1,4 +1,5 @@
 import { supabase } from './db';
+import { redisService } from './redis';
 
 interface RateLimitResult {
   allowed: boolean;
@@ -12,41 +13,27 @@ interface RateLimitResult {
  * Otherwise, runs database check restricting phone numbers to max 3 OTP sends per 15 minutes.
  */
 export async function checkRateLimit(phoneNumber: string, ipAddress: string): Promise<RateLimitResult> {
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const key = `rl:ip:${ipAddress.replace(/[:.]/g, '_')}`;
 
-  // 1. Try Upstash Redis Edge rate limiting if variables are present
-  if (upstashUrl && upstashToken) {
+  // 1. Try Upstash Redis Edge rate limiting if variables are present and service is available
+  if (redisService.checkAvailability()) {
     try {
-      const cleanUrl = upstashUrl.replace(/^https?:\/\//, '');
-      const key = `rl:ip:${ipAddress.replace(/[:.]/g, '_')}`;
+      const script = `
+        local current = redis.call('get', KEYS[1])
+        if current and tonumber(current) >= tonumber(ARGV[1]) then
+          return tonumber(current)
+        end
+        local newVal = redis.call('incr', KEYS[1])
+        if newVal == 1 then
+          redis.call('expire', KEYS[1], tonumber(ARGV[2]))
+        end
+        return newVal
+      `;
       
-      const response = await fetch(`https://${cleanUrl}/eval`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          script: `
-            local current = redis.call('get', KEYS[1])
-            if current and tonumber(current) >= tonumber(ARGV[1]) then
-              return tonumber(current)
-            end
-            local newVal = redis.call('incr', KEYS[1])
-            if newVal == 1 then
-              redis.call('expire', KEYS[1], tonumber(ARGV[2]))
-            end
-            return newVal
-          `,
-          keys: [key],
-          args: ['60', '60'] // limit: 60 requests per 60 seconds
-        })
-      });
-
-      const data = await response.json() as any;
-      if (response.ok && data.result !== undefined) {
-        const count = Number(data.result);
+      const result = await redisService.eval(script, [key], ['60', '60']);
+      
+      if (result !== null) {
+        const count = Number(result);
         return {
           allowed: count <= 60,
           count,
