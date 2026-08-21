@@ -6,12 +6,25 @@ export default function NotFoundPage({ user, profile }) {
   const isAuthenticated = !!user;
 
   const handleGoBack = () => {
-    // Attempt to go back, fallback to dashboard/home if no history exists
     if (typeof window !== 'undefined') {
-      if (window.history.length > 1) {
-        window.history.back();
+      if (!isAuthenticated) {
+        // Unauthenticated users are taken directly to the landing page home route
+        if (window.navigateTo) {
+          window.navigateTo('/');
+        } else {
+          window.location.pathname = '/';
+        }
       } else {
-        window.navigateTo(isAuthenticated ? '/dashboard' : '/');
+        // Authenticated users attempt to go back, fallback to dashboard
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          if (window.navigateTo) {
+            window.navigateTo('/dashboard');
+          } else {
+            window.location.pathname = '/dashboard';
+          }
+        }
       }
     }
   };
@@ -149,7 +162,7 @@ export default function NotFoundPage({ user, profile }) {
           </p>
         </div>
 
-        {/* Action CTAs */}
+         {/* Action CTAs */}
         <div className="w-full max-w-[360px] mx-auto flex flex-col items-center gap-4 pt-4 px-4">
           {/* Primary Action */}
           <button
@@ -160,23 +173,26 @@ export default function NotFoundPage({ user, profile }) {
             <span>Take me back</span>
           </button>
 
-          {/* Secondary Action */}
-          <button
-            onClick={handleGoDashboard}
-            className="w-full bg-transparent border border-primary/10 text-primary hover:border-primary/25 hover:bg-white/40 px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Compass size={14} className="text-secondary" />
-            <span>{isAuthenticated ? 'Go to Dashboard' : 'Go to Sign In'}</span>
-          </button>
-
-          {/* Subtle Auxiliary Option */}
+          {/* Secondary and Tertiary Actions - Only render if user is authenticated */}
           {isAuthenticated && (
-            <button
-              onClick={handleStartFresh}
-              className="mt-2 text-[11px] font-sans font-medium text-accent hover:text-accent/85 hover:underline border-none bg-transparent cursor-pointer py-1"
-            >
-              Start fresh with a new entry &rarr;
-            </button>
+            <>
+              {/* Secondary Action */}
+              <button
+                onClick={handleGoDashboard}
+                className="w-full bg-transparent border border-primary/10 text-primary hover:border-primary/25 hover:bg-white/40 px-8 py-3.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Compass size={14} className="text-secondary" />
+                <span>Go to Dashboard</span>
+              </button>
+
+              {/* Subtle Auxiliary Option */}
+              <button
+                onClick={handleStartFresh}
+                className="mt-2 text-[11px] font-sans font-medium text-accent hover:text-accent/85 hover:underline border-none bg-transparent cursor-pointer py-1"
+              >
+                Start fresh with a new entry &rarr;
+              </button>
+            </>
           )}
         </div>
 
