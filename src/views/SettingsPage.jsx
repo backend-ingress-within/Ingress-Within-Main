@@ -1364,8 +1364,8 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           --border-md: rgba(30,42,46,0.15);
           --bg: #F0F3F2;
           --surface: #fff;
-          --fs: 'Instrument Sans', system-ui, sans-serif;
-          --ff: 'Lora', 'Georgia', serif;
+          --fs: var(--font-ui, 'Instrument Sans', system-ui, sans-serif);
+          --ff: var(--font-reflective, 'Lora', 'Georgia', serif);
         }
 
         /* Topbar and layout wrapper */

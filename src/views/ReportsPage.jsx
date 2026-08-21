@@ -1033,7 +1033,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
           <title>Ingress Within - Report</title>
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
           <style>
             :root {
               --navy: #1c2733;
@@ -2793,23 +2793,23 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                                         </defs>
                                         {/* Step 1 Rect */}
                                         <rect x="4" y="4" width="68" height="34" rx="8" fill={pat.tagClass === 'tag-red' ? 'rgba(224,168,152,0.15)' : pat.tagClass === 'tag-purple' ? 'rgba(184,168,212,0.15)' : 'rgba(141,191,180,0.15)'} stroke={pat.tagClass === 'tag-red' ? '#E0A898' : pat.tagClass === 'tag-purple' ? '#B8A8D4' : '#8DBFB4'} strokeWidth="1.5" />
-                                        <text x="38" y="19" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[0]?.title)} fontWeight="700" fill={pat.tagClass === 'tag-red' ? '#C27A68' : pat.tagClass === 'tag-purple' ? '#7B6B9A' : '#4A7F78'} fontFamily="DM Sans,sans-serif">{pat.loopNodes[0]?.title || 'Happens'}</text>
-                                        <text x="38" y="32" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[0]?.sub)} fill={pat.tagClass === 'tag-red' ? '#C27A68' : pat.tagClass === 'tag-purple' ? '#7B6B9A' : '#4A7F78'} fontFamily="DM Sans,sans-serif" opacity="0.8">{pat.loopNodes[0]?.sub || ''}</text>
+                                        <text x="38" y="19" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[0]?.title)} fontWeight="700" fill={pat.tagClass === 'tag-red' ? '#C27A68' : pat.tagClass === 'tag-purple' ? '#7B6B9A' : '#4A7F78'} fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[0]?.title || 'Happens'}</text>
+                                        <text x="38" y="32" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[0]?.sub)} fill={pat.tagClass === 'tag-red' ? '#C27A68' : pat.tagClass === 'tag-purple' ? '#7B6B9A' : '#4A7F78'} fontFamily="var(--font-ui), 'Instrument Sans', sans-serif" opacity="0.8">{pat.loopNodes[0]?.sub || ''}</text>
 
                                         {/* Step 2 Rect */}
                                         <rect x="88" y="4" width="68" height="34" rx="8" fill="var(--bg-secondary)" stroke="var(--border-tertiary)" strokeWidth="1" />
-                                        <text x="122" y="19" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[1]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[1]?.title || 'Notice'}</text>
-                                        <text x="122" y="32" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[1]?.sub)} fill="var(--text-secondary)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[1]?.sub || ''}</text>
+                                        <text x="122" y="19" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[1]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[1]?.title || 'Notice'}</text>
+                                        <text x="122" y="32" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[1]?.sub)} fill="var(--text-secondary)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[1]?.sub || ''}</text>
 
                                         {/* Step 3 Rect */}
                                         <rect x="88" y="142" width="68" height="34" rx="8" fill="var(--bg-secondary)" stroke="var(--border-tertiary)" strokeWidth="1" />
-                                        <text x="122" y="157" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[2]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[2]?.title || 'Dismiss'}</text>
-                                        <text x="122" y="170" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[2]?.sub)} fill="var(--text-secondary)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[2]?.sub || ''}</text>
+                                        <text x="122" y="157" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[2]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[2]?.title || 'Dismiss'}</text>
+                                        <text x="122" y="170" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[2]?.sub)} fill="var(--text-secondary)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[2]?.sub || ''}</text>
 
                                         {/* Step 4 Rect */}
                                         <rect x="4" y="142" width="68" height="34" rx="8" fill="var(--bg-secondary)" stroke="var(--border-tertiary)" strokeWidth="1" />
-                                        <text x="38" y="157" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[3]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[3]?.title || 'Say okay'}</text>
-                                        <text x="38" y="170" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[3]?.sub)} fill="var(--text-secondary)" fontFamily="DM Sans,sans-serif">{pat.loopNodes[3]?.sub || ''}</text>
+                                        <text x="38" y="157" textAnchor="middle" fontSize={getFontSize(pat.loopNodes[3]?.title)} fontWeight="600" fill="var(--teal-black)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[3]?.title || 'Say okay'}</text>
+                                        <text x="38" y="170" textAnchor="middle" fontSize={getSubFontSize(pat.loopNodes[3]?.sub)} fill="var(--text-secondary)" fontFamily="var(--font-ui), 'Instrument Sans', sans-serif">{pat.loopNodes[3]?.sub || ''}</text>
 
                                         {/* Edges */}
                                         <path d="M72,21 L88,21" fill="none" stroke={pat.tagClass === 'tag-red' ? '#E0A898' : pat.tagClass === 'tag-purple' ? '#B8A8D4' : '#8DBFB4'} strokeWidth="1.5" strokeOpacity="0.7" markerEnd={`url(#a-marker-${pIdx})`} />

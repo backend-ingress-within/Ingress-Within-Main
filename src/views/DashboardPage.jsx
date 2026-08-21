@@ -548,8 +548,8 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 
                 <div className="flex justify-between items-start mb-2">
                   <div className="space-y-0.5">
-                    <span className="text-[8px] font-bold text-[#E0A898] uppercase tracking-widest">Reflection Continuity</span>
-                    <h3 className="text-[13.5px] font-bold text-primary">You have an unanswered reflection from your last entry.</h3>
+                    <span className="text-[8px] font-semibold text-[#E0A898] uppercase tracking-widest">Reflection Continuity</span>
+                    <h3 className="text-[13.5px] font-semibold text-primary">You have an unanswered reflection from your last entry.</h3>
                   </div>
                   {data?.entries?.[0]?.date && (
                     <span className="text-[9.5px] text-mid/60 lowercase">
@@ -559,7 +559,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 </div>
 
                 <div className="space-y-3">
-                  <p className="font-serif italic text-[13px] text-[#E0A898] leading-relaxed">
+                  <p className="font-serif italic text-[14px] text-[#E0A898] leading-relaxed">
                     "{reflectionToAnswer.closing_question}"
                   </p>
                   

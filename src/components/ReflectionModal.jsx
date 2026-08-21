@@ -33,22 +33,22 @@ export const ReflectionModal = React.memo(({
 
           <div className="space-y-4">
             <div>
-              <div className="text-[10px] uppercase font-bold tracking-widest text-[#E0A898] mb-1">Continue Your Reflection</div>
+              <div className="text-[10px] uppercase font-semibold tracking-widest text-[#E0A898] mb-1">Continue Your Reflection</div>
               <h3 className="font-serif italic text-lg text-primary leading-relaxed">
                 "{reflectionToAnswer.closing_question}"
               </h3>
             </div>
 
             {reflectionToAnswer.reflection_text && (
-              <div className="bg-mint-grey rounded-lg p-4 space-y-1 text-xs text-mid leading-relaxed">
-                <div className="font-bold uppercase tracking-widest text-secondary text-[9px]">AI Observation</div>
-                <p>"{reflectionToAnswer.reflection_text}"</p>
+              <div className="bg-mint-grey rounded-lg p-4 space-y-1.5 text-xs text-mid leading-relaxed">
+                <div className="font-semibold uppercase tracking-widest text-secondary text-[9px]">AI Observation</div>
+                <p className="font-serif italic text-[13.5px] text-primary/90 leading-relaxed">"{reflectionToAnswer.reflection_text}"</p>
               </div>
             )}
 
             {entryText && (
               <details className="group border border-[#1E2A2E]/10 rounded-lg bg-mint-grey/20 p-3.5 transition-all text-xs">
-                <summary className="flex items-center justify-between font-bold uppercase tracking-widest text-secondary text-[9px] cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+                <summary className="flex items-center justify-between font-semibold uppercase tracking-widest text-secondary text-[9px] cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
                   <span>Re-read your writing</span>
                   <span className="text-mid/60 group-open:rotate-180 transition-transform duration-200">▼</span>
                 </summary>
@@ -59,7 +59,7 @@ export const ReflectionModal = React.memo(({
             )}
 
             <div className="space-y-2">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-secondary">Your Answer</label>
+              <label className="text-[11px] font-semibold uppercase tracking-widest text-secondary">Your Answer</label>
               <textarea 
                 value={reflectionAnswerText}
                 onChange={(e) => setReflectionAnswerText(e.target.value)}

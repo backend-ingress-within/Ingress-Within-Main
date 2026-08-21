@@ -21,8 +21,8 @@
   --page-bg:#f4f6f5;
   --border-teal:rgba(30,42,46,0.10);
   --border-teal-strong:rgba(30,42,46,0.22);
-  --font-sans:'Instrument Sans',system-ui,sans-serif;
-  --font-serif:'Lora','Georgia',serif;
+  --font-sans:var(--font-ui, 'Instrument Sans', system-ui, sans-serif);
+  --font-serif:var(--font-reflective, 'Lora', 'Georgia', serif);
   --ease:0.15s ease;
 
   max-width:680px;
