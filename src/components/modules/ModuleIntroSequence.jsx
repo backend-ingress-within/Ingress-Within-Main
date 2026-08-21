@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowLeft, ArrowRight, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
 
 export default function ModuleIntroSequence({ content, step, onNextStep, onPrevStep }) {
   const screens = content?.introScreens || [];
@@ -18,38 +19,40 @@ export default function ModuleIntroSequence({ content, step, onNextStep, onPrevS
       <div className="flex items-center justify-between gap-3 pb-2">
         <button
           onClick={onPrevStep}
-          className="text-xs text-[#C9C2AE] hover:text-[#F5EFE3] flex items-center gap-1"
+          className="text-xs font-semibold text-mid hover:text-accent flex items-center gap-1.5 transition-colors cursor-pointer"
         >
-          ← {safeStep === 0 ? 'Back to Overview' : 'Previous'}
+          <ArrowLeft size={13} />
+          <span>{safeStep === 0 ? 'Back to Overview' : 'Previous'}</span>
         </button>
         <div className="flex gap-1.5 flex-1 max-w-[200px]">
           {screens.map((_, idx) => (
             <span
               key={idx}
-              className={`h-1 flex-1 rounded-full transition-all ${
-                idx === safeStep ? 'bg-[#E8A33D]' : idx < safeStep ? 'bg-[#C9C2AE]' : 'bg-[#F5EFE3]/20'
+              className={`h-1.5 flex-1 rounded-full transition-all ${
+                idx === safeStep ? 'bg-accent' : idx < safeStep ? 'bg-secondary' : 'bg-primary/10'
               }`}
             />
           ))}
         </div>
-        <span className="text-xs font-mono text-[#C9C2AE]">
+        <span className="text-xs font-mono text-mid font-medium">
           {safeStep + 1}/{screens.length}
         </span>
       </div>
 
       {/* Main Screen Card */}
-      <div className="bg-gradient-to-b from-[#2A3358] to-[#3D4770] border border-[#F5EFE3]/15 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="text-[11.5px] uppercase tracking-widest text-[#F2C776] font-semibold">
-          {currentScreen.eyebrow}
+      <div className="bg-white-paper border border-primary/10 rounded-2xl p-6 sm:p-8 space-y-5 shadow-xs">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-accent font-bold">
+          <Sparkles size={13} />
+          <span>{currentScreen.eyebrow}</span>
         </div>
-        <h2 className="font-serif text-2xl font-semibold text-[#F5EFE3]">
+        <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-primary leading-tight">
           {currentScreen.title}
         </h2>
 
         {/* Screen Paragraphs */}
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {bodyParagraphs.map((p, idx) => (
-            <p key={idx} className="text-sm text-[#C9C2AE] leading-relaxed">
+            <p key={idx} className="text-sm sm:text-[15px] text-mid leading-relaxed font-serif">
               {p}
             </p>
           ))}
@@ -57,38 +60,40 @@ export default function ModuleIntroSequence({ content, step, onNextStep, onPrevS
 
         {/* Theory Grounding Custom Listing */}
         {currentScreen.theory && (
-          <div className="space-y-4 pt-4 border-t border-[#F5EFE3]/15 mt-4">
-            <h3 className="font-serif text-lg text-[#F2C776] font-semibold">
+          <div className="space-y-4 pt-5 border-t border-primary/10 mt-5">
+            <h3 className="font-serif text-lg text-primary font-semibold">
               Techniques Grounding by Mechanism
             </h3>
             {mechanisms.map(m => (
-              <div key={m.key} className="bg-[#1B2340] border border-[#F5EFE3]/10 rounded-xl p-4 space-y-3">
-                <div className="font-semibold text-sm text-[#F5EFE3]">
+              <div key={m.key} className="bg-warm-paper border border-primary/10 rounded-xl p-4 sm:p-5 space-y-3">
+                <div className="font-semibold text-sm text-primary">
                   Mechanism {m.key}: {m.name}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {m.techniques.map(t => (
-                    <div key={t.code} className="bg-[#2A3358]/80 rounded-lg p-3 text-xs space-y-1.5 border border-[#F5EFE3]/10">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[#F2C776] font-bold">{t.code}</span>
-                        <span className="font-semibold text-[#F5EFE3]">{t.name}</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                          t.format === 'C' ? 'bg-purple-900/60 text-purple-200 border border-purple-400/40' :
-                          t.format === 'B' ? 'bg-amber-900/60 text-amber-200 border border-amber-400/40' :
-                          'bg-[#7A9471]/30 text-[#7A9471] border border-[#7A9471]/40'
+                    <div key={t.code} className="bg-white-paper rounded-xl p-3.5 sm:p-4 text-xs space-y-2 border border-primary/10 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-accent font-bold">{t.code}</span>
+                          <span className="font-semibold text-primary">{t.name}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${
+                          t.format === 'C' ? 'bg-accent/10 text-accent border border-accent/25' :
+                          t.format === 'B' ? 'bg-secondary/20 text-primary border border-secondary/40' :
+                          'bg-warm-paper text-primary border border-primary/15'
                         }`}>
                           Format {t.format} {t.format === 'C' ? '(Reference-Only)' : t.format === 'B' ? '(Guided)' : '(Interactive)'}
                         </span>
                       </div>
-                      <p className="text-[#C9C2AE]">{t.what}</p>
+                      <p className="text-mid leading-relaxed">{t.what}</p>
 
                       {/* Format C Therapist Note */}
                       {t.format === 'C' && t.professionalNote && (
-                        <div className="mt-2 p-2.5 bg-purple-950/60 border border-purple-400/30 rounded text-[11px] text-purple-200 space-y-1">
-                          <span className="font-semibold uppercase tracking-wider text-[10px] text-purple-300 block">
+                        <div className="mt-2.5 p-3 bg-warm-paper border border-accent/20 rounded-lg text-xs text-primary/90 space-y-1">
+                          <span className="font-semibold uppercase tracking-wider text-[10px] text-accent block">
                             Therapist & Reference Note:
                           </span>
-                          {t.professionalNote}
+                          <p className="leading-relaxed text-mid">{t.professionalNote}</p>
                         </div>
                       )}
                     </div>
@@ -101,10 +106,8 @@ export default function ModuleIntroSequence({ content, step, onNextStep, onPrevS
 
         {/* Consent Checkbox / Info */}
         {currentScreen.consent && (
-          <div className="p-3.5 bg-[#1B2340]/80 border border-[#7A9471]/40 rounded-xl text-xs text-[#7A9471] flex items-center gap-2">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="p-4 bg-warm-paper border border-secondary/30 rounded-xl text-xs text-primary flex items-center gap-2.5">
+            <ShieldCheck size={16} className="text-primary shrink-0" />
             <span>Your journal entries are encrypted and accessible only to you and your practitioner.</span>
           </div>
         )}
@@ -114,9 +117,10 @@ export default function ModuleIntroSequence({ content, step, onNextStep, onPrevS
           <div className="pt-2">
             <button
               onClick={() => alert("Crisis Helplines:\nTeleMANAS: 14416 / 1800 891 4416\nKIRAN: 1800-599-0019\nVandrevala Foundation: +91 9999 666 555")}
-              className="w-full py-2.5 px-4 bg-red-950/40 border border-red-500/40 hover:bg-red-900/40 text-red-200 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-error-subtle border border-error/30 hover:bg-error/15 text-error text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
-              Emergency Helpline Support Resources (KIRAN / TeleMANAS)
+              <ShieldAlert size={14} />
+              <span>Emergency Helpline Support Resources (KIRAN / TeleMANAS)</span>
             </button>
           </div>
         )}
@@ -127,16 +131,17 @@ export default function ModuleIntroSequence({ content, step, onNextStep, onPrevS
         {step > 0 && (
           <button
             onClick={onPrevStep}
-            className="flex-1 py-3 px-4 bg-transparent border border-[#F5EFE3]/25 hover:bg-[#F5EFE3]/10 text-[#F5EFE3] font-semibold rounded-xl text-sm transition-all"
+            className="flex-1 py-3.5 px-4 bg-white-paper border border-primary/15 hover:border-accent hover:bg-accent/5 text-primary font-semibold rounded-xl text-sm transition-all cursor-pointer shadow-xs"
           >
             Previous
           </button>
         )}
         <button
           onClick={onNextStep}
-          className="flex-1 py-3 px-4 bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340] font-semibold rounded-xl text-sm transition-all shadow-md"
+          className="flex-1 py-3.5 px-4 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white font-semibold rounded-xl text-sm transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
         >
-          {currentScreen.cta || (safeStep === screens.length - 1 ? 'Proceed' : 'Continue')} →
+          <span>{currentScreen.cta || (safeStep === screens.length - 1 ? 'Proceed' : 'Continue')}</span>
+          <ArrowRight size={14} />
         </button>
       </div>
     </div>

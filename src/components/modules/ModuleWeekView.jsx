@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, Brain, Check, Sparkles } from 'lucide-react';
 
 export default function ModuleWeekView({ content, weekIdx, playerState, onBackToWeekList, onSelectTouch, onOpenMhpiWeekly }) {
   const weeks = content?.weeks || [];
@@ -18,44 +19,47 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
   return (
     <div className="space-y-6">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#F5EFE3]/15">
+      <div className="flex items-center justify-between gap-3 pb-3 border-b border-primary/10 flex-wrap">
         <div>
           <button
             onClick={onBackToWeekList}
-            className="text-xs text-[#C9C2AE] hover:text-[#F5EFE3] flex items-center gap-1 mb-1"
+            className="text-xs font-semibold text-mid hover:text-accent flex items-center gap-1.5 transition-colors cursor-pointer mb-1"
           >
-            ← Program Roadmap
+            <ArrowLeft size={13} />
+            <span>Program Roadmap</span>
           </button>
-          <h1 className="font-serif text-2xl font-semibold text-[#F5EFE3]">
+          <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-primary">
             Week {week.num}: {week.title}
           </h1>
         </div>
-        <span className="text-xs font-mono text-[#F2C776] bg-[#1B2340] border border-[#F5EFE3]/15 px-3 py-1 rounded-full">
+        <span className="text-xs font-mono font-bold text-accent bg-accent/10 border border-accent/20 px-3 py-1 rounded-full">
           {weekCompletedCount}/{touches.length} Touches
         </span>
       </div>
 
       {/* Retrieval Check Banner (if present) */}
       {week.retrievalCheck && (
-        <div className="bg-[#2A3358] border border-[#F2C776]/30 rounded-2xl p-5 space-y-3">
-          <div className="text-[11.5px] uppercase tracking-widest text-[#F2C776] font-semibold flex items-center gap-2">
-            <span>🧠</span> Retrieval Check — Review before continuing
+        <div className="bg-white-paper border border-accent/25 rounded-2xl p-5 sm:p-6 space-y-3 shadow-xs">
+          <div className="text-[11px] uppercase tracking-widest text-accent font-bold flex items-center gap-2">
+            <Brain size={14} />
+            <span>Retrieval Check — Review before continuing</span>
           </div>
-          <div className="space-y-2 text-xs text-[#F5EFE3]">
+          <div className="space-y-2 text-xs sm:text-sm text-primary/90 font-medium leading-relaxed">
             <p>1. {week.retrievalCheck.prompt1}</p>
             <p>2. {week.retrievalCheck.prompt2}</p>
           </div>
           {showRetrievalReveal ? (
-            <div className="p-3 bg-[#1B2340] border border-[#7A9471]/40 rounded-xl text-xs text-[#C9C2AE] space-y-1">
-              <span className="font-semibold text-[#7A9471] block">Key Takeaway & Recall:</span>
+            <div className="p-4 bg-warm-paper border border-secondary/40 rounded-xl text-xs sm:text-sm text-mid space-y-1 leading-relaxed">
+              <span className="font-semibold text-primary block">Key Takeaway & Recall:</span>
               {week.retrievalCheck.reveal}
             </div>
           ) : (
             <button
               onClick={() => setShowRetrievalReveal(true)}
-              className="text-xs text-[#F2C776] hover:underline font-medium"
+              className="text-xs font-semibold text-accent hover:underline cursor-pointer flex items-center gap-1 pt-1"
             >
-              Show Model Answer / Recall Key →
+              <span>Show Model Answer / Recall Key</span>
+              <ArrowRight size={12} />
             </button>
           )}
         </div>
@@ -63,17 +67,17 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
 
       {/* Reference Card Banner (if present - e.g. Format C Two-Chair Dialogue in Week 4) */}
       {week.hasReferenceCard && (
-        <div className="bg-purple-950/40 border border-purple-400/30 rounded-2xl p-5 space-y-2">
+        <div className="bg-white-paper border border-primary/15 rounded-2xl p-5 sm:p-6 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-purple-300">A5 (Format C)</span>
-            <span className="text-[10px] uppercase font-mono bg-purple-900/80 border border-purple-400/40 text-purple-200 px-2 py-0.5 rounded">
+            <span className="font-mono text-xs font-bold text-accent">A5 (Format C)</span>
+            <span className="text-[10px] uppercase font-mono bg-warm-paper border border-primary/15 text-mid px-2.5 py-0.5 rounded-full">
               Reference-Only Card
             </span>
           </div>
-          <h3 className="font-serif text-base font-semibold text-[#F5EFE3]">
+          <h3 className="font-serif text-base font-semibold text-primary">
             The Two-Chair Self-Criticism Dialogue
           </h3>
-          <p className="text-xs text-[#C9C2AE] leading-relaxed">
+          <p className="text-xs sm:text-sm text-mid leading-relaxed">
             This technique is explained for reference but not practiced in-app. It works best live with a licensed Emotion-Focused therapist.
           </p>
         </div>
@@ -81,7 +85,7 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
 
       {/* Touch List Cards */}
       <div className="space-y-3">
-        <h2 className="font-serif text-lg text-[#F2C776] font-semibold">
+        <h2 className="font-serif text-lg text-primary font-semibold">
           Week {week.num} Touches
         </h2>
         {touches.map((touch, idx) => {
@@ -90,25 +94,25 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
             <div
               key={touch.id}
               onClick={() => onSelectTouch(touch.id)}
-              className={`border rounded-xl p-4 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+              className={`border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all flex items-center justify-between gap-3 shadow-xs ${
                 isDone
-                  ? 'bg-[#1B2340]/90 border-[#7A9471]/50 hover:border-[#7A9471]'
-                  : 'bg-[#2A3358] border-[#F5EFE3]/15 hover:border-[#E8A33D]'
+                  ? 'bg-white-paper border-secondary/40 hover:border-secondary'
+                  : 'bg-white-paper border-primary/10 hover:border-accent/40'
               }`}
             >
               <div className="flex items-center gap-3.5">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold flex-shrink-0 border ${
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold flex-shrink-0 border transition-all ${
                   isDone
-                    ? 'bg-[#7A9471] border-[#7A9471] text-[#1B2340]'
-                    : 'bg-[#1B2340] border-[#F5EFE3]/20 text-[#C9C2AE]'
+                    ? 'bg-secondary/20 border-secondary text-primary'
+                    : 'bg-warm-paper border-primary/15 text-primary'
                 }`}>
-                  {isDone ? '✓' : idx + 1}
+                  {isDone ? <Check size={14} className="text-primary" /> : idx + 1}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm text-[#F5EFE3]">
+                  <h4 className="font-semibold text-sm text-primary">
                     {touch.title}
                   </h4>
-                  <div className="text-xs text-[#C9C2AE]">
+                  <div className="text-xs text-mid">
                     {touch.role}
                   </div>
                 </div>
@@ -116,12 +120,13 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 {touch.guardrail && (
-                  <span className="text-[10px] uppercase font-mono text-amber-300 bg-amber-950/60 border border-amber-500/40 px-2 py-0.5 rounded">
+                  <span className="text-[10px] uppercase font-mono text-accent bg-accent/10 border border-accent/25 px-2 py-0.5 rounded font-semibold">
                     Guided [B]
                   </span>
                 )}
-                <span className="text-xs text-[#E8A33D] hover:underline">
-                  {isDone ? 'Review' : 'Start Touch'} →
+                <span className="text-xs font-semibold text-accent hover:underline flex items-center gap-0.5">
+                  <span>{isDone ? 'Review' : 'Start Touch'}</span>
+                  <ArrowRight size={12} />
                 </span>
               </div>
             </div>
@@ -130,24 +135,24 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
       </div>
 
       {/* Weekly MHPI Check-in */}
-      <div className="bg-[#2A3358] border border-[#F5EFE3]/15 rounded-2xl p-5 space-y-3">
-        <div className="flex items-center justify-between">
+      <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 space-y-3 shadow-xs">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-serif text-base font-semibold text-[#F5EFE3]">
+            <h3 className="font-serif text-base sm:text-lg font-semibold text-primary">
               Week {week.num} Check-in (MHPI)
             </h3>
-            <p className="text-xs text-[#C9C2AE]">
+            <p className="text-xs text-mid mt-0.5">
               3 quick questions to track your week-to-week changes.
             </p>
           </div>
           <button
             onClick={onOpenMhpiWeekly}
-            className={`py-2 px-4 rounded-lg text-xs font-semibold transition-all border ${
+            className={`py-2.5 px-4 rounded-xl text-xs font-semibold transition-all border shadow-xs cursor-pointer ${
               isMhpiWeeklyDone
-                ? 'bg-[#7A9471]/20 border-[#7A9471] text-[#7A9471]'
+                ? 'bg-secondary/20 border-secondary text-primary'
                 : isWeekTouchesDone
-                ? 'bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340] border-transparent'
-                : 'bg-[#1B2340] border-[#F5EFE3]/20 text-[#C9C2AE]'
+                ? 'bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-transparent'
+                : 'bg-white-paper border-primary/15 text-primary hover:border-accent hover:bg-accent/5'
             }`}
           >
             {isMhpiWeeklyDone ? '✓ Check-in Saved' : 'Start Check-in'}
@@ -157,11 +162,11 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
 
       {/* Weekly Summary Card (if present) */}
       {week.summary && (
-        <div className="bg-[#1B2340] border border-[#F5EFE3]/15 rounded-2xl p-5 space-y-2">
-          <div className="text-[11.5px] uppercase tracking-widest text-[#7A9471] font-semibold">
+        <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 space-y-2 shadow-xs">
+          <div className="text-[11px] uppercase tracking-widest text-accent font-bold">
             Week {week.num} Summary
           </div>
-          <p className="text-xs text-[#C9C2AE] leading-relaxed">
+          <p className="text-xs sm:text-sm text-mid leading-relaxed font-serif">
             {week.summary}
           </p>
         </div>

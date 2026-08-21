@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowRight, Check, Sparkles, Trophy } from 'lucide-react';
 
 export default function ModuleCompletionView({ content, playerState, updateState, onFinish }) {
   const mhpiConfig = content?.mhpiConfig;
@@ -69,32 +70,32 @@ export default function ModuleCompletionView({ content, playerState, updateState
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="pb-2 border-b border-[#F5EFE3]/15">
-        <h1 className="font-serif text-2xl font-semibold text-[#F5EFE3]">
+      <div className="pb-3 border-b border-primary/10">
+        <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-primary">
           End Assessment & Results
         </h1>
-        <p className="text-xs text-[#C9C2AE] mt-1">
+        <p className="text-xs sm:text-sm text-mid mt-1">
           {submitted ? 'Your overall progress readout' : 'Answer the same 5 questions from baseline plus 2 extra questions.'}
         </p>
       </div>
 
       {!submitted ? (
-        <div className="bg-gradient-to-b from-[#2A3358] to-[#3D4770] border border-[#F5EFE3]/15 rounded-2xl p-6 space-y-6 shadow-xl">
-          <div className="text-[11.5px] uppercase tracking-widest text-[#F2C776] font-semibold">
+        <div className="bg-white-paper border border-primary/10 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
+          <div className="text-[11px] uppercase tracking-widest text-accent font-bold">
             Baseline Comparison Questions
           </div>
 
           {baselineQuestions.map((q) => {
             const selectedVal = answers[q.id];
             return (
-              <div key={q.id} className="space-y-2.5 pb-4 border-b border-[#F5EFE3]/10">
-                <div className="text-[11px] uppercase tracking-widest text-[#C9C2AE] font-semibold">
+              <div key={q.id} className="space-y-3 pb-5 border-b border-primary/10">
+                <div className="text-[11px] uppercase tracking-widest text-accent font-bold">
                   {q.label}
                 </div>
-                <p className="text-sm text-[#F5EFE3] font-medium leading-snug">
+                <p className="text-sm sm:text-[15px] text-primary font-medium leading-snug">
                   {q.prompt}
                 </p>
-                <div className="flex gap-1 overflow-x-auto pt-1 pb-1">
+                <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none">
                   {Array.from({ length: q.max - q.min + 1 }, (_, idx) => q.min + idx).map((val) => {
                     const isPicked = selectedVal === val;
                     return (
@@ -102,10 +103,10 @@ export default function ModuleCompletionView({ content, playerState, updateState
                         key={val}
                         type="button"
                         onClick={() => handleSelect(q.id, val)}
-                        className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all flex-shrink-0 ${
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-semibold flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                           isPicked
-                            ? 'bg-[#E8A33D] text-[#1B2340] font-bold shadow-md scale-105'
-                            : 'bg-[#1B2340]/60 border border-[#F5EFE3]/20 text-[#F5EFE3] hover:border-[#E8A33D]'
+                            ? 'bg-accent text-white font-bold shadow-xs scale-105 border border-accent'
+                            : 'bg-white-paper border border-primary/15 text-primary hover:border-accent/40 hover:bg-warm-paper'
                         }`}
                       >
                         {val}
@@ -113,7 +114,7 @@ export default function ModuleCompletionView({ content, playerState, updateState
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-[11px] text-[#C9C2AE] px-0.5">
+                <div className="flex justify-between text-xs text-mid px-0.5 font-medium">
                   <span>{q.minLabel}</span>
                   <span>{q.maxLabel}</span>
                 </div>
@@ -121,18 +122,18 @@ export default function ModuleCompletionView({ content, playerState, updateState
             );
           })}
 
-          <div className="text-[11.5px] uppercase tracking-widest text-[#F2C776] font-semibold pt-2">
+          <div className="text-[11px] uppercase tracking-widest text-accent font-bold pt-2">
             Program Feedback
           </div>
 
           {extraQuestions.map((q) => {
             const selectedVal = extraAnswers[q.id];
             return (
-              <div key={q.id} className="space-y-2.5 pb-4 border-b border-[#F5EFE3]/10">
-                <p className="text-sm text-[#F5EFE3] font-medium leading-snug">
+              <div key={q.id} className="space-y-3 pb-5 border-b border-primary/10">
+                <p className="text-sm sm:text-[15px] text-primary font-medium leading-snug">
                   {q.prompt}
                 </p>
-                <div className="flex gap-1 overflow-x-auto pt-1 pb-1">
+                <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none">
                   {Array.from({ length: q.max - q.min + 1 }, (_, idx) => q.min + idx).map((val) => {
                     const isPicked = selectedVal === val;
                     return (
@@ -140,10 +141,10 @@ export default function ModuleCompletionView({ content, playerState, updateState
                         key={val}
                         type="button"
                         onClick={() => handleExtraSelect(q.id, val)}
-                        className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all flex-shrink-0 ${
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-semibold flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                           isPicked
-                            ? 'bg-[#E8A33D] text-[#1B2340] font-bold shadow-md scale-105'
-                            : 'bg-[#1B2340]/60 border border-[#F5EFE3]/20 text-[#F5EFE3] hover:border-[#E8A33D]'
+                            ? 'bg-accent text-white font-bold shadow-xs scale-105 border border-accent'
+                            : 'bg-white-paper border border-primary/15 text-primary hover:border-accent/40 hover:bg-warm-paper'
                         }`}
                       >
                         {val}
@@ -151,7 +152,7 @@ export default function ModuleCompletionView({ content, playerState, updateState
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-[11px] text-[#C9C2AE] px-0.5">
+                <div className="flex justify-between text-xs text-mid px-0.5 font-medium">
                   <span>{q.minLabel}</span>
                   <span>{q.maxLabel}</span>
                 </div>
@@ -161,7 +162,7 @@ export default function ModuleCompletionView({ content, playerState, updateState
 
           {endChoice && (
             <div className="space-y-3 pt-2">
-              <p className="text-sm text-[#F5EFE3] font-medium">
+              <p className="text-sm sm:text-[15px] text-primary font-semibold">
                 {endChoice.prompt}
               </p>
               <div className="grid gap-2">
@@ -170,10 +171,10 @@ export default function ModuleCompletionView({ content, playerState, updateState
                     key={optText}
                     type="button"
                     onClick={() => setChoiceVal(optText)}
-                    className={`p-3 text-left rounded-xl border text-xs font-medium transition-all ${
+                    className={`p-3.5 text-left rounded-xl border text-xs sm:text-sm font-medium transition-all shadow-xs cursor-pointer ${
                       choiceVal === optText
-                        ? 'bg-[#E8A33D] text-[#1B2340] font-semibold border-[#E8A33D]'
-                        : 'bg-[#1B2340] border-[#F5EFE3]/20 text-[#F5EFE3] hover:border-[#F2C776]'
+                        ? 'bg-accent text-white font-semibold border-accent shadow-xs'
+                        : 'bg-white-paper border-primary/15 text-primary hover:border-accent/40'
                     }`}
                   >
                     {optText}
@@ -186,49 +187,51 @@ export default function ModuleCompletionView({ content, playerState, updateState
           <button
             onClick={handleSubmit}
             disabled={!isFormComplete}
-            className={`w-full py-3.5 px-5 rounded-xl font-semibold text-sm transition-all shadow-md ${
+            className={`w-full py-4 px-5 rounded-xl font-semibold text-sm transition-all shadow-xs flex items-center justify-center gap-2 ${
               isFormComplete
-                ? 'bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340]'
-                : 'bg-[#3D4770] text-[#C9C2AE]/50 cursor-not-allowed'
+                ? 'bg-accent hover:bg-[#654652] active:bg-[#533842] text-white cursor-pointer'
+                : 'bg-warm-paper border border-primary/10 text-mid/50 cursor-not-allowed'
             }`}
           >
-            {isFormComplete ? 'See My Results' : 'Please Answer All Questions'}
+            <span>{isFormComplete ? 'See My Results' : 'Please Answer All Questions'}</span>
+            {isFormComplete && <ArrowRight size={14} />}
           </button>
         </div>
       ) : (
         /* Results Card */
         <div className="space-y-6">
-          <div className="bg-gradient-to-b from-[#2A3358] to-[#3D4770] border border-[#F5EFE3]/15 rounded-2xl p-6 space-y-5 shadow-xl text-center">
-            <div className="text-[11.5px] uppercase tracking-widest text-[#7A9471] font-semibold">
-              Improvement Since You Started
+          <div className="bg-white-paper border border-primary/10 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs text-center">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] uppercase tracking-widest text-accent font-bold">
+              <Sparkles size={13} />
+              <span>Improvement Since You Started</span>
             </div>
-            <div className="font-serif text-5xl font-bold text-[#F2C776]">
+            <div className="font-serif text-5xl sm:text-6xl font-bold text-primary">
               {improvementPct !== null ? `${improvementPct}%` : '—'}
             </div>
 
             {/* Progress bar */}
-            <div className="bg-[#1B2340] rounded-full h-3 overflow-hidden max-w-sm mx-auto">
+            <div className="bg-warm-paper border border-primary/10 rounded-full h-3 overflow-hidden max-w-sm mx-auto">
               <div
-                className="bg-[#E8A33D] h-full transition-all duration-700"
+                className="bg-accent h-full transition-all duration-700 rounded-full"
                 style={{ width: `${Math.max(0, Math.min(100, improvementPct || 0))}%` }}
               />
             </div>
 
-            <div className="text-sm font-semibold text-[#F5EFE3]">
-              Response Category: <span className="text-[#F2C776]">{getInterpretationLabel(improvementPct)}</span>
+            <div className="text-sm sm:text-base font-medium text-primary">
+              Response Category: <strong className="text-accent font-bold ml-1">{getInterpretationLabel(improvementPct)}</strong>
             </div>
 
             {/* Before vs After Scores */}
             <div className="grid grid-cols-2 gap-4 pt-3">
-              <div className="bg-[#1B2340] border border-[#F5EFE3]/10 rounded-xl p-4">
-                <div className="text-[11px] uppercase text-[#C9C2AE]">Baseline Score</div>
-                <div className="font-serif text-2xl font-bold text-[#F5EFE3] mt-1">
+              <div className="bg-warm-paper border border-primary/10 rounded-xl p-4 sm:p-5 text-left">
+                <div className="text-xs uppercase text-mid font-semibold">Baseline Score</div>
+                <div className="font-serif text-2xl sm:text-3xl font-bold text-primary mt-1">
                   {baselineScore !== null ? `${baselineScore} / 50` : 'N/A'}
                 </div>
               </div>
-              <div className="bg-[#1B2340] border border-[#F5EFE3]/10 rounded-xl p-4">
-                <div className="text-[11px] uppercase text-[#7A9471]">End Score</div>
-                <div className="font-serif text-2xl font-bold text-[#7A9471] mt-1">
+              <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 sm:p-5 text-left">
+                <div className="text-xs uppercase text-accent font-semibold">End Score</div>
+                <div className="font-serif text-2xl sm:text-3xl font-bold text-accent mt-1">
                   {endScore !== null ? `${endScore} / 50` : 'N/A'}
                 </div>
               </div>
@@ -237,21 +240,21 @@ export default function ModuleCompletionView({ content, playerState, updateState
 
           {/* Reinforcement Bank Section */}
           {content?.reinforcementBank && content.reinforcementBank.length > 0 && (
-            <div className="bg-[#2A3358] border border-[#F5EFE3]/15 rounded-2xl p-6 space-y-4">
-              <h3 className="font-serif text-lg text-[#F2C776] font-semibold">
+            <div className="bg-white-paper border border-primary/10 rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <h3 className="font-serif text-xl font-semibold text-primary">
                 Reinforcement Bank Reflections ({content.reinforcementBank.length})
               </h3>
-              <p className="text-xs text-[#C9C2AE]">
+              <p className="text-xs sm:text-sm text-mid">
                 Keep practicing these techniques in your ongoing journal sit-downs.
               </p>
               <div className="grid gap-3">
                 {content.reinforcementBank.map((rep, idx) => (
-                  <div key={idx} className="bg-[#1B2340] border border-[#F5EFE3]/10 rounded-xl p-4 text-xs space-y-1.5">
-                    <div className="flex justify-between text-[#F2C776] font-mono font-bold">
+                  <div key={idx} className="bg-warm-paper border border-primary/10 rounded-xl p-4 sm:p-5 text-xs sm:text-sm space-y-2">
+                    <div className="flex justify-between text-accent font-mono font-bold">
                       <span>{rep.code} — Rep {rep.rep}</span>
                     </div>
-                    <p className="text-[#F5EFE3]">{rep.scenario}</p>
-                    <div className="text-[#C9C2AE] italic pt-1">
+                    <p className="text-primary font-medium">{rep.scenario}</p>
+                    <div className="text-mid italic pt-1">
                       Prompt: {rep.prompt}
                     </div>
                   </div>
@@ -262,7 +265,7 @@ export default function ModuleCompletionView({ content, playerState, updateState
 
           <button
             onClick={onFinish}
-            className="w-full py-3.5 px-5 bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340] font-semibold rounded-xl text-sm transition-all shadow-md"
+            className="w-full py-4 px-5 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white font-semibold rounded-xl text-sm transition-all shadow-xs cursor-pointer"
           >
             Return to Module Overview
           </button>

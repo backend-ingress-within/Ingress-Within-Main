@@ -564,20 +564,20 @@ export default function PsychoeducationLabPage() {
 
       {/* Embedded Real Module Player Modal (Test Mode) */}
       {testPlayerOpen && activeTestModule && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#1B2340] border border-amber-500/40 w-full max-w-4xl rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F5EFE3]/15">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-warm-paper border border-primary/20 w-full max-w-4xl rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-primary/10">
               <div className="flex items-center gap-3">
-                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono px-2 py-0.5 rounded">
+                <span className="bg-accent/10 text-accent border border-accent/25 text-[10px] font-mono px-2.5 py-0.5 rounded-full font-semibold">
                   TEST MODE PLAYER
                 </span>
-                <h2 className="font-serif text-lg text-[#F5EFE3] font-semibold">
+                <h2 className="font-serif text-lg text-primary font-semibold">
                   Testing Module: {activeTestModule}
                 </h2>
               </div>
               <button
                 onClick={() => setTestPlayerOpen(false)}
-                className="px-3 py-1 bg-[#2A3358] text-stone-300 hover:text-white rounded-lg text-xs font-mono cursor-pointer"
+                className="px-3 py-1.5 bg-white-paper border border-primary/15 hover:border-accent text-primary rounded-xl text-xs font-semibold cursor-pointer transition-all shadow-xs"
               >
                 Close Player ✕
               </button>

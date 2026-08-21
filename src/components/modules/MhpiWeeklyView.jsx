@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 
 export default function MhpiWeeklyView({ content, weekIdx, playerState, updateState, onComplete }) {
   const week = content?.weeks?.[weekIdx];
@@ -37,33 +38,34 @@ export default function MhpiWeeklyView({ content, weekIdx, playerState, updateSt
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="pb-2 border-b border-[#F5EFE3]/15">
+      <div className="pb-3 border-b border-primary/10">
         <button
           onClick={onComplete}
-          className="text-xs text-[#C9C2AE] hover:text-[#F5EFE3] flex items-center gap-1 mb-1"
+          className="text-xs font-semibold text-mid hover:text-accent flex items-center gap-1.5 transition-colors cursor-pointer mb-1"
         >
-          ← Back to Week {week.num}
+          <ArrowLeft size={13} />
+          <span>Back to Week {week.num}</span>
         </button>
-        <h1 className="font-serif text-2xl font-semibold text-[#F5EFE3]">
+        <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-primary">
           Week {week.num} Check-in
         </h1>
-        <p className="text-xs text-[#C9C2AE] mt-1">
+        <p className="text-xs sm:text-sm text-mid mt-1">
           Three quick questions to track your weekly progress.
         </p>
       </div>
 
       {/* Form Card */}
-      <div className="bg-gradient-to-b from-[#2A3358] to-[#3D4770] border border-[#F5EFE3]/15 rounded-2xl p-6 space-y-6 shadow-xl">
+      <div className="bg-white-paper border border-primary/10 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
         {questions.map((q) => {
           const selectedVal = answers[q.id];
           return (
-            <div key={q.id} className="space-y-2.5 pb-4 border-b border-[#F5EFE3]/10 last:border-b-0 last:pb-0">
-              <p className="text-sm text-[#F5EFE3] font-medium leading-snug">
+            <div key={q.id} className="space-y-3 pb-5 border-b border-primary/10 last:border-b-0 last:pb-0">
+              <p className="text-sm sm:text-[15px] text-primary font-medium leading-snug">
                 {q.prompt}
               </p>
 
               {/* Rating Scale */}
-              <div className="flex gap-1 overflow-x-auto pt-1 pb-1">
+              <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none">
                 {Array.from({ length: q.max - q.min + 1 }, (_, idx) => q.min + idx).map((val) => {
                   const isPicked = selectedVal === val;
                   return (
@@ -71,10 +73,10 @@ export default function MhpiWeeklyView({ content, weekIdx, playerState, updateSt
                       key={val}
                       type="button"
                       onClick={() => handleSelect(q.id, val)}
-                      className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all flex-shrink-0 ${
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-semibold flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isPicked
-                          ? 'bg-[#E8A33D] text-[#1B2340] font-bold shadow-md scale-105'
-                          : 'bg-[#1B2340]/60 border border-[#F5EFE3]/20 text-[#F5EFE3] hover:border-[#E8A33D]'
+                          ? 'bg-accent text-white font-bold shadow-xs scale-105 border border-accent'
+                          : 'bg-white-paper border border-primary/15 text-primary hover:border-accent/40 hover:bg-warm-paper'
                       }`}
                     >
                       {val}
@@ -82,7 +84,7 @@ export default function MhpiWeeklyView({ content, weekIdx, playerState, updateSt
                   );
                 })}
               </div>
-              <div className="flex justify-between text-[11px] text-[#C9C2AE] px-0.5">
+              <div className="flex justify-between text-xs text-mid px-0.5 font-medium">
                 <span>{q.minLabel}</span>
                 <span>{q.maxLabel}</span>
               </div>
@@ -93,13 +95,14 @@ export default function MhpiWeeklyView({ content, weekIdx, playerState, updateSt
         <button
           onClick={handleSubmit}
           disabled={!allAnswered}
-          className={`w-full py-3.5 px-5 rounded-xl font-semibold text-sm transition-all shadow-md ${
+          className={`w-full py-4 px-5 rounded-xl font-semibold text-sm transition-all shadow-xs flex items-center justify-center gap-2 ${
             allAnswered
-              ? 'bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340]'
-              : 'bg-[#3D4770] text-[#C9C2AE]/50 cursor-not-allowed'
+              ? 'bg-accent hover:bg-[#654652] active:bg-[#533842] text-white cursor-pointer'
+              : 'bg-warm-paper border border-primary/10 text-mid/50 cursor-not-allowed'
           }`}
         >
-          {allAnswered ? 'Save Weekly Check-in' : 'Please Answer All 3 Questions'}
+          <span>{allAnswered ? 'Save Weekly Check-in' : 'Please Answer All 3 Questions'}</span>
+          {allAnswered && <Check size={14} />}
         </button>
       </div>
     </div>

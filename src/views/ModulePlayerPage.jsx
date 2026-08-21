@@ -202,31 +202,33 @@ export default function ModulePlayerPage({ moduleId: propModuleId, testMode = fa
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1B2340] text-[#F5EFE3] flex flex-col justify-center items-center font-sans p-6">
-        <div className="w-10 h-10 border-2 border-[#E8A33D] border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="font-serif italic text-sm text-[#C9C2AE]">Loading Psychoeducation Module...</p>
+      <div className="min-h-screen bg-warm-paper text-primary flex flex-col justify-center items-center font-sans p-6">
+        <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="font-serif italic text-sm text-mid">Loading Psychoeducation Module...</p>
       </div>
     );
   }
 
   if (error || (!moduleContent && !moduleCatalog)) {
     return (
-      <div className="min-h-screen bg-[#1B2340] text-[#F5EFE3] flex flex-col justify-center items-center font-sans p-6 text-center">
-        <h2 className="font-serif text-2xl text-[#E8A33D] mb-2">Module Not Found</h2>
-        <p className="text-[#C9C2AE] max-w-md mb-6">{error || `Module '${moduleIdFromUrl}' could not be loaded.`}</p>
-        <button
-          onClick={() => window.navigateTo('/dashboard')}
-          className="px-6 py-2.5 bg-[#E8A33D] text-[#1B2340] font-semibold rounded-lg text-sm"
-        >
-          Return to Dashboard
-        </button>
+      <div className="min-h-screen bg-warm-paper text-primary flex flex-col justify-center items-center font-sans p-6 text-center">
+        <div className="bg-white-paper border border-primary/10 rounded-2xl p-8 max-w-md w-full shadow-xs space-y-4">
+          <h2 className="font-serif text-2xl font-semibold text-primary">Module Not Found</h2>
+          <p className="text-sm text-mid leading-relaxed">{error || `Module '${moduleIdFromUrl}' could not be loaded.`}</p>
+          <button
+            onClick={() => window.navigateTo('/dashboard')}
+            className="w-full py-3 px-5 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white font-semibold rounded-xl text-sm transition-all shadow-xs cursor-pointer"
+          >
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#1B2340] text-[#F5EFE3] font-sans">
-      <div className="max-w-[760px] mx-auto px-5 py-7 pb-20">
+    <div className="min-h-screen bg-warm-paper text-primary font-sans">
+      <div className="max-w-[760px] mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24">
         {playerState.view === 'overview' && (
           <ModuleOverview
             catalog={moduleCatalog}
@@ -331,12 +333,12 @@ export default function ModulePlayerPage({ moduleId: propModuleId, testMode = fa
 
         {/* Fallback for unrecognized or corrupted view states to prevent blank screens */}
         {!['overview', 'intro', 'mhpi_baseline', 'week_list', 'week_view', 'touch_view', 'mhpi_weekly', 'mhpi_end', 'completed'].includes(playerState.view) && (
-          <div className="p-8 text-center space-y-4 bg-[#2A3358] border border-[#F5EFE3]/15 rounded-2xl shadow-xl">
-            <h3 className="font-serif text-xl text-[#F2C776]">Module View Recovered</h3>
-            <p className="text-xs text-[#C9C2AE]">The player recovered from an unexpected state. Click below to continue.</p>
+          <div className="p-8 text-center space-y-4 bg-white-paper border border-primary/10 rounded-2xl shadow-xs">
+            <h3 className="font-serif text-xl font-semibold text-primary">Module View Recovered</h3>
+            <p className="text-xs text-mid">The player recovered from an unexpected state. Click below to continue.</p>
             <button
               onClick={() => updateState({ view: 'overview', introStep: 0 })}
-              className="px-6 py-3 bg-[#E8A33D] hover:bg-[#F2C776] text-[#1B2340] font-semibold rounded-xl text-xs transition-all"
+              className="px-6 py-3 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white font-semibold rounded-xl text-xs transition-all shadow-xs cursor-pointer"
             >
               Return to Module Overview
             </button>
