@@ -38,6 +38,7 @@ const FounderTestPage = (process.env.NODE_ENV === 'development' || process.env.N
   : () => null;
 
 const PsychoeducationLabPage = lazy(() => import('./views/PsychoeducationLabPage'));
+const NotFoundPage = lazy(() => import('./views/NotFoundPage'));
 
 
 
@@ -396,7 +397,7 @@ export default function App() {
       } else if (path === '/admin/psychoeducation-lab' || path === '/admin/psychoeducation-lab/' || path.startsWith('/admin/psychoeducation-lab')) {
         setCurrentRoute('psychoeducation-lab');
         window.scrollTo(0, 0);
-      } else {
+      } else if (path === '/' || path === '') {
         setCurrentRoute('home');
         // Handle section scroll deep link (e.g. /#auth -> scroll to auth section)
         const hash = window.location.hash;
@@ -411,6 +412,9 @@ export default function App() {
             }
           }, 150);
         }
+      } else {
+        setCurrentRoute('not-found');
+        window.scrollTo(0, 0);
       }
     };
 
@@ -531,6 +535,8 @@ export default function App() {
         return <LandingPage onOpenPolicy={handleOpenPolicy} />;
       case 'psychoeducation-lab':
         return <PsychoeducationLabPage />;
+      case 'not-found':
+        return <NotFoundPage user={user} profile={profile} />;
       case 'home':
 
       default:
