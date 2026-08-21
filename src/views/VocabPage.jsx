@@ -193,19 +193,19 @@ export default function VocabPage({ user, profile, onSignOut }) {
 
           {/* All Words Panel (slide-out accordion) */}
           {isAvailable && awpOpen && (
-            <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-5 shadow-sm transition-all duration-300">
-              <div className="flex items-start justify-between gap-3 mb-3.5 pb-3.5 border-b border-[#1E2A2E]/5">
+            <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 shadow-xs transition-all duration-300 text-left">
+              <div className="flex items-start justify-between gap-3 mb-3.5 pb-3.5 border-b border-primary/5">
                 <div>
-                  <h3 className="text-[13px] font-bold text-[#1E2A2E] mb-1">
+                  <h3 className="text-[13px] font-bold text-primary mb-1">
                     All {distinctWordCount} words, ranked by use
                   </h3>
-                  <p className="text-xs text-[#4A6A64] leading-normal">
+                  <p className="text-xs text-mid leading-normal">
                     Every distinct emotion word from your entries — the ones you lean on most, and the ones you've reached for only once.
                   </p>
                 </div>
                 <button 
                   onClick={() => setAwpOpen(false)}
-                  className="text-[#8DBFB4] hover:text-[#1E2A2E] transition-colors cursor-pointer border-none bg-transparent"
+                  className="text-mid hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
                 >
                   <X size={16} />
                 </button>
@@ -213,19 +213,19 @@ export default function VocabPage({ user, profile, onSignOut }) {
 
               {/* Search Bar */}
               <div className="relative mb-4">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8DBFB4]" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-mid/60" />
                 <input 
                   type="text" 
                   value={awpSearchQuery}
                   onChange={(e) => setAwpSearchQuery(e.target.value)}
                   placeholder="Search words..."
-                  className="w-full text-[12.5px] text-[#1E2A2E] bg-[#F5F8F8] border border-[#1E2A2E]/10 rounded-lg py-2 pl-8 pr-3 focus:outline-none focus:border-[#8DBFB4] focus:bg-white transition-all"
+                  className="w-full text-[12.5px] text-primary bg-warm-paper/50 border border-primary/10 rounded-xl py-2.5 pl-8 pr-3 outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 focus:bg-white-paper transition-all"
                 />
               </div>
 
               {/* Tiers display */}
               {!hasAwpResults ? (
-                <div className="text-xs text-[#4A6A64] italic py-2">No words match "{awpSearchQuery}".</div>
+                <div className="text-xs text-mid italic py-2">No words match "{awpSearchQuery}".</div>
               ) : (
                 <div className="space-y-4">
                   {filteredTiers.frequent.length > 0 && (

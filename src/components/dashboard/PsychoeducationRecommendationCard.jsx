@@ -54,10 +54,10 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
 
   if (loading) {
     return (
-      <div className="bg-white border border-[#1E2A2E]/8 rounded-xl p-5 shadow-xs animate-pulse space-y-3">
-        <div className="h-3 w-32 bg-primary/10 rounded"></div>
-        <div className="h-5 w-48 bg-primary/15 rounded"></div>
-        <div className="h-4 w-full bg-primary/5 rounded"></div>
+      <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 shadow-xs animate-pulse space-y-3 text-left">
+        <div className="h-3 w-32 bg-primary/10 rounded-md"></div>
+        <div className="h-5 w-48 bg-primary/15 rounded-md"></div>
+        <div className="h-4 w-full bg-primary/5 rounded-md"></div>
       </div>
     );
   }
@@ -69,9 +69,9 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
   // State 6: Crisis Route (Do NOT show purchase card or sell anything)
   if (data.status === 'CRISIS_ROUTE') {
     return (
-      <div className="bg-[#FFF5F5] border border-rose-200 rounded-xl p-5 space-y-3 text-left">
-        <div className="flex items-center gap-2 text-rose-700 text-xs font-bold uppercase tracking-wider">
-          <ShieldAlert size={14} className="text-rose-600" />
+      <div className="bg-error-subtle border border-error/20 rounded-2xl p-5 sm:p-6 space-y-3 text-left shadow-xs">
+        <div className="flex items-center gap-2 text-error text-xs font-bold uppercase tracking-wider">
+          <ShieldAlert size={14} className="text-error" />
           <span>Support & Crisis Resources</span>
         </div>
         <p className="text-xs text-primary/80 leading-relaxed">
@@ -79,7 +79,7 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
         </p>
         <a
           href="/support"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold text-xs rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-error hover:bg-[#963b36] text-white font-semibold text-xs rounded-xl transition-colors shadow-xs"
         >
           <span>Access support helpline</span>
           <ArrowRight size={12} />
@@ -141,17 +141,17 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
     <div className="space-y-3 text-left">
       <div className="text-[9px] font-bold uppercase tracking-widest text-secondary flex items-center justify-between">
         <span>PSYCHOEDUCATION</span>
-        <span className="text-[9.5px] font-semibold text-[#1A5040] bg-[#8DBFB4]/15 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <Sparkles size={10} /> Recommended for you
+        <span className="text-[9.5px] font-semibold text-primary bg-secondary/15 border border-secondary/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+          <Sparkles size={10} className="text-secondary" /> Recommended for you
         </span>
       </div>
 
-      <div className="bg-gradient-to-br from-[#8DBFB4]/10 via-[#8DBFB4]/5 to-white border border-[#8DBFB4]/30 hover:border-[#8DBFB4]/60 p-5.5 rounded-2xl space-y-3 hover:shadow-md transition-all group relative">
+      <div className="bg-white-paper border border-secondary/30 hover:border-accent/40 p-5 sm:p-6 rounded-2xl space-y-3 shadow-xs hover:shadow-sm transition-all group relative">
         <div className="space-y-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-secondary">
             Something to explore
           </div>
-          <h3 className="font-serif text-xl font-normal text-primary group-hover:text-[#1A5040] transition-colors">
+          <h3 className="font-serif text-xl font-normal text-primary group-hover:text-accent transition-colors">
             {module.name}
           </h3>
           <p className="text-xs font-semibold text-primary/80 leading-snug pt-0.5">
@@ -159,14 +159,14 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-mid font-light border-t border-[#8DBFB4]/20 pt-3">
+        <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-mid font-light border-t border-primary/5 pt-3">
           <div className="flex items-center gap-1 text-primary/70 font-mono text-[10.5px]">
-            <Clock size={12} className="text-[#8DBFB4]" />
+            <Clock size={12} className="text-secondary" />
             <span>{getDuration()}</span>
           </div>
           <span className="text-light-mid">·</span>
           <div className="flex items-center gap-1 text-primary/70 font-mono text-[10.5px]">
-            <Tag size={12} className="text-[#8DBFB4]" />
+            <Tag size={12} className="text-secondary" />
             <span>{module.currency === 'INR' ? `₹${module.price}` : `$${module.price}`}</span>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function PsychoeducationRecommendationCard({ cycleId = 'latest', 
         <div className="pt-2 flex items-center justify-between">
           <button
             onClick={handleCtaClick}
-            className="px-5 py-2.5 bg-[#1A5040] hover:bg-[#133C30] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5 group-hover:shadow-md"
+            className="px-5 py-2.5 bg-accent hover:bg-[#654652] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
           >
             <span>{getCtaText()}</span>
           </button>

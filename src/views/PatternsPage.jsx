@@ -64,17 +64,17 @@ function BackfillProcessingScreen() {
           <p className="text-xs text-mid">Recurring themes the system has identified across your writing.</p>
         </div>
 
-        <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-8 shadow-xs flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-full bg-[#8DBFB4]/10 flex items-center justify-center">
-            <Sparkles size={24} className="text-[#8DBFB4]" />
+        <div className="bg-white-paper border border-primary/10 rounded-2xl p-8 shadow-xs flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-full bg-secondary/15 flex items-center justify-center">
+            <Sparkles size={24} className="text-secondary" />
           </div>
           <div className="space-y-1.5">
             <h3 className="text-sm font-bold text-primary">The Pattern Engine is reading your history</h3>
-            <p className="text-xs text-[#4A6A64] max-w-[320px] mx-auto leading-relaxed">
+            <p className="text-xs text-mid max-w-[320px] mx-auto leading-relaxed">
               We're scanning your past cycles and compiling your pattern timeline for the first time. This usually takes less than a minute.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[#8DBFB4] font-medium">
+          <div className="flex items-center gap-2 text-xs text-secondary font-medium">
             <Loader2 size={13} className="animate-spin" />
             <span>Processing{dots}</span>
           </div>
@@ -114,39 +114,39 @@ function NewUserEmptyScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20 sm:pb-24">
       <DashboardNavbar activeTab="patterns" />
-      <main className="max-w-[680px] mx-auto px-6 pt-6 space-y-6">
+      <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-6">
         <button
           onClick={() => window.navigateTo('/dashboard')}
-          className="flex items-center gap-2 text-xs font-semibold text-[#4A6A64] hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
+          className="flex items-center gap-2 text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
         >
           <ArrowLeft size={14} /> Back to dashboard
         </button>
-        <div>
-          <h1 className="font-serif text-[22px] text-primary mb-0.5 font-normal">Patterns</h1>
-          <p className="text-xs text-mid">Recurring themes the system has identified across your writing. Not diagnoses — observations about what keeps showing up.</p>
+        <div className="space-y-1">
+          <h1 className="font-serif text-[22px] sm:text-[24px] text-primary mb-1 font-normal">Patterns</h1>
+          <p className="text-xs sm:text-[13px] text-mid leading-relaxed">Recurring themes the system has identified across your writing. Not diagnoses — observations about what keeps showing up.</p>
         </div>
 
-        <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-8 shadow-xs text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-primary/5 flex items-center justify-center mx-auto text-[#8DBFB4]">
+        <div className="bg-white-paper border border-primary/10 rounded-2xl p-8 shadow-xs text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-secondary/15 flex items-center justify-center mx-auto text-secondary">
             <Activity size={24} />
           </div>
           <h3 className="text-sm font-bold text-primary">No patterns established yet</h3>
-          <p className="text-xs text-[#4A6A64] max-w-[380px] mx-auto leading-relaxed">
+          <p className="text-xs text-mid max-w-[380px] mx-auto leading-relaxed">
             Your personal patterns timeline will automatically compile here as you complete cycles. In the meantime, see the preview below of typical behavioral patterns Ingress Within tracks:
           </p>
           <button
             onClick={() => window.navigateTo('/dashboard')}
-            className="mt-2 px-6 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all cursor-pointer border-none shadow-sm"
+            className="mt-2 px-6 py-2.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-[#654652] transition-all cursor-pointer border-none shadow-xs"
           >
             Start writing your first entry
           </button>
         </div>
 
         {/* Educational Previews Section */}
-        <div className="space-y-4 pt-4">
-          <div className="text-[10px] font-bold tracking-widest text-[#4A6A64] uppercase border-b border-[#1E2A2E]/10 pb-2">
+        <div className="space-y-4 pt-4 text-left">
+          <div className="text-[10px] font-bold tracking-widest text-secondary uppercase border-b border-primary/10 pb-2">
             Typical Patterns We Track (Preview)
           </div>
 
@@ -156,9 +156,9 @@ function NewUserEmptyScreen() {
               return (
                 <div
                   key={p.id}
-                  className="bg-white border border-[#1E2A2E]/8 rounded-xl p-5 relative overflow-hidden pl-6 opacity-90 hover:opacity-100 transition-opacity"
+                  className="bg-white-paper border border-primary/10 rounded-2xl p-5 relative overflow-hidden pl-6 hover:border-accent/30 transition-all shadow-xs"
                 >
-                  <div className={`absolute left-0 top-0 bottom-0 w-[4px] ${p.status === 'present' ? 'bg-[#E0A898]' : p.status === 'shifting' ? 'bg-[#8DBFB4]' : 'bg-primary/20'}`} />
+                  <div className={`absolute left-0 top-0 bottom-0 w-[4px] ${p.status === 'present' ? 'bg-accent' : p.status === 'shifting' ? 'bg-secondary' : 'bg-primary/20'}`} />
                   
                   <div className="flex justify-between items-start mb-2">
                     <div>

@@ -9,18 +9,18 @@
 
 /* ── Brand tokens & Wrapper ── */
 .kb-app {
-  --teal-black:#1E2A2E;
-  --mint-grey:#ECEFF0;
-  --terracotta:#E0A898;
-  --ocean-sage:#8DBFB4;
-  --soft-iris:#B8A8D4;
+  --teal-black:#011627;
+  --mint-grey:#F6F1EA;
+  --terracotta:#795663;
+  --ocean-sage:#8AA688;
+  --soft-iris:#D9BCAF;
   --body-dark:#D8ECEA;
   --muted-dark:#A8D4CE;
-  --body-light:#4A6A64;
-  --logo-sage:#2E7A70;
-  --page-bg:#f4f6f5;
-  --border-teal:rgba(30,42,46,0.10);
-  --border-teal-strong:rgba(30,42,46,0.22);
+  --body-light:#4F635E;
+  --logo-sage:#795663;
+  --page-bg:#F6F1EA;
+  --border-teal:rgba(1,22,39,0.10);
+  --border-teal-strong:rgba(1,22,39,0.22);
   --font-sans:var(--font-ui, 'Instrument Sans', system-ui, sans-serif);
   --font-serif:var(--font-reflective, 'Lora', 'Georgia', serif);
   --ease:0.15s ease;

@@ -132,12 +132,12 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
   const safeCrisisSupport = Array.isArray(crisisSupport) ? crisisSupport : [];
 
   return (
-    <div className="space-y-8 animate-fade-in pt-4">
+    <div className="space-y-8 animate-fade-in pt-4 text-left">
       {/* 1. CORE DAILY INTERVENTIONS SECTION */}
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-[10px] uppercase tracking-wider text-[#8DBFB4] font-bold">
+            <div className="text-[10px] uppercase tracking-wider text-secondary font-bold">
               Core Daily Practices
             </div>
             <h3 className="font-serif text-xl text-primary font-medium">
@@ -150,7 +150,7 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
 
           <button
             onClick={handleDismiss}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-mid hover:text-primary hover:bg-[#1E2A2E]/5 rounded-lg transition-colors cursor-pointer border border-[#1E2A2E]/10"
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-mid hover:text-primary hover:bg-primary/5 rounded-xl transition-colors cursor-pointer border border-primary/10"
             title="Dismiss for this session"
           >
             <X size={12} />
@@ -161,7 +161,7 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
         {loading ? (
           <div className="grid sm:grid-cols-3 gap-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-mint-grey/50 rounded-2xl animate-pulse border border-[#1E2A2E]/5" />
+              <div key={i} className="h-32 bg-warm-paper rounded-2xl animate-pulse border border-primary/5" />
             ))}
           </div>
         ) : (
@@ -169,14 +169,14 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
             {safeCoreDaily.map((item, idx) => (
               <div
                 key={item?.id || idx}
-                className="bg-[#F8FAF9] hover:bg-white border border-[#1E2A2E]/10 hover:border-accent/30 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all shadow-xs hover:shadow-sm group"
+                className="bg-white-paper hover:bg-white border border-primary/10 hover:border-accent/40 rounded-2xl p-5 flex flex-col justify-between space-y-3 transition-all shadow-xs hover:shadow-sm group"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-xs border border-[#1E2A2E]/5">
+                    <div className="w-8 h-8 rounded-xl bg-warm-paper flex items-center justify-center shadow-xs border border-primary/5">
                       {getIconForIntervention(item, idx)}
                     </div>
-                    <span className="px-2 py-0.5 bg-[#8DBFB4]/15 text-[#1A5040] text-[10px] font-mono font-semibold rounded-full">
+                    <span className="px-2.5 py-0.5 bg-secondary/15 text-primary border border-secondary/30 text-[10px] font-mono font-semibold rounded-full">
                       {item?.duration_minutes || item?.estimated_duration || 5} min
                     </span>
                   </div>
@@ -192,7 +192,7 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
 
                 <button
                   onClick={() => onLaunchIntervention && item?.id && onLaunchIntervention(item.id)}
-                  className="w-full py-2 bg-primary text-white hover:bg-[#2A3A3E] rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer text-center border-none shadow-xs group-hover:shadow-sm"
+                  className="w-full py-2.5 bg-accent text-white hover:bg-[#654652] rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer text-center border-none shadow-xs group-hover:shadow-sm"
                 >
                   Start
                 </button>
@@ -204,9 +204,9 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
 
       {/* 2. CRISIS SUPPORT INTERVENTIONS SECTION (If Crisis == TRUE) */}
       {isCrisis && safeCrisisSupport.length > 0 && (
-        <div className="space-y-4 pt-2 border-t border-[#1E2A2E]/10">
+        <div className="space-y-4 pt-2 border-t border-primary/10">
           <div className="space-y-1">
-            <div className="text-[10px] uppercase tracking-wider text-accent font-bold">
+            <div className="text-[10px] uppercase tracking-wider text-error font-bold">
               Targeted Crisis Support
             </div>
             <h3 className="font-serif text-xl text-primary font-medium">
@@ -221,19 +221,19 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
             {safeCrisisSupport.map((item, idx) => (
               <div
                 key={item?.id || idx}
-                className="bg-[#FFF9F8] hover:bg-white border border-accent/20 hover:border-accent/40 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all shadow-xs hover:shadow-sm group"
+                className="bg-error-subtle hover:bg-white-paper border border-error/20 hover:border-error/40 rounded-2xl p-5 flex flex-col justify-between space-y-3 transition-all shadow-xs hover:shadow-sm group"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="w-8 h-8 rounded-xl bg-accent/15 flex items-center justify-center text-accent">
+                    <div className="w-8 h-8 rounded-xl bg-error/15 flex items-center justify-center text-error">
                       <ShieldCheck size={18} />
                     </div>
-                    <span className="px-2 py-0.5 bg-accent/15 text-accent text-[10px] font-mono font-semibold rounded-full">
+                    <span className="px-2.5 py-0.5 bg-error/15 text-error border border-error/30 text-[10px] font-mono font-semibold rounded-full">
                       {item?.duration_minutes || item?.estimated_duration || 5} min
                     </span>
                   </div>
 
-                  <h4 className="font-serif text-sm font-semibold text-primary group-hover:text-accent transition-colors line-clamp-1">
+                  <h4 className="font-serif text-sm font-semibold text-primary group-hover:text-error transition-colors line-clamp-1">
                     {item?.title || 'Crisis Practice'}
                   </h4>
 
@@ -244,7 +244,7 @@ function PostJournalInterventionsInner({ isCrisis = false, onLaunchIntervention 
 
                 <button
                   onClick={() => onLaunchIntervention && item?.id && onLaunchIntervention(item.id)}
-                  className="w-full py-2 bg-accent text-white hover:bg-accent/90 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer text-center border-none shadow-xs"
+                  className="w-full py-2.5 bg-error text-white hover:bg-[#963b36] rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer text-center border-none shadow-xs"
                 >
                   Start
                 </button>

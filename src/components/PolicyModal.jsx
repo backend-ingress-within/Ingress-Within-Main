@@ -32,11 +32,11 @@ export default function PolicyModal({ isOpen, onClose, activeKey, setActiveKey }
       {/* Backdrop */}
       <div 
         onClick={onClose}
-        className="absolute inset-0 bg-[#1E2A2E]/60 backdrop-blur-[4px] cursor-pointer"
+        className="absolute inset-0 bg-[#011627]/60 backdrop-blur-xs cursor-pointer"
       />
       
       {/* Modal Box */}
-      <div className="relative z-10 bg-white rounded-premium w-[min(860px,94vw)] h-[min(88vh,840px)] flex flex-col overflow-hidden shadow-[0_24px_80px_rgba(30,42,46,0.3)]">
+      <div className="relative z-10 bg-white-paper rounded-2xl w-[min(860px,94vw)] h-[min(88vh,840px)] flex flex-col overflow-hidden shadow-2xl border border-primary/10">
         {/* Header */}
         <div className="bg-primary px-5 flex items-center justify-between shrink-0 gap-4 overflow-x-auto no-scrollbar">
           {/* Tabs */}
@@ -47,7 +47,7 @@ export default function PolicyModal({ isOpen, onClose, activeKey, setActiveKey }
                 onClick={() => setActiveKey(key)}
                 className={`font-sans text-[13px] font-normal py-4 px-5 border-b-2 bg-transparent border-none cursor-pointer whitespace-nowrap transition-all duration-200 ${
                   activeKey === key 
-                    ? 'color-white border-accent text-white font-medium' 
+                    ? 'border-accent text-white font-semibold' 
                     : 'text-[#D8ECEA]/60 border-transparent hover:text-[#D8ECEA]'
                 }`}
               >

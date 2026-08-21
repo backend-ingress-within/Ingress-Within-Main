@@ -61,8 +61,8 @@ export default function SupportPage() {
           </div>
 
           {/* Immediate help */}
-          <div className="space-y-3 pt-2">
-            <div className="text-[10px] font-bold tracking-widest text-[#8DBFB4] uppercase">
+          <div className="space-y-3 pt-2 text-left">
+            <div className="text-[10px] font-bold tracking-widest text-secondary uppercase">
               If you need to talk to someone now
             </div>
 
@@ -70,10 +70,10 @@ export default function SupportPage() {
               {helplines.map((h, idx) => (
                 <div 
                   key={idx}
-                  className="bg-white border border-[#1E2A2E]/10 rounded-xl p-5 flex items-center justify-between gap-4 shadow-xs"
+                  className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 flex items-center justify-between gap-4 shadow-xs"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${h.iconClass}`}>
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${h.iconClass}`}>
                       {h.badge === 'WhatsApp' ? <MessageSquare size={18} /> : <Phone size={18} />}
                     </div>
                     <div>
@@ -81,7 +81,7 @@ export default function SupportPage() {
                       <p className="text-[12px] text-mid leading-relaxed whitespace-pre-line mt-0.5 font-light">
                         {h.detail}
                       </p>
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-[#8DBFB4]/12 text-[#1A5040] border border-[#8DBFB4]/25 mt-2">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/15 text-primary border border-secondary/30 mt-2">
                         {h.badge}
                       </span>
                     </div>
@@ -91,10 +91,10 @@ export default function SupportPage() {
                     href={h.actionLink}
                     target={h.isExternal ? '_blank' : '_self'}
                     rel="noreferrer"
-                    className={`w-11 h-11 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-xs ${
                       h.badge === 'WhatsApp' 
-                        ? 'bg-[#b8a8d4]/12 text-[#5a4a8a] border border-[#b8a8d4]/25 hover:bg-[#b8a8d4]/20' 
-                        : 'bg-[#1E2A2E] text-white hover:bg-[#2E4A4E]'
+                        ? 'bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25' 
+                        : 'bg-accent text-white hover:bg-[#654652]'
                     }`}
                   >
                     {h.badge === 'WhatsApp' ? <Send size={16} /> : <Phone size={16} />}
@@ -104,32 +104,32 @@ export default function SupportPage() {
             </div>
           </div>
 
-          <div className="h-[1px] bg-[#1E2A2E]/10 my-6" />
+          <div className="h-[1px] bg-primary/10 my-6" />
 
           {/* Struggles section */}
-          <div className="space-y-3">
-            <div className="text-[10px] font-bold tracking-widest text-[#8DBFB4] uppercase">
+          <div className="space-y-3 text-left">
+            <div className="text-[10px] font-bold tracking-widest text-secondary uppercase">
               If you're not in immediate crisis but struggling
             </div>
 
             <div className="space-y-3">
-              <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-5 space-y-3 shadow-xs">
+              <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 space-y-3 shadow-xs">
                 <h3 className="text-[13px] font-bold text-primary">Talk to a therapist</h3>
                 <p className="text-[13px] text-mid leading-relaxed font-light">
                   If what you're carrying feels like more than you can manage alone, speaking to a trained therapist is worth it. It's not a sign that things are beyond repair — often the opposite.
                 </p>
                 <button 
                   onClick={() => window.open('https://docs.google.com/spreadsheets/d/1pzckT6ns2H1IlMwYwJa8ghdf_h-uTr9cM1HJ_17B3vQ/edit', '_blank')}
-                  className="text-[12px] font-bold text-[#2E7A70] hover:text-primary transition-colors flex items-center gap-1 border-none bg-transparent cursor-pointer"
+                  className="text-[12px] font-semibold text-accent hover:text-[#654652] transition-colors flex items-center gap-1 border-none bg-transparent cursor-pointer"
                 >
                   Find a therapist in India <ArrowLeft size={11} className="rotate-180" />
                 </button>
               </div>
 
-              <div className="bg-white border border-[#1E2A2E]/10 rounded-xl p-5 shadow-xs">
+              <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 shadow-xs">
                 <h3 className="text-[13px] font-bold text-primary mb-1">Talk to someone you trust</h3>
                 <p className="text-[13px] text-mid leading-relaxed font-light">
-                  A friend, a family member, a colleague who has shown up for you before. Sometimes the most useful thing is saying out loud to a real person that things are hard.
+                  A friend, partner, family member, or colleague. You don't have to explain the whole thing — just "I'm having a hard time today" is a good place to start.
                 </p>
               </div>
             </div>

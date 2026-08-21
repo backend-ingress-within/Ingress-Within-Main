@@ -174,12 +174,12 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
           </div>
 
           {/* Filtering Control Tabs */}
-          <div className="flex bg-[#F1F3F3] p-1 rounded-xl border border-primary/5 w-fit">
+          <div className="flex bg-warm-paper p-1 rounded-xl border border-primary/10 w-fit">
             <button
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
                 filter === 'all' 
-                  ? 'bg-white text-primary shadow-xs' 
+                  ? 'bg-accent text-white shadow-xs' 
                   : 'text-mid/70 hover:text-primary'
               }`}
             >
@@ -189,7 +189,7 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
               onClick={() => setFilter('open')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
                 filter === 'open' 
-                  ? 'bg-white text-primary shadow-xs' 
+                  ? 'bg-accent text-white shadow-xs' 
                   : 'text-mid/70 hover:text-primary'
               }`}
             >
@@ -199,7 +199,7 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
               onClick={() => setFilter('answered')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
                 filter === 'answered' 
-                  ? 'bg-white text-primary shadow-xs' 
+                  ? 'bg-accent text-white shadow-xs' 
                   : 'text-mid/70 hover:text-primary'
               }`}
             >
@@ -215,25 +215,25 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
             <p className="text-xs font-serif italic text-mid/60">Retrieving threads...</p>
           </div>
         ) : error ? (
-          <div className="bg-white rounded-premium border border-primary/5 p-8 text-center space-y-4">
-            <p className="text-sm text-red-500 font-medium">{error}</p>
+          <div className="bg-white-paper rounded-2xl border border-primary/10 p-8 text-center space-y-4 shadow-xs">
+            <p className="text-sm text-error font-medium">{error}</p>
             <button 
               onClick={() => loadThreads()} 
-              className="px-4 py-2 bg-primary text-white text-xs uppercase tracking-wider rounded-lg font-semibold cursor-pointer"
+              className="px-4 py-2 bg-accent text-white text-xs uppercase tracking-wider rounded-xl font-semibold cursor-pointer hover:bg-[#654652] transition-colors"
             >
               Retry
             </button>
           </div>
         ) : filteredThreads.length === 0 ? (
-          <div className="bg-white rounded-premium border border-primary/5 p-12 text-center space-y-3 select-none">
-            <MessageSquare size={36} className="mx-auto text-primary/15" />
-            <h3 className="font-serif text-lg font-normal">No threads found</h3>
-            <p className="text-xs text-mid/70 max-w-sm mx-auto">
+          <div className="bg-white-paper rounded-2xl border border-primary/10 p-12 text-center space-y-3 select-none shadow-xs">
+            <MessageSquare size={36} className="mx-auto text-secondary/30" />
+            <h3 className="font-serif text-lg font-normal text-primary">No threads found</h3>
+            <p className="text-xs text-mid/80 max-w-sm mx-auto leading-relaxed">
               {filter === 'open' 
                 ? "You've answered all reflection threads! Write a new journal entry to generate more."
                 : filter === 'answered'
                 ? "You haven't completed any reflection threads yet."
-                : "No reflection threads exist yet. Write your daily journal entry first."}
+                : "No reflection threads exist yet. Your daily journal entries will generate new inquiries here."}
             </p>
           </div>
         ) : (
@@ -250,52 +250,44 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
               return (
                 <div 
                   key={thread.id} 
-                  className={`bg-white rounded-premium border transition-all ${
+                  className={`bg-white-paper rounded-2xl border transition-all ${
                     isOpen 
-                      ? 'border-[#1E2A2E]/10 shadow-[0_8px_32px_rgba(30,42,46,0.02)]' 
-                      : 'border-primary/5 shadow-xs hover:border-[#1E2A2E]/10'
+                      ? 'border-primary/15 shadow-xs' 
+                      : 'border-primary/10 shadow-xs hover:border-accent/30'
                   }`}
                 >
                   {/* Card Header */}
                   <div className="p-5 md:p-6 border-b border-primary/5 flex flex-wrap items-center justify-between gap-4 select-none">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[9px] font-bold uppercase tracking-wider bg-mint-grey border border-primary/5 px-2.5 py-0.5 rounded-full text-secondary">
-                        Cycle {thread.cycle_number}
-                      </span>
-                      <span className="text-[9px] font-semibold text-mid/60">
-                        Created {new Date(thread.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    </div>
-
                     <div className="flex items-center gap-3">
-                      <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                         isOpen 
-                          ? 'bg-[#e0a898]/12 text-[#8a3020]' 
-                          : thread.status === 'Archived'
-                          ? 'bg-[#1E2A2E]/10 text-mid'
-                          : 'bg-[#8DBFB4]/12 text-secondary-dark'
+                          ? 'bg-accent/15 text-accent border border-accent/30' 
+                          : 'bg-secondary/15 text-primary border border-secondary/30'
                       }`}>
                         {thread.status}
                       </span>
+                      <span className="text-xs text-mid font-mono">
+                        Cycle {thread.cycle_number} · Day {thread.day_number}
+                      </span>
+                    </div>
 
-                      {!isOpen && (
-                        <button
-                          onClick={() => handleExpandCard(thread.id)}
-                          className="p-1 rounded hover:bg-mint-grey transition-colors text-mid hover:text-primary cursor-pointer border-none bg-transparent"
-                        >
-                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleCardExpanded(thread.id, thread.status)}
+                        className="flex items-center gap-1 text-xs text-mid hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
+                      >
+                        <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
+                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
                     </div>
                   </div>
 
                   {/* Card Body */}
-                  <div className="p-5 md:p-6 space-y-5">
-                    {/* Reflection Observation Text */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-mid/60 select-none">
-                        <Sparkle size={11} className="text-[#8DBFB4]" />
-                        <span>AI Reflection Context</span>
+                  <div className="p-5 md:p-6 space-y-5 text-left">
+                    {/* Prompt Context */}
+                    <div className="space-y-1.5">
+                      <div className="text-[9.5px] font-bold uppercase tracking-wider text-secondary select-none">
+                        AI Reflection Context
                       </div>
                       <p className="text-[13.5px] font-serif leading-relaxed text-primary/80 italic">
                         "{thread.reflection_text || 'Reflection generated for daily entry.'}"
@@ -303,8 +295,8 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
                     </div>
 
                     {/* Closing Question Prompt */}
-                    <div className="space-y-2 border-l-2 border-[#E0A898] pl-4 py-1">
-                      <div className="text-[9.5px] font-bold uppercase tracking-wider text-mid/60 select-none">
+                    <div className="space-y-2 border-l-2 border-accent pl-4 py-1">
+                      <div className="text-[9.5px] font-bold uppercase tracking-wider text-secondary select-none">
                         Closing Question
                       </div>
                       <h3 className="font-serif text-base md:text-lg text-primary font-semibold leading-relaxed">
@@ -315,12 +307,12 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
                     {/* Dynamic Section: Editor for Open, History for Answered/Archived */}
                     {isOpen ? (
                       <div className="space-y-4 pt-3 border-t border-primary/5">
-                        <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-mid/60 select-none">
-                          <MessageSquare size={11} className="text-[#E0A898]" />
+                        <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-secondary select-none">
+                          <MessageSquare size={11} className="text-accent" />
                           <span>Your Response</span>
                         </div>
 
-                        <div className="bg-[#FBFBFB] border border-primary/5 rounded-xl p-4 flex flex-col justify-between min-h-[160px]">
+                        <div className="bg-warm-paper/40 border border-primary/10 rounded-xl p-4 flex flex-col justify-between min-h-[160px] focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20 transition-all">
                           <textarea
                             value={textVal}
                             onChange={(e) => handleTextChange(thread.id, e.target.value)}
@@ -348,8 +340,8 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
                                   <CheckCircle2 size={12} /> Response Submitted
                                 </motion.span>
                               )}
-                              {saveState === 'error' && <span className="text-red-500">Failed to save draft.</span>}
-                              {submitState === 'error' && <span className="text-red-500">Failed to submit response.</span>}
+                              {saveState === 'error' && <span className="text-error">Failed to save draft.</span>}
+                              {submitState === 'error' && <span className="text-error">Failed to submit response.</span>}
                             </AnimatePresence>
                           </div>
 
@@ -366,7 +358,7 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
                             <button
                               onClick={() => handleSubmitResponse(thread.id)}
                               disabled={!textVal.trim() || submitState === 'submitting'}
-                              className="px-5 py-2.5 bg-primary hover:bg-[#2A3A3E] disabled:bg-primary/25 disabled:cursor-not-allowed text-white font-semibold text-xs tracking-wider uppercase rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                              className="px-5 py-2.5 bg-accent hover:bg-[#654652] disabled:bg-accent/25 disabled:cursor-not-allowed text-white font-semibold text-xs tracking-wider uppercase rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
                             >
                               <span>Submit Response</span>
                               <Send size={11} />
