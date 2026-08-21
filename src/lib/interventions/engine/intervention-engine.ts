@@ -75,6 +75,9 @@ export class InterventionEngine {
   }
 
   async resumeSession(userId: string, sessionInput: string | { session_id: string; last_position?: number; elapsed_seconds?: number }) {
+    if (typeof sessionInput === 'object') {
+      await this.service.resumeSession(userId, sessionInput);
+    }
     const sessionId = typeof sessionInput === 'string' ? sessionInput : sessionInput.session_id;
     return this.sessionService.resumeSession(userId, sessionId);
   }

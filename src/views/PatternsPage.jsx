@@ -86,10 +86,37 @@ function BackfillProcessingScreen() {
 
 /** Empty state for brand-new users with no cycles */
 function NewUserEmptyScreen() {
+  const previewPatterns = [
+    {
+      id: "preview-cognitive-avoidance",
+      name: "Cognitive Avoidance",
+      status: "present",
+      body: "Focusing heavily on logistics, facts, or external events to buffer against feeling the underlying emotional weight of a situation.",
+      meta: "Tracks structural focus vs feeling descriptors",
+      timeline: ["present", "shifting", "quiet"],
+    },
+    {
+      id: "preview-over-responsibility",
+      name: "Over-responsibility",
+      status: "shifting",
+      body: "Assuming full accountability for external outcomes, relationship dynamics, or team delays even when they are beyond your control.",
+      meta: "Tracks agency orientation in journaling",
+      timeline: ["shifting", "shifting", "present"],
+    },
+    {
+      id: "preview-emotional-containment",
+      name: "Emotional Containment",
+      status: "quiet",
+      body: "Saying 'I am fine' or keeping expressions highly measured when internal descriptors show high distress.",
+      meta: "Tracks emotional suppression signals",
+      timeline: ["quiet", "quiet", "quiet"],
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20">
       <DashboardNavbar activeTab="patterns" />
-      <main className="max-w-[680px] mx-auto px-6 pt-6 space-y-4">
+      <main className="max-w-[680px] mx-auto px-6 pt-6 space-y-6">
         <button
           onClick={() => window.navigateTo('/dashboard')}
           className="flex items-center gap-2 text-xs font-semibold text-[#4A6A64] hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
@@ -106,15 +133,65 @@ function NewUserEmptyScreen() {
             <Activity size={24} />
           </div>
           <h3 className="text-sm font-bold text-primary">No patterns established yet</h3>
-          <p className="text-xs text-[#4A6A64] max-w-[320px] mx-auto leading-relaxed">
-            Patterns begin appearing after your first completed cycle of writing.
+          <p className="text-xs text-[#4A6A64] max-w-[380px] mx-auto leading-relaxed">
+            Your personal patterns timeline will automatically compile here as you complete cycles. In the meantime, see the preview below of typical behavioral patterns Ingress Within tracks:
           </p>
           <button
             onClick={() => window.navigateTo('/dashboard')}
-            className="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all cursor-pointer border-none"
+            className="mt-2 px-6 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all cursor-pointer border-none shadow-sm"
           >
-            Start writing
+            Start writing your first entry
           </button>
+        </div>
+
+        {/* Educational Previews Section */}
+        <div className="space-y-4 pt-4">
+          <div className="text-[10px] font-bold tracking-widest text-[#4A6A64] uppercase border-b border-[#1E2A2E]/10 pb-2">
+            Typical Patterns We Track (Preview)
+          </div>
+
+          <div className="grid gap-4">
+            {previewPatterns.map(p => {
+              const badge = getStatusBadge(p.status);
+              return (
+                <div
+                  key={p.id}
+                  className="bg-white border border-[#1E2A2E]/8 rounded-xl p-5 relative overflow-hidden pl-6 opacity-90 hover:opacity-100 transition-opacity"
+                >
+                  <div className={`absolute left-0 top-0 bottom-0 w-[4px] ${p.status === 'present' ? 'bg-[#E0A898]' : p.status === 'shifting' ? 'bg-[#8DBFB4]' : 'bg-primary/20'}`} />
+                  
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="text-[14px] font-bold text-primary">{p.name}</h4>
+                      <span className="text-[9px] font-sans text-accent tracking-wide uppercase font-semibold">Educational Preview</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
+                      {badge.text}
+                    </span>
+                  </div>
+
+                  <p className="text-[12px] text-[#4A6A64] leading-relaxed mb-3.5">{p.body}</p>
+
+                  {/* Timeline preview */}
+                  <div className="space-y-1.5 mb-2.5">
+                    <div className="text-[8.5px] tracking-wider uppercase text-mid font-bold">Illustrative Timeline Across 3 Cycles</div>
+                    <div className="flex gap-2">
+                      {p.timeline.map((s, idx) => (
+                        <div key={idx} className="flex flex-col items-center">
+                          <div className={`w-3.5 h-3.5 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
+                          <span className="text-[8.5px] font-mono text-mid/60 mt-0.5">C{idx + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-[10.5px] text-mid border-t border-[#1E2A2E]/5 pt-3 mt-3">
+                    <span>{p.meta}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </main>
     </div>

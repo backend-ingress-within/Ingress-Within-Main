@@ -3,10 +3,8 @@ import { supabase } from '../../db';
 export class FavoriteRepository {
   private static memoryFavorites: Set<string> = new Set(); // key: `${userId}:${interventionId}`
 
-  /**
-   * Adds an intervention to user favorites.
-   */
   async addFavorite(userId: string, interventionId: string): Promise<boolean> {
+    FavoriteRepository.memoryFavorites.add(`${userId}:${interventionId}`);
     try {
       const { error } = await supabase
         .from('intervention_favorites')
@@ -16,8 +14,6 @@ export class FavoriteRepository {
     } catch (e) {
       console.warn('[FavoriteRepository] DB addFavorite fallback:', e);
     }
-
-    FavoriteRepository.memoryFavorites.add(`${userId}:${interventionId}`);
     return true;
   }
 
@@ -25,6 +21,7 @@ export class FavoriteRepository {
    * Removes an intervention from user favorites.
    */
   async removeFavorite(userId: string, interventionId: string): Promise<boolean> {
+    FavoriteRepository.memoryFavorites.delete(`${userId}:${interventionId}`);
     try {
       const { error } = await supabase
         .from('intervention_favorites')
@@ -36,8 +33,6 @@ export class FavoriteRepository {
     } catch (e) {
       console.warn('[FavoriteRepository] DB removeFavorite fallback:', e);
     }
-
-    FavoriteRepository.memoryFavorites.delete(`${userId}:${interventionId}`);
     return true;
   }
 
@@ -54,7 +49,9 @@ export class FavoriteRepository {
         .maybeSingle();
 
       if (!error && data) return true;
-      if (!error && !data) return false;
+      if (!error && !data) {
+        return FavoriteRepository.memoryFavorites.has(`${userId}:${interventionId}`);
+      }
     } catch (e) {
       console.warn('[FavoriteRepository] DB isFavorite fallback:', e);
     }

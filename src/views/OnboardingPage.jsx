@@ -24,6 +24,93 @@ const oceanQuestions = [
   { id: 12, text: "When I'm anxious I find it hard to identify exactly what I'm anxious about." }
 ];
 
+const oceanMicroInsights = {
+  1: {
+    1: "Taking total blame can feel heavy. We will work on parsing self-compassion alongside accountability.",
+    2: "Looking inward during setbacks is hard; finding a soft approach to self-reflection is our focus.",
+    3: "Balancing internal accountability with external realities is a continuous, day-to-day practice.",
+    4: "A strong willingness to look at your own part is a powerful catalyst for positive behavioral changes.",
+    5: "Having high openness to self-reflection is the ultimate foundation for cognitive reframing."
+  },
+  2: {
+    1: "Sitting with uncertainty is deeply uncomfortable. You are not alone in wanting clear resolutions quickly.",
+    2: "The impulse to resolve ambiguity fast is natural. We'll practice grounding when things are unclear.",
+    3: "Patience with uncertainty fluctuates; giving yourself space to pause is a valuable skill.",
+    4: "You navigate gray areas with composure, which buffers against immediate stress spikes.",
+    5: "High tolerance for ambiguity is a strong indicator of advanced emotional resilience."
+  },
+  3: {
+    1: "Relying purely on motivation is tough. We will focus on building small, automated daily structures.",
+    2: "When motivation drops, follow-through can feel impossible. Be gentle with your capacity limits.",
+    3: "Fluctuating follow-through is normal; finding consistency in tiny habits helps bridge the gaps.",
+    4: "Your persistence is strong, allowing you to sustain progress even on lower-energy days.",
+    5: "Having high internal accountability is a massive asset for long-term cycle consistency."
+  },
+  4: {
+    1: "External chaos can be completely overwhelming. We will practice simple, centering somatic tools.",
+    2: "It is easy to get swept up in outward events. We will focus on locating what is within your influence.",
+    3: "Shifting focus internally takes effort, especially during active external crises.",
+    4: "Directing your energy to internal responses is a highly adaptive way to manage daily stress.",
+    5: "An internal locus of control during chaos is a vital shield against emotional burnout."
+  },
+  5: {
+    1: "Needing quiet solitude to process stress is a healthy way to recover. We honor your space.",
+    2: "Introverted regulation is common; finding comfort in your own company helps restore balance.",
+    3: "Depending on the stress, you sometimes seek company and other times need quiet isolation.",
+    4: "Co-regulating with trusted friends or loved ones is a highly effective nervous system stabilizer.",
+    5: "You are highly social in your stress recovery, drawing immediate safety and comfort from others."
+  },
+  6: {
+    1: "Processing silently allows you to digest thoughts and find clarity in your own headspace first.",
+    2: "Internal processing gives you the safety of reflecting on patterns before sharing them.",
+    3: "You benefit from a mix of solitary reflection and selective verbal sharing.",
+    4: "Verbalizing your thoughts helps you externalize cognitive loops and see them from a distance.",
+    5: "You are a verbal processor; talking is your primary method for translating chaotic feelings into order."
+  },
+  7: {
+    1: "You express boundaries directly, preserving honesty and clarity in your close relationships.",
+    2: "Voicing friction comes relatively naturally, helping you clear the air before frustration builds.",
+    3: "Balancing warmth with directness is tough; you choose when to confront and when to let go.",
+    4: "Avoiding confrontation keeps the peace but can leave your own needs unvoiced or suppressed.",
+    5: "Protecting relationships by holding back frustration is common; we will build safe communication steps."
+  },
+  8: {
+    1: "You are transparent about not being okay, which invites authentic support and deepens bonds.",
+    2: "You value vulnerability, choosing to voice your actual state when it really matters.",
+    3: "Saying 'I am fine' is sometimes a necessary boundary, depending on who is asking.",
+    4: "Minimizing your struggles to avoid making waves can lead to emotional containment patterns.",
+    5: "Suppressing your needs to prevent social discomfort blocks others from truly understanding and helping you."
+  },
+  9: {
+    1: "Clear emotional boundaries keep you steady and allow you to support others without absorbing their distress.",
+    2: "You maintain helpful emotional distance, protecting your personal battery from external mood shifts.",
+    3: "You empathize with others but can usually separate their feelings from your own identity.",
+    4: "Your high empathy makes you incredibly sensitive to others, but can leave you feeling drained.",
+    5: "You absorb emotional environments like a sponge. We will work on building a healthy boundary shield."
+  },
+  10: {
+    1: "You are highly grounded, allowing minor daily interruptions to slide past without throwing you off.",
+    2: "You maintain solid baseline stability, recovering quickly when minor things go awry.",
+    3: "Your reactivity to minor events fluctuates depending on your sleep, energy, and stress levels.",
+    4: "Sensitivity to minor details can make days feel unpredictable; we will build daily centering anchors.",
+    5: "Being highly reactive to minor disruptions is exhausting; we will work on increasing emotional buffer."
+  },
+  11: {
+    1: "You replay conversations or situations in my head long after they've happened.",
+    2: "You reflect briefly to learn, then move forward without looping on what was said.",
+    3: "Rumination happens occasionally, but you can usually redirect your mind after a short time.",
+    4: "Over-analyzing conversations is common; we will learn to catch these mental replay loops early.",
+    5: "Constant mental replays create massive cognitive fatigue. We will practice letting go of past scripts."
+  },
+  12: {
+    1: "You have excellent clarity, instantly identifying the specific roots of your anxious feelings.",
+    2: "You can usually trace your anxiety back to a source with just a little bit of quiet reflection.",
+    3: "Sometimes anxiety has a clear cause, and other times it is a vague, somatic physical energy.",
+    4: "Vague, objectless anxiety is deeply disorienting. We will work on parsing and naming it together.",
+    5: "Experiencing anxiety as a generalized cloud is common; we will practice finding its specific roots."
+  }
+};
+
 export default function OnboardingPage({ initialStep = 'loading', onComplete }) {
   const [step, setStep] = useState(initialStep); // 'loading', 'consent', 'profile', 'welcome', 'assessment', 'success'
   const [loadingError, setLoadingError] = useState(null);
@@ -849,6 +936,28 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                         <span>Very much like me</span>
                       </div>
                     </div>
+
+                    {/* Dynamic Micro-Feedback Insight */}
+                    {(() => {
+                      const selectedRating = assessmentAnswers[`q${oceanQuestions[currentQuestionIndex].id}`];
+                      if (selectedRating === undefined) return null;
+                      return (
+                        <motion.div
+                          key={`insight-${currentQuestionIndex}-${selectedRating}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-[#8DBFB4]/5 border border-[#8DBFB4]/20 rounded-xl p-5 max-w-[400px] mx-auto text-left space-y-2"
+                        >
+                          <div className="flex items-center gap-1.5 text-[#4A6A64] font-sans text-[9px] font-bold uppercase tracking-wider">
+                            <Sparkles size={11} className="text-[#8DBFB4]" />
+                            <span>Real-time Observation</span>
+                          </div>
+                          <p className="text-[12px] text-primary leading-relaxed font-sans mb-0">
+                            {oceanMicroInsights[oceanQuestions[currentQuestionIndex].id]?.[selectedRating]}
+                          </p>
+                        </motion.div>
+                      );
+                    })()}
 
                     {errorMsg && (
                       <p className="font-sans text-[13px] text-[#b37361] text-center leading-relaxed">

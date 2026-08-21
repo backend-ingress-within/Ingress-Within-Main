@@ -469,6 +469,10 @@ export async function POST(request: NextRequest) {
 
       if (journalRecord) {
         triggerAIProcessing(journalRecord.id, authUser.userId);
+        // Check and trigger weekly / monthly milestone summaries
+        void checkWeeklyAndMonthlySummary(authUser.userId, cycleId, cycleDay).catch(err => {
+          console.error('[Session Complete] Weekly/monthly check error:', err);
+        });
       }
 
       return NextResponse.json({

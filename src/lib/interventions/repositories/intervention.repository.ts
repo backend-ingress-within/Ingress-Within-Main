@@ -56,7 +56,7 @@ export class InterventionRepository {
         if (params.max_duration) {
           items = items.filter((i) => (i.estimated_duration || i.duration_minutes || 0) <= params.max_duration!);
         }
-        const total = items.length;
+        const total = count !== null ? count : items.length;
         return {
           data: items,
           pagination: {

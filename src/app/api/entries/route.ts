@@ -465,6 +465,11 @@ export async function POST(request: NextRequest) {
       void triggerAIProcessing(newEntry.id, authUser.userId).catch(err => {
         console.error('[API Entries POST] Background trigger error:', err);
       });
+
+      // 3. Check and trigger weekly / monthly milestone summaries
+      void checkWeeklyAndMonthlySummary(authUser.userId, cycleId, cycleDay).catch(err => {
+        console.error('[API Entries POST] Weekly/monthly check error:', err);
+      });
     }
 
     return NextResponse.json({
