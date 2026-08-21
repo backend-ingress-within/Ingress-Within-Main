@@ -24,21 +24,21 @@ function EntryDetailSkeleton() {
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
       <DashboardNavbar activeTab="home" />
-      <main className="max-w-[1140px] w-full mx-auto px-6 pt-6 pb-20 space-y-6 flex-1 flex flex-col animate-pulse">
-        <div className="h-4 w-32 bg-primary/10 rounded" />
+      <main className="max-w-[1140px] w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 sm:pb-24 space-y-6 flex-1 flex flex-col animate-pulse">
+        <div className="h-4 w-32 bg-primary/10 rounded-md" />
         
         {/* Header Skeleton */}
-        <div className="bg-white rounded-xl border border-primary/5 p-6 shadow-xs space-y-4">
+        <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 shadow-xs space-y-4">
           <div className="flex gap-2">
             <div className="h-5 w-20 bg-primary/10 rounded-full" />
             <div className="h-5 w-20 bg-primary/10 rounded-full" />
           </div>
-          <div className="h-8 w-1/3 bg-primary/10 rounded" />
+          <div className="h-8 w-1/3 bg-primary/10 rounded-md" />
         </div>
 
         {/* Content Columns Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1">
-          <div className="lg:col-span-7 bg-white rounded-xl border border-primary/5 p-6 min-h-[350px] space-y-6">
+          <div className="lg:col-span-7 bg-white-paper rounded-2xl border border-primary/10 p-6 min-h-[350px] space-y-6 shadow-xs">
             <div className="h-5 w-40 bg-primary/10 rounded border-b border-primary/5 pb-3" />
             <div className="space-y-3">
               <div className="h-4 bg-primary/5 rounded w-full" />
@@ -47,18 +47,18 @@ function EntryDetailSkeleton() {
             </div>
           </div>
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white rounded-xl border border-primary/5 p-6 space-y-4">
+            <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 space-y-4 shadow-xs">
               <div className="h-5 w-32 bg-primary/10 rounded border-b border-primary/5 pb-3" />
               <div className="h-20 bg-primary/5 rounded" />
             </div>
-            <div className="bg-white rounded-xl border border-primary/5 p-6 space-y-4">
+            <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 space-y-4 shadow-xs">
               <div className="h-5 w-48 bg-primary/10 rounded border-b border-primary/5 pb-3" />
               <div className="h-24 bg-primary/5 rounded" />
             </div>
           </div>
         </div>
       </main>
-      <footer className="py-6 border-t border-primary/5 bg-white text-center text-[10px] text-mid/60">
+      <footer className="py-6 border-t border-primary/10 bg-white-paper text-center text-[10px] text-mid/60">
         Ingress Within · Secure Encryption Active
       </footer>
     </div>
@@ -217,7 +217,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
     <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
       <DashboardNavbar activeTab="home" />
 
-      <main className="max-w-[1140px] w-full mx-auto px-6 pt-6 pb-20 space-y-6 flex-1">
+      <main className="max-w-[1140px] w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 sm:pb-24 space-y-6 flex-1">
         
         {/* Navigation & Header */}
         <div className="space-y-4">
@@ -234,7 +234,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
               <div className="flex gap-2 flex-wrap">
                 <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-widest ${
                   entry.entry_type === 'guided' || entry.session_id 
-                    ? 'bg-[#8DBFB4]/15 text-[#1A5040]' 
+                    ? 'bg-secondary/15 text-primary' 
                     : 'bg-primary/5 text-primary'
                 }`}>
                   {entry.entry_type === 'guided' || entry.session_id ? 'Guided Session' : 'Free Write'}
@@ -268,15 +268,15 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
           
           {/* Left Column: Original Journal Entry */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white rounded-xl border border-[#1E2A2E]/5 p-6 md:p-8 shadow-[0_8px_32px_rgba(30,42,46,0.02)] space-y-6">
-              <div className="border-b border-[#1E2A2E]/5 pb-4 flex items-center justify-between">
+            <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 md:p-8 shadow-xs space-y-6">
+              <div className="border-b border-primary/10 pb-4 flex items-center justify-between">
                 <h2 className="font-serif text-lg text-primary font-normal flex items-center gap-2">
                   <BookOpen size={18} className="text-secondary" />
                   <span>Journal Entry</span>
                 </h2>
               </div>
               
-              <div className="font-serif text-[15px] leading-relaxed text-primary/95 whitespace-pre-wrap italic pl-4 border-l-2 border-[#8DBFB4]/30 select-text">
+              <div className="font-serif text-[15px] leading-relaxed text-primary/95 whitespace-pre-wrap italic pl-4 border-l-2 border-accent/40 select-text">
                 "{entry.content}"
               </div>
             </div>
@@ -287,7 +287,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
             
             {/* Compact Crisis Support Banner if Crisis Flagged */}
             {entry.crisis_flag && (
-              <div className="bg-white rounded-xl border border-accent/20 p-5 shadow-xs space-y-4">
+              <div className="bg-white-paper rounded-2xl border border-accent/20 p-5 shadow-xs space-y-4">
                 <div className="flex items-start gap-2.5 text-accent font-semibold">
                   <AlertCircle size={16} className="mt-0.5 shrink-0" />
                   <div>
@@ -309,35 +309,35 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
 
                   <a 
                     href="tel:18602662345" 
-                    className="flex flex-col items-center justify-center p-2.5 bg-[#8DBFB4]/10 hover:bg-[#8DBFB4]/20 border border-[#8DBFB4]/25 rounded-xl transition-all text-center group"
+                    className="flex flex-col items-center justify-center p-2.5 bg-secondary/10 hover:bg-secondary/20 border border-secondary/25 rounded-xl transition-all text-center group"
                   >
-                    <div className="font-semibold text-[11px] text-primary group-hover:text-[#1A5040]">Vandrevala</div>
-                    <span className="text-[9px] uppercase font-bold text-[#1A5040] mt-1">24/7</span>
+                    <div className="font-semibold text-[11px] text-primary group-hover:text-secondary">Vandrevala</div>
+                    <span className="text-[9px] uppercase font-bold text-secondary mt-1">24/7</span>
                   </a>
 
                   <a 
                     href="https://wa.me/919152987821" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="flex flex-col items-center justify-center p-2.5 bg-[#B8A8D4]/10 hover:bg-[#B8A8D4]/20 border border-[#B8A8D4]/25 rounded-xl transition-all text-center group"
+                    className="flex flex-col items-center justify-center p-2.5 bg-accent/10 hover:bg-accent/20 border border-accent/25 rounded-xl transition-all text-center group"
                   >
-                    <div className="font-semibold text-[11px] text-primary group-hover:text-[#5A4A8A]">WhatsApp</div>
-                    <span className="text-[9px] uppercase font-bold text-[#5A4A8A] mt-1">Text</span>
+                    <div className="font-semibold text-[11px] text-primary group-hover:text-accent">WhatsApp</div>
+                    <span className="text-[9px] uppercase font-bold text-accent mt-1">Text</span>
                   </a>
                 </div>
               </div>
             )}
 
             {/* AI Reflection Card */}
-            <div className="bg-white rounded-xl border border-[#1E2A2E]/5 p-6 shadow-[0_8px_32px_rgba(30,42,46,0.02)] space-y-5">
-              <div className="border-b border-[#1E2A2E]/5 pb-3 flex items-center justify-between">
+            <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 shadow-xs space-y-5">
+              <div className="border-b border-primary/10 pb-3 flex items-center justify-between">
                 <h3 className="font-serif text-[15px] text-primary font-normal flex items-center gap-2">
-                  <Compass size={16} className="text-[#5A4A8A]" />
+                  <Compass size={16} className="text-secondary" />
                   <span>AI Reflection</span>
                 </h3>
                 
                 {reflection?.classification && (
-                  <span className="text-[8.5px] bg-[#5A4A8A]/10 text-[#5A4A8A] font-bold uppercase tracking-widest px-2 py-0.5 rounded">
+                  <span className="text-[8.5px] bg-accent/10 text-accent font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">
                     {reflection.classification}
                   </span>
                 )}
@@ -352,7 +352,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
                 </p>
                 
                 {/* Reflection Question */}
-                <div className="p-4 bg-secondary/5 rounded-xl border border-secondary/15 space-y-2 mt-3 text-left">
+                <div className="p-4 bg-warm-paper rounded-xl border border-primary/10 space-y-2 mt-3 text-left">
                   <div className="text-[8.5px] font-bold uppercase tracking-widest text-secondary flex items-center gap-1">
                     <HelpCircle size={11} />
                     <span>Reflection Question for Contemplation</span>
@@ -369,14 +369,14 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
 
                   if (isAnswered) {
                     return (
-                      <div className="p-4 bg-[#8DBFB4]/10 rounded-xl border border-[#8DBFB4]/25 space-y-2 mt-3 text-left">
+                      <div className="p-4 bg-secondary/10 rounded-xl border border-secondary/25 space-y-2 mt-3 text-left">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#1A5040] flex items-center gap-1">
-                            <CheckCircle2 size={12} className="text-[#8DBFB4]" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-primary flex items-center gap-1">
+                            <CheckCircle2 size={12} className="text-secondary" />
                             <span>Your Answer</span>
                           </span>
                         </div>
-                        <p className="font-serif text-[13.5px] italic text-primary leading-relaxed pl-2.5 border-l-2 border-[#8DBFB4]/50 select-text">
+                        <p className="font-serif text-[13.5px] italic text-primary leading-relaxed pl-2.5 border-l-2 border-secondary/50 select-text">
                           "{existingAnswer}"
                         </p>
                       </div>
@@ -384,30 +384,26 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
                   }
 
                   return (
-                    <div className="p-4 bg-white rounded-xl border border-[#1E2A2E]/10 space-y-3 mt-3 text-left">
+                    <div className="p-4 bg-white-paper rounded-xl border border-primary/10 space-y-3 mt-3 text-left shadow-xs">
                       <div className="text-[9px] font-bold uppercase tracking-widest text-secondary flex items-center gap-1">
                         <Sparkles size={11} />
                         <span>Answer Reflection Question</span>
                       </div>
                       {answerError && (
-                        <div className="text-[11px] text-accent font-semibold">{answerError}</div>
+                        <div className="text-[11px] text-error font-semibold">{answerError}</div>
                       )}
                       <textarea
                         value={reflectionAnswerText}
                         onChange={(e) => setReflectionAnswerText(e.target.value)}
                         placeholder="Write your response to this reflection question..."
-                        className="w-full min-h-[90px] border border-[#1E2A2E]/10 rounded-lg p-3 text-xs leading-relaxed outline-none focus:border-primary font-sans text-primary placeholder:text-mid/40 placeholder:font-serif italic resize-y"
+                        className="w-full min-h-[90px] border border-primary/10 rounded-xl p-3 text-xs leading-relaxed outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 font-sans text-primary placeholder:text-mid/40 placeholder:font-serif italic resize-y bg-warm-paper/30"
                       />
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={handleSaveReflectionAnswer}
                           disabled={isSubmittingAnswer || !reflectionAnswerText.trim()}
-                          className={`px-4 py-1.5 rounded text-[11px] font-semibold uppercase tracking-wider transition-all border-none ${
-                            isSubmittingAnswer || !reflectionAnswerText.trim()
-                              ? 'bg-primary/20 text-white cursor-not-allowed'
-                              : 'bg-primary text-white hover:bg-[#2A3A3E] cursor-pointer shadow-xs'
-                          }`}
+                          className="px-4 py-2 rounded-xl text-[11px] font-semibold uppercase tracking-wider transition-all border-none bg-accent hover:bg-[#654652] active:bg-[#533842] text-white cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {isSubmittingAnswer ? 'Saving...' : 'Submit Answer'}
                         </button>
@@ -420,8 +416,8 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
 
             {/* Reflection Continuity Flow Card */}
             {entry.decrypted_reflection_text && previousReflection && (
-              <div className="bg-white rounded-xl border border-[#1E2A2E]/5 p-6 shadow-[0_8px_32px_rgba(30,42,46,0.02)] space-y-5">
-                <div className="border-b border-[#1E2A2E]/5 pb-3">
+              <div className="bg-white-paper rounded-2xl border border-primary/10 p-6 shadow-xs space-y-5">
+                <div className="border-b border-primary/10 pb-3">
                   <h3 className="font-serif text-[15px] text-primary font-normal flex items-center gap-2">
                     <MessageSquare size={16} className="text-secondary" />
                     <span>Reflection Continuity Flow</span>
@@ -478,7 +474,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
         </div>
 
         {/* Full-Width Bottom Section: Daily Practices & Crisis Recommendations */}
-        <div className="pt-8 border-t border-[#1E2A2E]/10">
+        <div className="pt-8 border-t border-primary/10">
           <PostJournalInterventions
             isCrisis={Boolean(entry.crisis_flag)}
             onLaunchIntervention={(id) => setPlayerInterventionId(id)}
@@ -486,7 +482,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
         </div>
       </main>
 
-      <footer className="py-6 border-t border-primary/5 bg-white text-center text-[10px] text-mid/60 mt-12">
+      <footer className="py-6 border-t border-primary/10 bg-white-paper text-center text-[10px] text-mid/60 mt-12">
         Ingress Within · Secure Encryption Active
       </footer>
     </div>

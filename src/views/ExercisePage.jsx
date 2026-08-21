@@ -518,32 +518,32 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         </div>
 
         {/* Dashboard Lifecycle Summary Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-4 border border-[#1E2A2E]/5 shadow-xs space-y-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white-paper rounded-2xl p-4 sm:p-5 border border-primary/10 shadow-xs space-y-1">
             <span className="text-[9px] font-bold uppercase tracking-wider text-mid">Pending</span>
             <div className="font-serif text-xl text-primary font-normal">{inProgressCount}</div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-[#1E2A2E]/5 shadow-xs space-y-1">
+          <div className="bg-white-paper rounded-2xl p-4 sm:p-5 border border-primary/10 shadow-xs space-y-1">
             <span className="text-[9px] font-bold uppercase tracking-wider text-mid">Available</span>
-            <div className="font-serif text-xl text-blue-700 font-normal">{availableCount}</div>
+            <div className="font-serif text-xl text-accent font-normal">{availableCount}</div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-[#1E2A2E]/5 shadow-xs space-y-1">
+          <div className="bg-white-paper rounded-2xl p-4 sm:p-5 border border-primary/10 shadow-xs space-y-1">
             <span className="text-[9px] font-bold uppercase tracking-wider text-mid">Completed</span>
-            <div className="font-serif text-xl text-emerald-700 font-normal">{completedCount}</div>
+            <div className="font-serif text-xl text-secondary font-normal">{completedCount}</div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-[#1E2A2E]/5 shadow-xs space-y-1">
+          <div className="bg-white-paper rounded-2xl p-4 sm:p-5 border border-primary/10 shadow-xs space-y-1">
             <span className="text-[9px] font-bold uppercase tracking-wider text-mid">Locked</span>
-            <div className="font-serif text-xl text-slate-500 font-normal">{lockedCount}</div>
+            <div className="font-serif text-xl text-mid/60 font-normal">{lockedCount}</div>
           </div>
         </div>
 
         {loading ? (
           <div className="py-16 text-center">
-            <RotateCw className="w-6 h-6 animate-spin mx-auto text-primary opacity-60 mb-2" />
+            <RotateCw className="w-6 h-6 animate-spin mx-auto text-secondary opacity-60 mb-2" />
             <p className="text-xs text-mid">Loading exercise catalog...</p>
           </div>
         ) : error ? (
-          <div className="p-6 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3">
+          <div className="p-6 rounded-2xl bg-error-subtle border border-error/20 text-error text-sm flex items-center gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -567,52 +567,52 @@ export default function ExercisePage({ user, profile, onSignOut }) {
               return (
                 <div
                   key={inst.id}
-                  className={`bg-white rounded-2xl p-6 border transition-all flex flex-col justify-between ${
+                  className={`bg-white-paper rounded-2xl p-5 sm:p-6 border transition-all flex flex-col justify-between shadow-xs ${
                     isCompleted
-                      ? 'border-emerald-200 bg-emerald-50/20'
+                      ? 'border-secondary/30 bg-secondary/5'
                       : isInProgress || isAnalysing
-                      ? 'border-[#8DBFB4] shadow-sm'
+                      ? 'border-accent/40 shadow-sm'
                       : isLocked
-                      ? 'border-line opacity-60'
-                      : 'border-line hover:border-primary/30 hover:shadow-md'
+                      ? 'border-primary/5 opacity-60'
+                      : 'border-primary/10 hover:border-accent/30 hover:shadow-sm'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8DBFB4]">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary">
                         {meta.category}
                       </span>
                       
                       {/* Status Badge Driven strictly by Lifecycle */}
                       {isCompleted ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-medium">
-                          <CheckCircle2 className="w-3 h-3" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary/15 text-primary border border-secondary/30 text-[10px] sm:text-[11px] font-semibold">
+                          <CheckCircle2 className="w-3 h-3 text-secondary" />
                           Completed
                         </span>
                       ) : isAnalysing ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-[11px] font-medium animate-pulse">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 text-[10px] sm:text-[11px] font-semibold animate-pulse">
                           <Clock className="w-3 h-3" />
                           Analysing
                         </span>
                       ) : isInProgress ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#8DBFB4]/20 text-[#4A6A64] text-[11px] font-medium animate-pulse">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 text-[10px] sm:text-[11px] font-semibold animate-pulse">
                           <Clock className="w-3 h-3" />
                           In Progress
                         </span>
                       ) : isLocked ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-warm-paper text-mid/60 border border-primary/10 text-[10px] sm:text-[11px] font-semibold">
                           <Lock className="w-3 h-3" />
                           Locked
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 text-[10px] sm:text-[11px] font-semibold">
                           Available
                         </span>
                       )}
                     </div>
 
                     {/* Founder Display Title */}
-                    <h3 className="font-serif text-lg text-primary mb-2">
+                    <h3 className="font-serif text-lg text-primary mb-2 font-normal">
                       {meta.title}
                     </h3>
 
@@ -623,8 +623,8 @@ export default function ExercisePage({ user, profile, onSignOut }) {
 
                     {/* Stored Progress Indicator */}
                     {(isInProgress || isAnalysing) && (
-                      <div className="text-[11px] font-medium text-[#4A6A64] mb-6 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-[#8DBFB4]" />
+                      <div className="text-[11px] font-medium text-secondary mb-6 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-secondary" />
                         <span>{meta.getProgress(inst)}</span>
                       </div>
                     )}
@@ -635,7 +635,7 @@ export default function ExercisePage({ user, profile, onSignOut }) {
                     {isCompleted ? (
                       <button
                         onClick={() => setActiveResultInstanceId(inst.id)}
-                        className="w-full py-2.5 rounded-xl border border-primary/20 hover:bg-primary/5 text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-2.5 rounded-xl bg-white-paper border border-primary/15 hover:border-accent hover:bg-accent/5 text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       >
                         <FileCheck className="w-3.5 h-3.5" />
                         View Results
@@ -643,7 +643,7 @@ export default function ExercisePage({ user, profile, onSignOut }) {
                     ) : isAnalysing ? (
                       <button
                         onClick={() => handleResumeExercise(inst.id)}
-                        className="w-full py-2.5 rounded-xl bg-purple-900 text-white text-xs font-semibold hover:bg-purple-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                        className="w-full py-2.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-[#654652] active:bg-[#533842] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         View Status
@@ -651,7 +651,7 @@ export default function ExercisePage({ user, profile, onSignOut }) {
                     ) : isInProgress ? (
                       <button
                         onClick={() => handleResumeExercise(inst.id)}
-                        className="w-full py-2.5 rounded-xl bg-[#1E2A2E] text-white text-xs font-semibold hover:bg-[#1E2A2E]/90 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                        className="w-full py-2.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-[#654652] active:bg-[#533842] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         Continue Exercise
@@ -659,7 +659,7 @@ export default function ExercisePage({ user, profile, onSignOut }) {
                     ) : isLocked ? (
                       <button
                         disabled
-                        className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
+                        className="w-full py-2.5 rounded-xl bg-warm-paper text-mid/50 border border-primary/5 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
                       >
                         <Lock className="w-3.5 h-3.5" />
                         {inst.metadata?.unlock_label ? `Locked (${inst.metadata.unlock_label})` : `Locked (Unlocks Day ${meta.unlockDay})`}
@@ -667,7 +667,7 @@ export default function ExercisePage({ user, profile, onSignOut }) {
                     ) : (
                       <button
                         onClick={() => handleStartExercise(inst.exercise_id)}
-                        className="w-full py-2.5 rounded-xl bg-[#1E2A2E] text-white text-xs font-semibold hover:bg-[#1E2A2E]/90 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                        className="w-full py-2.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-[#654652] active:bg-[#533842] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         Begin Exercise

@@ -628,35 +628,43 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                         </span>
                       </label>
 
-                      {/* Privacy */}
+                      {/* Checkbox 2: Privacy */}
                       <label className="flex items-start gap-3 cursor-pointer group">
-                        <div className="relative flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="relative flex items-center justify-center mt-0.5">
                           <input 
-                            type="checkbox"
+                            type="checkbox" 
                             checked={agreePrivacy}
-                            onChange={(e) => setAgreePrivacy(e.target.checked)}
+                            onChange={(e) => { setAgreePrivacy(e.target.checked); setErrorMsg(''); }}
                             className="sr-only"
                           />
-                          <div className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${agreePrivacy ? 'bg-primary border-primary' : 'bg-white border-primary/20 group-hover:border-primary/45'}`}>
-                            {agreePrivacy && <Check size={13} className="text-white" />}
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                            agreePrivacy 
+                              ? 'bg-accent border-accent text-white shadow-xs' 
+                              : 'bg-white-paper border-primary/20 group-hover:border-primary/40'
+                          }`}>
+                            {agreePrivacy && <Check size={12} strokeWidth={3} />}
                           </div>
                         </div>
                         <span className="font-sans text-[13.5px] font-light text-mid select-none leading-snug">
-                          I agree to the Privacy Policy.
+                          I agree to the <button type="button" onClick={(e) => { e.preventDefault(); setShowFullPrivacy(true); }} className="text-accent underline font-normal bg-transparent border-none p-0 cursor-pointer">Privacy Policy</button> and data encryption standards.
                         </span>
                       </label>
 
-                      {/* AI Notice */}
+                      {/* Checkbox 3: AI Notice */}
                       <label className="flex items-start gap-3 cursor-pointer group">
-                        <div className="relative flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="relative flex items-center justify-center mt-0.5">
                           <input 
-                            type="checkbox"
+                            type="checkbox" 
                             checked={agreeAiNotice}
-                            onChange={(e) => setAgreeAiNotice(e.target.checked)}
+                            onChange={(e) => { setAgreeAiNotice(e.target.checked); setErrorMsg(''); }}
                             className="sr-only"
                           />
-                          <div className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${agreeAiNotice ? 'bg-primary border-primary' : 'bg-white border-primary/20 group-hover:border-primary/45'}`}>
-                            {agreeAiNotice && <Check size={13} className="text-white" />}
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                            agreeAiNotice 
+                              ? 'bg-accent border-accent text-white shadow-xs' 
+                              : 'bg-white-paper border-primary/20 group-hover:border-primary/40'
+                          }`}>
+                            {agreeAiNotice && <Check size={12} strokeWidth={3} />}
                           </div>
                         </div>
                         <span className="font-sans text-[13.5px] font-light text-mid select-none leading-snug">
@@ -667,7 +675,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     </div>
 
                     {errorMsg && (
-                      <p className="font-sans text-[13px] text-[#b37361] leading-relaxed text-center">
+                      <p className="font-sans text-[13px] text-error leading-relaxed text-center">
                         {errorMsg}
                       </p>
                     )}
@@ -676,7 +684,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     <button 
                       type="submit"
                       disabled={isSubmitting || !agreeTerms || !agreePrivacy || !agreeAiNotice}
-                      className="w-full bg-primary hover:bg-[#2A3A3E] text-mint-grey py-3.5 rounded-md font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                      className="w-full bg-accent hover:bg-[#654652] active:bg-[#533842] text-white py-3.5 rounded-xl font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                     >
                       {isSubmitting ? "Submitting..." : "Accept & Continue"}
                     </button>
@@ -724,7 +732,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                           onChange={(e) => { setFullName(e.target.value); setErrorMsg(''); }}
                           placeholder="Your full name"
                           disabled={isSubmitting}
-                          className="w-full bg-white border border-primary/10 rounded-md px-4 py-3.5 focus:border-secondary/50 focus:ring-1 focus:ring-secondary/20 outline-none font-sans text-[15px] text-primary placeholder-primary/25 transition-all shadow-xs disabled:opacity-50"
+                          className="w-full bg-white-paper border border-primary/10 rounded-xl px-4 py-3.5 focus:border-accent focus:ring-1 focus:ring-accent/20 outline-none font-sans text-[15px] text-primary placeholder-mid/40 transition-all shadow-xs disabled:opacity-50"
                         />
                       </div>
 
@@ -737,13 +745,13 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                           onChange={(e) => setPreferredName(e.target.value)}
                           placeholder="What should we call you in greetings?"
                           disabled={isSubmitting}
-                          className="w-full bg-white border border-primary/10 rounded-md px-4 py-3.5 focus:border-secondary/50 focus:ring-1 focus:ring-secondary/20 outline-none font-sans text-[15px] text-primary placeholder-primary/25 transition-all shadow-xs disabled:opacity-50"
+                          className="w-full bg-white-paper border border-primary/10 rounded-xl px-4 py-3.5 focus:border-accent focus:ring-1 focus:ring-accent/20 outline-none font-sans text-[15px] text-primary placeholder-mid/40 transition-all shadow-xs disabled:opacity-50"
                         />
                       </div>
                     </div>
 
                     {errorMsg && (
-                      <p className="font-sans text-[13px] text-[#b37361] leading-relaxed pl-1">
+                      <p className="font-sans text-[13px] text-error leading-relaxed pl-1">
                         {errorMsg}
                       </p>
                     )}
@@ -752,7 +760,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     <button 
                       type="submit"
                       disabled={isSubmitting || fullName.trim().length < 2}
-                      className="w-full bg-primary hover:bg-[#2A3A3E] text-mint-grey py-3.5 rounded-md font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                      className="w-full bg-accent hover:bg-[#654652] active:bg-[#533842] text-white py-3.5 rounded-xl font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                     >
                       {isSubmitting ? "Saving..." : "Continue"}
                     </button>
@@ -773,7 +781,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                 className="space-y-8 text-center"
               >
                 {/* Active Slide Visual Layout */}
-                <div className="relative w-full aspect-video max-w-[400px] mx-auto bg-white rounded-lg border border-primary/5 shadow-xs flex items-center justify-center p-6 overflow-hidden">
+                <div className="relative w-full aspect-video max-w-[400px] mx-auto bg-white-paper rounded-2xl border border-primary/10 shadow-xs flex items-center justify-center p-6 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-secondary/5 via-transparent to-accent/5 opacity-60" />
                   
                   <AnimatePresence mode="wait">
@@ -800,7 +808,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       )}
 
                       <div className="space-y-1">
-                        <span className="font-sans text-[11px] font-semibold tracking-[0.15em] uppercase text-secondary-dark">
+                        <span className="font-sans text-[11px] font-semibold tracking-[0.15em] uppercase text-secondary">
                           {welcomeSlides[activeSlide].title}
                         </span>
                         <h3 className="font-serif text-[20px] font-normal text-primary">
@@ -835,7 +843,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       <button
                         key={idx}
                         onClick={() => setActiveSlide(idx)}
-                        className={`w-2.5 h-2.5 rounded-full transition-all border-none p-0 cursor-pointer ${idx === activeSlide ? 'bg-primary scale-110' : 'bg-primary/20 hover:bg-primary/45'}`}
+                        className={`w-2.5 h-2.5 rounded-full transition-all border-none p-0 cursor-pointer ${idx === activeSlide ? 'bg-accent scale-110' : 'bg-primary/20 hover:bg-primary/45'}`}
                       />
                     ))}
                   </div>
@@ -855,7 +863,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       <button
                         type="button"
                         onClick={() => setActiveSlide((prev) => prev + 1)}
-                        className="flex items-center gap-1 font-sans text-xs font-semibold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors bg-transparent border-none p-0 cursor-pointer"
+                        className="flex items-center gap-1 font-sans text-xs font-semibold uppercase tracking-wider text-accent hover:text-[#654652] transition-colors bg-transparent border-none p-0 cursor-pointer"
                       >
                         Next <ArrowRight size={14} />
                       </button>
@@ -864,7 +872,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                         type="button"
                         disabled={isSubmitting}
                         onClick={handleWelcomeComplete}
-                        className="flex items-center gap-2 bg-primary hover:bg-[#2A3A3E] text-mint-grey px-6 py-2.5 rounded font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-50"
+                        className="flex items-center gap-2 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white px-6 py-2.5 rounded-xl font-sans text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-50"
                       >
                         {isSubmitting ? "Processing..." : "Begin Assessment"} <ArrowRight size={14} />
                       </button>
@@ -920,8 +928,8 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                               onClick={() => handleRatingSelect(rating)}
                               className={`w-12 h-12 rounded-full flex items-center justify-center font-sans text-sm font-semibold transition-all duration-200 border cursor-pointer ${
                                 isSelected
-                                  ? 'bg-primary text-white border-primary shadow-md scale-105'
-                                  : 'bg-white text-primary border-primary/10 hover:border-primary/30 hover:bg-mint-grey'
+                                  ? 'bg-accent text-white border-accent shadow-xs scale-105'
+                                  : 'bg-white-paper text-primary border-primary/10 hover:border-accent/40 hover:bg-warm-paper'
                               }`}
                             >
                               {rating}
@@ -946,10 +954,10 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                           key={`insight-${currentQuestionIndex}-${selectedRating}`}
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="bg-[#8DBFB4]/5 border border-[#8DBFB4]/20 rounded-xl p-5 max-w-[400px] mx-auto text-left space-y-2"
+                          className="bg-accent/5 border border-accent/20 rounded-2xl p-5 max-w-[400px] mx-auto text-left space-y-2"
                         >
-                          <div className="flex items-center gap-1.5 text-[#4A6A64] font-sans text-[9px] font-bold uppercase tracking-wider">
-                            <Sparkles size={11} className="text-[#8DBFB4]" />
+                          <div className="flex items-center gap-1.5 text-secondary font-sans text-[9px] font-bold uppercase tracking-wider">
+                            <Sparkles size={11} className="text-secondary" />
                             <span>Real-time Observation</span>
                           </div>
                           <p className="text-[12px] text-primary leading-relaxed font-sans mb-0">
@@ -960,7 +968,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     })()}
 
                     {errorMsg && (
-                      <p className="font-sans text-[13px] text-[#b37361] text-center leading-relaxed">
+                      <p className="font-sans text-[13px] text-error text-center leading-relaxed">
                         {errorMsg}
                       </p>
                     )}
@@ -970,7 +978,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       <button 
                         onClick={handleNextQuestion}
                         disabled={isSubmitting || assessmentAnswers[`q${oceanQuestions[currentQuestionIndex].id}`] === undefined}
-                        className="w-full max-w-[360px] mx-auto py-3.5 bg-primary hover:bg-[#2A3A3E] text-mint-grey border-none rounded-md font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
+                        className="w-full max-w-[360px] mx-auto py-3.5 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
                       >
                         {isSubmitting ? "Submitting..." : currentQuestionIndex === oceanQuestions.length - 1 ? "Finish Assessment" : "Next Question"}
                       </button>
@@ -1009,7 +1017,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     </div>
 
                     {errorMsg && (
-                      <p className="font-sans text-[13px] text-[#b37361] text-center leading-relaxed">
+                      <p className="font-sans text-[13px] text-error text-center leading-relaxed">
                         {errorMsg}
                       </p>
                     )}
@@ -1019,7 +1027,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       <button 
                         onClick={handleFinalizeOnboarding}
                         disabled={isSubmitting}
-                        className="w-full py-3.5 bg-primary hover:bg-[#2A3A3E] text-mint-grey border-none rounded-md font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
+                        className="w-full py-3.5 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
                       >
                         {isSubmitting ? "Saving..." : "Continue"}
                       </button>
@@ -1041,7 +1049,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                 {/* Celebratory Check Mark Visual with breathing background rings */}
                 <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
                   <div className="absolute inset-0 rounded-full bg-secondary/12 border border-secondary/30" />
-                  <div className="absolute w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-xs border border-primary/5" />
+                  <div className="absolute w-20 h-20 rounded-full bg-white-paper flex items-center justify-center shadow-xs border border-primary/5" />
                   <ShieldCheck size={40} className="text-secondary relative z-10" />
                 </div>
 
@@ -1065,7 +1073,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                       window.location.pathname = '/dashboard';
                     }
                   }}
-                  className="w-full py-4 bg-primary hover:bg-[#2A3A3E] text-mint-grey border-none rounded-md font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs"
+                  className="w-full py-4 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs"
                 >
                   Continue to dashboard &rarr;
                 </button>
@@ -1082,9 +1090,9 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
 
       {/* FULL TERMS MODAL */}
       {showFullTerms && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-primary/45 backdrop-blur-[6px] p-6 animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-mint-grey rounded-lg border border-primary/10 max-w-[600px] w-full max-h-[80vh] flex flex-col overflow-hidden shadow-xl">
-            <div className="px-6 py-4 border-b border-primary/5 bg-white flex justify-between items-center">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#011627]/40 backdrop-blur-xs p-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white-paper rounded-2xl border border-primary/10 max-w-[600px] w-full max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-primary/10 bg-white-paper flex justify-between items-center">
               <h3 className="font-serif text-lg font-normal text-primary">Terms of Service</h3>
               <button onClick={() => setShowFullTerms(false)} className="text-mid hover:text-primary font-sans text-xs font-semibold bg-transparent border-none cursor-pointer">Close</button>
             </div>
@@ -1103,9 +1111,9 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
 
       {/* FULL PRIVACY MODAL */}
       {showFullPrivacy && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-primary/45 backdrop-blur-[6px] p-6 animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-mint-grey rounded-lg border border-primary/10 max-w-[600px] w-full max-h-[80vh] flex flex-col overflow-hidden shadow-xl">
-            <div className="px-6 py-4 border-b border-primary/5 bg-white flex justify-between items-center">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#011627]/40 backdrop-blur-xs p-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white-paper rounded-2xl border border-primary/10 max-w-[600px] w-full max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-primary/10 bg-white-paper flex justify-between items-center">
               <h3 className="font-serif text-lg font-normal text-primary">Privacy Policy</h3>
               <button onClick={() => setShowFullPrivacy(false)} className="text-mid hover:text-primary font-sans text-xs font-semibold bg-transparent border-none cursor-pointer">Close</button>
             </div>

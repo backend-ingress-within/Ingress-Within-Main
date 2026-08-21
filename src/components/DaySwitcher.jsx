@@ -153,10 +153,10 @@ export default function DaySwitcher({ activeIndex: propActiveIndex, setActiveInd
                     <div 
                       className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all duration-300 z-10 shrink-0 ${
                         IsActive 
-                          ? 'bg-primary text-white border-primary scale-110 shadow-md ring-4 ring-primary/5' 
+                          ? 'bg-accent text-white border-accent scale-110 shadow-sm ring-4 ring-accent/10' 
                           : IsCompleted
                           ? 'bg-secondary/20 text-primary border-secondary'
-                          : 'bg-white text-primary/30 border-primary/10 group-hover:border-primary/30'
+                          : 'bg-white-paper text-primary/30 border-primary/10 group-hover:border-accent/40'
                       }`}
                     >
                       <MIcon size={16} />
@@ -166,12 +166,12 @@ export default function DaySwitcher({ activeIndex: propActiveIndex, setActiveInd
                     <div className="space-y-1 pb-4 flex-grow pt-1">
                       <div className="flex items-center gap-2">
                         <span className={`text-[9px] font-sans font-bold uppercase tracking-wider ${
-                          IsActive ? 'text-secondary font-bold' : 'text-primary/40'
+                          IsActive ? 'text-accent font-bold' : 'text-primary/40'
                         }`}>
                           {idx === 0 ? "Start" : idx === MILESTONES.length - 1 ? "Insights" : `Day ${String(m.day).padStart(2, '0')}`}
                         </span>
                         {IsActive && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                         )}
                       </div>
                       <h4 className={`text-xs font-bold transition-colors font-body ${
@@ -194,16 +194,16 @@ export default function DaySwitcher({ activeIndex: propActiveIndex, setActiveInd
           </div>
 
           {/* Stepper Bottom Navigation */}
-          <div className="flex gap-2.5 pt-4 border-t border-primary/5">
+          <div className="flex gap-2.5 pt-4 border-t border-primary/10">
             <button
               onClick={() => setActiveIndex((prev) => (prev === 0 ? MILESTONES.length - 1 : prev - 1))}
-              className="flex-1 font-label text-xs tracking-wider uppercase font-bold border border-primary/10 hover:border-primary py-3 px-4 rounded-xl transition-all text-primary/70 cursor-pointer"
+              className="flex-1 font-sans text-xs tracking-wider uppercase font-semibold border border-primary/15 hover:border-accent hover:bg-accent/5 py-3 px-4 rounded-xl transition-all text-primary cursor-pointer bg-white-paper"
             >
               Previous
             </button>
             <button
               onClick={() => setActiveIndex((prev) => (prev + 1) % MILESTONES.length)}
-              className="flex-1 font-label text-xs tracking-wider uppercase font-bold bg-primary hover:bg-primary/95 text-white py-3 px-4 rounded-xl transition-all cursor-pointer"
+              className="flex-1 font-sans text-xs tracking-wider uppercase font-semibold bg-accent hover:bg-[#654652] active:bg-[#533842] text-white py-3 px-4 rounded-xl transition-all cursor-pointer shadow-xs"
             >
               {activeIndex === MILESTONES.length - 1 ? "Reset Journey" : "Next Day"}
             </button>
