@@ -26,11 +26,15 @@ export class ClaudeProvider implements AIProvider {
 
   constructor(apiKey?: string, model?: string) {
     this.apiKey = apiKey || process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_KEY || '';
-    this.model = model || process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    this.model = model || process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 
     if (this.apiKey && !this.apiKey.startsWith('mock_') && this.apiKey !== 'sk-ant-development-mock-key-replace-me') {
       try {
-        this.client = new Anthropic({ apiKey: this.apiKey });
+        const baseURL = process.env.ANTHROPIC_BASE_URL || process.env.CLAUDE_BASE_URL;
+        this.client = new Anthropic({
+          apiKey: this.apiKey,
+          ...(baseURL ? { baseURL } : {})
+        });
       } catch (err) {
         console.warn('[ClaudeProvider] Failed to initialize Anthropic client:', err);
       }
@@ -317,6 +321,10 @@ export class ClaudeProvider implements AIProvider {
 
     const candidateModels = [
       effectiveModel,
+      'claude-sonnet-5',
+      'claude-sonnet-4-5',
+      'claude-3-7-sonnet-latest',
+      'claude-3-7-sonnet-20250219',
       'claude-3-5-sonnet-latest',
       'claude-3-5-sonnet-20241022',
       'claude-3-5-sonnet-20240620',
@@ -920,6 +928,10 @@ Return a valid JSON object matching the requested schema:
 
     const candidateModels = [
       this.getEffectiveModel(),
+      'claude-sonnet-5',
+      'claude-sonnet-4-5',
+      'claude-3-7-sonnet-latest',
+      'claude-3-7-sonnet-20250219',
       'claude-3-5-sonnet-latest',
       'claude-3-5-sonnet-20241022',
       'claude-3-5-sonnet-20240620',

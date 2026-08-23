@@ -306,13 +306,11 @@ export class GroqProvider implements AIProvider {
 
     const candidateModels = [
       this.model,
-      'llama-3.1-8b-instant',
       'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
-      'llama3-70b-8192',
-      'llama3-8b-8192',
-      'mixtral-8x7b-32768',
-      'gemma2-9b-it'
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-specdec',
+      'qwen-2.5-32b',
+      'deepseek-r1-distill-llama-70b'
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
     let lastError: any = null;
@@ -351,11 +349,13 @@ export class GroqProvider implements AIProvider {
             continue;
           }
 
-          if (response.status === 404) {
+          if (response.status === 404 || response.status === 400) {
             const errText = await response.text();
-            console.warn(`[GroqProvider] Model ${currentModel} returned 404 not found. Trying next fallback model...`);
-            lastError = new Error(`Groq model ${currentModel} not found: ${errText}`);
-            break; // Break attempt loop to try next candidate model immediately!
+            if (response.status === 404 || errText.includes('decommissioned') || errText.includes('model_not_found') || errText.includes('invalid_request_error') || errText.includes('model `')) {
+              console.warn(`[GroqProvider] Model ${currentModel} returned ${response.status}. Trying next candidate model...`);
+              lastError = new Error(`Groq model ${currentModel} error: ${errText}`);
+              break; // Try next candidate model immediately!
+            }
           }
 
           if (!response.ok) {
@@ -983,13 +983,11 @@ Return a valid JSON object matching the requested schema:
 
     const candidateModels = [
       this.model,
-      'llama-3.1-8b-instant',
       'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
-      'llama3-70b-8192',
-      'llama3-8b-8192',
-      'mixtral-8x7b-32768',
-      'gemma2-9b-it'
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-specdec',
+      'qwen-2.5-32b',
+      'deepseek-r1-distill-llama-70b'
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
     let lastError: any = null;
@@ -1025,11 +1023,13 @@ Return a valid JSON object matching the requested schema:
             continue;
           }
 
-          if (response.status === 404) {
+          if (response.status === 404 || response.status === 400) {
             const errText = await response.text();
-            console.warn(`[GroqProvider] callRaw model ${currentModel} returned 404 not found. Trying next fallback model...`);
-            lastError = new Error(`Groq model ${currentModel} not found: ${errText}`);
-            break; // Try next candidate model immediately!
+            if (response.status === 404 || errText.includes('decommissioned') || errText.includes('model_not_found') || errText.includes('invalid_request_error') || errText.includes('model `')) {
+              console.warn(`[GroqProvider] callRaw model ${currentModel} returned ${response.status}. Trying next candidate model...`);
+              lastError = new Error(`Groq model ${currentModel} error: ${errText}`);
+              break; // Try next candidate model immediately!
+            }
           }
 
           if (!response.ok) {
