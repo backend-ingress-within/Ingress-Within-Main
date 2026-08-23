@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/db';
 import { hashOtp, generateToken, signJwt } from '../../../../utils/crypto';
 import { COOKIE_ACCESS_NAME, COOKIE_REFRESH_NAME, getCookieOptions } from '../../../../utils/cookies';
+import { getClientIp } from '../../../../utils/ip';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
       const match = cookieHeader.match(new RegExp(`${COOKIE_REFRESH_NAME}=([^;]+)`));
       if (match) refreshToken = match[1];
     }
-    const ipAddress = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ipAddress = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
     if (!refreshToken) {

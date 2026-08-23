@@ -24,6 +24,9 @@ export class AuthService {
     userAgent: string,
     providerUserId?: string
   ): Promise<EstablishSessionResult> {
+    // Sanitize client IP for database storage (truncate proxy chains to max 45 chars)
+    const sanitizedIp = (ipAddress || '127.0.0.1').split(',')[0].trim().substring(0, 45);
+
     // 1. Silent Registration: Query or create user
     let userRecord;
     let isNewUser = false;
@@ -64,7 +67,7 @@ export class AuthService {
           user_id: newUser.id,
           consent_type: 'terms_and_privacy',
           version: 'v1.0.0',
-          ip_address: ipAddress
+          ip_address: sanitizedIp
         });
 
       await supabase
@@ -104,7 +107,7 @@ export class AuthService {
         refresh_token_hash: hashedRefreshToken,
         device_id: deviceId,
         device_name: deviceName ? deviceName.substring(0, 100) : 'Browser',
-        ip_address: ipAddress,
+        ip_address: sanitizedIp,
         user_agent: userAgent,
         session_state: { onboardingCompleted: !isNewUser },
         expires_at: sessionExpiresAt
@@ -130,7 +133,7 @@ export class AuthService {
     await supabase.from('audit_logs').insert({
       user_id: userRecord.id,
       action: isNewUser ? 'auth.signup_success' : 'auth.login_success',
-      ip_address: ipAddress,
+      ip_address: sanitizedIp,
       user_agent: userAgent,
       metadata: { device_id: deviceId, device_name: deviceName }
     });

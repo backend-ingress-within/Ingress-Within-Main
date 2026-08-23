@@ -13,7 +13,8 @@ interface RateLimitResult {
  * Otherwise, runs database check restricting phone numbers to max 3 OTP sends per 15 minutes.
  */
 export async function checkRateLimit(phoneNumber: string, ipAddress: string): Promise<RateLimitResult> {
-  const key = `rl:ip:${ipAddress.replace(/[:.]/g, '_')}`;
+  const cleanIp = (ipAddress || '127.0.0.1').split(',')[0].trim().substring(0, 45);
+  const key = `rl:ip:${cleanIp.replace(/[:.]/g, '_')}`;
 
   // 1. Try Upstash Redis Edge rate limiting if variables are present and service is available
   if (redisService.checkAvailability()) {

@@ -4,6 +4,8 @@ import { AuthService } from '../../../../services/authService';
 import { supabase } from '../../../../lib/db';
 import { COOKIE_ACCESS_NAME, COOKIE_REFRESH_NAME, getCookieOptions } from '../../../../utils/cookies';
 
+import { getClientIp } from '../../../../utils/ip';
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Parse payload
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ipAddress = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ipAddress = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
     // 4. Establish Session using AuthService

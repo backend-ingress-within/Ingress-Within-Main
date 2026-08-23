@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { checkRateLimit } from '../../../../../lib/rate-limit';
 import { getOtpProvider } from '../../../../../providers/otpProvider';
+import { getClientIp } from '../../../../../utils/ip';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Rate Limit Check (IP-based and Phone-based)
-    const ipAddress = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ipAddress = getClientIp(request);
     const rateLimit = await checkRateLimit(phoneNumber, ipAddress);
     
     if (!rateLimit.allowed) {

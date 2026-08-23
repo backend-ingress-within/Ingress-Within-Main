@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/db';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
+import { getClientIp } from '../../../../utils/ip';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     const termsVer = terms_version || 'v1.0.0';
     const privacyVer = privacy_version || 'v1.0.0';
 
-    const ipAddress = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ipAddress = getClientIp(request);
 
     // 3. Log consent to audit trail
     await supabase.from('consents').insert({
