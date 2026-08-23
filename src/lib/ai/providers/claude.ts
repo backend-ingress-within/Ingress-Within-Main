@@ -315,42 +315,64 @@ export class ClaudeProvider implements AIProvider {
       this.client = new Anthropic({ apiKey: this.apiKey });
     }
 
-    const selectedModel = effectiveModel;
-    console.log(`[ClaudeProvider] Calling Anthropic API (${selectedModel})...`);
+    const candidateModels = [
+      effectiveModel,
+      'claude-3-5-sonnet-latest',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-sonnet-20240620',
+      'claude-3-5-haiku-latest',
+      'claude-3-5-haiku-20241022',
+      'claude-3-haiku-20240307',
+      'claude-3-sonnet-20240229'
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
-    try {
-      const response = await this.client.messages.create({
-        model: selectedModel,
-        max_tokens: 4000,
-        system: `${systemPrompt}\nYou must return a valid JSON object matching the requested schema. Output ONLY the JSON block. Do not output any conversational introductions, markdown formatting outside of a json codeblock, or explanation. Begin your response with '{' and end with '}'.`,
-        messages: [
-          { role: 'user', content: userContent }
-        ]
-      });
+    let lastError: any = null;
 
-      let rawText = '';
-      for (const block of response.content) {
-        if (block.type === 'text') {
-          rawText += block.text;
+    for (const selectedModel of candidateModels) {
+      console.log(`[ClaudeProvider] Calling Anthropic API (${selectedModel})...`);
+
+      try {
+        const response = await this.client.messages.create({
+          model: selectedModel,
+          max_tokens: 4000,
+          system: `${systemPrompt}\nYou must return a valid JSON object matching the requested schema. Output ONLY the JSON block. Do not output any conversational introductions, markdown formatting outside of a json codeblock, or explanation. Begin your response with '{' and end with '}'.`,
+          messages: [
+            { role: 'user', content: userContent }
+          ]
+        });
+
+        let rawText = '';
+        for (const block of response.content) {
+          if (block.type === 'text') {
+            rawText += block.text;
+          }
         }
+
+        if (!rawText) {
+          throw new Error('Claude API returned an empty text completion response.');
+        }
+
+        this.lastRawResponse = rawText;
+        this.lastUsage = {
+          input_tokens: response.usage?.input_tokens || 0,
+          output_tokens: response.usage?.output_tokens || 0,
+          total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
+        };
+
+        return extractJson<T>(rawText);
+      } catch (error: any) {
+        const errorStr = error?.message || String(error);
+        if (error?.status === 404 || errorStr.includes('404') || error?.error?.type === 'not_found_error') {
+          console.warn(`[ClaudeProvider] Model ${selectedModel} returned 404 not found. Trying next candidate model...`);
+          lastError = error;
+          continue;
+        }
+        console.error('[ClaudeProvider] API request failed:', error);
+        throw error;
       }
-
-      if (!rawText) {
-        throw new Error('Claude API returned an empty text completion response.');
-      }
-
-      this.lastRawResponse = rawText;
-      this.lastUsage = {
-        input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0,
-        total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
-      };
-
-      return extractJson<T>(rawText);
-    } catch (error) {
-      console.error('[ClaudeProvider] API request failed:', error);
-      throw error;
     }
+
+    throw lastError || new Error('[ClaudeProvider] All candidate Claude models failed.');
   }
 
   async scoreEntry(content: string): Promise<ClarityScoreResponse> {
@@ -896,37 +918,60 @@ Return a valid JSON object matching the requested schema:
       this.client = new Anthropic({ apiKey: this.apiKey });
     }
 
-    try {
-      const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 4000,
-        messages: [
-          { role: 'user', content: prompt }
-        ]
-      });
+    const candidateModels = [
+      this.getEffectiveModel(),
+      'claude-3-5-sonnet-latest',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-sonnet-20240620',
+      'claude-3-5-haiku-latest',
+      'claude-3-5-haiku-20241022',
+      'claude-3-haiku-20240307',
+      'claude-3-sonnet-20240229'
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
-      let rawText = '';
-      for (const block of response.content) {
-        if (block.type === 'text') {
-          rawText += block.text;
+    let lastError: any = null;
+
+    for (const selectedModel of candidateModels) {
+      try {
+        const response = await this.client.messages.create({
+          model: selectedModel,
+          max_tokens: 4000,
+          messages: [
+            { role: 'user', content: prompt }
+          ]
+        });
+
+        let rawText = '';
+        for (const block of response.content) {
+          if (block.type === 'text') {
+            rawText += block.text;
+          }
         }
+
+        if (!rawText) {
+          throw new Error('Claude API returned an empty completion response.');
+        }
+
+        this.lastRawResponse = rawText;
+        this.lastUsage = {
+          input_tokens: response.usage?.input_tokens || 0,
+          output_tokens: response.usage?.output_tokens || 0,
+          total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
+        };
+
+        return rawText;
+      } catch (error: any) {
+        const errorStr = error?.message || String(error);
+        if (error?.status === 404 || errorStr.includes('404') || error?.error?.type === 'not_found_error') {
+          console.warn(`[ClaudeProvider] callRaw model ${selectedModel} returned 404 not found. Trying next candidate model...`);
+          lastError = error;
+          continue;
+        }
+        console.error('[ClaudeProvider] callRaw failed:', error);
+        throw error;
       }
-
-      if (!rawText) {
-        throw new Error('Claude API returned an empty completion response.');
-      }
-
-      this.lastRawResponse = rawText;
-      this.lastUsage = {
-        input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0,
-        total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
-      };
-
-      return rawText;
-    } catch (error) {
-      console.error('[ClaudeProvider] callRaw failed:', error);
-      throw error;
     }
+
+    throw lastError || new Error('[ClaudeProvider] All candidate Claude models failed for callRaw.');
   }
 }
