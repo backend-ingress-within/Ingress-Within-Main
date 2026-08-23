@@ -213,6 +213,30 @@ export const ORCHESTRATION_RULES: OrchestrationRule[] = [
     action: async (userId, payload, ctx) => {
       const resourceId = payload.weekly_summary_id || payload.entry_id || 'global';
       const jobId = await ctx.enqueueJob(userId, 'knowledge', `PatternCompleted:${resourceId}`);
+      
+      try {
+        const { KnowledgeService } = await import('../knowledge/knowledgeService');
+        const event = await KnowledgeService.emitKnowledgeEvent(
+          userId,
+          payload.cycle_id || null,
+          payload.entry_id || null,
+          'PatternUpdated',
+          'rules_engine',
+          payload
+        );
+        if (event?.id) {
+          await ctx.queueRegistry.addJob('knowledge_processing', `knowledge_event_${event.id}`, {
+            event_id: event.id,
+            user_id: userId,
+            cycle_id: payload.cycle_id,
+            orchestrator_job_id: jobId
+          });
+          return;
+        }
+      } catch (emitErr: any) {
+        console.warn(`[Rules Engine] Knowledge event emit skipped:`, emitErr.message);
+      }
+
       await ctx.queueRegistry.addJob('knowledge_processing', `knowledge_event_${resourceId}`, {
         event_id: resourceId,
         user_id: userId,

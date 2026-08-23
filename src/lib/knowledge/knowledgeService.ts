@@ -1,5 +1,6 @@
 import { supabase } from '../db';
 import { aiProvider } from '../ai/factory';
+import { extractJson } from '../ai/utils';
 import crypto from 'crypto';
 
 export interface ProfileDimensionModel {
@@ -109,6 +110,13 @@ export class KnowledgeService {
 
   public static async processKnowledgeEvent(eventId: string): Promise<void> {
     console.log(`[Knowledge Service] Processing event ${eventId}`);
+
+    // Check UUID validity to prevent PostgreSQL invalid uuid syntax error on aggregate triggers
+    const isUuid = Boolean(eventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId));
+    if (!isUuid) {
+      console.log(`[Knowledge Service] Identifier "${eventId}" is a pseudo/aggregate event. Skipping direct table lookup.`);
+      return;
+    }
 
     // 1. Fetch the event
     const { data: event, error: fetchErr } = await supabase
@@ -488,12 +496,7 @@ JSON SCHEMA:
 
     try {
       const response = await aiProvider.callRaw(prompt);
-      let cleaned = response.trim();
-      if (cleaned.startsWith('```')) {
-        const lines = cleaned.split('\n');
-        cleaned = lines.slice(1, -1).join('\n').trim();
-      }
-      return JSON.parse(cleaned);
+      return extractJson<any>(response);
     } catch (err: any) {
       console.error(`[Knowledge Service] AI profile update error:`, err.message || err);
       return {
@@ -1100,12 +1103,7 @@ JSON SCHEMA:
 }`;
 
     const response = await aiProvider.callRaw(prompt);
-    let cleaned = response.trim();
-    if (cleaned.startsWith('```')) {
-      const lines = cleaned.split('\n');
-      cleaned = lines.slice(1, -1).join('\n').trim();
-    }
-    return JSON.parse(cleaned);
+    return extractJson<any>(response);
   }
 
   /**
@@ -1157,13 +1155,7 @@ JSON SCHEMA:
 
     try {
       const response = await aiProvider.callRaw(prompt);
-      let cleaned = response.trim();
-      if (cleaned.startsWith('```')) {
-        const lines = cleaned.split('\n');
-        cleaned = lines.slice(1, -1).join('\n').trim();
-      }
-      
-      const cards: any[] = JSON.parse(cleaned);
+      const cards: any[] = extractJson<any[]>(response);
       if (Array.isArray(cards)) {
         // Clear old cards for the user to prevent duplication
         const { error: deleteErr } = await supabase
@@ -1247,13 +1239,7 @@ JSON SCHEMA:
 
     try {
       const response = await aiProvider.callRaw(prompt);
-      let cleaned = response.trim();
-      if (cleaned.startsWith('```')) {
-        const lines = cleaned.split('\n');
-        cleaned = lines.slice(1, -1).join('\n').trim();
-      }
-
-      const relations: any[] = JSON.parse(cleaned);
+      const relations: any[] = extractJson<any[]>(response);
       if (!Array.isArray(relations)) return;
 
       const eventId = event.id;
@@ -1402,13 +1388,7 @@ JSON SCHEMA:
 
     try {
       const response = await aiProvider.callRaw(prompt);
-      let cleaned = response.trim();
-      if (cleaned.startsWith('```')) {
-        const lines = cleaned.split('\n');
-        cleaned = lines.slice(1, -1).join('\n').trim();
-      }
-
-      const relations: any[] = JSON.parse(cleaned);
+      const relations: any[] = extractJson<any[]>(response);
       if (!Array.isArray(relations)) return;
 
       // Purge old relationships for user if resetting

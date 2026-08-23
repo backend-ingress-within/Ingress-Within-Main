@@ -37,9 +37,43 @@ export async function processKnowledgeExtraction(jobData: KnowledgeWorkerJobData
     }
   }
 
+  const isUuid = Boolean(event_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event_id));
+  let effectiveEventId = event_id;
+
+  if (!isUuid) {
+    console.log(`[Knowledge Worker] Event ID "${event_id}" is an aggregate identifier. Resolving active knowledge event for user ${user_id}...`);
+    try {
+      const { supabase } = await import('../../db');
+      const { data: latestEvent } = await supabase
+        .from('knowledge_events')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('processed', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestEvent) {
+        effectiveEventId = latestEvent.id;
+      } else {
+        console.log(`[Knowledge Worker] No pending knowledge events for user ${user_id}. Completing job cleanly.`);
+        if (orchestrator_job_id) {
+          const { IntelligenceOrchestrator } = await import('../../orchestrator/intelligenceOrchestrator');
+          await IntelligenceOrchestrator.completeJob(orchestrator_job_id, user_id, 'knowledge', {
+            lastProcessedEntry: entry_id
+          });
+        }
+        return;
+      }
+    } catch (resolveErr: any) {
+      console.warn(`[Knowledge Worker] Error resolving knowledge event for user ${user_id}:`, resolveErr.message);
+      return;
+    }
+  }
+
   try {
-    await KnowledgeService.processKnowledgeEvent(event_id);
-    console.log(`[Knowledge Worker] Successfully completed processing for event ${event_id}`);
+    await KnowledgeService.processKnowledgeEvent(effectiveEventId);
+    console.log(`[Knowledge Worker] Successfully completed processing for event ${effectiveEventId}`);
 
     if (orchestrator_job_id) {
       try {
