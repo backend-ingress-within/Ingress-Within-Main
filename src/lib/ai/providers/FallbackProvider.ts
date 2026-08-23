@@ -470,6 +470,18 @@ export class FallbackProvider implements AIProvider {
             }
           ]);
         }
+        if (prompt.includes('COST-BENEFIT AUDIT')) {
+          if (prompt.includes('OVERALL SYNTHESIS')) {
+            return JSON.stringify({
+              overall_reflection: "Across these patterns, there is a consistent theme of protective self-containment and careful pacing to maintain emotional safety."
+            });
+          }
+          return JSON.stringify({
+            observation: "Holding onto this pattern appears to offer a sense of predictability and protection, though it may also come with notable emotional or energy trade-offs in daily interactions.",
+            protectionMechanism: "The pattern seems to function as an adaptive buffer to guard against vulnerability or unexpected friction.",
+            relationship: "There appears to be an active balance between the safety this response preserves and the ongoing effort required to sustain it."
+          });
+        }
         return '[]';
       }
     );

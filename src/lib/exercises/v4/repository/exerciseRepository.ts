@@ -241,6 +241,7 @@ export class ExerciseRepository {
       const { RELATIONSHIP_MAP_DEFINITION } = await import('../definitions/relationshipMapCatalog');
       const { BODY_SIGNAL_INVENTORY_DEFINITION } = await import('../definitions/bodySignalCatalog');
       const { AVOIDANCE_AUDIT_DEFINITION } = await import('../definitions/avoidanceAuditCatalog');
+      const { COST_BENEFIT_AUDIT_DEFINITION } = await import('../definitions/costBenefitCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -250,7 +251,8 @@ export class ExerciseRepository {
         CORE_VALUES_DEFINITION,
         RELATIONSHIP_MAP_DEFINITION,
         BODY_SIGNAL_INVENTORY_DEFINITION,
-        AVOIDANCE_AUDIT_DEFINITION
+        AVOIDANCE_AUDIT_DEFINITION,
+        COST_BENEFIT_AUDIT_DEFINITION
       ];
 
       for (const def of defs) {
@@ -362,6 +364,7 @@ export class ExerciseRepository {
       relationship_map: 42,
       exercise_5: 42,
       avoidance_audit: 91,
+      cost_benefit_audit: 91,
       trigger_mapping: 91,
       body_signal_inventory: 91,
       narrative_arc: 91
@@ -495,6 +498,7 @@ export class ExerciseRepository {
       'relationship_map',
       'exercise_5',
       'avoidance_audit',
+      'cost_benefit_audit',
       'trigger_mapping',
       'body_signal_inventory',
       'narrative_arc',
@@ -612,18 +616,20 @@ export class ExerciseRepository {
   }
 
   public static async saveResult(resData: any): Promise<ExerciseResult> {
+    const insertPayload: any = {
+      instance_id: resData.instance_id || resData.instanceId,
+      user_id: resData.user_id || resData.userId,
+      summary: resData.summary,
+      analysis: resData.analysis || {},
+      score: resData.score,
+      model: resData.model || 'v4-ai-engine',
+      provider: resData.provider || 'groq',
+      generated_at: new Date().toISOString()
+    };
+
     const { data, error } = await supabase
       .from('exercise_results')
-      .insert({
-        instance_id: resData.instance_id || resData.instanceId,
-        user_id: resData.user_id || resData.userId,
-        summary: resData.summary,
-        analysis: resData.analysis || {},
-        score: resData.score,
-        model: resData.model || 'v4-ai-engine',
-        provider: resData.provider || 'groq',
-        generated_at: new Date().toISOString()
-      })
+      .insert(insertPayload)
       .select()
       .single();
 

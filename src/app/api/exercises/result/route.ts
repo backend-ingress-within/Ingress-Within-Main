@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
           if (instance.exercise_id === 'relationship_map' || instance.exercise_id === 'exercise_5') {
             const { RelationshipMapWorker } = await import('../../../../lib/exercises/v4/workers/relationshipMapWorker');
             result = await RelationshipMapWorker.processInstance(instanceId);
+          } else if (instance.exercise_id === 'cost_benefit_audit') {
+            const { CostBenefitWorker } = await import('../../../../lib/exercises/v4/workers/costBenefitWorker');
+            result = await CostBenefitWorker.processInstance(instanceId);
           } else if (instance.exercise_id === 'avoidance_audit' || instance.exercise_id === 'exercise_7') {
             const { AvoidanceAuditWorker } = await import('../../../../lib/exercises/v4/workers/avoidanceAuditWorker');
             result = await AvoidanceAuditWorker.processInstance(instanceId);

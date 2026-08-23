@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       }).catch(err => {
         console.error(`[POST /api/exercises/submit] Body Signal AI worker error for ${instance_id}:`, err);
       });
+    } else if (instance.exercise_id === 'cost_benefit_audit') {
+      const { CostBenefitWorker } = await import('../../../../lib/exercises/v4/workers/costBenefitWorker');
+      await CostBenefitWorker.processInstance(instance_id, {
+        patterns: body.patterns
+      }).catch(err => {
+        console.error(`[POST /api/exercises/submit] Cost Benefit AI worker error for ${instance_id}:`, err);
+      });
     } else if (instance.exercise_id === 'avoidance_audit' || instance.exercise_id === 'exercise_7') {
       const { AvoidanceAuditWorker } = await import('../../../../lib/exercises/v4/workers/avoidanceAuditWorker');
       await AvoidanceAuditWorker.processInstance(instance_id, {

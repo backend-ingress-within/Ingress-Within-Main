@@ -27,6 +27,7 @@ export class ExerciseResultService {
     return await ExerciseRepository.saveResult({
       instance_id: params.instanceId,
       user_id: params.userId,
+      exercise_id: (params as any).exerciseId || (params as any).exercise_id,
       summary: params.summary,
       analysis: params.analysis,
       score: params.score !== undefined ? params.score : undefined,
