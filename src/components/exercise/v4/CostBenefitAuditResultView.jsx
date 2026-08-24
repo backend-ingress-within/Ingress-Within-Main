@@ -20,7 +20,21 @@ export default function CostBenefitAuditResultView({ instanceId, onClose }) {
       const res = await fetch(`/api/exercises/result?instance_id=${instanceId}${isRetry ? '&retry=true' : ''}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Failed to fetch exercise result.');
+      
       setResult(data.result);
+
+      let rawAnalysis = data.result?.analysis || data.result?.data || {};
+      if (typeof rawAnalysis === 'string') {
+        try { rawAnalysis = JSON.parse(rawAnalysis); } catch (_) { rawAnalysis = {}; }
+      }
+      const rawPatterns = Array.isArray(rawAnalysis.patterns) ? rawAnalysis.patterns : (Array.isArray(data.result?.patterns) ? data.result.patterns : []);
+      const missingObs = rawPatterns.length === 0 || rawPatterns.some(p => !p.analysis?.observation);
+
+      if (!isRetry && (missingObs || data.result?.summary?.includes('recorded below'))) {
+        console.log('[CostBenefitAuditResultView] Observations missing or fallback summary detected. Auto-triggering background analysis...');
+        fetchResult(true);
+        return;
+      }
     } catch (err) {
       console.error('[CostBenefitAuditResultView] Fetch error:', err);
       setError(err.message || 'Unable to load result.');
@@ -67,13 +81,20 @@ export default function CostBenefitAuditResultView({ instanceId, onClose }) {
     );
   }
 
-  const analysis = result.analysis || result.data || {};
-  const patterns = Array.isArray(analysis.patterns) ? analysis.patterns : [];
+  let analysis = result.analysis || result.data || {};
+  if (typeof analysis === 'string') {
+    try { analysis = JSON.parse(analysis); } catch (_) { analysis = {}; }
+  }
+
+  const patterns = Array.isArray(analysis.patterns)
+    ? analysis.patterns
+    : (Array.isArray(result.patterns) ? result.patterns : []);
+
   const completedAt = analysis.completedAt || result.generated_at || result.created_at;
   const dateStr = completedAt ? new Date(completedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
   const overallReflection = analysis.overall_reflection || null;
 
-  const anyMissingAnalysis = patterns.some(p => !p.analysis?.observation);
+  const anyMissingAnalysis = patterns.length === 0 || patterns.some(p => !p.analysis?.observation);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#F4F6F5] flex flex-col p-6 md:p-12 font-sans overflow-y-auto">

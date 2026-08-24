@@ -40,8 +40,15 @@ export async function GET(request: NextRequest) {
     let result = await ExerciseResultService.getResult(instanceId);
 
     if (retry && result) {
-      const analysis = result.analysis || result.data || {};
-      const isFallback = !analysis.reflection_text || (result.summary && result.summary.includes('recorded below'));
+      let analysis = result.analysis || result.data || {};
+      if (typeof analysis === 'string') {
+        try { analysis = JSON.parse(analysis); } catch (_) { analysis = {}; }
+      }
+
+      const isFallback =
+        instance.exercise_id === 'cost_benefit_audit'
+          ? !Array.isArray(analysis.patterns) || analysis.patterns.length === 0 || analysis.patterns.some((p: any) => !p.analysis?.observation) || analysis.analysisStatus !== 'complete'
+          : !analysis.reflection_text || (result.summary && result.summary.includes('recorded below'));
 
       if (isFallback) {
         try {
@@ -68,6 +75,12 @@ export async function GET(request: NextRequest) {
           console.warn('[GET /api/exercises/result] Retry worker failed:', retryErr);
         }
       }
+    }
+
+    if (result && typeof result.analysis === 'string') {
+      try {
+        result.analysis = JSON.parse(result.analysis);
+      } catch (_) {}
     }
 
     return NextResponse.json({ success: true, result, instance });

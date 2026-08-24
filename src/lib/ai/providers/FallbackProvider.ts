@@ -445,7 +445,22 @@ export class FallbackProvider implements AIProvider {
     return this.executeWithFallback<string>(
       'callRaw',
       p => p.callRaw(prompt),
-      res => Boolean(typeof res === 'string' && res.length > 0),
+      res => {
+        if (typeof res !== 'string' || res.trim().length === 0) return false;
+        if (prompt.includes('COST-BENEFIT AUDIT')) {
+          if (res.trim() === '[]') return false;
+          try {
+            const parsed = JSON.parse(res.match(/\{[\s\S]*\}/)?.[0] || res);
+            if (prompt.includes('OVERALL SYNTHESIS')) {
+              return Boolean(parsed && typeof parsed.overall_reflection === 'string' && parsed.overall_reflection.trim().length > 0);
+            }
+            return Boolean(parsed && typeof parsed.observation === 'string' && parsed.observation.trim().length > 0);
+          } catch (_) {
+            return false;
+          }
+        }
+        return true;
+      },
       () => {
         if (prompt.includes('pattern-detection') || prompt.includes('pattern_name')) {
           return JSON.stringify([

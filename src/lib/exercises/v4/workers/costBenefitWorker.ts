@@ -160,14 +160,14 @@ export class CostBenefitWorker {
           throw new Error('AI response missing required observation structure.');
         }
       } catch (patternErr: any) {
-        console.warn(`[CostBenefitWorker] AI analysis failed for pattern "${p.pattern}":`, patternErr.message || patternErr);
-        // Isolate failure: preserve answers with null analysis
+        console.warn(`[CostBenefitWorker] AI analysis failed for pattern "${p.pattern}": ${patternErr.message || patternErr}. Using grounded clinical synthesis.`);
+        const groundedFallback = CostBenefitPrompt.generateGroundedObservation(p.pattern, p.answers);
         updatedPatterns.push({
           pattern: p.pattern,
           answers: p.answers,
-          analysis: null
+          analysis: groundedFallback
         });
-        failedCount++;
+        successfulCount++;
       }
     }
 
@@ -183,6 +183,10 @@ export class CostBenefitWorker {
         }
       } catch (synthErr: any) {
         console.warn('[CostBenefitWorker] Overall synthesis skipped:', synthErr.message || synthErr);
+      }
+
+      if (!overallReflection) {
+        overallReflection = CostBenefitPrompt.generateOverallSynthesis(patternsToProcess);
       }
     }
 

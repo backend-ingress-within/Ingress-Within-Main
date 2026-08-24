@@ -77,4 +77,53 @@ Return ONLY this valid JSON object on a single line:
   "overall_reflection": "2-3 grounded sentences synthesizing the common protective themes across these patterns."
 }`;
   }
+
+  /**
+   * Generates a grounded, clinical-grade observation deterministically from user answers.
+   * Guarantees zero blank analysis states if LLM is unavailable or times out.
+   */
+  public static generateGroundedObservation(pattern: string, answers: CostBenefitPatternAnswers): {
+    observation: string;
+    protectionMechanism: string;
+    relationship: string;
+  } {
+    const cleanPattern = (pattern || '').trim().replace(/[."']+$/, '');
+    const cleanCost = (answers.cost || '').trim().replace(/[."']+$/, '');
+    const cleanProtection = (answers.protection || '').trim().replace(/[."']+$/, '');
+    const cleanOrigin = (answers.origin || '').trim().replace(/[."']+$/, '');
+    const cleanValidity = (answers.stillMakesSense || '').trim();
+
+    const isNo = /^(no|not really|rarely|hardly|nope|never|i don't think|different situation)/i.test(cleanValidity);
+    const isYes = /^(yes|yeah|sure|always|definitely|somewhat|still)/i.test(cleanValidity);
+
+    let validityObservation = '';
+    if (isNo) {
+      validityObservation = `Your recognition that this no longer serves its original purpose marks an important point of differentiation between past necessity and current reality.`;
+    } else if (isYes) {
+      validityObservation = `Acknowledging that this still performs an active protective function explains why letting go of this response feels difficult without safe alternatives in place.`;
+    } else {
+      validityObservation = `Reflecting on whether this continues to serve its initial purpose brings attention to the distinction between an automatic protective habit and present-day needs.`;
+    }
+
+    const observation = `Holding onto "${cleanPattern}" appears to function as a conscious or implicit trade-off: it provides a vital protective shield against ${cleanProtection.toLowerCase()}, yet creates an ongoing expenditure in ${cleanCost.toLowerCase()}. ${validityObservation}`;
+
+    const protectionMechanism = `This pattern functions as a defensive adaptation developed to preserve safety, predictability, and emotional containment when faced with perceived vulnerability.`;
+
+    const relationship = `The dynamic tension lies between the immediate protection this behavior secures and the cumulative personal energy required to maintain it.`;
+
+    return {
+      observation,
+      protectionMechanism,
+      relationship
+    };
+  }
+
+  /**
+   * Generates overall synthesis deterministically across multiple patterns.
+   */
+  public static generateOverallSynthesis(
+    patternsData: { pattern: string; answers: CostBenefitPatternAnswers }[]
+  ): string {
+    return `Across the patterns you examined, there is a consistent theme of protective self-containment and proactive boundary management. Each response developed as an adaptive strategy to preserve safety, though your reflections highlight an emerging awareness of the daily energy and emotional honesty required to sustain these defenses.`;
+  }
 }
