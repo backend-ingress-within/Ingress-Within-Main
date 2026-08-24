@@ -363,14 +363,14 @@ export class ExerciseRepository {
       exercise_4: 35,
       relationship_map: 42,
       exercise_5: 42,
+      cost_benefit_audit: 1,
       avoidance_audit: 91,
-      cost_benefit_audit: 91,
       trigger_mapping: 91,
       body_signal_inventory: 91,
       narrative_arc: 91
     };
 
-    // Core exercises list (including the target Month 3 exercise)
+    // Core exercises list (including the target Month 3 exercise and standalone exercises)
     const coreExerciseIds = [
       'exercise_0',
       'exercise_1',
@@ -378,6 +378,7 @@ export class ExerciseRepository {
       'exercise_3',
       'core_values_card_sort',
       'relationship_map',
+      'cost_benefit_audit',
       targetMonth3Id
     ];
 

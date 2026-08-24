@@ -32,6 +32,8 @@ import BodySignalFlow from '../components/exercise/v4/BodySignalFlow';
 import BodySignalResultView from '../components/exercise/v4/BodySignalResultView';
 import AvoidanceAuditFlow from '../components/exercise/v4/AvoidanceAuditFlow';
 import AvoidanceAuditResultView from '../components/exercise/v4/AvoidanceAuditResultView';
+import CostBenefitAuditFlow from '../components/exercise/v4/CostBenefitAuditFlow';
+import CostBenefitAuditResultView from '../components/exercise/v4/CostBenefitAuditResultView';
 import TriggerMappingFlow from '../components/exercise/v4/TriggerMappingFlow';
 import TriggerMappingResultView from '../components/exercise/v4/TriggerMappingResultView';
 import NarrativeArcFlow from '../components/exercise/v4/NarrativeArcFlow';
@@ -149,6 +151,13 @@ const EXERCISE_METADATA = {
     category: 'Cognitive',
     description: 'Six incomplete sentence stems exposing subtle avoidance behaviors, procrastination, and hidden fears.',
     unlockDay: 91,
+    getProgress: () => `In Progress`
+  },
+  cost_benefit_audit: {
+    title: 'Cost-Benefit Audit',
+    category: 'Cognitive',
+    description: 'Examine 3 to 5 persistent behavioral or emotional patterns by exploring their hidden protective functions, origins, real costs, and ongoing validity.',
+    unlockDay: 1,
     getProgress: () => `In Progress`
   },
   trigger_mapping: {
@@ -317,6 +326,19 @@ export default function ExercisePage({ user, profile, onSignOut }) {
           );
         }
 
+        if (exId === 'cost_benefit_audit') {
+          return (
+            <CostBenefitAuditFlow
+              instanceId={activeExerciseInstanceId}
+              onClose={() => setActiveExerciseInstanceId(null)}
+              onComplete={() => {
+                setActiveExerciseInstanceId(null);
+                fetchExerciseInstances();
+              }}
+            />
+          );
+        }
+
         if (exId === 'core_values_card_sort' || exId === 'core_values' || exId === 'exercise_4') {
           return (
             <CoreValuesFlow
@@ -433,6 +455,15 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         if (exId === 'avoidance_audit' || exId === 'exercise_7') {
           return (
             <AvoidanceAuditResultView
+              instanceId={activeResultInstanceId}
+              onClose={() => setActiveResultInstanceId(null)}
+            />
+          );
+        }
+
+        if (exId === 'cost_benefit_audit') {
+          return (
+            <CostBenefitAuditResultView
               instanceId={activeResultInstanceId}
               onClose={() => setActiveResultInstanceId(null)}
             />

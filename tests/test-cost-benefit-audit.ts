@@ -213,6 +213,13 @@ async function runTests() {
   assert(fetchedForB?.user_id !== testUserIdB, 'Instance A user_id does NOT equal User B');
   assert(fetchedForB?.user_id === testUserIdA, 'Instance A belongs strictly to User A');
 
+  // 11. Assessments / Exercise Hub Listing Check
+  console.log('\n--- 11. Assessments / Exercise Hub Listing Verification ---');
+  const allInstances = await ExerciseRepository.getUserInstances(testUserIdA);
+  const costBenefitInList = allInstances.find(i => i.exercise_id === 'cost_benefit_audit');
+  assert(Boolean(costBenefitInList), 'cost_benefit_audit is returned in getUserInstances list');
+  assert(costBenefitInList?.status === 'available' || costBenefitInList?.status === 'completed', `cost_benefit_audit status is ${costBenefitInList?.status}`);
+
   // Clean up test data
   console.log('\n--- Cleaning up test records ---');
   await supabase.from('exercise_results').delete().in('instance_id', [testInstanceA.id, testInstancePartial.id]);
