@@ -1231,27 +1231,34 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 <ChevronRight size={13} className="text-light-mid group-hover:translate-x-0.5 transition-transform" />
               </div>
               {(() => {
-                const latestReport = weeklyReports && weeklyReports.length > 0 ? weeklyReports[0] : null;
-                const openThreadsCount = threadsList ? threadsList.filter(t => t.status === 'Open' || t.status === 'active' || t.status === 'NEW').length : 0;
-                
+                const readyReports = weeklyReports && weeklyReports.length > 0
+                  ? weeklyReports.filter(r => r.status === 'READY' || r.report_data)
+                  : [];
+                const latestReport = readyReports.length > 0
+                  ? readyReports[readyReports.length - 1]
+                  : (weeklyReports && weeklyReports.length > 0 ? weeklyReports[0] : null);
+
                 if (latestReport) {
-                  const weekNum = latestReport.week_number;
-                  const threadsText = openThreadsCount > 0 
-                    ? `You have ${openThreadsCount} open thread${openThreadsCount > 1 ? 's' : ''} waiting.` 
-                    : 'No open threads waiting.';
+                  const weekNum = latestReport.week_number || 1;
+                  const data = latestReport.report_data || {};
+                  
+                  // Extract pure report reflection or tone
+                  const reportQuote = data.week_tone || data.growth_reflection || data.what_we_saw || latestReport.title || `Your Week ${weekNum} summary is ready to explore.`;
+                  const primaryTheme = data.analytical_block?.primary_theme || latestReport.title || `Week ${weekNum} summary ready`;
+
                   return (
                     <>
-                      <p className="text-[12.5px] text-primary font-serif italic leading-relaxed">
-                        "Your Week {weekNum} summary is ready. {threadsText}"
+                      <p className="text-[12.5px] text-primary font-serif italic leading-relaxed line-clamp-3">
+                        "{reportQuote}"
                       </p>
                       <div className="flex items-center justify-between text-[10px] text-mid hover:text-primary transition-colors pt-2 border-t border-[#1E2A2E]/5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#e0a898]/15 text-[#8a3020]">
-                            NEW SUMMARY
+                        <div className="flex items-center gap-1.5 truncate pr-2">
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#e0a898]/15 text-[#8a3020] shrink-0">
+                            WEEK {weekNum} SUMMARY
                           </span>
-                          <span className="font-medium">Week {weekNum} summary ready</span>
+                          <span className="font-medium truncate">{primaryTheme}</span>
                         </div>
-                        <ChevronRight size={12} />
+                        <ChevronRight size={12} className="shrink-0" />
                       </div>
                     </>
                   );
@@ -1265,7 +1272,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                       <div className="flex items-center justify-between text-[10px] text-mid hover:text-[#1E2A2E] transition-colors pt-2 border-t border-[#1E2A2E]/5">
                         <div className="flex items-center gap-1.5">
                           <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-mint-grey text-primary">
-                            NO SUMMARY
+                            UPCOMING
                           </span>
                           <span className="font-medium">First summary on Day 7</span>
                         </div>
