@@ -987,6 +987,13 @@ Return a valid JSON object matching the requested schema:
         });
         return this.lastRawResponse;
       }
+      if (prompt.includes('TRIGGER MAPPING')) {
+        this.lastRawResponse = `ANALYSIS:
+When routine friction or unexpected inquiries occur, you seem to notice an immediate shift toward defensive tension or withdrawing to avoid exposure. Your synthesis captures the tendency to brace for criticism, though it may also be worth noticing how quickly the impulse to protect yourself takes precedence before the full context is clear.
+
+{"worth_sitting_with": [{"label": "Meeting Defensiveness", "note": "In this situation, your reaction shifted quickly toward self-protection compared to moments where you stepped back. You described wanting to avoid feeling judged or tested in front of peers. In daily interactions, this can look like preemptive armor against routine inquiries. Worth noticing if a routine question is actually evaluating you, or simply asking for information."}]}`;
+        return this.lastRawResponse;
+      }
       return "[]";
     }
 

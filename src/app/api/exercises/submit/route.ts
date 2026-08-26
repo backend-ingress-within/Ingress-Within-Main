@@ -49,10 +49,27 @@ export async function POST(request: NextRequest) {
         console.error(`[POST /api/exercises/submit] Relationship Map AI worker error for ${instance_id}:`, err);
       });
     } else if (instance.exercise_id === 'trigger_mapping') {
+      if (body.moments) {
+        const { TriggerMappingValidator } = await import('../../../../lib/exercises/v4/validation/triggerMappingValidator');
+        const validation = TriggerMappingValidator.validatePayload({
+          moments: body.moments,
+          synthesis_answer: body.synthesis_answer,
+          support_pause_used: body.support_pause_used
+        });
+        if (!validation.valid) {
+          return NextResponse.json(
+            { error: { code: 'INVALID_PAYLOAD', message: validation.errors.join(' ') } },
+            { status: 400 }
+          );
+        }
+      }
+
       const { TriggerMappingWorker } = await import('../../../../lib/exercises/v4/workers/triggerMappingWorker');
       await TriggerMappingWorker.processInstance(instance_id, {
-        entry_answers: body.entry_answers,
-        synthesis_answer: body.synthesis_answer
+        moments: body.moments,
+        synthesis_answer: body.synthesis_answer,
+        support_pause_used: body.support_pause_used,
+        entry_answers: body.entry_answers
       }).catch(err => {
         console.error(`[POST /api/exercises/submit] Trigger Mapping AI worker error for ${instance_id}:`, err);
       });

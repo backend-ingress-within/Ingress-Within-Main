@@ -1,29 +1,50 @@
+import { TriggerMappingMomentInput } from '../definitions/triggerMappingCatalog';
+
 export class TriggerMappingPrompt {
-  public static buildPrompt(entriesFormatted: string, userAnswersFormatted: string): string {
-    return `ANALYSIS API PROMPT — TRIGGER MAPPING
+  public static buildPrompt(
+    moments: TriggerMappingMomentInput[],
+    synthesisAnswer: string
+  ): string {
+    const momentsBlock = moments
+      .map(
+        (m, i) =>
+          `MOMENT ${i + 1}: ${m.moment_text}\nQ1 (first reaction): ${m.q1}\nQ2 (what they wanted to avoid): ${m.q2}`
+      )
+      .join('\n\n');
 
-A person completed Trigger Mapping based on 5 high-intensity journal entries from their history:
+    return `TRIGGER MAPPING — CLINICAL ANALYSIS PROMPT
 
-[5 HIGH-INTENSITY ENTRIES]:
-${entriesFormatted}
+A person mapped ${moments.length} of their own triggering moments — situations where something produced a bigger reaction than the moment itself seemed to call for. For each, they described their first reaction and what they most wanted to avoid. They then answered a synthesis question comparing all the moments.
 
-[USER RESPONSES TO THE 5 MOMENTS + SYNTHESIS]:
-${userAnswersFormatted}
+Context: describing a strong reaction and naming what someone wanted to avoid is the intended content of this exercise, not something alarming on its own. Only treat a response as a genuine concern if it's an unambiguous, explicit statement about self-harm, suicide, or wanting to die or disappear. If nothing meets that bar, proceed with the task normally.
 
-TASK:
-1. Identify the situational architecture of reactive states across these moments — what specific environmental or relational conditions trigger reactive emotional states?
-2. Highlight agency decision points — specific moments in each situation where choice was possible, even if it felt automatic at the time.
+The moments, in order:
 
-Strict Rules:
-- Plain, grounded language using 'you'.
-- No clinical jargon, no diagnosis.
-- Banned phrases: 'points to', 'suggests that', 'speaks to', 'the weight of', 'sits with you', 'ongoing tension'.
+${momentsBlock}
 
-Return ONLY this JSON on a new line:
-{
-  "reflection_text": "2-3 sentences identifying the situational architecture of triggers and agency decision points.",
-  "trigger_architecture": "One clear paragraph describing the trigger pattern across the 5 moments.",
-  "decision_points": ["Decision point for Entry 1", "Decision point for Entry 2", "Decision point for Entry 3", "Decision point for Entry 4", "Decision point for Entry 5"]
-}`;
+Their synthesis answer (their own attempt to find a pattern across all the moments): "${synthesisAnswer}"
+
+You are producing two things.
+
+PART 1 — ANALYSIS (label: ANALYSIS:)
+2-3 plain sentences directly to the person using "you". Read the moments and their synthesis answer. Name 2-3 specific things from their own words. Then say one plain thing about their synthesis answer specifically — what it got right, and what it's missing, if anything. Do not just restate what they already said. Sound like you're talking to them, not writing a report.
+
+Hard rules:
+- Must quote or closely reference their actual words.
+- No abstract language, no jargon: architecture, mechanism, domain, trigger, pattern, dual bind, dynamic, narrative, threshold, unresolved, ongoing, present.
+- No literary phrasing, no metaphor.
+- Do not be warm or encouraging.
+
+PART 2 — WORTH SITTING WITH (1-2 items, each with a longer note, 3-5 sentences, produced only inside the JSON below)
+Pick the 1-2 moments most worth a closer look — not necessarily the ones the person's own synthesis focused on. For each, write like a therapist explaining their thinking out loud:
+1. Contrast this moment's Q1/Q2 against the pattern in the other moments — name the pattern specifically.
+2. Say plainly what's different about this one and why it's worth noticing.
+3. Extend to what this kind of pattern can look like day to day, framed as a possibility, never a diagnosis.
+4. Close with one line starting "Worth noticing if..." that turns it into a question they ask themselves.
+
+Rules for both parts: grounded only in what's above; plain words; "you" throughout, never "this person"; no markdown; not warm or falsely reassuring.
+
+After both parts, on a new line return ONLY this JSON:
+{"worth_sitting_with": [{"label": "[short name for the moment, a few words]", "note": "[3-5 sentence note following the 4-part structure above]"}]}`;
   }
 }

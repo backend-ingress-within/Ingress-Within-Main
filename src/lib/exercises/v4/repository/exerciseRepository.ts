@@ -242,6 +242,7 @@ export class ExerciseRepository {
       const { BODY_SIGNAL_INVENTORY_DEFINITION } = await import('../definitions/bodySignalCatalog');
       const { AVOIDANCE_AUDIT_DEFINITION } = await import('../definitions/avoidanceAuditCatalog');
       const { COST_BENEFIT_AUDIT_DEFINITION } = await import('../definitions/costBenefitCatalog');
+      const { TRIGGER_MAPPING_DEFINITION } = await import('../definitions/triggerMappingCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -252,7 +253,8 @@ export class ExerciseRepository {
         RELATIONSHIP_MAP_DEFINITION,
         BODY_SIGNAL_INVENTORY_DEFINITION,
         AVOIDANCE_AUDIT_DEFINITION,
-        COST_BENEFIT_AUDIT_DEFINITION
+        COST_BENEFIT_AUDIT_DEFINITION,
+        TRIGGER_MAPPING_DEFINITION
       ];
 
       for (const def of defs) {
@@ -364,8 +366,8 @@ export class ExerciseRepository {
       relationship_map: 42,
       exercise_5: 42,
       cost_benefit_audit: 1,
+      trigger_mapping: 1,
       avoidance_audit: 91,
-      trigger_mapping: 91,
       body_signal_inventory: 91,
       narrative_arc: 91
     };
@@ -379,6 +381,7 @@ export class ExerciseRepository {
       'core_values_card_sort',
       'relationship_map',
       'cost_benefit_audit',
+      'trigger_mapping',
       targetMonth3Id
     ];
 

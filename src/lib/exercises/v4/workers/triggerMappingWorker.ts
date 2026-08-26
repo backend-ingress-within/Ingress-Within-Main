@@ -3,7 +3,43 @@ import { aiProvider } from '../../../ai/factory';
 import { ExerciseResultService } from '../services/exerciseResultService';
 import { ExerciseRepository } from '../repository/exerciseRepository';
 import { TriggerMappingPrompt } from '../ai/triggerMappingPrompt';
-import { decrypt } from '../../../encryption';
+import {
+  TriggerMappingMomentInput,
+  TriggerMappingResultData,
+  TriggerMappingWorthSittingWith
+} from '../definitions/triggerMappingCatalog';
+
+function extractTriggerMappingJson(raw: string): any {
+  // 1. Try markdown fenced code block
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch (_) {}
+  }
+
+  // 2. Look specifically for {"worth_sitting_with"
+  const startIdx = raw.search(/\{[\s\r\n]*"worth_sitting_with"/i);
+  if (startIdx !== -1) {
+    const endIdx = raw.lastIndexOf('}');
+    if (endIdx > startIdx) {
+      try {
+        return JSON.parse(raw.substring(startIdx, endIdx + 1).trim());
+      } catch (_) {}
+    }
+  }
+
+  // 3. Fallback find outer first { and last }
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(raw.substring(firstBrace, lastBrace + 1).trim());
+    } catch (_) {}
+  }
+
+  return null;
+}
 
 export class TriggerMappingWorker {
   public static async processInstance(instanceId: string, payload?: any): Promise<any> {
@@ -17,58 +53,44 @@ export class TriggerMappingWorker {
     let existingResult = await ExerciseResultService.getResult(instanceId);
     const existingAnalysis = existingResult?.analysis || existingResult?.data || {};
 
-    const entryAnswers = payload?.entry_answers || payload?.answers || existingAnalysis?.entry_answers || [];
-    const synthesisAnswer = payload?.synthesis_answer || payload?.synthesis || existingAnalysis?.synthesis_answer || '';
-
-    // Fetch user's top 5 high-intensity journal entries server-side
-    let selectedEntries = existingAnalysis?.selected_entries || [];
-    if (!Array.isArray(selectedEntries) || selectedEntries.length === 0) {
-      try {
-        const { data: entries } = await supabase
-          .from('entries')
-          .select('id, created_at, written_at, day_ei, content, new_entry_text_encrypted, new_entry_text_iv')
-          .eq('user_id', instance.user_id)
-          .order('day_ei', { ascending: false })
-          .limit(5);
-
-        if (entries && entries.length > 0) {
-          selectedEntries = entries.map(e => {
-            const rawText = decrypt(e.new_entry_text_encrypted, e.new_entry_text_iv) || e.content || '';
-            const excerpt = rawText.length > 200 ? rawText.slice(0, 200) + '...' : rawText;
-            return {
-              id: e.id,
-              date: e.written_at || e.created_at,
-              excerpt
-            };
-          });
-        }
-      } catch (err) {
-        console.warn('[TriggerMappingWorker] Error fetching top entries:', err);
-      }
+    // 1. Resolve moments & synthesis input
+    let moments: TriggerMappingMomentInput[] = [];
+    if (Array.isArray(payload?.moments) && payload.moments.length > 0) {
+      moments = payload.moments.map((m: any) => ({
+        moment_text: typeof m.moment_text === 'string' ? m.moment_text.trim() : '',
+        q1: typeof m.q1 === 'string' ? m.q1.trim() : (m.answers?.first_reaction || ''),
+        q2: typeof m.q2 === 'string' ? m.q2.trim() : (m.answers?.avoidance_goal || '')
+      }));
+    } else if (Array.isArray(existingAnalysis?.moments) && existingAnalysis.moments.length > 0) {
+      moments = existingAnalysis.moments;
+    } else if (Array.isArray(payload?.entry_answers)) {
+      moments = payload.entry_answers.map((ea: any, i: number) => ({
+        moment_text: ea.excerpt || `Moment #${i + 1}`,
+        q1: ea.first_reaction || '',
+        q2: ea.avoidance_goal || ''
+      }));
     }
 
-    let entryCountAtCompletion = existingAnalysis?.entry_count_at_completion;
-    if (entryCountAtCompletion === undefined || entryCountAtCompletion === null) {
-      try {
-        const { count } = await supabase
-          .from('entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', instance.user_id);
-        entryCountAtCompletion = count || 0;
-      } catch (_) {
-        entryCountAtCompletion = 0;
-      }
-    }
+    const synthesisAnswer =
+      typeof payload?.synthesis_answer === 'string'
+        ? payload.synthesis_answer.trim()
+        : typeof existingAnalysis?.synthesis_answer === 'string'
+        ? existingAnalysis.synthesis_answer.trim()
+        : '';
 
-    // Immediate primary persistence BEFORE AI call
-    const initialData = {
-      selected_entries: selectedEntries,
-      entry_answers: entryAnswers,
+    const supportPauseUsed = Boolean(payload?.support_pause_used || existingAnalysis?.support_pause_used);
+
+    // 2. Immediate Primary Persistence: Ensure user responses are saved BEFORE AI invocation
+    const nowIso = new Date().toISOString();
+    const initialResultData: TriggerMappingResultData = {
+      exerciseType: 'trigger_mapping',
+      moments,
       synthesis_answer: synthesisAnswer,
-      entry_count_at_completion: entryCountAtCompletion,
-      trigger_architecture: existingAnalysis?.trigger_architecture || null,
-      decision_points: existingAnalysis?.decision_points || [],
-      reflection_text: existingAnalysis?.reflection_text || null
+      reflection_text: existingAnalysis?.reflection_text || null,
+      worth_sitting_with: existingAnalysis?.worth_sitting_with || [],
+      completedAt: nowIso,
+      analysisStatus: existingAnalysis?.reflection_text ? 'complete' : 'partial',
+      support_pause_used: supportPauseUsed
     };
 
     let storedResult: any = null;
@@ -77,7 +99,7 @@ export class TriggerMappingWorker {
         .from('exercise_results')
         .update({
           summary: existingResult.summary || 'Your responses have been recorded below.',
-          analysis: { ...existingAnalysis, ...initialData }
+          analysis: initialResultData
         })
         .eq('id', existingResult.id)
         .select()
@@ -87,104 +109,144 @@ export class TriggerMappingWorker {
       storedResult = await ExerciseResultService.storeResult({
         instanceId,
         userId: instance.user_id,
+        exerciseId: 'trigger_mapping',
         summary: 'Your responses have been recorded below.',
-        analysis: initialData,
-        model: process.env.AI_MODEL || 'claude-sonnet-4-6',
-        provider: process.env.AI_PROVIDER || 'groq'
-      });
+        analysis: initialResultData,
+        model: process.env.AI_MODEL || 'claude-sonnet-5',
+        provider: process.env.AI_PROVIDER || 'claude'
+      } as any);
     }
 
+    // Update instance status to completed
     await supabase
       .from('exercise_instances')
       .update({
         status: 'completed',
-        completed_at: instance.completed_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        completed_at: nowIso,
+        submitted_at: instance.submitted_at || nowIso,
+        updated_at: nowIso
       })
       .eq('id', instanceId);
 
-    const currentReflection = storedResult?.analysis?.reflection_text || storedResult?.data?.reflection_text;
-    if (currentReflection && storedResult.summary !== 'Your responses have been recorded below.') {
-      return storedResult;
-    }
-
-    // Format entries and answers for AI call
-    const entriesFormatted = selectedEntries.map((e: any, idx: number) => {
-      return `Moment ${idx + 1} (${e.date || 'Entry'}): "${e.excerpt}"`;
-    }).join('\n\n');
-
-    const userAnswersFormatted = entryAnswers.map((a: any, idx: number) => {
-      return `Moment ${idx + 1}:
-- Q1 (What was actually happening): ${a.q1 || 'N/A'}
-- Q2 (What were you most afraid of): ${a.q2 || 'N/A'}
-- Q3 (How did it resolve): ${a.q3 || 'N/A'}`;
-    }).join('\n\n') + `\n\nSynthesis (Pattern across situations): ${synthesisAnswer}`;
-
-    const promptText = TriggerMappingPrompt.buildPrompt(entriesFormatted, userAnswersFormatted);
-
-    let summaryText = 'Your responses have been recorded below.';
-    let reflectionText: string | null = null;
-    let triggerArchitecture: string | null = null;
-    let decisionPoints: string[] = [];
-
-    try {
-      const aiPromise = aiProvider.callRaw(promptText);
-      const timeoutPromise = new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error('Trigger Mapping AI timeout (8s)')), 8000)
-      );
-
-      const rawText = await Promise.race([aiPromise, timeoutPromise]);
-      const cleanedText = rawText.trim();
-
+    // 3. AI Execution with partial failure resilience
+    if (moments.length >= 2 && synthesisAnswer.length >= 3) {
       try {
-        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.reflection_text) reflectionText = String(parsed.reflection_text).trim();
-          if (parsed.trigger_architecture) triggerArchitecture = String(parsed.trigger_architecture).trim();
-          if (Array.isArray(parsed.decision_points)) decisionPoints = parsed.decision_points;
-        }
-      } catch (_) {
-        // Regex fallback
-        const reflMatch = cleanedText.match(/reflection_text["']?\s*:\s*["']?([\s\S]+?)(?:["']?\s*,\s*["']?trigger_architecture|["']?\s*\}|$)/i);
-        if (reflMatch && reflMatch[1]) {
-          reflectionText = reflMatch[1].replace(/^["']|["']$/g, '').trim();
-        }
-      }
+        console.log(`[TriggerMappingWorker] Generating AI reflection for ${moments.length} moments...`);
+        const prompt = TriggerMappingPrompt.buildPrompt(moments, synthesisAnswer);
 
-      if (!reflectionText && !cleanedText.includes('{') && !cleanedText.includes('reflection_text')) {
-        reflectionText = cleanedText.trim();
-      }
+        const aiResponseRaw = await Promise.race([
+          aiProvider.callRaw(prompt),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('AI generation timed out after 45 seconds.')), 45000)
+          )
+        ]);
 
-      if (reflectionText) {
-        reflectionText = reflectionText.replace(/[*#"`]/g, '').trim();
-        summaryText = reflectionText;
+        const raw = (aiResponseRaw || '').trim();
+        console.log(`[TriggerMappingWorker] Raw AI output length: ${raw.length}`);
+
+        // Extract PART 1: ANALYSIS text
+        let analysisText = '';
+        const aMatch =
+          raw.match(/PART 1[^\n]*\n*ANALYSIS:\s*([\s\S]*?)(?=(?:PART 2|WORTH SITTING WITH|```|\{))/i) ||
+          raw.match(/ANALYSIS:\s*([\s\S]*?)(?=(?:PART 2|WORTH SITTING WITH|```|\{))/i);
+
+        if (aMatch && aMatch[1].trim().length > 0) {
+          analysisText = aMatch[1].trim();
+        } else {
+          const firstBrace = raw.indexOf('{');
+          const textBeforeJson = firstBrace !== -1 ? raw.substring(0, firstBrace) : raw;
+          analysisText = textBeforeJson
+            .replace(/^[\s\S]*?ANALYSIS:\s*/i, '')
+            .replace(/PART 1[^\n]*/gi, '')
+            .replace(/PART 2[^\n]*/gi, '')
+            .replace(/WORTH SITTING WITH[^\n]*/gi, '')
+            .trim();
+        }
+
+        analysisText = analysisText.split('**').join('').split('*').join('').trim();
+        if (!analysisText || analysisText.length < 5) {
+          analysisText = 'Your responses have been recorded below.';
+        }
+
+        // Extract PART 2: WORTH SITTING WITH (JSON)
+        let worthSittingWith: TriggerMappingWorthSittingWith[] = [];
+        const parsedJson = extractTriggerMappingJson(raw);
+        if (Array.isArray(parsedJson?.worth_sitting_with)) {
+          worthSittingWith = parsedJson.worth_sitting_with.map((item: any) => ({
+            label: typeof item.label === 'string' ? item.label.trim() : '',
+            note: typeof item.note === 'string' ? item.note.split('**').join('').split('*').join('').trim() : ''
+          }));
+        }
+
+        const finalResultData: TriggerMappingResultData = {
+          exerciseType: 'trigger_mapping',
+          moments,
+          synthesis_answer: synthesisAnswer,
+          reflection_text: analysisText,
+          worth_sitting_with: worthSittingWith,
+          completedAt: nowIso,
+          analysisStatus: 'complete',
+          support_pause_used: supportPauseUsed
+        };
+
+        const targetResultId = storedResult?.id;
+        let updateQuery = supabase.from('exercise_results').update({
+          summary: analysisText,
+          analysis: finalResultData
+        });
+
+        if (targetResultId) {
+          updateQuery = updateQuery.eq('id', targetResultId);
+        } else {
+          updateQuery = updateQuery.eq('instance_id', instanceId);
+        }
+
+        const { data: finalUpdated, error: updateErr } = await updateQuery.select().single();
+        if (updateErr) {
+          console.error('[TriggerMappingWorker] Error updating exercise_results:', updateErr);
+        }
+        if (finalUpdated) {
+          storedResult = finalUpdated;
+        }
+      } catch (aiErr) {
+        console.error('[TriggerMappingWorker] AI generation error (responses safely preserved):', aiErr);
+        const fallbackData: TriggerMappingResultData = {
+          ...initialResultData,
+          analysisStatus: 'unavailable',
+          reflection_text: 'Your responses have been recorded below.'
+        };
+        const targetResultId = storedResult?.id;
+        let fallbackQuery = supabase.from('exercise_results').update({
+          summary: 'Your responses have been recorded below.',
+          analysis: fallbackData
+        });
+
+        if (targetResultId) {
+          fallbackQuery = fallbackQuery.eq('id', targetResultId);
+        } else {
+          fallbackQuery = fallbackQuery.eq('instance_id', instanceId);
+        }
+
+        const { data: fallbackUpdated } = await fallbackQuery.select().single();
+        if (fallbackUpdated) {
+          storedResult = fallbackUpdated;
+        }
       }
-    } catch (err: any) {
-      console.warn(`[TriggerMappingWorker] AI call failed or timed out: ${err.message}. Retaining primary fallback.`);
-      summaryText = 'Your responses have been recorded below.';
-      reflectionText = null;
-      triggerArchitecture = null;
-      decisionPoints = [];
     }
 
-    const finalData = {
-      selected_entries: selectedEntries,
-      entry_answers: entryAnswers,
-      synthesis_answer: synthesisAnswer,
-      entry_count_at_completion: entryCountAtCompletion,
-      trigger_architecture: triggerArchitecture,
-      decision_points: decisionPoints,
-      reflection_text: reflectionText
-    };
+    // 4. Emit Orchestrator Event
+    try {
+      const { IntelligenceOrchestrator } = await import('../../../orchestrator/intelligenceOrchestrator');
+      await IntelligenceOrchestrator.emitEvent(instance.user_id, 'ExerciseCompleted', {
+        instance_id: instanceId,
+        exercise_id: 'trigger_mapping',
+        moments_count: moments.length,
+        has_ai_reflection: Boolean(storedResult?.analysis?.reflection_text)
+      });
+    } catch (eventErr) {
+      console.warn('[TriggerMappingWorker] Orchestrator event emission warning:', eventErr);
+    }
 
-    const { data: finalUpdated } = await supabase
-      .from('exercise_results')
-      .update({ summary: summaryText, analysis: finalData })
-      .eq('id', storedResult.id)
-      .select()
-      .single();
-
-    return finalUpdated || storedResult;
+    return storedResult;
   }
 }
