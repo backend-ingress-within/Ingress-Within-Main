@@ -39,6 +39,9 @@ export interface ModuleBrief {
   escalation: {
     tier1: string;
     tier2: string;
+    lowMoodClassifierNote?: string;
+    identityPurposeClassifierNote?: string;
+    [key: string]: any;
   };
 }
 
@@ -176,6 +179,8 @@ export interface MhpiConfig {
 export interface EscalationConfig {
   tier1?: string;
   tier2?: string;
+  lowMoodClassifierNote?: string;
+  identityPurposeClassifierNote?: string;
   systemPrompt: string;
   tier1FallbackWords: string[];
   tier2FallbackWords: string[];

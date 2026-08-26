@@ -47,6 +47,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M3-C01', 'M3-C02', 'M3-C03', 'M3-C04'],
     created_at: '2026-08-11T00:00:00.000Z',
     updated_at: '2026-08-11T00:00:00.000Z'
+  },
+  {
+    id: 'M4',
+    slug: 'mood-emotional-regulation',
+    name: 'Mood & Emotional Regulation',
+    description: 'A clinical psychoeducation program addressing emotional overwhelm, anger/irritability, and low mood through DBT, ACT, and behavioural activation tools.',
+    price: 349.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 7,
+    taxonomy_concerns: ['M4-C01', 'M4-C02', 'M4-C03'],
+    created_at: '2026-08-26T00:00:00.000Z',
+    updated_at: '2026-08-26T00:00:00.000Z'
   }
 ];
 

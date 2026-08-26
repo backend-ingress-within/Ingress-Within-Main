@@ -2,6 +2,7 @@ import { ModuleContent, ModuleWeek, ModuleTouch } from '../../types/moduleConten
 import { MODULE_1_CONTENT } from './content/module1Data';
 import { MODULE_2_CONTENT } from './content/module2Data';
 import { MODULE_3_CONTENT } from './content/module3Data';
+import { MODULE_4_CONTENT } from './content/module4Data';
 
 /**
  * Registry of active module content datasets.
@@ -12,7 +13,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M2': MODULE_2_CONTENT,
   'perfectionism-avoidance': MODULE_2_CONTENT,
   'M3': MODULE_3_CONTENT,
-  'anxiety-worry': MODULE_3_CONTENT
+  'anxiety-worry': MODULE_3_CONTENT,
+  'M4': MODULE_4_CONTENT,
+  'mood-emotional-regulation': MODULE_4_CONTENT
 };
 
 export class ModuleContentService {
@@ -40,7 +43,7 @@ export class ModuleContentService {
    * Returns all available module content objects.
    */
   public static getAllModuleContents(): ModuleContent[] {
-    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT];
+    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT, MODULE_4_CONTENT];
   }
 
   /**

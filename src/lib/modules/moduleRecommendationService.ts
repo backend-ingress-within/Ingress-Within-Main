@@ -9,7 +9,7 @@ import {
 } from '../../types/moduleRecommendation';
 
 // Stable Taxonomy ID Mapping Lookup Table
-const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: 'M1' | 'M2' | 'M3'; concernId: string }> = {
+const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: string }> = {
   // M1 Concerns — Self-Worth & Self-Talk
   'M1-C01': { moduleId: 'M1', concernId: 'M1-C01' },
   'self_criticism': { moduleId: 'M1', concernId: 'M1-C01' },
@@ -73,7 +73,29 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: 'M1' | 'M2' | 'M3'; 
 
   'M3-C04': { moduleId: 'M3', concernId: 'M3-C04' },
   'intrusive_thoughts': { moduleId: 'M3', concernId: 'M3-C04' },
-  'ocd_checking': { moduleId: 'M3', concernId: 'M3-C04' }
+  'ocd_checking': { moduleId: 'M3', concernId: 'M3-C04' },
+
+  // M4 Concerns — Mood & Emotional Regulation
+  'M4-C01': { moduleId: 'M4', concernId: 'M4-C01' },
+  'emotional_overwhelm': { moduleId: 'M4', concernId: 'M4-C01' },
+  'emotional-overwhelm': { moduleId: 'M4', concernId: 'M4-C01' },
+  'overwhelm': { moduleId: 'M4', concernId: 'M4-C01' },
+  'dysregulation': { moduleId: 'M4', concernId: 'M4-C01' },
+  'flooding': { moduleId: 'M4', concernId: 'M4-C01' },
+  'emotional_flooding': { moduleId: 'M4', concernId: 'M4-C01' },
+
+  'M4-C02': { moduleId: 'M4', concernId: 'M4-C02' },
+  'anger': { moduleId: 'M4', concernId: 'M4-C02' },
+  'irritability': { moduleId: 'M4', concernId: 'M4-C02' },
+  'anger_irritability': { moduleId: 'M4', concernId: 'M4-C02' },
+  'short_fuse': { moduleId: 'M4', concernId: 'M4-C02' },
+
+  'M4-C03': { moduleId: 'M4', concernId: 'M4-C03' },
+  'low_mood': { moduleId: 'M4', concernId: 'M4-C03' },
+  'low-mood': { moduleId: 'M4', concernId: 'M4-C03' },
+  'depressive_symptoms': { moduleId: 'M4', concernId: 'M4-C03' },
+  'depression': { moduleId: 'M4', concernId: 'M4-C03' },
+  'hopelessness': { moduleId: 'M4', concernId: 'M4-C03' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`
@@ -184,7 +206,7 @@ export class ModuleRecommendationService {
     // Step 2 & 3: Match Top Patterns Against Taxonomy & Determine Eligible Modules
     const taxonomyMatches: Array<{
       pattern: MonthlyPatternInput;
-      moduleId: 'M1' | 'M2' | 'M3';
+      moduleId: string;
       concernId: string;
       weight: number;
     }> = [];
