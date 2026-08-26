@@ -539,11 +539,36 @@ export class ExerciseRepository {
       version: inst.version || 1
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('exercise_instances')
       .insert(dbPayload)
       .select()
       .single();
+
+    if (error && error.message.includes('exercise_instances_user_id_fkey')) {
+      console.warn(`[ExerciseRepository] User ${inst.user_id} missing in auth.users. Auto-syncing and retrying createInstance...`);
+      try {
+        const { data: pubUser } = await supabase.from('users').select('id, phone_number').eq('id', inst.user_id).maybeSingle();
+        if (pubUser) {
+          await supabase.auth.admin.createUser({
+            id: pubUser.id,
+            phone: pubUser.phone_number,
+            phone_confirm: true
+          }).catch(() => {});
+
+          const retryResult = await supabase
+            .from('exercise_instances')
+            .insert(dbPayload)
+            .select()
+            .single();
+
+          data = retryResult.data;
+          error = retryResult.error;
+        }
+      } catch (syncErr) {
+        console.error('[ExerciseRepository] User sync fallback error:', syncErr);
+      }
+    }
 
     if (error) throw new Error(`[ExerciseRepository] createInstance error: ${error.message}`);
     return data;

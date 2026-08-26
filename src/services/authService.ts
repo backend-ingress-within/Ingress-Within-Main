@@ -58,6 +58,25 @@ export class AuthService {
         throw new Error(`Failed to create user: ${createError.message}`);
       }
 
+      // Ensure user exists in Supabase auth.users so foreign keys on auth.users(id) resolve cleanly
+      await supabase.auth.admin.createUser({
+        id: newUser.id,
+        phone: phone_number,
+        phone_confirm: true
+      }).catch(err => {
+        console.warn('[AuthService] auth.users sync notice:', err?.message);
+      });
+
+      // Ensure profile row exists
+      try {
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: newUser.id,
+            created_at: new Date().toISOString()
+          });
+      } catch (_) {}
+
       userRecord = newUser;
 
       // Initialize defaults for consents & preferences
@@ -80,6 +99,15 @@ export class AuthService {
         });
     } else {
       userRecord = existingUser;
+      // Fast check to guarantee auth.users integrity for existing users
+      const { data: authCheck } = await supabase.auth.admin.getUserById(existingUser.id).catch(() => ({ data: null }));
+      if (!authCheck?.user) {
+        await supabase.auth.admin.createUser({
+          id: existingUser.id,
+          phone: phone_number,
+          phone_confirm: true
+        }).catch(() => {});
+      }
     }
 
     // 2. Generate session tokens
