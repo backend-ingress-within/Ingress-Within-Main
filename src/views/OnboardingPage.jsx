@@ -1065,17 +1065,33 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
 
                 {/* Continue CTA */}
                 <button 
-                  onClick={() => {
-                    if (onComplete) onComplete();
-                    else if (window.navigateTo) {
-                      window.navigateTo('/dashboard');
-                    } else {
-                      window.location.pathname = '/dashboard';
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    try {
+                      if (onComplete) {
+                        await onComplete();
+                      } else if (typeof window !== 'undefined' && typeof window.navigateTo === 'function') {
+                        window.navigateTo('/dashboard');
+                      } else {
+                        window.location.href = '/dashboard';
+                      }
+                    } catch (err) {
+                      console.error('Failed to navigate to dashboard:', err);
+                      if (typeof window !== 'undefined') {
+                        if (typeof window.navigateTo === 'function') {
+                          window.navigateTo('/dashboard');
+                        } else {
+                          window.location.href = '/dashboard';
+                        }
+                      }
+                    } finally {
+                      setIsSubmitting(false);
                     }
                   }}
-                  className="w-full py-4 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs"
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-60"
                 >
-                  Continue to dashboard &rarr;
+                  {isSubmitting ? "Opening Dashboard..." : "Continue to dashboard →"}
                 </button>
               </motion.div>
             )}

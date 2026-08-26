@@ -228,17 +228,11 @@ export default function App() {
           onboarding_completed: profile.onboarding_completed
         });
         if (!profile.onboarding_completed) {
-          if (!profile.consent_completed && path !== '/onboarding/consent') {
-            console.log('[App.jsx] Redirect Engine: consent_completed is false. Redirecting to /onboarding/consent. Reason: ONBOARDING_INCOMPLETE');
-            window.navigateTo('/onboarding/consent');
-          } else if (profile.consent_completed && !profile.profile_completed && path !== '/onboarding/profile') {
-            console.log('[App.jsx] Redirect Engine: profile_completed is false. Redirecting to /onboarding/profile. Reason: ONBOARDING_INCOMPLETE');
-            window.navigateTo('/onboarding/profile');
-          } else if (profile.consent_completed && profile.profile_completed && !profile.orientation_completed && path !== '/onboarding/welcome') {
-            console.log('[App.jsx] Redirect Engine: orientation_completed is false. Redirecting to /onboarding/welcome. Reason: ONBOARDING_INCOMPLETE');
-            window.navigateTo('/onboarding/welcome');
+          if (!path.startsWith('/onboarding')) {
+            console.log('[App.jsx] Redirect Engine: onboarding_completed is false. Redirecting to /onboarding. Reason: ONBOARDING_INCOMPLETE');
+            window.navigateTo('/onboarding');
           } else {
-            console.log('[App.jsx] Redirect Engine: User is on their correct current onboarding step page:', path);
+            console.log('[App.jsx] Redirect Engine: User is on onboarding flow:', path);
           }
         } else {
           // Onboarding complete: prevent getting stuck on onboarding pages
@@ -484,7 +478,14 @@ export default function App() {
       case 'auth':
         return <AuthPage onOpenPolicy={handleOpenPolicy} onAuthSuccess={handleAuthSuccess} />;
       case 'onboarding':
-        return <OnboardingPage onComplete={() => window.navigateTo('/dashboard')} />;
+        return (
+          <OnboardingPage
+            onComplete={async () => {
+              await checkUserStatus(true);
+              window.navigateTo('/dashboard');
+            }}
+          />
+        );
       case 'dashboard':
         return <DashboardPage user={user} profile={profile} onSignOut={handleSignOut} />;
       case 'settings':

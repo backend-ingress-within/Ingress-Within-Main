@@ -611,7 +611,7 @@ export default function AuthPage({ onOpenPolicy, onAuthSuccess }) {
                 {/* Continue CTA */}
                 <button 
                   onClick={() => {
-                    const destination = (profile && !profile.onboarding_completed) ? '/onboarding/consent' : '/dashboard';
+                    const destination = (profile && !profile.onboarding_completed) ? '/onboarding' : '/dashboard';
                     if (typeof window !== 'undefined') {
                       if (typeof window.navigateTo === 'function') {
                         window.navigateTo(destination);
