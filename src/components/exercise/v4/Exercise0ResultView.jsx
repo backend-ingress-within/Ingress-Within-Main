@@ -75,20 +75,12 @@ export default function Exercise0ResultView({ instanceId, onClose }) {
     );
   }
 
-  const analysis = result.analysis || {};
-  const scores = analysis.scores || {};
-
-  const traitList = [
-    { label: 'Openness', score: scores.openness ?? 75, desc: 'Curiosity & conceptual exploration' },
-    { label: 'Conscientiousness', score: scores.conscientiousness ?? 70, desc: 'Structure & goal discipline' },
-    { label: 'Extraversion', score: scores.extraversion ?? 65, desc: 'Social engagement & energy' },
-    { label: 'Agreeableness', score: scores.agreeableness ?? 80, desc: 'Empathy & interpersonal harmony' },
-    { label: 'Emotional Sensitivity', score: scores.neuroticism ?? 60, desc: 'Reactivity to environmental stress' }
-  ];
+  const rawSummary = result.summary || result.analysis?.summaryText || result.analysis?.reflection_text || result.analysis?.summary || 'Your baseline psychometric profile has been synthesized and recorded.';
+  const summary = formatSecondPerson(rawSummary);
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#ECEFF0] overflow-y-auto p-4 md:p-8 font-sans">
-      <div className="max-w-3xl mx-auto space-y-8 pb-16">
+    <div className="fixed inset-0 z-50 bg-[#ECEFF0] overflow-y-auto p-4 md:p-8 font-sans flex items-center justify-center">
+      <div className="max-w-2xl w-full mx-auto space-y-6 pb-8">
         {/* Top Header Bar */}
         <header className="flex items-center justify-between gap-4 pb-4 border-b border-black/5">
           <div className="flex items-center gap-3">
@@ -127,42 +119,12 @@ export default function Exercise0ResultView({ instanceId, onClose }) {
           </div>
 
           <p className="text-base text-primary font-serif italic leading-relaxed">
-            "{result.summary || analysis.summary || 'Your baseline psychometric profile has been synthesized and recorded.'}"
+            "{summary}"
           </p>
         </motion.div>
 
-        {/* Personalization Profile Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white/70 backdrop-blur-md border border-white/90 rounded-3xl p-8 space-y-6 shadow-sm"
-        >
-          <div className="space-y-1">
-            <h3 className="text-lg font-serif italic text-primary">Personalization Profile</h3>
-            <p className="text-xs text-mid">Calculated baseline dimensions used to personalize your experience.</p>
-          </div>
-
-          <div className="space-y-4">
-            {traitList.map((t, idx) => (
-              <div key={t.label} className="space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-primary">{t.label}</span>
-                  <span className="font-serif italic font-bold text-secondary">{t.score}/100</span>
-                </div>
-                <div className="w-full bg-black/5 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-[#8DBFB4] h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(0, t.score))}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-mid italic">{t.desc}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
         {/* Footer Bar */}
-        <div className="text-center pt-4 border-t border-black/5">
+        <div className="text-center pt-2">
           <button
             onClick={onClose}
             className="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
@@ -173,4 +135,34 @@ export default function Exercise0ResultView({ instanceId, onClose }) {
       </div>
     </div>
   );
+}
+
+function formatSecondPerson(text) {
+  if (!text || typeof text !== 'string') return text;
+  let formatted = text
+    .replace(/^"|"$/g, '')
+    .replace(/\bThis person tends to\b/gi, 'You tend to')
+    .replace(/\bThis person is\b/gi, 'You are')
+    .replace(/\bThis person has\b/gi, 'You have')
+    .replace(/\bThis person\b/gi, 'You')
+    .replace(/\bTheir mind stays\b/gi, 'Your mind stays')
+    .replace(/\bTheir mind\b/gi, 'Your mind')
+    .replace(/\bThey're generally\b/gi, "You're generally")
+    .replace(/\bThey're\b/gi, "You're")
+    .replace(/\bThey are\b/gi, 'You are')
+    .replace(/\bThey tend to\b/gi, 'You tend to')
+    .replace(/\bThey value\b/gi, 'You value')
+    .replace(/\bThey feel\b/gi, 'You feel')
+    .replace(/\bThey have\b/gi, 'You have')
+    .replace(/\bThey carry\b/gi, 'You carry')
+    .replace(/\bThey show\b/gi, 'You show')
+    .replace(/\bThey notice\b/gi, 'You notice')
+    .replace(/\bThey experience\b/gi, 'You experience')
+    .replace(/\bThey\b/g, 'You')
+    .replace(/\bthey\b/g, 'you')
+    .replace(/\btheir\b/g, 'your')
+    .replace(/\bTheir\b/g, 'Your')
+    .replace(/\bthemselves\b/g, 'yourself')
+    .replace(/\bThemselves\b/g, 'Yourself');
+  return formatted.trim();
 }

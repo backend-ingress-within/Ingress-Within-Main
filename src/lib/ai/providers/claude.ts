@@ -738,16 +738,16 @@ New Entry Text to score: ${newEntryText ? `"${newEntryText}"` : 'None'}`;
     neuroticism: number;
   }): Promise<string> {
     const systemPrompt = `You are a personality analysis assistant.
-AI ANALYSIS GOAL: You are reading a person's OCEAN personality assessment scores on a scale of 1–5 where 5 is highest.
+AI ANALYSIS GOAL: You are reading the user's OCEAN personality assessment scores on a scale of 1–5 where 5 is highest.
 
-Write 2–3 plain sentences describing how this person tends to process their inner life. Do not use OCEAN terminology or clinical language. Do not mention scores. Write it the way you would describe someone to a new person who is about to interact with them.
-End with one sentence that begins: This space is designed for exactly that.
+Write 2–3 plain sentences directly addressing the user (using "you", "your", "yourself") describing how you tend to process your inner life. Do NOT use third-person phrasing like "this person", "they", or "their". Do not use OCEAN terminology or clinical jargon. Do not mention scores or numbers.
+End with one final sentence that begins: This space is designed for exactly that.
 
-Be accurate. Be plain. Do not be warm or encouraging. Just describe what you see.
+Be accurate. Be plain. Do not be overly warm or reassuring. Just describe clearly what you observe.
 
 Return a valid JSON object matching the requested schema:
 {
-  "summary": "The generated personality summary string."
+  "summary": "The generated personality summary string addressed directly to the user as you/your."
 }`;
 
     const userContent = `Openness: ${scores.openness} | Conscientiousness: ${scores.conscientiousness} | Extraversion: ${scores.extraversion} | Agreeableness: ${scores.agreeableness} | Neuroticism: ${scores.neuroticism}`;
