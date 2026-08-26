@@ -162,9 +162,9 @@ const EXERCISE_METADATA = {
   },
   trigger_mapping: {
     title: 'Trigger Mapping',
-    category: 'Agency',
-    description: 'Map the situational architecture of reactive states across 5 high-intensity moments and identify decision points.',
-    unlockDay: 91,
+    category: 'Cognitive',
+    description: 'Map 3 to 5 moments when something triggered a bigger reaction than it seemed to call for. Explore your first somatic/cognitive reaction, what you wanted to avoid, and patterns across them.',
+    unlockDay: 1,
     getProgress: () => `In Progress`
   },
   narrative_arc: {
