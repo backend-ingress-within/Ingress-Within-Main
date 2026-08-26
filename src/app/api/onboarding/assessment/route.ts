@@ -222,6 +222,14 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (ex0Instance) {
+        const scores = {
+          openness: Math.round(openness * 20),
+          conscientiousness: Math.round(conscientiousness * 20),
+          extraversion: Math.round(extraversion * 20),
+          agreeableness: Math.round(agreeableness * 20),
+          neuroticism: Math.round(neuroticism * 20)
+        };
+
         await supabase
           .from('exercise_results')
           .upsert({
@@ -229,6 +237,18 @@ export async function POST(request: NextRequest) {
             user_id: user.userId,
             exercise_id: 'exercise_0',
             summary: summaryText,
+            analysis: {
+              scores,
+              rawScores: {
+                openness,
+                conscientiousness,
+                extraversion,
+                agreeableness,
+                neuroticism
+              },
+              summaryText,
+              reflection_text: summaryText
+            },
             metrics: {
               openness,
               conscientiousness,
@@ -238,11 +258,11 @@ export async function POST(request: NextRequest) {
               calculated_at: nowIso
             },
             insights: [
-              `Openness: ${Math.round(openness * 20)}%`,
-              `Conscientiousness: ${Math.round(conscientiousness * 20)}%`,
-              `Extraversion: ${Math.round(extraversion * 20)}%`,
-              `Agreeableness: ${Math.round(agreeableness * 20)}%`,
-              `Neuroticism: ${Math.round(neuroticism * 20)}%`
+              `Openness: ${scores.openness}%`,
+              `Conscientiousness: ${scores.conscientiousness}%`,
+              `Extraversion: ${scores.extraversion}%`,
+              `Agreeableness: ${scores.agreeableness}%`,
+              `Neuroticism: ${scores.neuroticism}%`
             ],
             created_at: nowIso
           }, { onConflict: 'instance_id' });

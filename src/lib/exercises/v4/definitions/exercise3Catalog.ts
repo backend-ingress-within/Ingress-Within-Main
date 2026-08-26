@@ -5,7 +5,7 @@ export const EXERCISE_3_DEFINITION: ExerciseDefinition = {
   exercise_type: 'self_perception',
   title: 'Self Perception Test',
   description: 'Structured self-perception mapping measuring self-ideal congruence and identity alignment.',
-  unlock_rules: { day: 23, cycle: 1, strategy: 'day_locked' },
+  unlock_rules: { day: 24, cycle: 1, strategy: 'day_locked' },
   cycle: 1,
   frequency: 'once_per_cycle',
   estimated_duration: 5,
@@ -18,7 +18,7 @@ export const EXERCISE_3_CONFIG = {
   exercise_key: 'self_perception',
   title: 'Self Perception Test',
   description: 'Structured self-perception mapping measuring self-ideal congruence and identity alignment.',
-  unlock_day: 23,
+  unlock_day: 24,
   runs_once: true,
   cycle: 1
 };

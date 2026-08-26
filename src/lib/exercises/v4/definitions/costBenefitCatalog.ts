@@ -5,8 +5,8 @@ export const COST_BENEFIT_AUDIT_DEFINITION: ExerciseDefinition = {
   exercise_type: 'cost_benefit_audit',
   title: 'Cost-Benefit Audit',
   description: 'Examine 3 to 5 persistent behavioral or emotional patterns by exploring their hidden protective functions, origins, real costs, and ongoing validity.',
-  unlock_rules: { day: 1, cycle: 1, strategy: 'immediate' },
-  cycle: 1,
+  unlock_rules: { day: 122, cycle: 5, strategy: 'day_locked' },
+  cycle: 5,
   frequency: 'once_per_cycle',
   estimated_duration: 8,
   version: '1.0',
@@ -19,7 +19,8 @@ export const COST_BENEFIT_CONFIG = {
   mandatoryCount: 3,
   optionalCount: 2,
   exercise_id: 'cost_benefit_audit',
-  title: 'Cost-Benefit Audit'
+  title: 'Cost-Benefit Audit',
+  unlock_day: 122
 };
 
 export interface CostBenefitQuestionMeta {

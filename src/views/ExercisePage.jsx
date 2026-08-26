@@ -59,14 +59,14 @@ const EXERCISE_METADATA = {
     title: 'Word Association Test',
     category: 'Implicit',
     description: '12-word speed association revealing implicit emotional registers and suppression dynamics.',
-    unlockDay: 9,
+    unlockDay: 10,
     getProgress: (inst) => `Word ${inst.current_step || 1} of 12`
   },
   word_association: {
     title: 'Word Association Test',
     category: 'Implicit',
     description: '12-word speed association revealing implicit emotional registers and suppression dynamics.',
-    unlockDay: 9,
+    unlockDay: 10,
     getProgress: (inst) => `Word ${inst.current_step || 1} of 12`
   },
   exercise_2: {
@@ -87,14 +87,14 @@ const EXERCISE_METADATA = {
     title: 'Self Perception Test',
     category: 'Identity',
     description: 'Structured self-perception mapping measuring self-ideal congruence and identity alignment.',
-    unlockDay: 23,
+    unlockDay: 24,
     getProgress: (inst) => `Question ${inst.current_step || 1} of 5`
   },
   self_perception: {
     title: 'Self Perception Test',
     category: 'Identity',
     description: 'Structured self-perception mapping measuring self-ideal congruence and identity alignment.',
-    unlockDay: 23,
+    unlockDay: 24,
     getProgress: (inst) => `Question ${inst.current_step || 1} of 5`
   },
   core_values_card_sort: {
@@ -157,21 +157,21 @@ const EXERCISE_METADATA = {
     title: 'Cost-Benefit Audit',
     category: 'Cognitive',
     description: 'Examine 3 to 5 persistent behavioral or emotional patterns by exploring their hidden protective functions, origins, real costs, and ongoing validity.',
-    unlockDay: 1,
+    unlockDay: 122,
     getProgress: () => `In Progress`
   },
   trigger_mapping: {
     title: 'Trigger Mapping',
     category: 'Cognitive',
     description: 'Map 3 to 5 moments when something triggered a bigger reaction than it seemed to call for. Explore your first somatic/cognitive reaction, what you wanted to avoid, and patterns across them.',
-    unlockDay: 1,
+    unlockDay: 152,
     getProgress: () => `In Progress`
   },
   narrative_arc: {
     title: 'Narrative Arc Exercise',
     category: 'Identity',
     description: 'Identify stable structures beneath emotional variability across the past 3 months.',
-    unlockDay: 91,
+    unlockDay: 274,
     getProgress: () => `In Progress`
   },
   exercise_7: {

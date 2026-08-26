@@ -5,8 +5,8 @@ export const TRIGGER_MAPPING_DEFINITION: ExerciseDefinition = {
   exercise_type: 'trigger_mapping',
   title: 'Trigger Mapping',
   description: 'Map 3 to 5 moments when something triggered a bigger reaction than it seemed to call for. Explore your first somatic/cognitive reaction, what you wanted to avoid, and patterns across them.',
-  unlock_rules: { day: 1, cycle: 1, strategy: 'immediate' },
-  cycle: 1,
+  unlock_rules: { day: 152, cycle: 6, strategy: 'day_locked' },
+  cycle: 6,
   frequency: 'once_per_cycle',
   estimated_duration: 8,
   version: '1.0',
@@ -20,7 +20,8 @@ export const TRIGGER_MAPPING_CONFIG = {
   minChars: 3,
   maxChars: 500,
   exercise_id: 'trigger_mapping',
-  title: 'Trigger Mapping'
+  title: 'Trigger Mapping',
+  unlock_day: 152
 };
 
 export interface TriggerMappingMomentInput {

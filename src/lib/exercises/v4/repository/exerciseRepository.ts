@@ -350,29 +350,37 @@ export class ExerciseRepository {
     const isMonth3Unlocked = relMapCompletedAt !== null && postRelMapEntryCount >= requiredMonth3Entries;
     const remainingMonth3Entries = Math.max(0, requiredMonth3Entries - postRelMapEntryCount);
 
-    // Map of unlock days per exercise
+    // Map of unlock days per exercise matching founder specification
     const UNLOCK_DAYS: Record<string, number> = {
       exercise_0: 1,
       ocean: 1,
-      exercise_1: 9,
-      word_association: 9,
+      exercise_1: 10,
+      word_association: 10,
       exercise_2: 16,
       inkblot_projective: 16,
-      exercise_3: 23,
-      self_perception: 23,
+      exercise_3: 24,
+      self_perception: 24,
       core_values_card_sort: 35,
       core_values: 35,
       exercise_4: 35,
       relationship_map: 42,
       exercise_5: 42,
-      cost_benefit_audit: 1,
-      trigger_mapping: 1,
+      body_signal_inventory: 49,
+      exercise_6: 49,
       avoidance_audit: 91,
-      body_signal_inventory: 91,
-      narrative_arc: 91
+      exercise_7: 91,
+      cost_benefit_audit: 122,
+      trigger_mapping: 152,
+      six_month_assessment: 183,
+      unfinished_conversation: 213,
+      identity_statements: 244,
+      narrative_arc: 274,
+      recurring_scenario: 304,
+      values_revisit: 335,
+      year_end_portrait: 365
     };
 
-    // Core exercises list (including the target Month 3 exercise and standalone exercises)
+    // Core exercises list across the curriculum
     const coreExerciseIds = [
       'exercise_0',
       'exercise_1',
@@ -380,9 +388,11 @@ export class ExerciseRepository {
       'exercise_3',
       'core_values_card_sort',
       'relationship_map',
+      'body_signal_inventory',
+      'avoidance_audit',
       'cost_benefit_audit',
       'trigger_mapping',
-      targetMonth3Id
+      'narrative_arc'
     ];
 
     // Canonical alias map to unify deduplicatedMap keys
