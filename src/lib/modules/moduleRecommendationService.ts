@@ -95,7 +95,26 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'low-mood': { moduleId: 'M4', concernId: 'M4-C03' },
   'depressive_symptoms': { moduleId: 'M4', concernId: 'M4-C03' },
   'depression': { moduleId: 'M4', concernId: 'M4-C03' },
-  'hopelessness': { moduleId: 'M4', concernId: 'M4-C03' }
+  'hopelessness': { moduleId: 'M4', concernId: 'M4-C03' },
+
+  // M5 Concerns — Identity & Purpose
+  'M5-C01': { moduleId: 'M5', concernId: 'M5-C01' },
+  'identity_confusion': { moduleId: 'M5', concernId: 'M5-C01' },
+  'identity-confusion': { moduleId: 'M5', concernId: 'M5-C01' },
+  'values_conflict': { moduleId: 'M5', concernId: 'M5-C01' },
+  'values-conflict': { moduleId: 'M5', concernId: 'M5-C01' },
+  'cultural_conflict': { moduleId: 'M5', concernId: 'M5-C01' },
+  'who_am_i': { moduleId: 'M5', concernId: 'M5-C01' },
+  'identity_crisis': { moduleId: 'M5', concernId: 'M5-C01' },
+
+  'M5-C02': { moduleId: 'M5', concernId: 'M5-C02' },
+  'lack_of_motivation': { moduleId: 'M5', concernId: 'M5-C02' },
+  'lack-of-motivation': { moduleId: 'M5', concernId: 'M5-C02' },
+  'unmotivated': { moduleId: 'M5', concernId: 'M5-C02' },
+  'no_direction': { moduleId: 'M5', concernId: 'M5-C02' },
+  'aimless': { moduleId: 'M5', concernId: 'M5-C02' },
+  'stalled': { moduleId: 'M5', concernId: 'M5-C02' },
+  'lack_of_purpose': { moduleId: 'M5', concernId: 'M5-C02' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`

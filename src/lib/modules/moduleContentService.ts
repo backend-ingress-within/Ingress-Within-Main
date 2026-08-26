@@ -3,6 +3,7 @@ import { MODULE_1_CONTENT } from './content/module1Data';
 import { MODULE_2_CONTENT } from './content/module2Data';
 import { MODULE_3_CONTENT } from './content/module3Data';
 import { MODULE_4_CONTENT } from './content/module4Data';
+import { MODULE_5_CONTENT } from './content/module5Data';
 
 /**
  * Registry of active module content datasets.
@@ -15,7 +16,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M3': MODULE_3_CONTENT,
   'anxiety-worry': MODULE_3_CONTENT,
   'M4': MODULE_4_CONTENT,
-  'mood-emotional-regulation': MODULE_4_CONTENT
+  'mood-emotional-regulation': MODULE_4_CONTENT,
+  'M5': MODULE_5_CONTENT,
+  'identity-purpose': MODULE_5_CONTENT
 };
 
 export class ModuleContentService {
@@ -43,7 +46,7 @@ export class ModuleContentService {
    * Returns all available module content objects.
    */
   public static getAllModuleContents(): ModuleContent[] {
-    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT, MODULE_4_CONTENT];
+    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT, MODULE_4_CONTENT, MODULE_5_CONTENT];
   }
 
   /**

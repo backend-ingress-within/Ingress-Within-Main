@@ -61,6 +61,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M4-C01', 'M4-C02', 'M4-C03'],
     created_at: '2026-08-26T00:00:00.000Z',
     updated_at: '2026-08-26T00:00:00.000Z'
+  },
+  {
+    id: 'M5',
+    slug: 'identity-purpose',
+    name: 'Identity & Purpose',
+    description: 'A structured clinical framework addressing identity confusion, values conflicts, and lack of motivation through ACT, Narrative Therapy, and Behavioural Activation tools.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M5-C01', 'M5-C02'],
+    created_at: '2026-08-26T00:00:00.000Z',
+    updated_at: '2026-08-26T00:00:00.000Z'
   }
 ];
 
