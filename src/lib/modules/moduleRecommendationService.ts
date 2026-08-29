@@ -20,8 +20,6 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'harsh-self-talk': { moduleId: 'M1', concernId: 'M1-C01' },
   'inner_critic': { moduleId: 'M1', concernId: 'M1-C01' },
   'shame_cycles': { moduleId: 'M1', concernId: 'M1-C01' },
-  'emotional suppression': { moduleId: 'M1', concernId: 'M1-C01' },
-  'emotional_suppression': { moduleId: 'M1', concernId: 'M1-C01' },
 
   'M1-C02': { moduleId: 'M1', concernId: 'M1-C02' },
   'low_self_worth': { moduleId: 'M1', concernId: 'M1-C02' },
@@ -127,7 +125,21 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'startle_response': { moduleId: 'M6', concernId: 'M6-C01' },
   'trauma_avoidance': { moduleId: 'M6', concernId: 'M6-C01' },
   'flashbacks': { moduleId: 'M6', concernId: 'M6-C01' },
-  'past_difficult_experiences': { moduleId: 'M6', concernId: 'M6-C01' }
+  'past_difficult_experiences': { moduleId: 'M6', concernId: 'M6-C01' },
+
+  // M7 Concerns — Emotional Suppression & Masculinity Norms
+  'M7-C01': { moduleId: 'M7', concernId: 'M7-C01' },
+  'emotional_suppression': { moduleId: 'M7', concernId: 'M7-C01' },
+  'emotional-suppression': { moduleId: 'M7', concernId: 'M7-C01' },
+  'masculinity_norms': { moduleId: 'M7', concernId: 'M7-C01' },
+  'masculinity-norms': { moduleId: 'M7', concernId: 'M7-C01' },
+  'toughness_script': { moduleId: 'M7', concernId: 'M7-C01' },
+  'toughness-script': { moduleId: 'M7', concernId: 'M7-C01' },
+  'vulnerability_avoidance': { moduleId: 'M7', concernId: 'M7-C01' },
+  'stoicism': { moduleId: 'M7', concernId: 'M7-C01' },
+  'suppression': { moduleId: 'M7', concernId: 'M7-C01' },
+  'holding_it_in': { moduleId: 'M7', concernId: 'M7-C01' },
+  'unexpressed_emotions': { moduleId: 'M7', concernId: 'M7-C01' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`

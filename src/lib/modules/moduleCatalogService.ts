@@ -89,6 +89,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M6-C01'],
     created_at: '2026-08-29T00:00:00.000Z',
     updated_at: '2026-08-29T00:00:00.000Z'
+  },
+  {
+    id: 'M7',
+    slug: 'emotional-suppression-masculinity-norms',
+    name: 'Emotional Suppression & Masculinity Norms',
+    description: 'A structured clinical framework addressing emotional suppression, vulnerability avoidance, and internalized toughness scripts using Emotion Theory, CBT, ACT, and Narrative Therapy.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 2,
+    taxonomy_concerns: ['M7-C01'],
+    created_at: '2026-08-29T00:00:00.000Z',
+    updated_at: '2026-08-29T00:00:00.000Z'
   }
 ];
 

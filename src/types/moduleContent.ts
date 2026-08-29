@@ -42,6 +42,7 @@ export interface ModuleBrief {
     lowMoodClassifierNote?: string;
     identityPurposeClassifierNote?: string;
     traumaClassifierNote?: string;
+    suppressionClassifierNote?: string;
     [key: string]: any;
   };
 }
@@ -183,6 +184,7 @@ export interface EscalationConfig {
   lowMoodClassifierNote?: string;
   identityPurposeClassifierNote?: string;
   traumaClassifierNote?: string;
+  suppressionClassifierNote?: string;
   systemPrompt: string;
   tier1FallbackWords: string[];
   tier2FallbackWords: string[];
