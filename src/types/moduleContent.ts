@@ -43,6 +43,7 @@ export interface ModuleBrief {
     identityPurposeClassifierNote?: string;
     traumaClassifierNote?: string;
     suppressionClassifierNote?: string;
+    neurodivergenceClassifierNote?: string;
     [key: string]: any;
   };
 }
@@ -185,6 +186,7 @@ export interface EscalationConfig {
   identityPurposeClassifierNote?: string;
   traumaClassifierNote?: string;
   suppressionClassifierNote?: string;
+  neurodivergenceClassifierNote?: string;
   systemPrompt: string;
   tier1FallbackWords: string[];
   tier2FallbackWords: string[];

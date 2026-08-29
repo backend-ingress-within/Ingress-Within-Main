@@ -139,7 +139,26 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'stoicism': { moduleId: 'M7', concernId: 'M7-C01' },
   'suppression': { moduleId: 'M7', concernId: 'M7-C01' },
   'holding_it_in': { moduleId: 'M7', concernId: 'M7-C01' },
-  'unexpressed_emotions': { moduleId: 'M7', concernId: 'M7-C01' }
+  'unexpressed_emotions': { moduleId: 'M7', concernId: 'M7-C01' },
+
+  // M8 Concerns — Neurodivergence & Adult Diagnosis
+  'M8-C01': { moduleId: 'M8', concernId: 'M8-C01' },
+  'neurodivergence': { moduleId: 'M8', concernId: 'M8-C01' },
+  'neurodivergent': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adhd': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult_adhd': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult-adhd': { moduleId: 'M8', concernId: 'M8-C01' },
+  'autism': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult_autism': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult-autism': { moduleId: 'M8', concernId: 'M8-C01' },
+  'executive_dysfunction': { moduleId: 'M8', concernId: 'M8-C01' },
+  'executive-dysfunction': { moduleId: 'M8', concernId: 'M8-C01' },
+  'chronic_lateness': { moduleId: 'M8', concernId: 'M8-C01' },
+  'disorganization': { moduleId: 'M8', concernId: 'M8-C01' },
+  'task_initiation': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult_diagnosis': { moduleId: 'M8', concernId: 'M8-C01' },
+  'adult-diagnosis': { moduleId: 'M8', concernId: 'M8-C01' },
+  'late_diagnosis': { moduleId: 'M8', concernId: 'M8-C01' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`

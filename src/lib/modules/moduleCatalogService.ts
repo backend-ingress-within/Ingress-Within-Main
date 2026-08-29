@@ -103,6 +103,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M7-C01'],
     created_at: '2026-08-29T00:00:00.000Z',
     updated_at: '2026-08-29T00:00:00.000Z'
+  },
+  {
+    id: 'M8',
+    slug: 'neurodivergence-adult-diagnosis',
+    name: 'Neurodivergence & Adult Diagnosis',
+    description: 'A specialized clinical psychoeducation framework exploring unrecognised neurodivergence, executive function differences, and adult diagnostic pathways using ADHD-adapted CBT, ACT, and Russell Barkley models.',
+    price: 599.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 2,
+    taxonomy_concerns: ['M8-C01'],
+    created_at: '2026-08-29T00:00:00.000Z',
+    updated_at: '2026-08-29T00:00:00.000Z'
   }
 ];
 
