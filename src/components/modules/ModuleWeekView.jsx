@@ -65,21 +65,66 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
         </div>
       )}
 
-      {/* Reference Card Banner (if present - e.g. Format C Two-Chair Dialogue in Week 4) */}
+      {/* Reference Card Banner (if present - Format C reference-only techniques) */}
       {week.hasReferenceCard && (
-        <div className="bg-white-paper border border-primary/15 rounded-2xl p-5 sm:p-6 space-y-2 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-bold text-accent">A5 (Format C)</span>
-            <span className="text-[10px] uppercase font-mono bg-warm-paper border border-primary/15 text-mid px-2.5 py-0.5 rounded-full">
-              Reference-Only Card
-            </span>
-          </div>
-          <h3 className="font-serif text-base font-semibold text-primary">
-            The Two-Chair Self-Criticism Dialogue
-          </h3>
-          <p className="text-xs sm:text-sm text-mid leading-relaxed">
-            This technique is explained for reference but not practiced in-app. It works best live with a licensed Emotion-Focused therapist.
-          </p>
+        <div className="space-y-4">
+          {(() => {
+            const allMechanisms = content?.brief?.mechanisms || [];
+            const activeMechanism = allMechanisms.find(m => m.key === week.mechanism) || allMechanisms[0];
+            const referenceTechniques = activeMechanism?.techniques?.filter(t => t.format === 'C') || [];
+
+            if (referenceTechniques.length === 0) {
+              return (
+                <div className="bg-white-paper border border-primary/15 rounded-2xl p-5 sm:p-6 space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-accent">Format C</span>
+                    <span className="text-[10px] uppercase font-mono bg-warm-paper border border-primary/15 text-mid px-2.5 py-0.5 rounded-full">
+                      Reference-Only Card
+                    </span>
+                  </div>
+                  <h3 className="font-serif text-base font-semibold text-primary">
+                    Professional Support Pathway
+                  </h3>
+                  <p className="text-xs sm:text-sm text-mid leading-relaxed">
+                    This technique is explained for reference but not practiced in-app. It is designed to be delivered with a licensed therapist.
+                  </p>
+                </div>
+              );
+            }
+
+            return referenceTechniques.map((tech) => (
+              <div key={tech.code} className="bg-white-paper border border-primary/15 rounded-2xl p-5 sm:p-6 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-bold text-accent">{tech.code} (Format C)</span>
+                  <span className="text-[10px] uppercase font-mono bg-warm-paper border border-primary/15 text-mid px-2.5 py-0.5 rounded-full font-semibold">
+                    Reference-Only Professional Pathway
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-semibold text-primary">
+                    {tech.name}
+                  </h3>
+                  {tech.approach && (
+                    <div className="text-xs text-accent font-medium mt-0.5">
+                      Approach: {tech.approach}
+                    </div>
+                  )}
+                </div>
+                {tech.what && (
+                  <p className="text-xs sm:text-sm text-primary/90 leading-relaxed font-sans" dangerouslySetInnerHTML={{ __html: tech.what }} />
+                )}
+                {tech.professionalNote && (
+                  <div className="p-3.5 bg-accent/5 border border-accent/20 rounded-xl text-xs text-mid space-y-1 leading-relaxed">
+                    <span className="font-semibold text-primary flex items-center gap-1.5">
+                      <BookOpen size={13} className="text-accent flex-shrink-0" />
+                      <span>Professional Guidance Note:</span>
+                    </span>
+                    <p>{tech.professionalNote}</p>
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
         </div>
       )}
 

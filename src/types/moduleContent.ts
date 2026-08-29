@@ -41,6 +41,7 @@ export interface ModuleBrief {
     tier2: string;
     lowMoodClassifierNote?: string;
     identityPurposeClassifierNote?: string;
+    traumaClassifierNote?: string;
     [key: string]: any;
   };
 }
@@ -181,6 +182,7 @@ export interface EscalationConfig {
   tier2?: string;
   lowMoodClassifierNote?: string;
   identityPurposeClassifierNote?: string;
+  traumaClassifierNote?: string;
   systemPrompt: string;
   tier1FallbackWords: string[];
   tier2FallbackWords: string[];

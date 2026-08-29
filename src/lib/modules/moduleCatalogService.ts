@@ -75,6 +75,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M5-C01', 'M5-C02'],
     created_at: '2026-08-26T00:00:00.000Z',
     updated_at: '2026-08-26T00:00:00.000Z'
+  },
+  {
+    id: 'M6',
+    slug: 'trauma-past-experiences',
+    name: 'Trauma & Past Experiences',
+    description: 'A specialized clinical psychoeducation framework addressing present-day trauma responses, hypervigilance, and avoidance through titrated somatic grounding and narrative agency tools.',
+    price: 399.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 2,
+    taxonomy_concerns: ['M6-C01'],
+    created_at: '2026-08-29T00:00:00.000Z',
+    updated_at: '2026-08-29T00:00:00.000Z'
   }
 ];
 
@@ -90,6 +104,9 @@ export class ModuleCatalogService {
    * Fetches all active psychoeducation modules with taxonomy mappings.
    */
   public static async getAllModules(): Promise<ModuleWithTaxonomy[]> {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return STATIC_MODULE_CATALOG;
+    }
     try {
       const { data: dbModules, error: modErr } = await supabase
         .from('modules')

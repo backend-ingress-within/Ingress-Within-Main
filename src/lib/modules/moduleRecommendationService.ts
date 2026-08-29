@@ -114,13 +114,42 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'no_direction': { moduleId: 'M5', concernId: 'M5-C02' },
   'aimless': { moduleId: 'M5', concernId: 'M5-C02' },
   'stalled': { moduleId: 'M5', concernId: 'M5-C02' },
-  'lack_of_purpose': { moduleId: 'M5', concernId: 'M5-C02' }
+  'lack_of_purpose': { moduleId: 'M5', concernId: 'M5-C02' },
+
+  // M6 Concerns — Trauma & Past Experiences
+  'M6-C01': { moduleId: 'M6', concernId: 'M6-C01' },
+  'trauma': { moduleId: 'M6', concernId: 'M6-C01' },
+  'past_experiences': { moduleId: 'M6', concernId: 'M6-C01' },
+  'past-experiences': { moduleId: 'M6', concernId: 'M6-C01' },
+  'ptsd_symptoms': { moduleId: 'M6', concernId: 'M6-C01' },
+  'ptsd': { moduleId: 'M6', concernId: 'M6-C01' },
+  'hypervigilance': { moduleId: 'M6', concernId: 'M6-C01' },
+  'startle_response': { moduleId: 'M6', concernId: 'M6-C01' },
+  'trauma_avoidance': { moduleId: 'M6', concernId: 'M6-C01' },
+  'flashbacks': { moduleId: 'M6', concernId: 'M6-C01' },
+  'past_difficult_experiences': { moduleId: 'M6', concernId: 'M6-C01' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`
 const IN_MEMORY_RECOMMENDATIONS: Record<string, RecommendationRecord> = {};
 
 export class ModuleRecommendationService {
+  /**
+   * Helper to map a concern key or taxonomy code to its corresponding module.
+   */
+  public static mapConcernToModule(concernKey: string): { moduleId: string; concernId: string } | null {
+    if (!concernKey) return null;
+    const keyTrim = concernKey.trim();
+    const keyUpper = keyTrim.toUpperCase();
+    const keyLower = keyTrim.toLowerCase();
+
+    if (TAXONOMY_PATTERN_MAPPINGS[keyUpper]) return TAXONOMY_PATTERN_MAPPINGS[keyUpper];
+    if (TAXONOMY_PATTERN_MAPPINGS[keyLower]) return TAXONOMY_PATTERN_MAPPINGS[keyLower];
+    if (TAXONOMY_PATTERN_MAPPINGS[keyTrim]) return TAXONOMY_PATTERN_MAPPINGS[keyTrim];
+
+    return null;
+  }
+
   /**
    * Generates or retrieves an existing idempotent recommendation for a monthly cycle/report.
    */
