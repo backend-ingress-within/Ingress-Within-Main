@@ -131,6 +131,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M9-C01', 'M9-C02', 'M9-C03'],
     created_at: '2026-08-31T00:00:00.000Z',
     updated_at: '2026-08-31T00:00:00.000Z'
+  },
+  {
+    id: 'M10',
+    slug: 'autonomy-boundaries',
+    name: 'Autonomy & Boundaries',
+    description: 'A structured family-domain psychoeducation framework addressing marriage pressure, privacy boundaries, and career expectations using ACT values, IPT role transitions, DBT DEAR MAN, and existential decision-making.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 7,
+    taxonomy_concerns: ['M10-C01', 'M10-C02', 'M10-C03'],
+    created_at: '2026-08-31T00:00:00.000Z',
+    updated_at: '2026-08-31T00:00:00.000Z'
   }
 ];
 

@@ -188,7 +188,36 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'pressure_to_succeed': { moduleId: 'M9', concernId: 'M9-C03' },
   'achievement_pressure': { moduleId: 'M9', concernId: 'M9-C03' },
   'parental_pressure': { moduleId: 'M9', concernId: 'M9-C03' },
-  'family_expectations': { moduleId: 'M9', concernId: 'M9-C03' }
+  'family_expectations': { moduleId: 'M9', concernId: 'M9-C03' },
+
+  // M10 Concerns — Autonomy & Boundaries (Family Domain)
+  'M10-C01': { moduleId: 'M10', concernId: 'M10-C01' },
+  'marriage_pressure': { moduleId: 'M10', concernId: 'M10-C01' },
+  'marriage-pressure': { moduleId: 'M10', concernId: 'M10-C01' },
+  'arranged_marriage_pressure': { moduleId: 'M10', concernId: 'M10-C01' },
+  'family_marriage_pressure': { moduleId: 'M10', concernId: 'M10-C01' },
+  'timeline_pressure': { moduleId: 'M10', concernId: 'M10-C01' },
+
+  'M10-C02': { moduleId: 'M10', concernId: 'M10-C02' },
+  'privacy_boundaries': { moduleId: 'M10', concernId: 'M10-C02' },
+  'privacy-boundaries': { moduleId: 'M10', concernId: 'M10-C02' },
+  'lack_of_privacy': { moduleId: 'M10', concernId: 'M10-C02' },
+  'lack-of-privacy': { moduleId: 'M10', concernId: 'M10-C02' },
+  'boundary_setting': { moduleId: 'M10', concernId: 'M10-C02' },
+  'boundary-setting': { moduleId: 'M10', concernId: 'M10-C02' },
+  'family_boundaries': { moduleId: 'M10', concernId: 'M10-C02' },
+  'family-boundaries': { moduleId: 'M10', concernId: 'M10-C02' },
+  'personal_boundaries': { moduleId: 'M10', concernId: 'M10-C02' },
+
+  'M10-C03': { moduleId: 'M10', concernId: 'M10-C03' },
+  'career_pressure': { moduleId: 'M10', concernId: 'M10-C03' },
+  'career-pressure': { moduleId: 'M10', concernId: 'M10-C03' },
+  'forced_career': { moduleId: 'M10', concernId: 'M10-C03' },
+  'forced-career': { moduleId: 'M10', concernId: 'M10-C03' },
+  'family_career_pressure': { moduleId: 'M10', concernId: 'M10-C03' },
+  'family_business_pressure': { moduleId: 'M10', concernId: 'M10-C03' },
+  'autonomy_boundaries': { moduleId: 'M10', concernId: 'M10-C03' },
+  'autonomy-boundaries': { moduleId: 'M10', concernId: 'M10-C03' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`
