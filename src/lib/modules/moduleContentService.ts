@@ -7,6 +7,7 @@ import { MODULE_5_CONTENT } from './content/module5Data';
 import { MODULE_6_CONTENT } from './content/module6Data';
 import { MODULE_7_CONTENT } from './content/module7Data';
 import { MODULE_8_CONTENT } from './content/module8Data';
+import { MODULE_9_CONTENT } from './content/module9Data';
 
 /**
  * Registry of active module content datasets.
@@ -27,7 +28,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M7': MODULE_7_CONTENT,
   'emotional-suppression-masculinity-norms': MODULE_7_CONTENT,
   'M8': MODULE_8_CONTENT,
-  'neurodivergence-adult-diagnosis': MODULE_8_CONTENT
+  'neurodivergence-adult-diagnosis': MODULE_8_CONTENT,
+  'M9': MODULE_9_CONTENT,
+  'judged-compared': MODULE_9_CONTENT
 };
 
 export class ModuleContentService {
@@ -55,7 +58,7 @@ export class ModuleContentService {
    * Returns all available module content objects.
    */
   public static getAllModuleContents(): ModuleContent[] {
-    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT, MODULE_4_CONTENT, MODULE_5_CONTENT, MODULE_6_CONTENT, MODULE_7_CONTENT, MODULE_8_CONTENT];
+    return [MODULE_1_CONTENT, MODULE_2_CONTENT, MODULE_3_CONTENT, MODULE_4_CONTENT, MODULE_5_CONTENT, MODULE_6_CONTENT, MODULE_7_CONTENT, MODULE_8_CONTENT, MODULE_9_CONTENT];
   }
 
   /**

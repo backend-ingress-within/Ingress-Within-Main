@@ -158,7 +158,37 @@ const TAXONOMY_PATTERN_MAPPINGS: Record<string, { moduleId: string; concernId: s
   'task_initiation': { moduleId: 'M8', concernId: 'M8-C01' },
   'adult_diagnosis': { moduleId: 'M8', concernId: 'M8-C01' },
   'adult-diagnosis': { moduleId: 'M8', concernId: 'M8-C01' },
-  'late_diagnosis': { moduleId: 'M8', concernId: 'M8-C01' }
+  'late_diagnosis': { moduleId: 'M8', concernId: 'M8-C01' },
+
+  // M9 Concerns — Judged & Compared (Family Domain)
+  'M9-C01': { moduleId: 'M9', concernId: 'M9-C01' },
+  'criticism': { moduleId: 'M9', concernId: 'M9-C01' },
+  'family_criticism': { moduleId: 'M9', concernId: 'M9-C01' },
+  'family-criticism': { moduleId: 'M9', concernId: 'M9-C01' },
+  'constant_criticism': { moduleId: 'M9', concernId: 'M9-C01' },
+  'constant-criticism': { moduleId: 'M9', concernId: 'M9-C01' },
+  'being_judged': { moduleId: 'M9', concernId: 'M9-C01' },
+  'being-judged': { moduleId: 'M9', concernId: 'M9-C01' },
+  'feeling_judged': { moduleId: 'M9', concernId: 'M9-C01' },
+  'judged_and_compared': { moduleId: 'M9', concernId: 'M9-C01' },
+
+  'M9-C02': { moduleId: 'M9', concernId: 'M9-C02' },
+  'comparison_relatives': { moduleId: 'M9', concernId: 'M9-C02' },
+  'comparison_with_relatives': { moduleId: 'M9', concernId: 'M9-C02' },
+  'relative_comparison': { moduleId: 'M9', concernId: 'M9-C02' },
+  'relative-comparison': { moduleId: 'M9', concernId: 'M9-C02' },
+  'family_comparison': { moduleId: 'M9', concernId: 'M9-C02' },
+  'family-comparison': { moduleId: 'M9', concernId: 'M9-C02' },
+  'compared_to_others': { moduleId: 'M9', concernId: 'M9-C02' },
+
+  'M9-C03': { moduleId: 'M9', concernId: 'M9-C03' },
+  'high_expectations': { moduleId: 'M9', concernId: 'M9-C03' },
+  'high-expectations': { moduleId: 'M9', concernId: 'M9-C03' },
+  'expectations_to_succeed': { moduleId: 'M9', concernId: 'M9-C03' },
+  'pressure_to_succeed': { moduleId: 'M9', concernId: 'M9-C03' },
+  'achievement_pressure': { moduleId: 'M9', concernId: 'M9-C03' },
+  'parental_pressure': { moduleId: 'M9', concernId: 'M9-C03' },
+  'family_expectations': { moduleId: 'M9', concernId: 'M9-C03' }
 };
 
 // In-memory store fallback for recommendations indexed by `${userId}:${cycleId}`

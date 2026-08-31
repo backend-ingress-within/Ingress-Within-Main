@@ -117,6 +117,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M8-C01'],
     created_at: '2026-08-29T00:00:00.000Z',
     updated_at: '2026-08-29T00:00:00.000Z'
+  },
+  {
+    id: 'M9',
+    slug: 'judged-compared',
+    name: 'Judged & Compared',
+    description: 'A structured family-domain psychoeducation framework addressing constant criticism, relative comparison, and high achievement pressure using CBT thought records, CFT self-compassion, assertiveness rehearsal, and ACT values work.',
+    price: 349.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 7,
+    taxonomy_concerns: ['M9-C01', 'M9-C02', 'M9-C03'],
+    created_at: '2026-08-31T00:00:00.000Z',
+    updated_at: '2026-08-31T00:00:00.000Z'
   }
 ];
 
