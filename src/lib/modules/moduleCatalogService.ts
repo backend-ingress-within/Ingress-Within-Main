@@ -159,6 +159,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M11-C01', 'M11-C02', 'M11-C03', 'M11-C04'],
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z'
+  },
+  {
+    id: 'M12',
+    slug: 'caregiving-role-burden',
+    name: 'Caregiving & Role Burden',
+    description: 'A structured family-domain psychoeducation framework addressing eldercare burden, caregiver guilt, burnout, parenting stress, and decision-making anxiety using ACT values boundaries, CBT cognitive restructuring, CFT compassion training, and behavioral self-monitoring.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M12-C01', 'M12-C02'],
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z'
   }
 ];
 
