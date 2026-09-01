@@ -201,6 +201,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M14-C01', 'M14-C02', 'M14-C03'],
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z'
+  },
+  {
+    id: 'M15',
+    slug: 'loss-endings',
+    name: 'Loss & Endings',
+    description: 'A structured psychoeducation framework addressing breakup distress, relationship loss, divorce, separation adjustment, grief for an imagined future, identity reconstruction, rumination, stigma beliefs, and values-based life rebuilding using constructivist grief work, CBT, ACT, and descriptive grief psychoeducation.',
+    price: 599.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M15-C01', 'M15-C02'],
+    created_at: '2026-09-02T00:00:00.000Z',
+    updated_at: '2026-09-02T00:00:00.000Z'
   }
 ];
 

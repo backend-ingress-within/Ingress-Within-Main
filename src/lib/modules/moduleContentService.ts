@@ -13,6 +13,7 @@ import { MODULE_11_CONTENT } from './content/module11Data';
 import { MODULE_12_CONTENT } from './content/module12Data';
 import { MODULE_13_CONTENT } from './content/module13Data';
 import { MODULE_14_CONTENT } from './content/module14Data';
+import { MODULE_15_CONTENT } from './content/module15Data';
 
 /**
  * Registry of active module content datasets.
@@ -45,7 +46,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M13': MODULE_13_CONTENT,
   'identity-belonging-family-acceptance': MODULE_13_CONTENT,
   'M14': MODULE_14_CONTENT,
-  'grief-loss-life-transitions': MODULE_14_CONTENT
+  'grief-loss-life-transitions': MODULE_14_CONTENT,
+  'M15': MODULE_15_CONTENT,
+  'loss-endings': MODULE_15_CONTENT
 };
 
 export class ModuleContentService {
@@ -87,7 +90,8 @@ export class ModuleContentService {
       MODULE_11_CONTENT,
       MODULE_12_CONTENT,
       MODULE_13_CONTENT,
-      MODULE_14_CONTENT
+      MODULE_14_CONTENT,
+      MODULE_15_CONTENT
     ];
   }
 
