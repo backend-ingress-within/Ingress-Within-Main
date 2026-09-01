@@ -16,6 +16,7 @@ export interface ModuleTechnique {
   guardrail?: boolean;
   guardrailNote?: string;
   professionalNote?: string; // Present on format 'C' techniques
+  adaptationNote?: string;
 }
 
 export interface ModuleMechanism {
