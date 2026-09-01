@@ -187,6 +187,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M13-C01', 'M13-C02'],
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z'
+  },
+  {
+    id: 'M14',
+    slug: 'grief-loss-life-transitions',
+    name: 'Grief, Loss & Life Transitions',
+    description: 'A structured psychoeducation framework addressing grief and bereavement, major life transitions, ambiguous loss, unresolved change, and meaning reconstruction using the Dual Process Model, continuing bonds, ACT, behavioral activation, narrative approaches, and ambiguous loss frameworks.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 7,
+    taxonomy_concerns: ['M14-C01', 'M14-C02', 'M14-C03'],
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z'
   }
 ];
 
