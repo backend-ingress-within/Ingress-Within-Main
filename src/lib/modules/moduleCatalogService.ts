@@ -145,6 +145,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M10-C01', 'M10-C02', 'M10-C03'],
     created_at: '2026-08-31T00:00:00.000Z',
     updated_at: '2026-08-31T00:00:00.000Z'
+  },
+  {
+    id: 'M11',
+    slug: 'conflict-communication',
+    name: 'Conflict & Communication',
+    description: 'A structured family-domain psychoeducation framework addressing feeling misunderstood, recurring arguments, in-law dynamics, and sibling conflict using Gottman methods, IPT, EFT cycle mapping, CBT thought records, and Bowen family systems.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 9,
+    taxonomy_concerns: ['M11-C01', 'M11-C02', 'M11-C03', 'M11-C04'],
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z'
   }
 ];
 
