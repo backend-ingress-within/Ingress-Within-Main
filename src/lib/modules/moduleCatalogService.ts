@@ -215,6 +215,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M15-C01', 'M15-C02'],
     created_at: '2026-09-02T00:00:00.000Z',
     updated_at: '2026-09-02T00:00:00.000Z'
+  },
+  {
+    id: 'M16',
+    slug: 'arranged-long-distance-realities',
+    name: 'Arranged & Long-Distance Realities',
+    description: 'A structured psychoeducation framework addressing arranged-marriage compatibility stress, decision uncertainty, family expectations, long-distance relationship strain, communication difficulties, attachment insecurity, jealousy, and relationship uncertainty using ACT, CBT, Motivational Interviewing, IPT, and EFT-informed approaches.',
+    price: 499.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M16-C01', 'M16-C02'],
+    created_at: '2026-09-02T00:00:00.000Z',
+    updated_at: '2026-09-02T00:00:00.000Z'
   }
 ];
 
