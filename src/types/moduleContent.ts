@@ -34,6 +34,7 @@ export interface ModuleMechanism {
 
 export interface ModuleBrief {
   moduleName: string;
+  moduleNumber?: number;
   tier: string;
   mechanisms: ModuleMechanism[];
   scenarioSource: string;
