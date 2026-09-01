@@ -11,6 +11,7 @@ import { MODULE_9_CONTENT } from './content/module9Data';
 import { MODULE_10_CONTENT } from './content/module10Data';
 import { MODULE_11_CONTENT } from './content/module11Data';
 import { MODULE_12_CONTENT } from './content/module12Data';
+import { MODULE_13_CONTENT } from './content/module13Data';
 
 /**
  * Registry of active module content datasets.
@@ -39,7 +40,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M11': MODULE_11_CONTENT,
   'conflict-communication': MODULE_11_CONTENT,
   'M12': MODULE_12_CONTENT,
-  'caregiving-role-burden': MODULE_12_CONTENT
+  'caregiving-role-burden': MODULE_12_CONTENT,
+  'M13': MODULE_13_CONTENT,
+  'identity-belonging-family-acceptance': MODULE_13_CONTENT
 };
 
 export class ModuleContentService {
@@ -79,7 +82,8 @@ export class ModuleContentService {
       MODULE_9_CONTENT,
       MODULE_10_CONTENT,
       MODULE_11_CONTENT,
-      MODULE_12_CONTENT
+      MODULE_12_CONTENT,
+      MODULE_13_CONTENT
     ];
   }
 

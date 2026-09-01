@@ -173,6 +173,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M12-C01', 'M12-C02'],
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z'
+  },
+  {
+    id: 'M13',
+    slug: 'identity-belonging-family-acceptance',
+    name: 'Identity, Belonging & Family Acceptance',
+    description: 'A structured family-domain psychoeducation framework addressing inter-caste/inter-religion family rejection and sexual orientation/gender identity family acceptance using ACT values clarification, Bowen family systems mapping, Narrative Therapy re-authoring, Pachankis LGBTQ+-affirmative CBT, and Meyer minority stress theory.',
+    price: 399.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M13-C01', 'M13-C02'],
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z'
   }
 ];
 
