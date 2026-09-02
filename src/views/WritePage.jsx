@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, BookOpen, AlertCircle, Smile, HeartHandshake, X, HelpCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, BookOpen, AlertCircle, Smile, HeartHandshake, X, HelpCircle, Sparkles } from 'lucide-react';
 import { DashboardService } from '../services/dashboardService';
 import DashboardNavbar from '../components/DashboardNavbar';
 import { PostJournalInterventions } from '../components/interventions/PostJournalInterventions';
@@ -27,7 +27,7 @@ const placeholders = {
   question: 'Whatever comes first. The unedited version.'
 };
 
-export default function WritePage({ user, profile, onSignOut }) {
+function WritePage({ user, profile, onSignOut }) {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -423,7 +423,13 @@ export default function WritePage({ user, profile, onSignOut }) {
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-semibold uppercase tracking-widest text-accent">Continue Your Reflection</span>
                   <div className="flex items-center gap-1.5 text-[10px] text-mid">
-                    <span>From {new Date(data?.entries?.[0]?.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                    {(() => {
+                      const dateVal = reflectionToAnswer?.created_at || data?.entries?.[0]?.created_at;
+                      if (!dateVal) return null;
+                      const d = new Date(dateVal);
+                      if (isNaN(d.getTime())) return null;
+                      return <span>From {d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>;
+                    })()}
                   </div>
                 </div>
 
@@ -463,7 +469,7 @@ export default function WritePage({ user, profile, onSignOut }) {
                     </div>
 
                     <button
-                      onClick={handleSaveReflectionAnswer}
+                      onClick={handleSaveReflection}
                       disabled={!reflectionAnswer.trim() || isSavingReflection}
                       className="px-4 py-1.5 bg-accent text-white hover:bg-[#654652] disabled:bg-accent/25 disabled:cursor-not-allowed text-[11px] font-semibold uppercase tracking-wider rounded transition-all cursor-pointer border-none shadow-xs"
                     >
@@ -933,5 +939,76 @@ export default function WritePage({ user, profile, onSignOut }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+class WritePageErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[WritePage] Error boundary caught render failure:', error, errorInfo);
+  }
+
+  handleReload = () => {
+    try {
+      localStorage.removeItem('iw_free_write_draft');
+    } catch (e) {}
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-mint-grey flex flex-col items-center justify-center p-6 text-center space-y-4 font-sans">
+          <div className="w-12 h-12 rounded-full bg-accent/15 flex items-center justify-center text-accent">
+            <AlertCircle size={24} />
+          </div>
+          <h2 className="font-serif text-xl text-primary font-normal">Writing Workspace</h2>
+          <p className="text-xs text-mid max-w-md leading-relaxed">
+            We encountered a temporary issue loading your writing workspace. Your previous draft has been preserved.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={this.handleReload}
+              className="px-5 py-2.5 bg-primary text-white text-xs font-semibold rounded uppercase tracking-wider cursor-pointer border-none shadow-xs"
+            >
+              Reload Workspace
+            </button>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  if (typeof window.navigateTo === 'function') {
+                    window.navigateTo('/dashboard');
+                  } else {
+                    window.location.href = '/dashboard';
+                  }
+                }
+              }}
+              className="px-5 py-2.5 border border-primary/20 text-primary text-xs font-semibold rounded uppercase tracking-wider cursor-pointer bg-transparent"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function WritePageExport(props) {
+  return (
+    <WritePageErrorBoundary>
+      <WritePage {...props} />
+    </WritePageErrorBoundary>
   );
 }
