@@ -243,6 +243,7 @@ export class ExerciseRepository {
       const { AVOIDANCE_AUDIT_DEFINITION } = await import('../definitions/avoidanceAuditCatalog');
       const { COST_BENEFIT_AUDIT_DEFINITION } = await import('../definitions/costBenefitCatalog');
       const { TRIGGER_MAPPING_DEFINITION } = await import('../definitions/triggerMappingCatalog');
+      const { SIX_MONTH_ASSESSMENT_DEFINITION } = await import('../definitions/sixMonthAssessmentCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -254,7 +255,8 @@ export class ExerciseRepository {
         BODY_SIGNAL_INVENTORY_DEFINITION,
         AVOIDANCE_AUDIT_DEFINITION,
         COST_BENEFIT_AUDIT_DEFINITION,
-        TRIGGER_MAPPING_DEFINITION
+        TRIGGER_MAPPING_DEFINITION,
+        SIX_MONTH_ASSESSMENT_DEFINITION
       ];
 
       for (const def of defs) {
@@ -392,7 +394,8 @@ export class ExerciseRepository {
       'avoidance_audit',
       'cost_benefit_audit',
       'trigger_mapping',
-      'narrative_arc'
+      'narrative_arc',
+      'six_month_assessment'
     ];
 
     // Canonical alias map to unify deduplicatedMap keys
@@ -403,7 +406,10 @@ export class ExerciseRepository {
       self_perception: 'exercise_3',
       core_values: 'core_values_card_sort',
       exercise_4: 'core_values_card_sort',
-      exercise_5: 'relationship_map'
+      exercise_5: 'relationship_map',
+      exercise_6: 'body_signal_inventory',
+      exercise_7: 'avoidance_audit',
+      exercise_9: 'six_month_assessment'
     };
 
     // Re-alias deduplicatedMap entries for consistency
@@ -427,8 +433,12 @@ export class ExerciseRepository {
         }
       } else {
         const requiredDay = UNLOCK_DAYS[reqId] || 1;
-        const requiresEntries = reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
+        const requiresEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
         isUnlocked = totalUserDays >= requiredDay && (requiresEntries === 0 || userEntryCount >= requiresEntries);
+        if (!isUnlocked && requiresEntries > 0 && userEntryCount < requiresEntries) {
+          const needed = Math.max(0, requiresEntries - userEntryCount);
+          inst.metadata = { ...inst.metadata, remaining_entries_needed: needed, unlock_label: `${needed} more entries needed` };
+        }
       }
 
       if (inst.status === 'locked' && isUnlocked) {

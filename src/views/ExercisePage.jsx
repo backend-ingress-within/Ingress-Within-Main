@@ -38,9 +38,25 @@ import TriggerMappingFlow from '../components/exercise/v4/TriggerMappingFlow';
 import TriggerMappingResultView from '../components/exercise/v4/TriggerMappingResultView';
 import NarrativeArcFlow from '../components/exercise/v4/NarrativeArcFlow';
 import NarrativeArcResultView from '../components/exercise/v4/NarrativeArcResultView';
+import SixMonthAssessmentFlow from '../components/exercise/v4/SixMonthAssessmentFlow';
+import SixMonthAssessmentResultView from '../components/exercise/v4/SixMonthAssessmentResultView';
 
 // Founder-approved exercise definitions & titles
 const EXERCISE_METADATA = {
+  six_month_assessment: {
+    title: '6-Month Self-Assessment',
+    category: 'Anchor',
+    description: 'Change tracking at the self-perception and identity level across 6 months of practice.',
+    unlockDay: 183,
+    getProgress: () => `In Progress`
+  },
+  exercise_9: {
+    title: '6-Month Self-Assessment',
+    category: 'Anchor',
+    description: 'Change tracking at the self-perception and identity level across 6 months of practice.',
+    unlockDay: 183,
+    getProgress: () => `In Progress`
+  },
   exercise_0: {
     title: 'Baseline Assessment',
     category: 'Baseline',
@@ -300,6 +316,21 @@ export default function ExercisePage({ user, profile, onSignOut }) {
           );
         }
 
+        if (exId === 'six_month_assessment' || exId === 'exercise_9') {
+          return (
+            <SixMonthAssessmentFlow
+              instanceId={activeExerciseInstanceId}
+              instance={inst}
+              userBranch={profile?.branch_assignment || 'A'}
+              onClose={() => setActiveExerciseInstanceId(null)}
+              onComplete={() => {
+                setActiveExerciseInstanceId(null);
+                fetchExerciseInstances();
+              }}
+            />
+          );
+        }
+
         if (exId === 'narrative_arc') {
           return (
             <NarrativeArcFlow
@@ -437,6 +468,15 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         if (exId === 'trigger_mapping') {
           return (
             <TriggerMappingResultView
+              instanceId={activeResultInstanceId}
+              onClose={() => setActiveResultInstanceId(null)}
+            />
+          );
+        }
+
+        if (exId === 'six_month_assessment' || exId === 'exercise_9') {
+          return (
+            <SixMonthAssessmentResultView
               instanceId={activeResultInstanceId}
               onClose={() => setActiveResultInstanceId(null)}
             />
