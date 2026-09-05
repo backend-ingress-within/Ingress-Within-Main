@@ -244,6 +244,7 @@ export class ExerciseRepository {
       const { COST_BENEFIT_AUDIT_DEFINITION } = await import('../definitions/costBenefitCatalog');
       const { TRIGGER_MAPPING_DEFINITION } = await import('../definitions/triggerMappingCatalog');
       const { SIX_MONTH_ASSESSMENT_DEFINITION } = await import('../definitions/sixMonthAssessmentCatalog');
+      const { UNFINISHED_CONVERSATION_DEFINITION } = await import('../definitions/unfinishedConversationCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -256,7 +257,8 @@ export class ExerciseRepository {
         AVOIDANCE_AUDIT_DEFINITION,
         COST_BENEFIT_AUDIT_DEFINITION,
         TRIGGER_MAPPING_DEFINITION,
-        SIX_MONTH_ASSESSMENT_DEFINITION
+        SIX_MONTH_ASSESSMENT_DEFINITION,
+        UNFINISHED_CONVERSATION_DEFINITION
       ];
 
       for (const def of defs) {
@@ -395,7 +397,8 @@ export class ExerciseRepository {
       'cost_benefit_audit',
       'trigger_mapping',
       'narrative_arc',
-      'six_month_assessment'
+      'six_month_assessment',
+      'unfinished_conversation'
     ];
 
     // Canonical alias map to unify deduplicatedMap keys
@@ -409,7 +412,9 @@ export class ExerciseRepository {
       exercise_5: 'relationship_map',
       exercise_6: 'body_signal_inventory',
       exercise_7: 'avoidance_audit',
-      exercise_9: 'six_month_assessment'
+      exercise_9: 'six_month_assessment',
+      '10A': 'unfinished_conversation',
+      'unfinished-conversation': 'unfinished_conversation'
     };
 
     // Re-alias deduplicatedMap entries for consistency
@@ -433,7 +438,7 @@ export class ExerciseRepository {
         }
       } else {
         const requiredDay = UNLOCK_DAYS[reqId] || 1;
-        const requiresEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
+        const requiresEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'unfinished_conversation' || reqId === '10A' || reqId === 'unfinished-conversation' ? 18 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
         isUnlocked = totalUserDays >= requiredDay && (requiresEntries === 0 || userEntryCount >= requiresEntries);
         if (!isUnlocked && requiresEntries > 0 && userEntryCount < requiresEntries) {
           const needed = Math.max(0, requiresEntries - userEntryCount);

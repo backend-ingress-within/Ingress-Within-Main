@@ -40,9 +40,32 @@ import NarrativeArcFlow from '../components/exercise/v4/NarrativeArcFlow';
 import NarrativeArcResultView from '../components/exercise/v4/NarrativeArcResultView';
 import SixMonthAssessmentFlow from '../components/exercise/v4/SixMonthAssessmentFlow';
 import SixMonthAssessmentResultView from '../components/exercise/v4/SixMonthAssessmentResultView';
+import UnfinishedConversationFlow from '../components/exercise/v4/UnfinishedConversationFlow';
+import UnfinishedConversationResultView from '../components/exercise/v4/UnfinishedConversationResultView';
 
 // Founder-approved exercise definitions & titles
 const EXERCISE_METADATA = {
+  unfinished_conversation: {
+    title: 'Unfinished Conversation',
+    category: 'Relational',
+    description: 'Examine an unfinished interpersonal conversation, what silence is protecting, and what it costs.',
+    unlockDay: 213,
+    getProgress: () => `In Progress`
+  },
+  '10A': {
+    title: 'Unfinished Conversation',
+    category: 'Relational',
+    description: 'Examine an unfinished interpersonal conversation, what silence is protecting, and what it costs.',
+    unlockDay: 213,
+    getProgress: () => `In Progress`
+  },
+  'unfinished-conversation': {
+    title: 'Unfinished Conversation',
+    category: 'Relational',
+    description: 'Examine an unfinished interpersonal conversation, what silence is protecting, and what it costs.',
+    unlockDay: 213,
+    getProgress: () => `In Progress`
+  },
   six_month_assessment: {
     title: '6-Month Self-Assessment',
     category: 'Anchor',
@@ -316,6 +339,20 @@ export default function ExercisePage({ user, profile, onSignOut }) {
           );
         }
 
+        if (exId === 'unfinished_conversation' || exId === '10A' || exId === 'unfinished-conversation') {
+          return (
+            <UnfinishedConversationFlow
+              instanceId={activeExerciseInstanceId}
+              instance={inst}
+              onClose={() => setActiveExerciseInstanceId(null)}
+              onComplete={() => {
+                setActiveExerciseInstanceId(null);
+                fetchExerciseInstances();
+              }}
+            />
+          );
+        }
+
         if (exId === 'six_month_assessment' || exId === 'exercise_9') {
           return (
             <SixMonthAssessmentFlow
@@ -468,6 +505,15 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         if (exId === 'trigger_mapping') {
           return (
             <TriggerMappingResultView
+              instanceId={activeResultInstanceId}
+              onClose={() => setActiveResultInstanceId(null)}
+            />
+          );
+        }
+
+        if (exId === 'unfinished_conversation' || exId === '10A' || exId === 'unfinished-conversation') {
+          return (
+            <UnfinishedConversationResultView
               instanceId={activeResultInstanceId}
               onClose={() => setActiveResultInstanceId(null)}
             />

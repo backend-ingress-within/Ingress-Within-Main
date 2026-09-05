@@ -14,6 +14,13 @@ export async function GET(request: NextRequest) {
 
     const instanceId = request.nextUrl.searchParams.get('instance_id');
     const cycleId = request.nextUrl.searchParams.get('cycle_id') || undefined;
+    const exIdParam = request.nextUrl.searchParams.get('exercise_id');
+
+    if (exIdParam === 'unfinished_conversation' || exIdParam === '10A' || exIdParam === 'unfinished-conversation') {
+      const { UnfinishedConversationWorker } = await import('../../../../lib/exercises/v4/workers/unfinishedConversationWorker');
+      const candidates = await UnfinishedConversationWorker.getRelationshipCandidates(authUser.userId);
+      return NextResponse.json({ candidates });
+    }
 
     // If specific instance_id requested, fetch THAT EXACT instance
     if (instanceId) {
@@ -25,7 +32,12 @@ export async function GET(request: NextRequest) {
         );
       }
       const responses = await ExerciseRepository.getResponsesForInstance(instanceId);
-      return NextResponse.json({ instance: targetInstance, responses });
+      let candidates: any = undefined;
+      if (targetInstance.exercise_id === 'unfinished_conversation' || targetInstance.exercise_id === '10A') {
+        const { UnfinishedConversationWorker } = await import('../../../../lib/exercises/v4/workers/unfinishedConversationWorker');
+        candidates = await UnfinishedConversationWorker.getRelationshipCandidates(authUser.userId);
+      }
+      return NextResponse.json({ instance: targetInstance, responses, candidates });
     }
 
     const rawInstances = await ExerciseRepository.getUserInstances(authUser.userId, cycleId);

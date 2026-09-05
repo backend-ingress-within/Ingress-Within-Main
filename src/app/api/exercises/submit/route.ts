@@ -98,6 +98,19 @@ export async function POST(request: NextRequest) {
       }).catch(err => {
         console.error(`[POST /api/exercises/submit] Avoidance Audit AI worker error for ${instance_id}:`, err);
       });
+    } else if (instance.exercise_id === 'unfinished_conversation' || instance.exercise_id === '10A' || instance.exercise_id === 'unfinished-conversation') {
+      const { UnfinishedConversationWorker } = await import('../../../../lib/exercises/v4/workers/unfinishedConversationWorker');
+      await UnfinishedConversationWorker.processInstance(instance_id, {
+        person_name: body.person_name,
+        relationship_type: body.relationship_type,
+        unfinished_duration: body.unfinished_duration,
+        q1: body.q1,
+        q2: body.q2,
+        q3: body.q3,
+        q4: body.q4
+      }).catch(err => {
+        console.error(`[POST /api/exercises/submit] Unfinished Conversation AI worker error for ${instance_id}:`, err);
+      });
     } else if (instance.exercise_id === 'six_month_assessment' || instance.exercise_id === 'exercise_9') {
       const { SixMonthAssessmentWorker } = await import('../../../../lib/exercises/v4/workers/sixMonthAssessmentWorker');
       await SixMonthAssessmentWorker.processInstance(instance_id, {
