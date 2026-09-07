@@ -29,9 +29,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const effectiveProfile = profile || {
+      user_id: authUser.userId,
+      knowledge_version: '2.0',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
     return NextResponse.json({
       success: true,
-      profile: profile || null
+      profile: effectiveProfile
     });
   } catch (error: any) {
     console.error('[API Knowledge Profile GET] Error:', error);

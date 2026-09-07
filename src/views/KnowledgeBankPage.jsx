@@ -769,40 +769,6 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
     );
   }
 
-  // Calm Empty State for new users (if no snapshots and no cards have been computed)
-  if (!profile || cards.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#ECEFF0] text-[#1E2A2E] font-sans pb-20">
-        <DashboardNavbar activeTab="knowledge" />
-        <main className="max-w-[680px] mx-auto px-6 pt-16 text-center space-y-8">
-          <div className="w-16 h-16 mx-auto rounded-full bg-white border border-[#1E2A2E]/10 flex items-center justify-center text-[#8DBFB4]">
-            <TiIcon name="map-2" style={{ fontSize: '28px' }} />
-          </div>
-          <div className="max-w-[400px] mx-auto space-y-3">
-            <h1 className="font-serif text-2xl font-normal tracking-tight">We're still learning from your writing</h1>
-            <p className="text-sm text-[#4A6A64] leading-relaxed">
-              As you complete your daily journals, reflect with the guide, and unlock weekly summaries, the Knowledge Engine compiles observations about your patterns and emotional vocabulary.
-            </p>
-          </div>
-          <div className="p-5 bg-white border border-[#1E2A2E]/10 rounded-xl text-left max-w-[460px] mx-auto space-y-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8DBFB4] block">How to unlock</span>
-            <ul className="text-xs text-[#4A6A64] space-y-2 list-disc pl-4 leading-relaxed">
-              <li>Write a journal entry for at least 3 cycle days</li>
-              <li>Address at least 2 conversational threads from the guide</li>
-              <li>Generate your first weekly report</li>
-            </ul>
-          </div>
-          <button 
-            onClick={() => window.location.href = '/write'}
-            className="px-6 py-3 rounded-lg bg-[#1E2A2E] text-white text-xs font-semibold hover:opacity-90 transition-all cursor-pointer border-none shadow-sm uppercase tracking-wider"
-          >
-            Start Writing Today
-          </button>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#f4f6f5] text-[#1E2A2E] font-sans pb-20">
       <DashboardNavbar activeTab="knowledge" />

@@ -213,7 +213,7 @@ export default function App() {
       return;
     }
 
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/modules');
+    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
 
     if (isProtectedRoute) {
@@ -344,7 +344,7 @@ export default function App() {
       } else if (path === '/vocab' || path === '/vocab/') {
         setCurrentRoute('vocab');
         window.scrollTo(0, 0);
-      } else if (path === '/knowledge' || path === '/knowledge/') {
+      } else if (path.startsWith('/knowledge') || path.startsWith('/kb')) {
         setCurrentRoute('knowledge');
         window.scrollTo(0, 0);
       } else if (path === '/interventions' || path === '/interventions/') {
@@ -451,7 +451,7 @@ export default function App() {
 
   const renderPage = () => {
     const path = window.location.pathname;
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/modules');
+    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
     if (isProtectedRoute && (!authChecked || isLoading)) {
       return <LoadingScreen />;
