@@ -444,6 +444,16 @@ export default function AiDataPage({ onOpenPolicy }) {
             </a>
           </div>
         </ScrollReveal>
+
+        {/* Internal Navigation Links */}
+        <div className="bg-white border border-primary/10 rounded-2xl p-8 space-y-4 text-center mt-12">
+          <h3 className="font-serif text-xl font-normal text-primary">Related Information</h3>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-wider">
+            <a href="/faq" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Frequently Asked Questions &rarr;</a>
+            <a href="/how-it-works" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">How It Works &rarr;</a>
+            <a href="/contact" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Contact Support &rarr;</a>
+          </div>
+        </div>
       </main>
 
       <Footer />

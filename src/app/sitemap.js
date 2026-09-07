@@ -1,5 +1,5 @@
 export default function sitemap() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ingresswithin.com';
+  const baseUrl = 'https://ingresswithin.com';
   const currentDate = new Date().toISOString();
 
   return [
@@ -22,10 +22,28 @@ export default function sitemap() {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/about`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/pricing`,
       lastModified: currentDate,
       changeFrequency: 'monthly',
       priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.7,
     },
     {
       url: `${baseUrl}/ai-data`,
@@ -37,7 +55,7 @@ export default function sitemap() {
       url: `${baseUrl}/auth`,
       lastModified: currentDate,
       changeFrequency: 'yearly',
-      priority: 0.6,
+      priority: 0.5,
     },
   ];
 }

@@ -85,13 +85,13 @@ export default function LandingPage({ onOpenPolicy }) {
           <div className="flex items-center justify-center lg:justify-start gap-2">
             <span className="w-7 h-[1.5px] bg-secondary-dark hidden lg:block" />
             <span className="font-sans text-[11px] font-medium tracking-[0.14em] uppercase text-secondary-dark">
-              For urban India
+              Guided Journaling for Self-Understanding
             </span>
           </div>
 
-          <h1 className="font-serif text-[42px] sm:text-[54px] lg:text-[80px] leading-[1.12] tracking-tight font-normal text-primary">
-            The things you avoid naming<br />
-            shape you <em className="italic text-accent font-normal">anyway.</em>
+          <h1 className="font-serif text-[42px] sm:text-[54px] lg:text-[72px] leading-[1.12] tracking-tight font-normal text-primary">
+            Guided Journaling for Self-Understanding.<br />
+            <span className="text-[32px] sm:text-[40px] block font-light text-mid mt-2">The things you avoid naming shape you <em className="italic text-accent font-normal">anyway.</em></span>
           </h1>
 
           <p className="font-sans text-[16px] lg:text-[17px] font-light text-mid leading-relaxed max-w-[460px] mx-auto lg:mx-0">
@@ -171,7 +171,7 @@ export default function LandingPage({ onOpenPolicy }) {
               The gap no one is filling
             </span>
             <h2 className="font-serif text-3xl md:text-4xl text-mint-grey leading-snug font-normal">
-              Something is off.<br />But you're not broken enough<br />to ask for help.
+              Understand the Patterns Behind Your Thoughts and Emotions
             </h2>
             <div className="w-12 h-[1px] bg-accent mx-auto" />
             <p className="font-sans text-[16px] font-light text-light-mid leading-relaxed max-w-[520px] mx-auto">
@@ -247,7 +247,7 @@ export default function LandingPage({ onOpenPolicy }) {
               What Ingress Within is and isn't
             </span>
             <h2 className="font-serif text-3xl md:text-4xl text-primary font-normal leading-snug">
-              Not a replacement for anything.<br />A space that works alongside everything.
+              A More Structured Way to Reflect
             </h2>
             <div className="w-12 h-[1px] bg-accent mx-auto" />
             <p className="font-sans text-[16px] font-light text-mid leading-relaxed max-w-[520px] mx-auto">
@@ -318,7 +318,7 @@ export default function LandingPage({ onOpenPolicy }) {
         <div className="max-w-[960px] mx-auto space-y-12 text-center">
           <ScrollReveal className="space-y-4 max-w-[640px] mx-auto">
             <span className="font-sans text-[11px] font-medium tracking-[0.14em] uppercase text-secondary-dark block">Why trust it</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-primary font-normal leading-snug">You train it.<br />Not the other way around.</h2>
+            <h2 className="font-serif text-3xl md:text-4xl text-primary font-normal leading-snug">Turn Everyday Experiences Into Meaningful Insights</h2>
             <div className="w-12 h-[1px] bg-accent mx-auto" />
             <p className="font-sans text-[16px] font-light text-mid leading-relaxed max-w-[520px] mx-auto">
               We built the framework. The AI knows what patterns look like and how to ask about them. But it only knows your patterns because you showed it — one entry at a time. The more you write without editing yourself first, the sharper the picture becomes.
@@ -356,7 +356,7 @@ export default function LandingPage({ onOpenPolicy }) {
         <div className="max-w-[960px] mx-auto space-y-14 text-center">
           <ScrollReveal className="space-y-4 max-w-[640px] mx-auto">
             <span className="font-sans text-[11px] font-medium tracking-[0.14em] uppercase text-secondary block">The practice</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-mint-grey font-normal leading-snug">One entry a day.<br />A thread that builds into a picture.</h2>
+            <h2 className="font-serif text-3xl md:text-4xl text-mint-grey font-normal leading-snug">Psychology-Informed Exercises for Self-Reflection</h2>
             <div className="w-12 h-[1px] bg-accent mx-auto" />
             <p className="font-sans text-[16px] font-light text-light-mid leading-relaxed max-w-[520px] mx-auto">
               Not a program. Not a checklist. A daily practice that gets less edited the longer you do it. Most people begin seeing real patterns across two cycles.
@@ -405,7 +405,7 @@ export default function LandingPage({ onOpenPolicy }) {
         <div className="max-w-[960px] mx-auto space-y-12 text-center">
           <ScrollReveal className="space-y-4 max-w-[640px] mx-auto">
             <span className="font-sans text-[11px] font-medium tracking-[0.14em] uppercase text-secondary-dark block">Who it's for</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-primary font-normal leading-snug">Neither of them is in crisis.<br />Neither of them is broken.</h2>
+            <h2 className="font-serif text-3xl md:text-4xl text-primary font-normal leading-snug">Build a Better Understanding of Yourself</h2>
             <div className="w-12 h-[1px] bg-accent mx-auto" />
             <p className="font-sans text-[16px] font-light text-mid leading-relaxed max-w-[520px] mx-auto">
               Two kinds of people come to this product. Both grew up in environments where the interior life was not a legitimate subject.

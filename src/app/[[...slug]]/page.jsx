@@ -1,9 +1,12 @@
-'use client';
+import { generatePageMetadata } from '../../lib/seo/metadata';
+import AppClient from './AppClient';
 
-import dynamic from 'next/dynamic';
-
-const App = dynamic(() => import('../../App'), { ssr: false });
+export async function generateMetadata({ params }) {
+  const resolvedParams = await params;
+  const slug = resolvedParams?.slug;
+  return generatePageMetadata({ slug });
+}
 
 export default function CatchAllPage() {
-  return <App />;
+  return <AppClient />;
 }

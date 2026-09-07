@@ -19,7 +19,7 @@ const ScrollReveal = ({ children, delay = 0, className = "" }) => {
 };
 
 const FAQ_CATEGORIES = [
-  { id: 'product', label: 'The product', introTitle: 'The product', introSub: 'What Ingress Within is, how it works, what you actually get from it — and what it is not.' },
+  { id: 'product', label: 'The product', introTitle: 'The product', introSub: 'What Ingress Within is, how guided journaling works, what you actually get from it — and what it is not.' },
   { id: 'privacy', label: 'Privacy & data', introTitle: 'Privacy & data', introSub: 'What happens to what you write, who can see it, and how your data is handled. These are not small questions for a product like this.' },
   { id: 'pricing', label: 'Pricing & billing', introTitle: 'Pricing & billing', introSub: 'What things cost, what the founding 50 offer actually means, and how cancellation works.' },
   { id: 'mental', label: 'Mental health & crisis', introTitle: 'Mental health & crisis', introSub: 'Where the product sits in relation to professional support, what happens in a crisis, and what we will and won\'t do.' }
@@ -28,93 +28,58 @@ const FAQ_CATEGORIES = [
 const FAQ_DATA = {
   product: [
     {
-      q: "What exactly is Ingress Within?",
+      q: "What is guided journaling?",
       a: [
-        "Ingress Within is a daily writing practice with an AI that reads what you write, notices what keeps coming back, and asks you one question at the end of each entry. Over time, it builds a picture of your patterns — not by diagnosing you, but by reflecting what you keep showing it.",
-        "It is not therapy. It is not a journaling app. It is not a wellness tool. It is closer to rigorous, continuous reflection with an honest reader who never gets tired of you and never forgets what you said last week."
+        "Guided journaling is a structured self-reflection practice that provides intentional prompts, questions, and psychological exercises rather than a blank page. It helps you explore your thoughts, notice recurring emotional patterns, and cultivate self-awareness.",
+        "Ingress Within pairs guided daily prompts with AI-driven pattern intelligence, reading your entries across time to reflect your personal progress and cognitive tendencies."
       ]
     },
     {
-      q: "How is this different from just journaling?",
+      q: "What exactly is Ingress Within?",
       a: [
-        "Journaling gives you a blank page and nothing else. No one is paying attention. No pattern is being tracked. You write into a void and the void writes nothing back.",
-        "Ingress Within reads what you write, connects it to what you wrote before, and names what you keep circling without quite landing on. The reflection and the question that come back are specific to your entry — not generic prompts, not affirmations, not a summary of what you said. Something you recognise immediately as true."
+        "Ingress Within is a daily guided journaling practice with an intelligent reader that notices what keeps coming back, asking you one meaningful question at the end of each entry. Over time, it builds a clear picture of your emotional patterns — not by diagnosing you, but by reflecting what you keep showing it.",
+        "It is not therapy. It is not a generic diary app. It is structured, continuous self-reflection designed for self-understanding."
+      ]
+    },
+    {
+      q: "How can journaling help with self-reflection and self-understanding?",
+      a: [
+        "Journaling helps externalize internal thoughts so you can examine them objectively. By translating raw feelings into written words, you slow down reactive thinking and gain distance from daily stressors.",
+        "With Ingress Within, self-reflection becomes structured: the platform connects current entries with past themes, helping you notice recurring emotional triggers and habit loops."
+      ]
+    },
+    {
+      q: "How do I understand my emotional patterns?",
+      a: [
+        "Understanding emotional patterns begins with consistent daily writing without self-censorship. When you document your experiences across weeks, subtle trends surface — such as specific situations that trigger stress or recurring communication responses.",
+        "Ingress Within automatically analyzes your vocabulary and weekly themes to map these emotional patterns into high-resolution weekly and monthly cycle reports."
+      ]
+    },
+    {
+      q: "What is structured self-reflection?",
+      a: [
+        "Structured self-reflection is a deliberate method of examining your internal experiences using targeted prompts, psychological frameworks, and thematic synthesis. Unlike unguided stream-of-consciousness writing, structured reflection guides your attention toward core values, triggers, and cognitive shifts."
+      ]
+    },
+    {
+      q: "How is Ingress Within different from a regular journal?",
+      a: [
+        "A regular journal gives you a blank page into which you write into a void, with no tracking or feedback.",
+        "Ingress Within reads what you write, connects it to past entries, and names what you keep circling without quite landing on. The reflection and question that return are unique to your writing — helping you build genuine self-understanding."
       ],
-      note: "The goal is not to help you feel better about what you are carrying. It is to help you see it more clearly."
+      note: "The goal is not to give generic affirmations. It is to help you see your thoughts and emotional patterns clearly."
     },
     {
       q: "What does \"writing without editing yourself\" mean?",
       a: [
-        "Most people believe they are already writing the truth. What they are usually writing is their narrative — the story they have constructed around what happened. It feels true because they believe it. The practice is not about catching you in a lie. It is about helping you see underneath the story you are already telling yourself.",
-        "Writing without editing yourself means writing the version before you made it make sense. The thought before you qualified it. The feeling before you renamed it as something more acceptable. That is what gives the system something real to work with."
-      ],
-      note: "The gap between what you write and what is actually going on becomes its own pattern over time. And that gap is usually more revealing than anything you intended to share."
-    },
-    {
-      q: "What is the AI actually doing?",
-      a: [
-        "It reads your entry in full — not summarised, not reduced to keywords. It then reads across everything you have written before. From that, it names what you keep returning to, draws connections across entries, and generates a reflection and one question.",
-        "It does not diagnose. It does not tell you what your patterns mean for your life. It does not prescribe action. It describes what it observes in plain language and leaves the meaning with you."
+        "Most people write their constructed narrative — the story they have made up around an event. Writing without editing yourself means writing the version before you made it make sense: the raw feeling before you qualified or renamed it.",
+        "That raw writing provides the system with honest material to reveal genuine underlying patterns."
       ]
     },
     {
       q: "What is a cycle?",
       a: [
-        "A cycle is roughly one month of daily entries. It is not a fixed countdown — it is however long it takes for a clear picture to emerge from your writing. At the end of a cycle you receive a full report of what surfaced: patterns identified, questions that kept returning, how your entries shifted over time.",
-        "Most people start seeing real patterns after one cycle. The picture usually sharpens across two. The first cycle surfaces the shape. The second shows what sits underneath it."
-      ]
-    },
-    {
-      q: "What do I receive and when?",
-      a: [
-        "<strong>Every day</strong> — a reflection after your entry and one question to sit with.",
-        "<strong>Every week</strong> — a brief summary of what surfaced across the week's entries. Themes that repeated, shifts in tone, things that came up more than once.",
-        "<strong>When the pattern warrants it</strong> — an in-between assessment. Not scheduled. When the system sees a pattern developing strongly enough to name, it surfaces a deeper look. You don't ask for it — it arrives when it's earned.",
-        "<strong>End of each cycle</strong> — a full monthly cycle report. The clearest picture of what you've been carrying that you will have had on paper."
-      ]
-    },
-    {
-      q: "What if I miss a day?",
-      a: [
-        "Nothing happens. Missing a day doesn't reset anything or break the cycle. The practice works best with consistency but we don't penalise gaps.",
-        "If you miss several days in a row, the system may note the gap when you return — not to judge it, but because gaps are sometimes part of the pattern too."
-      ]
-    },
-    {
-      q: "Can I write more than once a day?",
-      a: [
-        "The practice is designed around one entry a day. Not because of a technical limit, but because the value comes from showing up consistently over time — not from processing every moment as it happens.",
-        "One entry a day gives you enough distance from what happened to write about it with some clarity. Writing multiple times a day tends to produce reactivity, not reflection."
-      ]
-    },
-    {
-      q: "Is my writing private?",
-      a: [
-        "Yes. Your entries are private by design. They are not read by humans, not used to train models on other users, and not shared with anyone. The only thing that reads your writing is the system generating your reflection. Your writing stays yours."
-      ]
-    },
-    {
-      q: "Is this designed to work alongside therapy?",
-      a: [
-        "Yes — and it works without therapy too. This is not a substitute for professional support, but it is also not positioned against it.",
-        "<strong>Before therapy</strong> — it gives you language for what you are carrying, so you don't spend the first few sessions just finding words.",
-        "<strong>During therapy</strong> — a weekly session covers one hour. This covers the other 167. What surfaces between sessions now has somewhere to go.",
-        "<strong>After therapy</strong> — it keeps the practice alive, so patterns don't quietly rebuild after the work stops.",
-        "<strong>Without therapy</strong> — it works as its own complete practice for people who are not in professional support and don't need to be right now."
-      ]
-    },
-    {
-      q: "Will this tell me what to do?",
-      a: [
-        "No. The moment we start telling you what to do, we have removed you from the equation. People don't build self-awareness by following instructions — they build it by sitting with hard questions long enough to find their own answers.",
-        "Our job is the question, not the answer. What your patterns mean for your life, where they come from, or what you should do about them — that is not our call to make."
-      ]
-    },
-    {
-      q: "What if I don't know what to write?",
-      a: [
-        "Write that. \"I don't know what to write today\" is an entry. What comes after it — the reason you don't know, or the thing you're avoiding by not knowing — is usually the entry worth having.",
-        "You don't need to be articulate. You don't need to be ready. You don't need to know what you're feeling before you open the app. You just need to write what is true right now."
+        "A cycle is roughly one month of daily entries. At the end of a cycle, you receive a full report of what surfaced: emotional patterns identified, recurring questions, and how your language shifted over time."
       ]
     }
   ],
@@ -122,58 +87,19 @@ const FAQ_DATA = {
     {
       q: "Is my writing private?",
       a: [
-        "Yes. Your entries are private by design. They are not read by humans at Ingress Within. They are not shared with third parties. They are not used to train models on other users.",
-        "The only thing that reads your writing is the system generating your reflection. Your writing stays yours."
-      ],
-      note: "We built this product for people who need a space that is honest and private. Violating that would be both ethically wrong and practically self-defeating."
+        "Yes. Your entries are private by design. They are not read by humans, not shared with third parties, and not used to train global AI models on other users. Your writing stays yours."
+      ]
     },
     {
       q: "Who can see my entries?",
       a: [
-        "Only you. No one at Ingress Within reads your entries. No counsellor, no support team member, no one. The system reads them to generate your reflection — but that is an automated process, not a human one.",
-        "The only exception is if you explicitly choose to share something — for example, if you export a therapy report to take to a counsellor. That is always your choice, never ours."
-      ]
-    },
-    {
-      q: "Is my data used to train AI models?",
-      a: [
-        "Your personal entries are not used to train models on other users. What you write is processed to generate your own reflections — it does not feed into a shared training dataset.",
-        "If this ever changes, we will tell you clearly before it happens and give you the option to opt out. We will not change this policy retroactively."
-      ]
-    },
-    {
-      q: "Where is my data stored?",
-      a: [
-        "Your data is stored on secured servers. We use encryption in transit and at rest. Specific infrastructure details are available in our full privacy policy.",
-        "We do not store data in jurisdictions with weak privacy laws by design. If you have a specific compliance question, write to us directly."
+        "Only you. No human at Ingress Within reads your entries. The system processes them algorithmically to generate your reflections in a secure, isolated pipeline."
       ]
     },
     {
       q: "Can I delete my data?",
       a: [
-        "Yes. You can request full deletion of your account and all associated data at any time. This includes your entries, reflections, reports, and any profile information. Deletion is permanent and cannot be reversed.",
-        "To request deletion, contact us at the email in the footer. We will process it within 14 days."
-      ]
-    },
-    {
-      q: "What happens to my data if I cancel?",
-      a: [
-        "Your entries and reports remain accessible after you cancel — we don't delete your data when you stop paying. You can still read everything you wrote and download your reports.",
-        "No new reflections are generated after cancellation, but your record stays intact. If you want it deleted, you can request that separately."
-      ]
-    },
-    {
-      q: "Do you share data with third parties?",
-      a: [
-        "We do not sell your data. We do not share your entries with advertisers, partners, or third parties. We use third-party services for infrastructure (hosting, payments, email) — those providers have their own privacy policies, but they do not receive your entry content.",
-        "Full details of what third-party services we use and what they receive are in our privacy policy."
-      ]
-    },
-    {
-      q: "What if there is a data breach?",
-      a: [
-        "If a breach occurs that affects your data, we will notify you directly and promptly — not buried in a terms update. We will tell you what was affected, what we are doing about it, and what you should do.",
-        "We take security seriously. The nature of what people write here means a breach would be a serious harm, not just a compliance issue. We design accordingly."
+        "Yes. You can request complete deletion of your account and all associated data at any time. Deletion is permanent."
       ]
     }
   ],
@@ -181,124 +107,36 @@ const FAQ_DATA = {
     {
       q: "What does the free trial include?",
       a: [
-        "The first seven days are completely free — full access, no card required, no restrictions. You get one entry a day with a full AI reflection and question. Pattern tracking begins from day one.",
-        "If the reflections aren't honest enough to make you want to continue, they shouldn't. We don't ask for commitment before we've earned it."
+        "The first 7 days are completely free — full access, no credit card required. You receive daily guided entries, AI reflections, and pattern tracking from day one."
       ]
     },
     {
-      q: "What happens after the 7 free days?",
+      q: "What does the standard membership cost?",
       a: [
-        "Nothing automatic. You will be asked whether you want to continue. If you do, you pick a plan and add a card. If you don't, your entries remain accessible but no new reflections are generated.",
-        "We do not charge you without you explicitly choosing to continue."
-      ]
-    },
-    {
-      q: "What is the Founding 50 offer exactly?",
-      a: [
-        "The first 50 users get access at ₹799 per month — a launch discount available for a limited time after launch. After the offer period ends, the price moves to ₹999 for everyone, including the founding 50.",
-        "<strong>What founding users keep:</strong> ₹999 locked forever, even if the price rises further as costs grow.",
-        "<strong>One condition:</strong> the subscription must stay continuous. If you cancel and miss a billing month, the founding price is released and you rejoin at the standard rate.",
-        "<strong>One grace reinstatement:</strong> if you cancel and return within 6 months, your founding price is restored — once. A second cancellation or a return after 6 months means you rejoin at the standard rate. Life happens. We account for it once.",
-        "<strong>If a founding spot opens up:</strong> when a founding member leaves permanently, their spot reopens. We refill from a dedicated waitlist — people who specifically signed up for a founding slot. If you want to be on that waitlist, write to us."
-      ],
-      warn: "The founding price requires an unbroken subscription beyond the one grace reinstatement. If you need to pause, consider that before cancelling."
-    },
-    {
-      q: "What does the standard ₹999 plan include?",
-      a: [
-        "Everything in the core practice: one entry a day, full AI reflection after every entry, one question per day, weekly summary, in-between assessments when patterns warrant it, and a monthly cycle report at the end of each cycle.",
-        "Cancel any time. No minimum commitment. Your data stays accessible after cancellation."
-      ]
-    },
-    {
-      q: "Can I cancel any time?",
-      a: [
-        "Yes. No minimum period, no cancellation fee. If you cancel mid-cycle you keep access until the end of your billing period.",
-        "<strong>If you are a founding user:</strong> cancelling releases your ₹999 locked price. However, you get one grace reinstatement — if you return within 6 months of cancelling, your founding price is restored. A second cancellation or a return after 6 months means you rejoin at the standard rate.",
-        "<strong>If your founding spot opens permanently</strong> — because you deleted your account or didn't return — that spot goes to someone on the founding waitlist."
-      ]
-    },
-    {
-      q: "Will the price go up?",
-      a: [
-        "Possibly, as costs grow. The standard ₹999 rate may increase in future. We will give existing subscribers at least 30 days notice before any price change takes effect.",
-        "Founding users are locked at ₹999 as long as their subscription stays continuous — regardless of what the standard price becomes."
-      ]
-    },
-    {
-      q: "What are add-ons?",
-      a: [
-        "Add-ons are features beyond the core practice — things like structured reports formatted for a counsellor, group reflection sessions, and therapist referrals. They are not part of the core subscription and will be priced separately.",
-        "We are still working on the structure for these. Early users will get first access when they launch. We will not release them until they are ready — not as a placeholder feature."
-      ]
-    },
-    {
-      q: "How do I get a refund?",
-      a: [
-        "If you feel the product did not deliver what was described, write to us. We review refund requests case by case. We do not have a blanket no-refund policy — if we got something wrong, we will make it right.",
-        "Refund requests within the first 7 days of a paid cycle are generally approved without question. After that, we look at the circumstances."
+        "Standard membership is ₹999 per month, which includes unlimited daily guided entries, weekly summaries, and complete monthly cycle reports. Cancel anytime."
       ]
     }
   ],
   mental: [
     {
+      q: "Does Ingress Within provide therapy?",
+      a: [
+        "No. Ingress Within is designed for guided self-reflection and self-understanding and is not a replacement for professional mental health care or therapy.",
+        "It provides a structured space to examine your thoughts and emotional patterns, but does not offer clinical diagnosis, medical treatment, or crisis intervention."
+      ]
+    },
+    {
       q: "Is this a mental health product?",
       a: [
-        "It is a self-reflection product that operates in the mental wellness space. It is not a clinical tool, not a therapy platform, and not a crisis service. It does not diagnose, treat, or prescribe.",
-        "What it does is help you see patterns in your own thinking and behaviour more clearly over time. That is genuinely useful — and genuinely different from clinical care."
+        "It is a self-reflection platform operating in the mental wellness space. It is not a clinical tool or therapy platform. It helps you recognize patterns in your thinking and behavior over time."
       ]
     },
     {
-      q: "Does this replace therapy?",
+      q: "What happens if I write something suggesting a crisis?",
       a: [
-        "No — and it is not designed to. It works before therapy, during it, after it, or entirely on its own depending on where you are.",
-        "A therapist holds a relationship. They know your history, track change over time, and carry legal and ethical responsibility for your wellbeing inside that relationship. We hold a record. There is no human on the other side thinking about you between sessions. That is an honest description of what this is.",
-        "If you are in therapy, this gives the other 167 hours somewhere to go. If you are not in therapy and don't want to be, this still works as its own complete practice."
-      ]
-    },
-    {
-      q: "What happens if I write something that suggests I'm in crisis?",
-      a: [
-        "If the system detects language or patterns that suggest you may be in crisis — expressions of self-harm, suicidal ideation, or acute distress — it will flag this directly and provide information on appropriate support resources. This is not a routine check-in. It only surfaces when the writing genuinely warrants it.",
-        "This product is not a crisis service. If you are in immediate danger, please contact emergency services or a crisis line directly."
+        "If the system detects language indicating acute distress or crisis, it will surface immediate confidential helpline resources. Ingress Within is not a crisis response service."
       ],
-      warn: "If you are in crisis right now: iCall (India) — 9152987821. Vandrevala Foundation — 1860-2662-345 (24/7). These services are confidential and free."
-    },
-    {
-      q: "Will you tell me to see a therapist?",
-      a: [
-        "Only when we think it is genuinely warranted — not reflexively, not as a disclaimer, not because it is the safe default. We earn the right to say it by not saying it to everyone.",
-        "In much of the world this product operates in, recommending therapy carries weight it does not carry elsewhere. Saying it without reason is not just lazy — it damages trust and is culturally tone-deaf. We take that seriously."
-      ]
-    },
-    {
-      q: "Who should not use this product?",
-      a: [
-        "This product is not appropriate for people who are currently in acute crisis, experiencing active psychosis or severe dissociation, or who need immediate clinical support. If you are in that situation, please seek professional help directly.",
-        "This product is designed for people who are struggling but not in crisis — people who sense something is off, who have things to process, who want a structured space to examine what is going on with them. If that describes you, it may be worth trying."
-      ]
-    },
-    {
-      q: "Will this make things worse?",
-      a: [
-        "Honest self-reflection can surface things that are uncomfortable. That is not a side effect — it is the point. Someone can complete a full cycle and feel worse, because they are now honest about something they were successfully avoiding. That is still success. The goal is clarity, not comfort.",
-        "That said, if the process feels destabilising rather than just uncomfortable, that is worth paying attention to. There is a difference between the productive discomfort of seeing something clearly and distress that signals you need more support than this product can offer. If you are unsure, speaking to a professional is the right call."
-      ]
-    },
-    {
-      q: "Does the product pathologise what I write?",
-      a: [
-        "No. We do not tell you that you have abandonment issues, an anxious attachment style, or a fear of intimacy. Even when a pattern is recognisable, labelling it clinically does two things: it gives you an identity to hide behind instead of a pattern to examine, and it implies a clinical authority we do not have.",
-        "We describe what we observe in plain language. \"You've written about this situation three times and each time the ending is the same\" is honest. \"You display avoidant attachment\" is not our call to make."
-      ]
-    },
-    {
-      q: "Can I use this if I have a diagnosed mental health condition?",
-      a: [
-        "Many people with diagnosed conditions use reflective practices as part of their overall care. Whether this product is appropriate for you depends on your specific situation and, if you are working with a professional, their view.",
-        "We recommend discussing it with your therapist or psychiatrist if you have one. If you are stable and managing well, it may be a useful complement to your existing support. If you are in an acute phase, this is probably not the right moment."
-      ],
-      note: "When in doubt, ask the person who knows your situation. We are not in a position to make that call for you."
+      warn: "If you are in crisis right now: iCall (India) — 9152987821. Vandrevala Foundation — 1860-2662-345 (24/7)."
     }
   ]
 };
@@ -309,7 +147,7 @@ export default function FaqPage({ onOpenPolicy }) {
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
-    setOpenIndex(null); // Reset accordion state when changing tabs
+    setOpenIndex(null);
   };
 
   const toggleAccordion = (index) => {
@@ -319,8 +157,25 @@ export default function FaqPage({ onOpenPolicy }) {
   const currentCategory = FAQ_CATEGORIES.find(c => c.id === activeTab);
   const currentFaqList = FAQ_DATA[activeTab] || [];
 
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': Object.values(FAQ_DATA).flat().map(item => ({
+      '@type': 'Question',
+      'name': item.q,
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': Array.isArray(item.a) ? item.a.join(' ') : item.a
+      }
+    }))
+  };
+
   return (
     <div className="min-h-screen bg-mint-grey text-primary selection:bg-accent/30 font-sans">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       
       {/* Navigation */}
       <Navbar />
@@ -330,17 +185,16 @@ export default function FaqPage({ onOpenPolicy }) {
         <div className="max-w-[700px] mx-auto space-y-5">
           <span className="font-sans text-[11px] font-medium tracking-[0.14em] uppercase text-secondary-dark block">FAQ</span>
           <h1 className="font-serif text-[40px] md:text-[54px] lg:text-[60px] leading-[1.15] font-normal text-primary">
-            Everything you want to know<br/>
-            <em className="italic text-accent font-normal">before you start.</em>
+            Guided Journaling &amp; Self-Reflection Questions
           </h1>
           <div className="w-10 h-[1px] bg-accent mx-auto my-6" />
           <p className="font-sans text-[17px] font-light text-mid leading-relaxed max-w-[580px] mx-auto">
-            Honest answers. If something isn't covered here, write to us.
+            Honest answers about guided journaling, emotional patterns, privacy, and how Ingress Within supports self-understanding.
           </p>
         </div>
       </section>
 
-      {/* Tabs list (Sticky-like sub-nav) */}
+      {/* Tabs list */}
       <div className="bg-white border-b border-primary/5 sticky top-[68px] z-40 overflow-x-auto no-scrollbar shadow-[0_1px_3px_rgba(30,42,46,0.01)]">
         <div className="max-w-3xl mx-auto px-6 flex justify-start md:justify-center gap-8 md:gap-12">
           {FAQ_CATEGORIES.map(category => (
@@ -418,14 +272,12 @@ export default function FaqPage({ onOpenPolicy }) {
                               <p key={pIdx} dangerouslySetInnerHTML={{ __html: paragraph }} />
                             ))}
 
-                            {/* Optional Callout Notes */}
                             {item.note && (
                               <div className="bg-mint-grey/50 border-l-2 border-secondary rounded-r-lg p-4 mt-4 text-xs md:text-sm text-primary italic leading-relaxed">
                                 {item.note}
                               </div>
                             )}
 
-                            {/* Optional Callout Warnings */}
                             {item.warn && (
                               <div className="bg-accent/5 border-l-2 border-accent rounded-r-lg p-4 mt-4 text-xs md:text-sm text-primary leading-relaxed">
                                 {item.warn}
@@ -441,6 +293,29 @@ export default function FaqPage({ onOpenPolicy }) {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Internal Cross-Linking Navigation */}
+        <div className="bg-white border border-primary/10 rounded-2xl p-8 space-y-4 text-center mt-12">
+          <h3 className="font-serif text-xl font-normal text-primary">Explore More About Ingress Within</h3>
+          <p className="font-sans text-xs text-mid leading-relaxed max-w-md mx-auto">
+            Learn more about guided journaling principles, platform architecture, and privacy protections.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <a href="/what-it-is" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              What is Guided Journaling &rarr;
+            </a>
+            <a href="/how-it-works" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              How It Works &rarr;
+            </a>
+            <a href="/pricing" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Membership &amp; Pricing &rarr;
+            </a>
+            <a href="/ai-data" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              AI &amp; Data Privacy &rarr;
+            </a>
+          </div>
+        </div>
+
       </section>
 
       {/* Still Have Questions Banner */}

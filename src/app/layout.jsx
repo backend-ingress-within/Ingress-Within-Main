@@ -1,6 +1,7 @@
 import { Instrument_Sans, Lora } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import StructuredData from "../components/seo/StructuredData";
 import '../index.css';
 
 const instrumentSans = Instrument_Sans({
@@ -19,12 +20,15 @@ const lora = Lora({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://ingresswithin.com'),
+  metadataBase: new URL('https://ingresswithin.com'),
+  alternates: {
+    canonical: 'https://ingresswithin.com',
+  },
   title: {
-    default: 'Ingress Within | Understand. Grow. Continue.',
+    default: 'Ingress Within | Guided Journaling for Mental Wellness & Self-Understanding',
     template: '%s | Ingress Within'
   },
-  description: 'Ingress Within combines daily guided journaling with psychometric exercises and linguistic analysis to generate high-resolution weekly and monthly reports, helping you understand your emotional patterns, stress triggers, and personal progress.',
+  description: 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.',
   keywords: [
     'Ingress Within',
     'Guided Journaling',
@@ -53,8 +57,8 @@ export const metadata = {
     },
   },
   openGraph: {
-    title: 'Ingress Within | Understand. Grow. Continue.',
-    description: 'Translate daily reflection into clear, actionable patterns. Explore your stress triggers, daily consistency, and cognitive growth with scientifically derived weekly and monthly reports.',
+    title: 'Ingress Within | Guided Journaling for Mental Wellness & Self-Understanding',
+    description: 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.',
     url: 'https://ingresswithin.com',
     siteName: 'Ingress Within',
     locale: 'en_US',
@@ -64,14 +68,14 @@ export const metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Ingress Within — Understand. Grow. Continue.',
+        alt: 'Ingress Within — Guided Journaling for Mental Wellness & Self-Understanding',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ingress Within | Understand. Grow. Continue.',
-    description: 'Translate daily reflection into clear, actionable patterns and personal growth.',
+    title: 'Ingress Within | Guided Journaling for Mental Wellness & Self-Understanding',
+    description: 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.',
     images: ['/og-image.png'],
     creator: '@ingresswithin',
   },
@@ -107,6 +111,7 @@ export default function RootLayout({ children }) {
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        <StructuredData />
       </head>
       <body className="selection:bg-accent/40 selection:text-primary font-sans">
         <div id="root">

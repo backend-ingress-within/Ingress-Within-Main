@@ -279,12 +279,20 @@ export default function ContactPage({ onOpenPolicy }) {
           Not sure which email to use?<br />
           <span className="italic text-accent font-normal">hello@ingresswithin.com</span> gets to the right person.
         </div>
-        <a 
-          href="/faq" 
-          className="font-sans text-sm font-normal text-mid hover:text-primary transition-all flex items-center gap-1.5 no-underline"
-        >
-          Browse the FAQ &rarr;
-        </a>
+        <div className="flex flex-wrap items-center gap-4">
+          <a 
+            href="/faq" 
+            className="font-sans text-sm font-normal text-mid hover:text-primary transition-all flex items-center gap-1.5 no-underline"
+          >
+            Browse the FAQ &rarr;
+          </a>
+          <a 
+            href="/about" 
+            className="font-sans text-sm font-normal text-mid hover:text-primary transition-all flex items-center gap-1.5 no-underline"
+          >
+            About Us &rarr;
+          </a>
+        </div>
       </section>
 
       <Footer onOpenPolicy={onOpenPolicy} />

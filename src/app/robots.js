@@ -1,5 +1,5 @@
 export default function robots() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ingresswithin.com';
+  const baseUrl = 'https://ingresswithin.com';
 
   return {
     rules: [
@@ -11,13 +11,25 @@ export default function robots() {
           '/admin/',
           '/dashboard',
           '/write',
+          '/write/',
           '/interventions',
           '/reports',
           '/patterns',
+          '/vocab',
           '/knowledge',
           '/settings',
           '/session/',
           '/onboarding',
+          '/exercise',
+          '/exercises',
+          '/assessment',
+          '/modules',
+          '/support',
+          '/threads',
+          '/thread/',
+          '/entry/',
+          '/test',
+          '/test/',
         ],
       },
     ],

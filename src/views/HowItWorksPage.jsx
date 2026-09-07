@@ -650,6 +650,18 @@ export default function HowItWorksPage({ onOpenPolicy }) {
         </ScrollReveal>
       </section>
 
+      {/* Internal Navigation Links */}
+      <section className="bg-mint-grey py-12 px-6 border-t border-primary/5 text-center">
+        <div className="max-w-xl mx-auto space-y-4">
+          <h3 className="font-serif text-lg font-normal text-primary">Continue Exploring</h3>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-wider">
+            <a href="/what-it-is" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">What is Guided Journaling &rarr;</a>
+            <a href="/pricing" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Pricing &amp; Plans &rarr;</a>
+            <a href="/faq" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Frequently Asked Questions &rarr;</a>
+          </div>
+        </div>
+      </section>
+
       <Footer onOpenPolicy={onOpenPolicy} />
     </div>
   );
