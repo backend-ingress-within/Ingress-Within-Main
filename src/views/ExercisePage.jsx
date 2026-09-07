@@ -42,9 +42,32 @@ import SixMonthAssessmentFlow from '../components/exercise/v4/SixMonthAssessment
 import SixMonthAssessmentResultView from '../components/exercise/v4/SixMonthAssessmentResultView';
 import UnfinishedConversationFlow from '../components/exercise/v4/UnfinishedConversationFlow';
 import UnfinishedConversationResultView from '../components/exercise/v4/UnfinishedConversationResultView';
+import RecurringScenarioFlow from '../components/exercise/v4/RecurringScenarioFlow';
+import RecurringScenarioResultView from '../components/exercise/v4/RecurringScenarioResultView';
 
 // Founder-approved exercise definitions & titles
 const EXERCISE_METADATA = {
+  recurring_scenario: {
+    title: 'Recurring Scenario Exercise',
+    category: 'Cognitive',
+    description: 'Examine anticipatory cognition: scenarios rehearsed before, replayed after, assumed inevitable, or avoided entirely.',
+    unlockDay: 304,
+    getProgress: () => `In Progress`
+  },
+  '10': {
+    title: 'Recurring Scenario Exercise',
+    category: 'Cognitive',
+    description: 'Examine anticipatory cognition: scenarios rehearsed before, replayed after, assumed inevitable, or avoided entirely.',
+    unlockDay: 304,
+    getProgress: () => `In Progress`
+  },
+  'recurring-scenario': {
+    title: 'Recurring Scenario Exercise',
+    category: 'Cognitive',
+    description: 'Examine anticipatory cognition: scenarios rehearsed before, replayed after, assumed inevitable, or avoided entirely.',
+    unlockDay: 304,
+    getProgress: () => `In Progress`
+  },
   unfinished_conversation: {
     title: 'Unfinished Conversation',
     category: 'Relational',
@@ -353,6 +376,20 @@ export default function ExercisePage({ user, profile, onSignOut }) {
           );
         }
 
+        if (exId === 'recurring_scenario' || exId === 'exercise_10' || exId === 'recurring-scenario' || exId === '10') {
+          return (
+            <RecurringScenarioFlow
+              instanceId={activeExerciseInstanceId}
+              instance={inst}
+              onClose={() => setActiveExerciseInstanceId(null)}
+              onComplete={() => {
+                setActiveExerciseInstanceId(null);
+                fetchExerciseInstances();
+              }}
+            />
+          );
+        }
+
         if (exId === 'six_month_assessment' || exId === 'exercise_9') {
           return (
             <SixMonthAssessmentFlow
@@ -514,6 +551,15 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         if (exId === 'unfinished_conversation' || exId === '10A' || exId === 'unfinished-conversation') {
           return (
             <UnfinishedConversationResultView
+              instanceId={activeResultInstanceId}
+              onClose={() => setActiveResultInstanceId(null)}
+            />
+          );
+        }
+
+        if (exId === 'recurring_scenario' || exId === 'exercise_10' || exId === 'recurring-scenario' || exId === '10') {
+          return (
+            <RecurringScenarioResultView
               instanceId={activeResultInstanceId}
               onClose={() => setActiveResultInstanceId(null)}
             />

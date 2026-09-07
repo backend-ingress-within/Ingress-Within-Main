@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
 
     const cycleId = request.nextUrl.searchParams.get('cycle_id') || undefined;
     const statusParam = request.nextUrl.searchParams.get('status') as ExerciseLifecycleStatus | null;
+    const clientDateStr = request.headers.get('x-client-date');
 
-    let instances = await ExerciseRepository.getUserInstances(authUser.userId, cycleId);
+    let instances = await ExerciseRepository.getUserInstances(authUser.userId, cycleId, clientDateStr);
 
     if (statusParam) {
       instances = instances.filter(i => i.status === statusParam);

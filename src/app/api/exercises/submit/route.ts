@@ -111,6 +111,16 @@ export async function POST(request: NextRequest) {
       }).catch(err => {
         console.error(`[POST /api/exercises/submit] Unfinished Conversation AI worker error for ${instance_id}:`, err);
       });
+    } else if (instance.exercise_id === 'recurring_scenario' || instance.exercise_id === 'exercise_10' || instance.exercise_id === 'recurring-scenario' || instance.exercise_id === '10') {
+      const { RecurringScenarioWorker } = await import('../../../../lib/exercises/v4/workers/recurringScenarioWorker');
+      await RecurringScenarioWorker.processInstance(instance_id, {
+        prompt_rehearse: body.answers?.prompt_rehearse || body.prompt_rehearse,
+        prompt_replay: body.answers?.prompt_replay || body.prompt_replay,
+        prompt_inevitable: body.answers?.prompt_inevitable || body.prompt_inevitable,
+        prompt_avoid: body.answers?.prompt_avoid || body.prompt_avoid
+      }).catch(err => {
+        console.error(`[POST /api/exercises/submit] Recurring Scenario AI worker error for ${instance_id}:`, err);
+      });
     } else if (instance.exercise_id === 'six_month_assessment' || instance.exercise_id === 'exercise_9') {
       const { SixMonthAssessmentWorker } = await import('../../../../lib/exercises/v4/workers/sixMonthAssessmentWorker');
       await SixMonthAssessmentWorker.processInstance(instance_id, {

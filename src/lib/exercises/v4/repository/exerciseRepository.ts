@@ -1,5 +1,7 @@
 import { supabase } from '../../../../lib/db';
 import { ExerciseDefinition, ExerciseInstance, ExerciseResponse, ExerciseResult, ExerciseEvent } from '../types/exercise.types';
+import { calculateTotalUserDays } from '../../../services/cycleService';
+import { ExerciseAvailabilityService } from '../services/exerciseAvailabilityService';
 
 export class ExerciseRepository {
   // --- DEFINITIONS ---
@@ -119,7 +121,11 @@ export class ExerciseRepository {
   /**
    * Retrieves user exercise instances, auto-healing completed baseline assessment status.
    */
-  public static async getUserInstances(userId: string, cycleId?: string): Promise<ExerciseInstance[]> {
+  public static async getUserInstances(
+    userId: string,
+    cycleId?: string,
+    clientDateStr?: string | null
+  ): Promise<ExerciseInstance[]> {
     // 0. Auto-heal check: Check if user completed onboarding baseline assessment
     let hasCompletedBaselineOnboarding = false;
     let userData: any = null;
@@ -207,26 +213,9 @@ export class ExerciseRepository {
 
           if (healedInst) {
             deduplicatedMap.set('exercise_0', healedInst);
-
-            // Also ensure exercise_results exists for exercise_0
-            if (userData) {
-              await supabase
-                .from('exercise_results')
-                .upsert({
-                  instance_id: healedInst.id,
-                  user_id: userId,
-                  exercise_id: 'exercise_0',
-                  summary: userData.personality_summary_text || 'Baseline psychometric profile recorded during onboarding.',
-                  metrics: {
-                    openness: userData.ocean_openness || 3,
-                    calculated_at: nowIso
-                  },
-                  created_at: nowIso
-                }, { onConflict: 'instance_id' });
-            }
           }
-        } catch (healErr) {
-          console.warn('[ExerciseRepository] Auto-heal exercise_0 error:', healErr);
+        } catch (e) {
+          console.warn('[ExerciseRepository] Auto-heal exercise_0 warning:', e);
         }
       }
     }
@@ -245,6 +234,7 @@ export class ExerciseRepository {
       const { TRIGGER_MAPPING_DEFINITION } = await import('../definitions/triggerMappingCatalog');
       const { SIX_MONTH_ASSESSMENT_DEFINITION } = await import('../definitions/sixMonthAssessmentCatalog');
       const { UNFINISHED_CONVERSATION_DEFINITION } = await import('../definitions/unfinishedConversationCatalog');
+      const { RECURRING_SCENARIO_DEFINITION } = await import('../definitions/recurringScenarioCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -258,7 +248,8 @@ export class ExerciseRepository {
         COST_BENEFIT_AUDIT_DEFINITION,
         TRIGGER_MAPPING_DEFINITION,
         SIX_MONTH_ASSESSMENT_DEFINITION,
-        UNFINISHED_CONVERSATION_DEFINITION
+        UNFINISHED_CONVERSATION_DEFINITION,
+        RECURRING_SCENARIO_DEFINITION
       ];
 
       for (const def of defs) {
@@ -396,9 +387,13 @@ export class ExerciseRepository {
       'avoidance_audit',
       'cost_benefit_audit',
       'trigger_mapping',
-      'narrative_arc',
       'six_month_assessment',
-      'unfinished_conversation'
+      'unfinished_conversation',
+      'identity_statements',
+      'narrative_arc',
+      'recurring_scenario',
+      'values_revisit',
+      'year_end_portrait'
     ];
 
     // Canonical alias map to unify deduplicatedMap keys
@@ -414,7 +409,10 @@ export class ExerciseRepository {
       exercise_7: 'avoidance_audit',
       exercise_9: 'six_month_assessment',
       '10A': 'unfinished_conversation',
-      'unfinished-conversation': 'unfinished_conversation'
+      'unfinished-conversation': 'unfinished_conversation',
+      '10': 'recurring_scenario',
+      'exercise_10': 'recurring_scenario',
+      'recurring-scenario': 'recurring_scenario'
     };
 
     // Re-alias deduplicatedMap entries for consistency
@@ -429,48 +427,71 @@ export class ExerciseRepository {
 
     // Dynamic unlock status check for existing locked instances
     for (const [reqId, inst] of canonicalMap.entries()) {
-      let isUnlocked = false;
+      const unlockDay = UNLOCK_DAYS[reqId] || 1;
+      const minEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'unfinished_conversation' || reqId === '10A' || reqId === 'unfinished-conversation' ? 18 : reqId === 'recurring_scenario' || reqId === 'exercise_10' || reqId === 'recurring-scenario' ? 15 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
 
+      let resolved = ExerciseAvailabilityService.resolveStatus({
+        exerciseId: reqId,
+        unlockDay,
+        minEntries,
+        totalUserDays,
+        userEntryCount,
+        persistedStatus: inst.status,
+        isBaselineCompleted: hasCompletedBaselineOnboarding
+      });
+
+      // Special Month 3 unlock overrides
       if (reqId === targetMonth3Id) {
-        isUnlocked = isMonth3Unlocked;
-        if (!isUnlocked && remainingMonth3Entries > 0) {
-          inst.metadata = { ...inst.metadata, remaining_entries_needed: remainingMonth3Entries, unlock_label: `${remainingMonth3Entries} more entries needed` };
-        }
-      } else {
-        const requiredDay = UNLOCK_DAYS[reqId] || 1;
-        const requiresEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'unfinished_conversation' || reqId === '10A' || reqId === 'unfinished-conversation' ? 18 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
-        isUnlocked = totalUserDays >= requiredDay && (requiresEntries === 0 || userEntryCount >= requiresEntries);
-        if (!isUnlocked && requiresEntries > 0 && userEntryCount < requiresEntries) {
-          const needed = Math.max(0, requiresEntries - userEntryCount);
-          inst.metadata = { ...inst.metadata, remaining_entries_needed: needed, unlock_label: `${needed} more entries needed` };
+        if (!isMonth3Unlocked && inst.status !== 'completed' && !['started', 'in_progress', 'analysing', 'processing', 'submitted'].includes(inst.status)) {
+          resolved.status = 'locked';
+          resolved.isUnlocked = false;
+          resolved.unlockLabel = `${remainingMonth3Entries} more entries needed`;
+          resolved.remainingEntriesNeeded = remainingMonth3Entries;
         }
       }
 
-      if (inst.status === 'locked' && isUnlocked) {
+      // Update instance status if dynamically resolved to available
+      if (inst.status === 'locked' && resolved.isUnlocked) {
         inst.status = 'available';
         inst.unlock_time = new Date().toISOString();
-        canonicalMap.set(reqId, inst);
         supabase.from('exercise_instances').update({ status: 'available', unlock_time: inst.unlock_time }).eq('id', inst.id).then();
       }
+
+      if (resolved.unlockLabel) {
+        inst.metadata = {
+          ...inst.metadata,
+          remaining_entries_needed: resolved.remainingEntriesNeeded,
+          unlock_label: resolved.unlockLabel
+        };
+      }
+
+      canonicalMap.set(reqId, inst);
     }
 
     // Guarantee ALL core exercises (including target Month 3) exist in canonicalMap
     for (const reqId of coreExerciseIds) {
       if (!canonicalMap.has(reqId)) {
-        let isUnlocked = false;
-        let remainingNeeded = 0;
+        const unlockDay = UNLOCK_DAYS[reqId] || 1;
+        const minEntries = reqId === 'six_month_assessment' || reqId === 'exercise_9' ? 20 : reqId === 'unfinished_conversation' || reqId === '10A' || reqId === 'unfinished-conversation' ? 18 : reqId === 'recurring_scenario' || reqId === 'exercise_10' || reqId === 'recurring-scenario' ? 15 : reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
 
+        let resolved = ExerciseAvailabilityService.resolveStatus({
+          exerciseId: reqId,
+          unlockDay,
+          minEntries,
+          totalUserDays,
+          userEntryCount,
+          isBaselineCompleted: reqId === 'exercise_0' && hasCompletedBaselineOnboarding
+        });
+
+        // Special Month 3 unlock overrides
         if (reqId === targetMonth3Id) {
-          isUnlocked = isMonth3Unlocked;
-          remainingNeeded = remainingMonth3Entries;
-        } else {
-          const unlockDay = UNLOCK_DAYS[reqId] || 1;
-          const requiresEntries = reqId === 'relationship_map' || reqId === 'exercise_5' ? 5 : 0;
-          isUnlocked = totalUserDays >= unlockDay && (requiresEntries === 0 || userEntryCount >= requiresEntries);
+          if (!isMonth3Unlocked) {
+            resolved.status = 'locked';
+            resolved.isUnlocked = false;
+            resolved.unlockLabel = `${remainingMonth3Entries} more entries needed`;
+            resolved.remainingEntriesNeeded = remainingMonth3Entries;
+          }
         }
-
-        const isEx0Completed = reqId === 'exercise_0' && hasCompletedBaselineOnboarding;
-        const defaultStatus = isEx0Completed ? 'completed' : isUnlocked ? 'available' : 'locked';
 
         const nowIso = new Date().toISOString();
         const placeholderInst: ExerciseInstance = {
@@ -478,9 +499,9 @@ export class ExerciseRepository {
           user_id: userId,
           cycle_id: cycleId || undefined,
           exercise_id: reqId,
-          status: defaultStatus,
-          unlock_time: defaultStatus === 'available' || defaultStatus === 'completed' ? nowIso : null,
-          metadata: !isUnlocked && remainingNeeded > 0 ? { remaining_entries_needed: remainingNeeded, unlock_label: `${remainingNeeded} more entries needed` } : undefined,
+          status: resolved.status,
+          unlock_time: resolved.isUnlocked ? nowIso : null,
+          metadata: !resolved.isUnlocked ? { remaining_entries_needed: resolved.remainingEntriesNeeded, unlock_label: resolved.unlockLabel } : undefined,
           created_at: nowIso,
           updated_at: nowIso
         };
@@ -495,7 +516,7 @@ export class ExerciseRepository {
               user_id: userId,
               cycle_id: cycleId || undefined,
               exercise_id: reqId,
-              status: defaultStatus,
+              status: resolved.status,
               unlock_time: placeholderInst.unlock_time,
               created_at: nowIso,
               updated_at: nowIso
@@ -511,7 +532,7 @@ export class ExerciseRepository {
       }
     }
 
-    // Sort by standard exercise order (Exercises 0 to 7)
+    // Sort by standard exercise order
     const exerciseOrder = [
       'exercise_0',
       'ocean',
@@ -526,13 +547,25 @@ export class ExerciseRepository {
       'exercise_4',
       'relationship_map',
       'exercise_5',
+      'body_signal_inventory',
+      'exercise_6',
       'avoidance_audit',
+      'exercise_7',
       'cost_benefit_audit',
       'trigger_mapping',
-      'body_signal_inventory',
+      'six_month_assessment',
+      'exercise_9',
+      'unfinished_conversation',
+      '10A',
+      'unfinished-conversation',
+      'identity_statements',
       'narrative_arc',
-      'exercise_6',
-      'exercise_7'
+      'recurring_scenario',
+      'exercise_10',
+      'recurring-scenario',
+      '10',
+      'values_revisit',
+      'year_end_portrait'
     ];
     
     return Array.from(canonicalMap.values()).sort((a, b) => {

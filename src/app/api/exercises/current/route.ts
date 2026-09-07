@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ instance: targetInstance, responses, candidates });
     }
 
-    const rawInstances = await ExerciseRepository.getUserInstances(authUser.userId, cycleId);
+    const clientDateStr = request.headers.get('x-client-date');
+    const rawInstances = await ExerciseRepository.getUserInstances(authUser.userId, cycleId, clientDateStr);
     // Sort instances by updated_at descending to get the most recent active exercise
     const instances = [...rawInstances].sort((a, b) => {
       const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
