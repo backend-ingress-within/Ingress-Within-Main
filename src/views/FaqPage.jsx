@@ -301,6 +301,27 @@ export default function FaqPage({ onOpenPolicy }) {
             Learn more about guided journaling principles, platform architecture, and privacy protections.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <a href="/guided-journaling" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Guided Journaling Guide &rarr;
+            </a>
+            <a href="/self-reflection" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Self-Reflection Guide &rarr;
+            </a>
+            <a href="/emotional-patterns" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Emotional Patterns Guide &rarr;
+            </a>
+            <a href="/self-awareness" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Self-Awareness Guide &rarr;
+            </a>
+            <a href="/journaling-prompts-for-self-discovery" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              Journaling Prompts &rarr;
+            </a>
+            <a href="/how-to-start-journaling" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              How to Start Journaling &rarr;
+            </a>
+            <a href="/how-to-practice-self-reflection" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
+              How to Practice Self-Reflection &rarr;
+            </a>
             <a href="/what-it-is" className="text-xs font-bold uppercase tracking-wider text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">
               What is Guided Journaling &rarr;
             </a>

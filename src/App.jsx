@@ -4,6 +4,13 @@ import PolicyModal from './components/PolicyModal';
 
 const LandingPage = lazy(() => import('./views/LandingPage'));
 const WhatItIsPage = lazy(() => import('./views/WhatItIsPage'));
+const GuidedJournalingPage = lazy(() => import('./views/GuidedJournalingPage'));
+const SelfReflectionPage = lazy(() => import('./views/SelfReflectionPage'));
+const EmotionalPatternsPage = lazy(() => import('./views/EmotionalPatternsPage'));
+const SelfAwarenessPage = lazy(() => import('./views/SelfAwarenessPage'));
+const JournalingPromptsPage = lazy(() => import('./views/JournalingPromptsPage'));
+const HowToStartJournalingPage = lazy(() => import('./views/HowToStartJournalingPage'));
+const HowToPracticeSelfReflectionPage = lazy(() => import('./views/HowToPracticeSelfReflectionPage'));
 const HowItWorksPage = lazy(() => import('./views/HowItWorksPage'));
 const AboutPage = lazy(() => import('./views/AboutPage'));
 const PricingPage = lazy(() => import('./views/PricingPage'));
@@ -88,8 +95,8 @@ function DatabaseErrorScreen({ error, onRetry }) {
   );
 }
 
-export default function App() {
-  const [currentRoute, setCurrentRoute] = useState('home');
+export default function App({ initialRoute = 'home' }) {
+  const [currentRoute, setCurrentRoute] = useState(initialRoute);
   const [policyModalOpen, setPolicyModalOpen] = useState(false);
   const [activePolicyKey, setActivePolicyKey] = useState('privacy');
 
@@ -302,6 +309,27 @@ export default function App() {
       if (path === '/what-it-is' || path === '/what-it-is/') {
         setCurrentRoute('what-it-is');
         window.scrollTo(0, 0);
+      } else if (path === '/guided-journaling' || path === '/guided-journaling/') {
+        setCurrentRoute('guided-journaling');
+        window.scrollTo(0, 0);
+      } else if (path === '/self-reflection' || path === '/self-reflection/') {
+        setCurrentRoute('self-reflection');
+        window.scrollTo(0, 0);
+      } else if (path === '/emotional-patterns' || path === '/emotional-patterns/') {
+        setCurrentRoute('emotional-patterns');
+        window.scrollTo(0, 0);
+      } else if (path === '/self-awareness' || path === '/self-awareness/') {
+        setCurrentRoute('self-awareness');
+        window.scrollTo(0, 0);
+      } else if (path === '/journaling-prompts-for-self-discovery' || path === '/journaling-prompts-for-self-discovery/') {
+        setCurrentRoute('journaling-prompts-for-self-discovery');
+        window.scrollTo(0, 0);
+      } else if (path === '/how-to-start-journaling' || path === '/how-to-start-journaling/') {
+        setCurrentRoute('how-to-start-journaling');
+        window.scrollTo(0, 0);
+      } else if (path === '/how-to-practice-self-reflection' || path === '/how-to-practice-self-reflection/') {
+        setCurrentRoute('how-to-practice-self-reflection');
+        window.scrollTo(0, 0);
       } else if (path === '/how-it-works' || path === '/how-it-works/') {
         setCurrentRoute('how-it-works');
         window.scrollTo(0, 0);
@@ -450,7 +478,7 @@ export default function App() {
   }, []);
 
   const renderPage = () => {
-    const path = window.location.pathname;
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
     if (isProtectedRoute && (!authChecked || isLoading)) {
@@ -465,6 +493,20 @@ export default function App() {
 
       case 'what-it-is':
         return <WhatItIsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'guided-journaling':
+        return <GuidedJournalingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'self-reflection':
+        return <SelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
+      case 'emotional-patterns':
+        return <EmotionalPatternsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'self-awareness':
+        return <SelfAwarenessPage onOpenPolicy={handleOpenPolicy} />;
+      case 'journaling-prompts-for-self-discovery':
+        return <JournalingPromptsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'how-to-start-journaling':
+        return <HowToStartJournalingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'how-to-practice-self-reflection':
+        return <HowToPracticeSelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
       case 'how-it-works':
         return <HowItWorksPage onOpenPolicy={handleOpenPolicy} />;
       case 'about':
@@ -515,11 +557,11 @@ export default function App() {
       case 'threads':
         return <ThreadsPage user={user} profile={profile} onSignOut={handleSignOut} />;
       case 'thread': {
-        const threadId = window.location.pathname.split('/thread/')[1]?.replace(/\/$/, '') || '';
+        const threadId = typeof window !== 'undefined' ? (window.location.pathname.split('/thread/')[1]?.replace(/\/$/, '') || '') : '';
         return <ThreadDetailPage user={user} profile={profile} threadId={threadId} onSignOut={handleSignOut} />;
       }
       case 'entry-detail': {
-        const entryId = window.location.pathname.split('/entry/')[1]?.replace(/\/$/, '') || '';
+        const entryId = typeof window !== 'undefined' ? (window.location.pathname.split('/entry/')[1]?.replace(/\/$/, '') || '') : '';
         return <EntryDetailPage user={user} profile={profile} entryId={entryId} onSignOut={handleSignOut} />;
       }
       case 'ai-data':

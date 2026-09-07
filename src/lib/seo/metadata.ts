@@ -12,32 +12,86 @@ const DEFAULT_IMAGE = '/og-image.png';
  */
 export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
   let routeKey = 'home';
-  
-  if (Array.isArray(slug)) {
-    const rawPath = slug.join('/').toLowerCase();
-    if (rawPath === 'what-it-is') routeKey = 'whatItIs';
-    else if (rawPath === 'how-it-works') routeKey = 'howItWorks';
-    else if (rawPath === 'about') routeKey = 'about';
-    else if (rawPath === 'pricing') routeKey = 'pricing';
-    else if (rawPath === 'faq') routeKey = 'faq';
-    else if (rawPath === 'ai-data') routeKey = 'aiData';
-    else if (rawPath === 'contact') routeKey = 'contact';
-    else if (rawPath === 'auth') routeKey = 'auth';
-  } else if (typeof slug === 'string') {
-    const rawPath = slug.toLowerCase();
-    if (rawPath === 'what-it-is') routeKey = 'whatItIs';
-    else if (rawPath === 'how-it-works') routeKey = 'howItWorks';
-    else if (rawPath === 'about') routeKey = 'about';
-    else if (rawPath === 'pricing') routeKey = 'pricing';
-    else if (rawPath === 'faq') routeKey = 'faq';
-    else if (rawPath === 'ai-data') routeKey = 'aiData';
-    else if (rawPath === 'contact') routeKey = 'contact';
-    else if (rawPath === 'auth') routeKey = 'auth';
+  let isKnownPublicRoute = false;
+
+  const rawPath = Array.isArray(slug)
+    ? slug.join('/').toLowerCase()
+    : (typeof slug === 'string' ? slug.toLowerCase() : '');
+
+  if (!rawPath || rawPath === '') {
+    routeKey = 'home';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'what-it-is') {
+    routeKey = 'whatItIs';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'guided-journaling') {
+    routeKey = 'guidedJournaling';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'self-reflection') {
+    routeKey = 'selfReflection';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'emotional-patterns') {
+    routeKey = 'emotionalPatterns';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'self-awareness') {
+    routeKey = 'selfAwareness';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'journaling-prompts-for-self-discovery') {
+    routeKey = 'journalingPrompts';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'how-to-start-journaling') {
+    routeKey = 'howToStartJournaling';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'how-to-practice-self-reflection') {
+    routeKey = 'howToPracticeSelfReflection';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'how-it-works') {
+    routeKey = 'howItWorks';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'about') {
+    routeKey = 'about';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'pricing') {
+    routeKey = 'pricing';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'faq') {
+    routeKey = 'faq';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'ai-data') {
+    routeKey = 'aiData';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'contact') {
+    routeKey = 'contact';
+    isKnownPublicRoute = true;
+  } else if (rawPath === 'auth') {
+    routeKey = 'auth';
+    isKnownPublicRoute = true;
   }
 
   const intent = ROUTE_INTENT_MAP[routeKey] || ROUTE_INTENT_MAP.home;
-  const canonicalPath = routeKey === 'home' ? '' : `/${slug ? (Array.isArray(slug) ? slug.join('/') : slug) : ''}`;
+  const canonicalPath = routeKey === 'home' ? '' : `/${rawPath}`;
   const canonicalUrl = `${BASE_URL}${canonicalPath}`;
+
+  const robots = isKnownPublicRoute
+    ? {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-video-preview': -1,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+        },
+      }
+    : {
+        index: false,
+        follow: false,
+        googleBot: {
+          index: false,
+          follow: false,
+        },
+      };
 
   return {
     metadataBase: new URL(BASE_URL),
@@ -46,6 +100,7 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
     },
     title: intent.title,
     description: intent.description,
+    robots,
     openGraph: {
       title: intent.title,
       description: intent.description,

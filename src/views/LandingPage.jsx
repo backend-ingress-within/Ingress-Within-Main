@@ -369,7 +369,7 @@ export default function LandingPage({ onOpenPolicy }) {
               <div className="how-num w-14 h-14 rounded-full bg-white/5 border border-secondary/30 flex items-center justify-center font-serif text-xl text-accent mx-auto">01</div>
               <h3 className="font-serif text-xl font-medium text-mint-grey">Write</h3>
               <p className="font-sans text-[13.5px] font-light text-light-mid leading-relaxed">
-                Whatever is actually in your head. Not polished, not structured. Whatever is true today.
+                Whatever is actually in your head. Read our <a href="/how-to-start-journaling" className="text-secondary hover:underline">guide on how to start journaling</a> or use <a href="/journaling-prompts-for-self-discovery" className="text-secondary hover:underline">self-discovery prompts</a> to begin.
               </p>
             </div>
 
@@ -377,7 +377,7 @@ export default function LandingPage({ onOpenPolicy }) {
               <div className="how-num w-14 h-14 rounded-full bg-white/5 border border-secondary/30 flex items-center justify-center font-serif text-xl text-accent mx-auto">02</div>
               <h3 className="font-serif text-xl font-medium text-mint-grey">Reflect</h3>
               <p className="font-sans text-[13.5px] font-light text-light-mid leading-relaxed">
-                The AI names what you were circling around without quite landing on. Something you recognise immediately as true.
+                The AI names what you were circling around without quite landing on. Discover <a href="/how-to-practice-self-reflection" className="text-secondary hover:underline">how to practice self-reflection</a> with actionable structure.
               </p>
             </div>
 
@@ -655,6 +655,24 @@ export default function LandingPage({ onOpenPolicy }) {
               Sign in to your account
             </a>
           </ScrollReveal>
+        </div>
+      </section>
+
+      {/* INTERNAL CROSS-LINKS SECTION */}
+      <section className="bg-mint-grey py-12 px-6 border-t border-primary/5 text-center">
+        <div className="max-w-xl mx-auto space-y-4">
+          <h3 className="font-serif text-lg font-normal text-primary">Explore Guided Reflection</h3>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-wider">
+            <a href="/guided-journaling" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Guided Journaling Guide &rarr;</a>
+            <a href="/self-reflection" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Self-Reflection Guide &rarr;</a>
+            <a href="/how-to-practice-self-reflection" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">How to Practice Self-Reflection &rarr;</a>
+            <a href="/emotional-patterns" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Emotional Patterns Guide &rarr;</a>
+            <a href="/self-awareness" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Self-Awareness Guide &rarr;</a>
+            <a href="/journaling-prompts-for-self-discovery" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">Self-Discovery Prompts &rarr;</a>
+            <a href="/how-to-start-journaling" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">How to Start Journaling &rarr;</a>
+            <a href="/what-it-is" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">What It Is &rarr;</a>
+            <a href="/how-it-works" className="text-secondary-dark hover:text-primary transition-colors border-b border-secondary-dark pb-0.5 no-underline">How It Works &rarr;</a>
+          </div>
         </div>
       </section>
 

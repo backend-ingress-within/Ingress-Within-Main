@@ -89,6 +89,41 @@ export const ROUTE_INTENT_MAP: Record<string, { title: string; description: stri
     description: 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.',
     clusterId: 'guidedJournaling'
   },
+  guidedJournaling: {
+    title: 'What Is Guided Journaling? | Ingress Within',
+    description: 'Learn what guided journaling is, how it differs from regular journaling, and how structured self-reflection can help you better understand your thoughts, emotions, and patterns.',
+    clusterId: 'guidedJournaling'
+  },
+  selfReflection: {
+    title: 'What Is Self-Reflection? | Ingress Within',
+    description: 'Learn what self-reflection is, how to practice it, and how structured reflection can help you better understand your thoughts, reactions, and patterns.',
+    clusterId: 'selfUnderstanding'
+  },
+  emotionalPatterns: {
+    title: 'How to Identify Emotional Patterns | Ingress Within',
+    description: 'Learn how to identify recurring emotional patterns, understand repeated reactions, and notice recurring thoughts and behaviours through structured self-reflection.',
+    clusterId: 'emotionalPatterns'
+  },
+  selfAwareness: {
+    title: 'How to Become More Self-Aware | Ingress Within',
+    description: 'Learn what self-awareness is, how to develop it, and how noticing your thoughts, emotions, reactions, habits, and values can support self-understanding.',
+    clusterId: 'selfUnderstanding'
+  },
+  journalingPrompts: {
+    title: '50 Journaling Prompts for Self-Discovery | Ingress Within',
+    description: 'Explore 50 journaling prompts for self-discovery designed to help you reflect on your thoughts, emotions, reactions, values, and future.',
+    clusterId: 'guidedJournaling'
+  },
+  howToStartJournaling: {
+    title: 'How to Start Journaling: A Simple Guide for Beginners | Ingress Within',
+    description: 'Learn how to start journaling with a simple beginner-friendly approach, including what to write, how often to journal, and how to make reflection easier.',
+    clusterId: 'guidedJournaling'
+  },
+  howToPracticeSelfReflection: {
+    title: 'How to Practice Self-Reflection | Ingress Within',
+    description: 'Learn how to practice self-reflection with simple daily techniques, practical reflection questions, and a structured 5-step framework for greater self-understanding.',
+    clusterId: 'selfUnderstanding'
+  },
   whatItIs: {
     title: 'What is Guided Journaling? | Ingress Within',
     description: 'Discover how guided journaling and structured self-reflection help you gain clarity on your emotions, thought patterns, and personal growth.',
@@ -139,5 +174,8 @@ export const CONTENT_ROADMAP = [
   { slug: '/guided-journaling', primaryIntent: 'Guided Journaling Guide & Best Practices' },
   { slug: '/self-reflection', primaryIntent: 'Structured Self-Reflection Techniques' },
   { slug: '/emotional-patterns', primaryIntent: 'Identifying & Understanding Emotional Patterns' },
-  { slug: '/self-awareness', primaryIntent: 'Improving Self-Awareness Through Daily Writing' }
+  { slug: '/self-awareness', primaryIntent: 'Improving Self-Awareness Through Daily Writing' },
+  { slug: '/journaling-prompts-for-self-discovery', primaryIntent: '50 Journaling Prompts for Self-Discovery & Personal Clarity' },
+  { slug: '/how-to-start-journaling', primaryIntent: 'Beginner Instructions for Starting a Journaling Practice' },
+  { slug: '/how-to-practice-self-reflection', primaryIntent: 'Practical Step-by-Step Guide on How to Practice Self-Reflection' }
 ];

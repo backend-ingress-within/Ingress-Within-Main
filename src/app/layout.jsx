@@ -26,7 +26,7 @@ export const metadata = {
   },
   title: {
     default: 'Ingress Within | Guided Journaling for Mental Wellness & Self-Understanding',
-    template: '%s | Ingress Within'
+    template: '%s'
   },
   description: 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.',
   keywords: [
