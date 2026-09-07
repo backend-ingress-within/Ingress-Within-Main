@@ -26,8 +26,50 @@ export default function GuidedJournalingPage({ onOpenPolicy }) {
     }
   };
 
+  const faqData = [
+    {
+      question: "What is guided journaling?",
+      answer: "Guided journaling is a structured writing practice that uses prompts, frameworks, and targeted questions to help individuals reflect on their thoughts, emotions, and daily experiences with clarity."
+    },
+    {
+      question: "How is Ingress Within different from a simple notes app?",
+      answer: "Unlike a blank note app, Ingress Within organizes your reflection into structured 30-day cycles, provides daily guided prompts, surfaces emotional vocabulary, and identifies recurring pattern threads across your writing."
+    },
+    {
+      question: "Is Ingress Within therapy or a mental health treatment?",
+      answer: "No. Ingress Within is designed for guided self-reflection and self-understanding and is not a replacement for professional mental health care. It offers a private space for personal self-awareness."
+    },
+    {
+      question: "How often should I practice guided journaling?",
+      answer: "Consistency matters more than length. Taking 5 to 10 minutes each day—or whenever you feel the need to process an experience—helps build strong self-reflection momentum."
+    },
+    {
+      question: "Is my journaling data private and secure?",
+      answer: "Yes. Your reflection entries are strictly private. We enforce strict data isolation, encryption, and transparent security controls so your personal thoughts remain entirely yours."
+    }
+  ];
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqData.map(item => ({
+      "@type": "Question",
+      "name": item.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.answer
+      }
+    }))
+  };
+
   return (
     <div className="min-h-screen bg-mint-grey text-primary selection:bg-accent/30 font-sans">
+      {/* FAQPage JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
       <Navbar isSubpage={true} />
 
       {/* HERO SECTION */}

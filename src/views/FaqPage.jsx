@@ -158,14 +158,14 @@ export default function FaqPage({ onOpenPolicy }) {
   const currentFaqList = FAQ_DATA[activeTab] || [];
 
   const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    'mainEntity': Object.values(FAQ_DATA).flat().map(item => ({
-      '@type': 'Question',
-      'name': item.q,
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': Array.isArray(item.a) ? item.a.join(' ') : item.a
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": Object.values(FAQ_DATA).flat().map(item => ({
+      "@type": "Question",
+      "name": item.q,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": Array.isArray(item.a) ? item.a.join(' ') : item.a
       }
     }))
   };
