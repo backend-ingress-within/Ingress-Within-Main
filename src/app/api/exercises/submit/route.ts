@@ -48,6 +48,20 @@ export async function POST(request: NextRequest) {
       }).catch(err => {
         console.error(`[POST /api/exercises/submit] Relationship Map AI worker error for ${instance_id}:`, err);
       });
+    } else if (instance.exercise_id === 'year_end_portrait' || instance.exercise_id === 'exercise_15' || instance.exercise_id === 'year-end-portrait') {
+      const { YearEndPortraitWorker } = await import('../../../../lib/exercises/v4/workers/yearEndPortraitWorker');
+      await YearEndPortraitWorker.processInstance(instance_id, {
+        anchors: body.anchors,
+        closer_reflection: body.closer_reflection,
+        synthesis: body.synthesis,
+        q1: body.synthesis?.q1 || body.q1,
+        q2: body.synthesis?.q2 || body.q2,
+        q3: body.synthesis?.q3 || body.q3,
+        q4: body.synthesis?.q4 || body.q4,
+        q5: body.synthesis?.q5 || body.q5
+      }).catch(err => {
+        console.error(`[POST /api/exercises/submit] Year End Portrait AI worker error for ${instance_id}:`, err);
+      });
     } else if (instance.exercise_id === 'trigger_mapping') {
       if (body.moments) {
         const { TriggerMappingValidator } = await import('../../../../lib/exercises/v4/validation/triggerMappingValidator');

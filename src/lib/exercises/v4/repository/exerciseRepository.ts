@@ -507,6 +507,8 @@ export class ExerciseRepository {
       exercise_13: 'values_revisit',
       'values-revisit': 'values_revisit',
       exercise_14: 'year_end_portrait',
+      exercise_15: 'year_end_portrait',
+      '15': 'year_end_portrait',
       'year-end-portrait': 'year_end_portrait'
     };
 

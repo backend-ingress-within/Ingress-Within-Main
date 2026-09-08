@@ -44,9 +44,32 @@ import UnfinishedConversationFlow from '../components/exercise/v4/UnfinishedConv
 import UnfinishedConversationResultView from '../components/exercise/v4/UnfinishedConversationResultView';
 import RecurringScenarioFlow from '../components/exercise/v4/RecurringScenarioFlow';
 import RecurringScenarioResultView from '../components/exercise/v4/RecurringScenarioResultView';
+import YearEndPortraitFlow from '../components/exercise/v4/YearEndPortraitFlow';
+import YearEndPortraitResultView from '../components/exercise/v4/YearEndPortraitResultView';
 
 // Founder-approved exercise definitions & titles
 const EXERCISE_METADATA = {
+  year_end_portrait: {
+    title: 'Year-End Self-Portrait',
+    category: 'Universal Anchor',
+    description: 'Synthesize 12 months of self-reflection, recurring patterns, and internal shifts into a comprehensive annual portrait.',
+    unlockDay: 365,
+    getProgress: () => `In Progress`
+  },
+  '15': {
+    title: 'Year-End Self-Portrait',
+    category: 'Universal Anchor',
+    description: 'Synthesize 12 months of self-reflection, recurring patterns, and internal shifts into a comprehensive annual portrait.',
+    unlockDay: 365,
+    getProgress: () => `In Progress`
+  },
+  'year-end-portrait': {
+    title: 'Year-End Self-Portrait',
+    category: 'Universal Anchor',
+    description: 'Synthesize 12 months of self-reflection, recurring patterns, and internal shifts into a comprehensive annual portrait.',
+    unlockDay: 365,
+    getProgress: () => `In Progress`
+  },
   recurring_scenario: {
     title: 'Recurring Scenario Exercise',
     category: 'Cognitive',
@@ -402,6 +425,20 @@ export default function ExercisePage({ user, profile, onSignOut }) {
           );
         }
 
+        if (exId === 'year_end_portrait' || exId === 'exercise_15' || exId === 'year-end-portrait' || exId === '15') {
+          return (
+            <YearEndPortraitFlow
+              instanceId={activeExerciseInstanceId}
+              instance={inst}
+              onClose={() => setActiveExerciseInstanceId(null)}
+              onComplete={() => {
+                setActiveExerciseInstanceId(null);
+                fetchExerciseInstances();
+              }}
+            />
+          );
+        }
+
         if (exId === 'recurring_scenario' || exId === 'exercise_10' || exId === 'recurring-scenario' || exId === '10') {
           return (
             <RecurringScenarioFlow
@@ -577,6 +614,15 @@ export default function ExercisePage({ user, profile, onSignOut }) {
         if (exId === 'unfinished_conversation' || exId === '10A' || exId === 'unfinished-conversation') {
           return (
             <UnfinishedConversationResultView
+              instanceId={activeResultInstanceId}
+              onClose={() => setActiveResultInstanceId(null)}
+            />
+          );
+        }
+
+        if (exId === 'year_end_portrait' || exId === 'exercise_15' || exId === 'year-end-portrait' || exId === '15') {
+          return (
+            <YearEndPortraitResultView
               instanceId={activeResultInstanceId}
               onClose={() => setActiveResultInstanceId(null)}
             />
