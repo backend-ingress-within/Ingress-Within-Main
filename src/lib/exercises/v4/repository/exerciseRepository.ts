@@ -220,7 +220,7 @@ export class ExerciseRepository {
       }
     }
 
-    // Ensure exercise_definitions table contains definitions for all 8 core exercises
+    // Ensure exercise_definitions table contains definitions for all 17 core roadmap exercises
     try {
       const { EXERCISE_0_DEFINITION } = await import('../definitions/exercise0Catalog');
       const { EXERCISE_1_DEFINITION } = await import('../definitions/exercise1Catalog');
@@ -234,7 +234,11 @@ export class ExerciseRepository {
       const { TRIGGER_MAPPING_DEFINITION } = await import('../definitions/triggerMappingCatalog');
       const { SIX_MONTH_ASSESSMENT_DEFINITION } = await import('../definitions/sixMonthAssessmentCatalog');
       const { UNFINISHED_CONVERSATION_DEFINITION } = await import('../definitions/unfinishedConversationCatalog');
+      const { IDENTITY_STATEMENTS_DEFINITION } = await import('../definitions/identityStatementsCatalog');
+      const { NARRATIVE_ARC_DEFINITION } = await import('../definitions/narrativeArcCatalog');
       const { RECURRING_SCENARIO_DEFINITION } = await import('../definitions/recurringScenarioCatalog');
+      const { VALUES_REVISIT_DEFINITION } = await import('../definitions/valuesRevisitCatalog');
+      const { YEAR_END_PORTRAIT_DEFINITION } = await import('../definitions/yearEndPortraitCatalog');
 
       const defs = [
         EXERCISE_0_DEFINITION,
@@ -249,7 +253,11 @@ export class ExerciseRepository {
         TRIGGER_MAPPING_DEFINITION,
         SIX_MONTH_ASSESSMENT_DEFINITION,
         UNFINISHED_CONVERSATION_DEFINITION,
-        RECURRING_SCENARIO_DEFINITION
+        IDENTITY_STATEMENTS_DEFINITION,
+        NARRATIVE_ARC_DEFINITION,
+        RECURRING_SCENARIO_DEFINITION,
+        VALUES_REVISIT_DEFINITION,
+        YEAR_END_PORTRAIT_DEFINITION
       ];
 
       for (const def of defs) {
@@ -259,12 +267,26 @@ export class ExerciseRepository {
       console.warn('[ExerciseRepository] Auto-upsert definitions warning:', defErr);
     }
 
-    // Fetch user cycle to compute accumulated total days for unlock evaluation
+    // Determine today's midnight timestamp for accurate day offset calculation
+    let todayMidnight: Date;
+    if (clientDateStr) {
+      todayMidnight = new Date(clientDateStr + 'T00:00:00Z');
+      if (isNaN(todayMidnight.getTime())) {
+        const today = new Date();
+        todayMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+      }
+    } else {
+      const today = new Date();
+      todayMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    }
+
+    // Fetch user cycle to compute accumulated total days dynamically
     let totalUserDays = 1;
     try {
+      // 1. Fetch active or latest cycle
       const { data: latestCycle } = await supabase
         .from('cycles')
-        .select('cycle_number, number, current_day')
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -272,11 +294,75 @@ export class ExerciseRepository {
 
       if (latestCycle) {
         const cNum = latestCycle.cycle_number || latestCycle.number || 1;
-        const cDay = latestCycle.current_day || 1;
-        totalUserDays = (cNum - 1) * 30 + cDay;
+        const startDateStr = (latestCycle.start_date || latestCycle.started_at || latestCycle.created_at || '').split('T')[0];
+        
+        let cycleDayElapsed = 1;
+        if (startDateStr) {
+          const startMidnight = new Date(startDateStr + 'T00:00:00Z');
+          if (!isNaN(startMidnight.getTime())) {
+            const diffMs = todayMidnight.getTime() - startMidnight.getTime();
+            cycleDayElapsed = Math.max(1, Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1);
+          }
+        } else {
+          cycleDayElapsed = Math.max(1, latestCycle.current_day || 1);
+        }
+
+        const cycleCalculatedDays = (cNum - 1) * 30 + cycleDayElapsed;
+        totalUserDays = Math.max(totalUserDays, cycleCalculatedDays, latestCycle.current_day || 1);
+      }
+
+      // 2. Fetch earliest cycle to get absolute Day 1 calendar start date
+      const { data: firstCycle } = await supabase
+        .from('cycles')
+        .select('start_date, started_at, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (firstCycle) {
+        const firstStartStr = (firstCycle.start_date || firstCycle.started_at || firstCycle.created_at || '').split('T')[0];
+        if (firstStartStr) {
+          const firstStartMidnight = new Date(firstStartStr + 'T00:00:00Z');
+          if (!isNaN(firstStartMidnight.getTime())) {
+            const diffMs = todayMidnight.getTime() - firstStartMidnight.getTime();
+            const absoluteCalendarDays = Math.max(1, Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1);
+            totalUserDays = Math.max(totalUserDays, absoluteCalendarDays);
+          }
+        }
+      }
+
+      // 3. Fallback check: Profile / Account Creation Date
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileRow?.created_at) {
+        const createdDateStr = profileRow.created_at.split('T')[0];
+        const createdMidnight = new Date(createdDateStr + 'T00:00:00Z');
+        if (!isNaN(createdMidnight.getTime())) {
+          const diffMs = todayMidnight.getTime() - createdMidnight.getTime();
+          const accountDaysElapsed = Math.max(1, Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1);
+          totalUserDays = Math.max(totalUserDays, accountDaysElapsed);
+        }
+      }
+
+      // 3. Fallback check: Maximum cycle_day written in entries
+      const { data: maxDayEntry } = await supabase
+        .from('entries')
+        .select('cycle_day')
+        .eq('user_id', userId)
+        .order('cycle_day', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (maxDayEntry?.cycle_day) {
+        totalUserDays = Math.max(totalUserDays, Number(maxDayEntry.cycle_day));
       }
     } catch (cycleErr) {
-      console.warn('[ExerciseRepository] Error fetching user cycle for unlock evaluation:', cycleErr);
+      console.warn('[ExerciseRepository] Error calculating dynamic user days for unlock evaluation:', cycleErr);
     }
     // Fetch total journal entries count for entry-requirement exercises (e.g. relationship_map requires 5+ total entries)
     let userEntryCount = 0;
@@ -407,12 +493,21 @@ export class ExerciseRepository {
       exercise_5: 'relationship_map',
       exercise_6: 'body_signal_inventory',
       exercise_7: 'avoidance_audit',
+      exercise_8: 'cost_benefit_audit',
       exercise_9: 'six_month_assessment',
       '10A': 'unfinished_conversation',
       'unfinished-conversation': 'unfinished_conversation',
       '10': 'recurring_scenario',
-      'exercise_10': 'recurring_scenario',
-      'recurring-scenario': 'recurring_scenario'
+      exercise_10: 'recurring_scenario',
+      'recurring-scenario': 'recurring_scenario',
+      exercise_11: 'identity_statements',
+      'identity-statements': 'identity_statements',
+      exercise_12: 'narrative_arc',
+      'narrative-arc': 'narrative_arc',
+      exercise_13: 'values_revisit',
+      'values-revisit': 'values_revisit',
+      exercise_14: 'year_end_portrait',
+      'year-end-portrait': 'year_end_portrait'
     };
 
     // Re-alias deduplicatedMap entries for consistency

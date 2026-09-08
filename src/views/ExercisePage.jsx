@@ -236,6 +236,27 @@ const EXERCISE_METADATA = {
     unlockDay: 274,
     getProgress: () => `In Progress`
   },
+  identity_statements: {
+    title: 'Identity Statements',
+    category: 'Identity',
+    description: 'Examine foundational identity statements, internal rules, and evolving self-definitions.',
+    unlockDay: 244,
+    getProgress: () => `In Progress`
+  },
+  values_revisit: {
+    title: 'Values Revisit',
+    category: 'Values',
+    description: 'Revisit your core values card sort results after 11 months of practice to measure developmental shifts.',
+    unlockDay: 335,
+    getProgress: () => `In Progress`
+  },
+  year_end_portrait: {
+    title: 'Year-End Self-Portrait',
+    category: 'Integration',
+    description: 'Synthesize 12 months of self-reflection, recurring patterns, and internal shifts into a comprehensive annual portrait.',
+    unlockDay: 365,
+    getProgress: () => `In Progress`
+  },
   exercise_7: {
     title: 'Avoidance Audit',
     category: 'Cognitive',
@@ -261,7 +282,12 @@ export default function ExercisePage({ user, profile, onSignOut }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/exercises');
+      const clientDate = new Date().toISOString().split('T')[0];
+      const res = await fetch('/api/exercises', {
+        headers: {
+          'x-client-date': clientDate
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch exercise instances');
       const data = await res.json();
       setInstances(data.instances || []);

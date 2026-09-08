@@ -19,10 +19,17 @@ const lora = Lora({
   display: 'swap',
 });
 
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+const bingVerification = process.env.BING_SITE_VERIFICATION || process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION;
+
 export const metadata = {
   metadataBase: new URL('https://ingresswithin.com'),
   alternates: {
     canonical: 'https://ingresswithin.com',
+  },
+  verification: {
+    ...(googleVerification ? { google: googleVerification } : {}),
+    ...(bingVerification ? { other: { 'msvalidate.01': bingVerification } } : {}),
   },
   title: {
     default: 'Ingress Within | Guided Journaling for Mental Wellness & Self-Understanding',

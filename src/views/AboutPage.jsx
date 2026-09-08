@@ -268,7 +268,7 @@ export default function AboutPage({ onOpenPolicy }) {
                   Privacy without exceptions.
                 </h3>
                 <p className="font-sans text-[13.5px] font-light text-light-mid opacity-85 leading-relaxed">
-                  What you write is yours. Not a dataset. Not training material. The privacy promise is the foundation, not a line in a policy document.
+                  What you write is yours. Not a dataset. Not training material. The privacy promise is the foundation, not a line in a policy document. <a href="/ai-data" className="text-accent hover:underline inline-flex items-center gap-1 font-normal">Learn more about our AI &amp; data privacy standards &rarr;</a>
                 </p>
               </div>
 

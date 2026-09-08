@@ -93,6 +93,15 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
         },
       };
 
+  const googleVerification = process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+  const bingVerification = process.env.BING_SITE_VERIFICATION || process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION;
+  const verification = (googleVerification || bingVerification)
+    ? {
+        ...(googleVerification ? { google: googleVerification } : {}),
+        ...(bingVerification ? { other: { 'msvalidate.01': bingVerification } } : {}),
+      }
+    : undefined;
+
   return {
     metadataBase: new URL(BASE_URL),
     alternates: {
@@ -101,6 +110,7 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
     title: intent.title,
     description: intent.description,
     robots,
+    ...(verification ? { verification } : {}),
     openGraph: {
       title: intent.title,
       description: intent.description,

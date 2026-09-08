@@ -10,12 +10,9 @@ export class Exercise3UnlockService {
    * - Exercise 2 completed
    * - No completed Exercise 3 instance
    */
-  public static async evaluateUnlockStatus(userId: string, currentDay: number = 23, currentCycle: number = 1): Promise<Exercise3Status> {
-    if (currentCycle !== EXERCISE_3_CONFIG.cycle) {
-      return 'locked';
-    }
-
-    if (currentDay < EXERCISE_3_CONFIG.unlock_day) {
+  public static async evaluateUnlockStatus(userId: string, currentDay: number = 24, currentCycle: number = 1): Promise<Exercise3Status> {
+    const totalDays = (currentCycle - 1) * 30 + currentDay;
+    if (totalDays < EXERCISE_3_CONFIG.unlock_day) {
       return 'locked';
     }
 

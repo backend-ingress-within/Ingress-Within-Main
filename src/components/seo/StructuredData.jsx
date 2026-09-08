@@ -32,7 +32,7 @@ export default function StructuredData() {
     '@type': 'WebApplication',
     'name': 'Ingress Within',
     'url': baseUrl,
-    'applicationCategory': 'HealthApplication',
+    'applicationCategory': 'LifestyleApplication',
     'operatingSystem': 'All',
     'description': 'Ingress Within helps you understand yourself through guided journaling, psychology-informed exercises, emotional pattern insights, and structured self-reflection.'
   };

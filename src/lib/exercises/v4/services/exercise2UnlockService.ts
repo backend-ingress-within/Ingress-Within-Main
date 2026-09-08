@@ -11,11 +11,8 @@ export class Exercise2UnlockService {
    * - No completed Exercise 2 instance
    */
   public static async evaluateUnlockStatus(userId: string, currentDay: number = 16, currentCycle: number = 1): Promise<Exercise2Status> {
-    if (currentCycle !== EXERCISE_2_CONFIG.cycle) {
-      return 'locked';
-    }
-
-    if (currentDay < EXERCISE_2_CONFIG.unlock_day) {
+    const totalDays = (currentCycle - 1) * 30 + currentDay;
+    if (totalDays < EXERCISE_2_CONFIG.unlock_day) {
       return 'locked';
     }
 
