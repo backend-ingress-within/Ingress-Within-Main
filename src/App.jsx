@@ -47,6 +47,23 @@ const FounderTestPage = (process.env.NODE_ENV === 'development' || process.env.N
 const PsychoeducationLabPage = lazy(() => import('./views/PsychoeducationLabPage'));
 const NotFoundPage = lazy(() => import('./views/NotFoundPage'));
 
+// Ingress Within V2 Experimental Experience
+const V2LandingPage = lazy(() => import('./v2/pages/V2LandingPage'));
+const V2WhatItIsPage = lazy(() => import('./v2/pages/V2WhatItIsPage'));
+const V2HowItWorksPage = lazy(() => import('./v2/pages/V2HowItWorksPage'));
+const V2AboutPage = lazy(() => import('./v2/pages/V2AboutPage'));
+const V2PricingPage = lazy(() => import('./v2/pages/V2PricingPage'));
+const V2FaqPage = lazy(() => import('./v2/pages/V2FaqPage'));
+const V2ContactPage = lazy(() => import('./v2/pages/V2ContactPage'));
+const V2AiDataPage = lazy(() => import('./v2/pages/V2AiDataPage'));
+const V2GuidedJournalingPage = lazy(() => import('./v2/pages/V2GuidedJournalingPage'));
+const V2SelfReflectionPage = lazy(() => import('./v2/pages/V2SelfReflectionPage'));
+const V2EmotionalPatternsPage = lazy(() => import('./v2/pages/V2EmotionalPatternsPage'));
+const V2SelfAwarenessPage = lazy(() => import('./v2/pages/V2SelfAwarenessPage'));
+const V2JournalingPromptsPage = lazy(() => import('./v2/pages/V2JournalingPromptsPage'));
+const V2HowToStartJournalingPage = lazy(() => import('./v2/pages/V2HowToStartJournalingPage'));
+const V2HowToPracticeSelfReflectionPage = lazy(() => import('./v2/pages/V2HowToPracticeSelfReflectionPage'));
+
 
 
 
@@ -419,6 +436,51 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/admin/psychoeducation-lab' || path === '/admin/psychoeducation-lab/' || path.startsWith('/admin/psychoeducation-lab')) {
         setCurrentRoute('psychoeducation-lab');
         window.scrollTo(0, 0);
+      } else if (path === '/v2' || path === '/v2/') {
+        setCurrentRoute('v2-home');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/what-it-is' || path === '/v2/what-it-is/') {
+        setCurrentRoute('v2-what-it-is');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/how-it-works' || path === '/v2/how-it-works/') {
+        setCurrentRoute('v2-how-it-works');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/about' || path === '/v2/about/') {
+        setCurrentRoute('v2-about');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/pricing' || path === '/v2/pricing/') {
+        setCurrentRoute('v2-pricing');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/faq' || path === '/v2/faq/') {
+        setCurrentRoute('v2-faq');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/contact' || path === '/v2/contact/') {
+        setCurrentRoute('v2-contact');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/ai-data' || path === '/v2/ai-data/') {
+        setCurrentRoute('v2-ai-data');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/guided-journaling' || path === '/v2/guided-journaling/') {
+        setCurrentRoute('v2-guided-journaling');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/self-reflection' || path === '/v2/self-reflection/') {
+        setCurrentRoute('v2-self-reflection');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/emotional-patterns' || path === '/v2/emotional-patterns/') {
+        setCurrentRoute('v2-emotional-patterns');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/self-awareness' || path === '/v2/self-awareness/') {
+        setCurrentRoute('v2-self-awareness');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/journaling-prompts-for-self-discovery' || path === '/v2/journaling-prompts-for-self-discovery/') {
+        setCurrentRoute('v2-journaling-prompts-for-self-discovery');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/how-to-start-journaling' || path === '/v2/how-to-start-journaling/') {
+        setCurrentRoute('v2-how-to-start-journaling');
+        window.scrollTo(0, 0);
+      } else if (path === '/v2/how-to-practice-self-reflection' || path === '/v2/how-to-practice-self-reflection/') {
+        setCurrentRoute('v2-how-to-practice-self-reflection');
+        window.scrollTo(0, 0);
       } else if (path === '/' || path === '') {
         setCurrentRoute('home');
         // Handle section scroll deep link (e.g. /#auth -> scroll to auth section)
@@ -578,6 +640,39 @@ export default function App({ initialRoute = 'home' }) {
         return <LandingPage onOpenPolicy={handleOpenPolicy} />;
       case 'psychoeducation-lab':
         return <PsychoeducationLabPage />;
+
+      // Ingress Within V2 Experiences
+      case 'v2-home':
+        return <V2LandingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-what-it-is':
+        return <V2WhatItIsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-how-it-works':
+        return <V2HowItWorksPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-about':
+        return <V2AboutPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-pricing':
+        return <V2PricingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-faq':
+        return <V2FaqPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-contact':
+        return <V2ContactPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-ai-data':
+        return <V2AiDataPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-guided-journaling':
+        return <V2GuidedJournalingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-self-reflection':
+        return <V2SelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-emotional-patterns':
+        return <V2EmotionalPatternsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-self-awareness':
+        return <V2SelfAwarenessPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-journaling-prompts-for-self-discovery':
+        return <V2JournalingPromptsPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-how-to-start-journaling':
+        return <V2HowToStartJournalingPage onOpenPolicy={handleOpenPolicy} />;
+      case 'v2-how-to-practice-self-reflection':
+        return <V2HowToPracticeSelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
+
       case 'not-found':
         return <NotFoundPage user={user} profile={profile} />;
       case 'home':

@@ -1,0 +1,109 @@
+/* Ingress Within V2 Design System Styles */
+
+:root {
+  --v2-bg-paper: #FAF8F5;
+  --v2-bg-surface: #FFFFFF;
+  --v2-bg-tint-sage: #EBF1ED;
+  --v2-bg-tint-clay: #F7EFEA;
+  --v2-bg-tint-fog: #EEF3F7;
+  --v2-bg-tint-gold: #F6EFE2;
+  
+  --v2-ink-primary: #1A2421;
+  --v2-ink-deep: #25332F;
+  --v2-ink-muted: #5E706A;
+  --v2-ink-faint: #8E9E98;
+  
+  --v2-border-delicate: #E7E0D3;
+  --v2-border-light: #EEE9DE;
+  
+  --v2-accent-forest: #1E3633;
+  --v2-accent-forest-hover: #2B4B47;
+  --v2-accent-sage: #758D7E;
+  --v2-accent-clay: #B69186;
+  --v2-accent-gold: #B8964A;
+  --v2-accent-fog: #8FA0AF;
+}
+
+.v2-container {
+  width: min(1200px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.v2-reading-container {
+  width: min(780px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+/* Atmospheric Watercolor & Grain Backgrounds */
+.v2-hero-atmosphere {
+  background: 
+    radial-gradient(ellipse 700px 480px at 90% -10%, rgba(217, 188, 175, 0.35), transparent 70%),
+    radial-gradient(ellipse 650px 420px at 5% 105%, rgba(138, 166, 136, 0.28), transparent 65%),
+    radial-gradient(ellipse 500px 350px at 50% 45%, rgba(191, 202, 215, 0.2), transparent 70%),
+    #FAF8F5;
+}
+
+.v2-section-atmosphere-subtle {
+  background: 
+    radial-gradient(ellipse 800px 450px at 10% -10%, rgba(235, 241, 237, 0.6), transparent 70%),
+    #FAF8F5;
+}
+
+/* Subtle Architectural Grid Lines & Markers */
+.v2-grid-border {
+  border: 1px solid var(--v2-border-delicate);
+}
+
+.v2-line-divider {
+  position: relative;
+  width: 100%;
+  height: 1px;
+  background-color: var(--v2-border-delicate);
+}
+
+.v2-dot-marker {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--v2-accent-forest);
+  display: inline-block;
+}
+
+.v2-card-shadow {
+  box-shadow: 0 10px 30px -10px rgba(26, 36, 33, 0.06), 0 2px 8px -2px rgba(26, 36, 33, 0.04);
+}
+
+.v2-mockup-shadow {
+  box-shadow: 
+    0 25px 60px -15px rgba(30, 54, 51, 0.12),
+    0 10px 25px -5px rgba(26, 36, 33, 0.06),
+    0 0 0 1px rgba(231, 224, 211, 0.8);
+}
+
+/* Micro-interaction transitions */
+.v2-smooth-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v2-smooth-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* Custom scrollbar for V2 */
+.v2-custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.v2-custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(231, 224, 211, 0.3);
+}
+
+.v2-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(117, 141, 126, 0.35);
+  border-radius: 999px;
+}
+
+.v2-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 54, 51, 0.5);
+}

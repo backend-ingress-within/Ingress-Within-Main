@@ -18,10 +18,26 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'journaling-prompts-for-self-discovery',
   'how-to-start-journaling',
   'how-to-practice-self-reflection',
+  'v2',
+  'v2/what-it-is',
+  'v2/how-it-works',
+  'v2/about',
+  'v2/pricing',
+  'v2/faq',
+  'v2/contact',
+  'v2/ai-data',
+  'v2/guided-journaling',
+  'v2/self-reflection',
+  'v2/emotional-patterns',
+  'v2/self-awareness',
+  'v2/journaling-prompts-for-self-discovery',
+  'v2/how-to-start-journaling',
+  'v2/how-to-practice-self-reflection',
 ]);
 
 function isKnownRoute(rawPath) {
   if (!rawPath || KNOWN_PUBLIC_ROUTES.has(rawPath)) return true;
+  if (rawPath.startsWith('v2')) return true;
   if (rawPath === 'auth') return true;
   if (
     rawPath.startsWith('onboarding') ||
@@ -85,6 +101,22 @@ export function generateStaticParams() {
     { slug: ['journaling-prompts-for-self-discovery'] },
     { slug: ['how-to-start-journaling'] },
     { slug: ['how-to-practice-self-reflection'] },
+    { slug: ['v2'] },
+    { slug: ['v2', 'what-it-is'] },
+    { slug: ['v2', 'how-it-works'] },
+    { slug: ['v2', 'about'] },
+    { slug: ['pricing'] },
+    { slug: ['v2', 'pricing'] },
+    { slug: ['v2', 'faq'] },
+    { slug: ['v2', 'contact'] },
+    { slug: ['v2', 'ai-data'] },
+    { slug: ['v2', 'guided-journaling'] },
+    { slug: ['v2', 'self-reflection'] },
+    { slug: ['v2', 'emotional-patterns'] },
+    { slug: ['v2', 'self-awareness'] },
+    { slug: ['v2', 'journaling-prompts-for-self-discovery'] },
+    { slug: ['v2', 'how-to-start-journaling'] },
+    { slug: ['v2', 'how-to-practice-self-reflection'] },
   ];
 }
 
@@ -115,6 +147,8 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'contact') initialRoute = 'contact';
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
   else if (rawPath === 'auth') initialRoute = 'auth';
+  else if (rawPath === 'v2') initialRoute = 'v2-home';
+  else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;
 
   return <AppClient initialRoute={initialRoute} />;

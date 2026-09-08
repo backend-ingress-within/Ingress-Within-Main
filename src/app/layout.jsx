@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import StructuredData from "../components/seo/StructuredData";
 import '../index.css';
+import '../v2/styles/v2.css';
 
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],

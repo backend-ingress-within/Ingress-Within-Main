@@ -18,52 +18,56 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
     ? slug.join('/').toLowerCase()
     : (typeof slug === 'string' ? slug.toLowerCase() : '');
 
-  if (!rawPath || rawPath === '') {
+  const normalizedPath = rawPath.startsWith('v2/')
+    ? rawPath.slice(3)
+    : (rawPath === 'v2' ? '' : rawPath);
+
+  if (!normalizedPath || normalizedPath === '') {
     routeKey = 'home';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'what-it-is') {
+  } else if (normalizedPath === 'what-it-is') {
     routeKey = 'whatItIs';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'guided-journaling') {
+  } else if (normalizedPath === 'guided-journaling') {
     routeKey = 'guidedJournaling';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'self-reflection') {
+  } else if (normalizedPath === 'self-reflection') {
     routeKey = 'selfReflection';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'emotional-patterns') {
+  } else if (normalizedPath === 'emotional-patterns') {
     routeKey = 'emotionalPatterns';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'self-awareness') {
+  } else if (normalizedPath === 'self-awareness') {
     routeKey = 'selfAwareness';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'journaling-prompts-for-self-discovery') {
+  } else if (normalizedPath === 'journaling-prompts-for-self-discovery') {
     routeKey = 'journalingPrompts';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'how-to-start-journaling') {
+  } else if (normalizedPath === 'how-to-start-journaling') {
     routeKey = 'howToStartJournaling';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'how-to-practice-self-reflection') {
+  } else if (normalizedPath === 'how-to-practice-self-reflection') {
     routeKey = 'howToPracticeSelfReflection';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'how-it-works') {
+  } else if (normalizedPath === 'how-it-works') {
     routeKey = 'howItWorks';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'about') {
+  } else if (normalizedPath === 'about') {
     routeKey = 'about';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'pricing') {
+  } else if (normalizedPath === 'pricing') {
     routeKey = 'pricing';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'faq') {
+  } else if (normalizedPath === 'faq') {
     routeKey = 'faq';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'ai-data') {
+  } else if (normalizedPath === 'ai-data') {
     routeKey = 'aiData';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'contact') {
+  } else if (normalizedPath === 'contact') {
     routeKey = 'contact';
     isKnownPublicRoute = true;
-  } else if (rawPath === 'auth') {
+  } else if (normalizedPath === 'auth') {
     routeKey = 'auth';
     isKnownPublicRoute = true;
   }
