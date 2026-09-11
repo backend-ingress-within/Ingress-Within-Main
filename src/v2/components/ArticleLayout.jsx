@@ -43,40 +43,44 @@ export default function ArticleLayout({ page, onOpenPolicy }) {
 
       <V2Navbar currentPath={`/v2/${page.slug}`} />
 
-      {/* Article Header */}
-      <div className="w-full max-w-4xl mx-auto px-6 pt-16 pb-12 text-center space-y-6">
-        <SectionLabel text={page.category} number="ESSAY" />
-        <h1 className="text-3xl sm:text-5xl font-serif text-[#1A2421] tracking-tight leading-tight max-w-3xl mx-auto">
-          {page.title}
-        </h1>
-        <div className="flex items-center justify-center gap-4 text-xs font-mono text-[#7D8E87]">
-          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {page.readTime}</span>
-          <span>·</span>
-          <span>INGRESS WITHIN EDITORIAL</span>
+      {/* Article Hero Header Cover */}
+      <section className="min-h-[50vh] xl:min-h-[55vh] w-full flex flex-col justify-center items-center py-20 px-6 border-b border-[#E7E0D3] v2-hero-atmosphere text-center">
+        <div className="w-full max-w-4xl mx-auto space-y-6">
+          <SectionLabel text={page.category} number="ESSAY" />
+          <h1 className="text-3xl sm:text-5xl xl:text-6xl font-serif text-[#1A2421] tracking-tight leading-tight max-w-3xl mx-auto">
+            {page.title}
+          </h1>
+          <div className="flex items-center justify-center gap-4 text-xs font-mono text-[#7D8E87]">
+            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {page.readTime}</span>
+            <span>·</span>
+            <span>INGRESS WITHIN EDITORIAL</span>
+            <span>·</span>
+            <span className="font-serif italic text-sm text-[#1E3633]">Understand. Grow. Continue.</span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Article Body Grid */}
-      <div className="w-full max-w-5xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 pb-20">
+      <div className="w-full max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 py-20">
         {/* Left / Sidebar Table of Contents */}
         <div className="hidden lg:block lg:col-span-4 sticky top-28 self-start space-y-6">
           <TableOfContents sections={page.sections} />
-          <div className="p-5 rounded-2xl bg-white border border-[#E7E0D3] space-y-3">
-            <h5 className="font-serif text-sm font-semibold text-[#1A2421]">Begin your inquiry</h5>
+          <div className="p-6 rounded-2xl bg-white border border-[#E7E0D3] space-y-3 shadow-xs">
+            <h5 className="font-serif text-base font-semibold text-[#1A2421]">Begin your inquiry</h5>
             <p className="text-xs text-[#5E706A] leading-relaxed">
-              Explore your emotional patterns and recurring loops in a private, structured journal.
+              Explore your emotional patterns and recurring cognitive loops in a private, structured journal.
             </p>
             <V2Button href="/v2/contact" size="sm" className="w-full">
-              Begin your reflection
+              Begin your reflection →
             </V2Button>
           </div>
         </div>
 
         {/* Main Content Body */}
-        <main className="lg:col-span-8 space-y-10">
+        <main className="lg:col-span-8 space-y-12">
           {/* Lede / Intro box */}
-          <div className="p-6 sm:p-8 rounded-2xl bg-white border border-[#E7E0D3] shadow-xs">
-            <p className="font-serif italic text-base sm:text-lg text-[#25332F] leading-relaxed">
+          <div className="p-8 sm:p-10 rounded-2xl bg-white border border-[#E7E0D3] shadow-xs">
+            <p className="font-serif italic text-lg sm:text-xl text-[#25332F] leading-relaxed">
               {page.intro}
             </p>
           </div>
@@ -104,19 +108,19 @@ export default function ArticleLayout({ page, onOpenPolicy }) {
           </div>
 
           {/* Pull Quote Callout */}
-          <div className="my-10 p-6 sm:p-8 rounded-2xl bg-[#EBF1ED] border border-[#D5E2D9] text-center space-y-2">
+          <div className="my-10 p-8 sm:p-10 rounded-2xl bg-[#EBF1ED] border border-[#D5E2D9] text-center space-y-3">
             <span className="font-mono text-[10.5px] uppercase tracking-wider text-[#1E3633] font-semibold">
               CORE PRINCIPLE
             </span>
-            <p className="font-serif text-lg sm:text-xl text-[#1E3633] italic leading-snug">
+            <p className="font-serif text-xl sm:text-2xl text-[#1E3633] italic leading-snug">
               "Clarity does not come from eradicating feelings; it comes from having the quiet courage to accurately describe them."
             </p>
           </div>
 
           {/* Bottom Article Actions */}
-          <div className="p-6 rounded-2xl bg-white border border-[#E7E0D3] flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <h5 className="font-serif text-sm font-semibold text-[#1A2421]">Found this reflection useful?</h5>
+          <div className="p-8 rounded-2xl bg-white border border-[#E7E0D3] flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xs">
+            <div className="space-y-1">
+              <h5 className="font-serif text-base font-semibold text-[#1A2421]">Found this reflection useful?</h5>
               <p className="text-xs text-[#5E706A]">Carry these insights into your daily journaling practice.</p>
             </div>
             <V2Button href="/v2/contact" size="sm">
@@ -127,29 +131,31 @@ export default function ArticleLayout({ page, onOpenPolicy }) {
       </div>
 
       {/* Related Reading Section */}
-      <div className="w-full max-w-5xl mx-auto px-6 pt-8 pb-16 border-t border-[#E7E0D3]">
-        <SectionLabel text="CONTINUE EXPLORING" number="RELATED ESSAYS" align="left" className="mb-6" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {otherPages.map((op) => (
-            <div
-              key={op.slug}
-              className="p-6 rounded-2xl bg-white border border-[#E7E0D3] shadow-xs flex flex-col justify-between space-y-3 hover:border-[#1E3633] transition-all"
-            >
-              <div className="space-y-1">
-                <span className="font-mono text-[10px] text-[#758D7E] uppercase font-semibold">{op.category}</span>
-                <h4 className="font-serif text-base font-semibold text-[#1A2421]">{op.shortTitle}</h4>
-              </div>
-              <a
-                href={`/v2/${op.slug}`}
-                onClick={(e) => handleNavClick(`/v2/${op.slug}`, e)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E3633] hover:underline cursor-pointer"
+      <section className="min-h-[50vh] w-full flex flex-col justify-center items-center py-20 px-6 bg-white border-t border-[#E7E0D3]">
+        <div className="w-full max-w-6xl mx-auto space-y-8">
+          <SectionLabel text="CONTINUE EXPLORING" number="RELATED ESSAYS" align="left" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {otherPages.map((op) => (
+              <div
+                key={op.slug}
+                className="p-8 rounded-2xl bg-[#FAF8F5] border border-[#E7E0D3] shadow-xs flex flex-col justify-between space-y-4 hover:border-[#1E3633] transition-all"
               >
-                Read essay <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          ))}
+                <div className="space-y-2">
+                  <span className="font-mono text-[10px] text-[#758D7E] uppercase font-semibold">{op.category}</span>
+                  <h4 className="font-serif text-lg font-semibold text-[#1A2421]">{op.shortTitle}</h4>
+                </div>
+                <a
+                  href={`/v2/${op.slug}`}
+                  onClick={(e) => handleNavClick(`/v2/${op.slug}`, e)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E3633] hover:underline cursor-pointer pt-2"
+                >
+                  Read essay <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
       <V2Footer onOpenPolicy={onOpenPolicy} />
     </div>
