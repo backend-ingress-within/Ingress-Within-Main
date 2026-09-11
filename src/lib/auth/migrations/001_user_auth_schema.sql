@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     onboarding_completed BOOLEAN DEFAULT false,
     notifications_completed BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- 3b. EXPLICIT USER BOUNDARY VIEWS (Semantic separation from future therapist tables)
