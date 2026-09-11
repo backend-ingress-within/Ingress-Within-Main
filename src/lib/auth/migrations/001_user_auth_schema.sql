@@ -27,6 +27,17 @@ CREATE TABLE IF NOT EXISTS public.users (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Ensure all columns exist on public.users (in case table was previously created)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS account_status VARCHAR(50) DEFAULT 'active';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS sustained_distress_flag BOOLEAN DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS crisis_flag_active BOOLEAN DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS personality_summary_text TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- Unique index on active canonical phone numbers
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_active_phone 
 ON public.users (phone_number) 
@@ -48,6 +59,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure all columns exist on public.profiles (in case table was previously created)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS account_status VARCHAR(50) DEFAULT 'active';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS onboarding_status VARCHAR(50) DEFAULT 'pending';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS consent_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS orientation_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS assessment_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- 3b. EXPLICIT USER BOUNDARY VIEWS (Semantic separation from future therapist tables)
 CREATE OR REPLACE VIEW public.user_accounts AS 
@@ -72,6 +97,16 @@ CREATE TABLE IF NOT EXISTS public.otp_verifications (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS otp_hash TEXT;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS salt TEXT;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS attempts_count INT DEFAULT 0;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS resend_count INT DEFAULT 0;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE public.otp_verifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_otp_verifications_phone_active
 ON public.otp_verifications (phone_number, created_at DESC);
 
@@ -91,6 +126,17 @@ CREATE TABLE IF NOT EXISTS public.user_sessions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS refresh_token_hash TEXT;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS device_id VARCHAR(150);
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS device_name VARCHAR(150) DEFAULT 'Browser';
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50);
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS session_state JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_user_sessions_lookup
 ON public.user_sessions (user_id, device_id, is_active);
 
@@ -108,6 +154,13 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS user_id UUID;
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(100);
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50);
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 -- 7. ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
