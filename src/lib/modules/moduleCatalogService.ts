@@ -257,6 +257,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M18-C01', 'M18-C02', 'M18-C03'],
     created_at: '2026-09-11T00:00:00.000Z',
     updated_at: '2026-09-11T00:00:00.000Z'
+  },
+  {
+    id: 'M19',
+    slug: 'performance-achievement-anxiety',
+    name: 'Performance & Achievement Anxiety',
+    description: 'A structured psychoeducation framework addressing performance pressure, exam stress, fear of failure, and imposter syndrome using CBT, ACT defusion, Systematic Desensitization, Applied Relaxation, VIA character strengths, and Compassion-Focused Therapy.',
+    price: 349.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 9,
+    taxonomy_concerns: ['M19-C01', 'M19-C02', 'M19-C03', 'M19-C04'],
+    created_at: '2026-09-11T00:00:00.000Z',
+    updated_at: '2026-09-11T00:00:00.000Z'
   }
 ];
 

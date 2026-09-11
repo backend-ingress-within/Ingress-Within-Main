@@ -296,6 +296,7 @@ export default function ModulePlayerPage({ moduleId: propModuleId, testMode = fa
             content={moduleContent}
             weekIdx={playerState.weekIdx}
             playerState={playerState}
+            updateState={updateState}
             onBackToWeekList={() => updateState({ view: 'week_list' })}
             onSelectTouch={(touchId) => updateState({ view: 'touch_view', touchId, touchStep: 'relate' })}
             onOpenMhpiWeekly={() => updateState({ view: 'mhpi_weekly' })}

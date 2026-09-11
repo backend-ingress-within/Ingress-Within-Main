@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Brain, Check, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, Brain, Check, Sparkles, AlertTriangle } from 'lucide-react';
 
-export default function ModuleWeekView({ content, weekIdx, playerState, onBackToWeekList, onSelectTouch, onOpenMhpiWeekly }) {
+export default function ModuleWeekView({ content, weekIdx, playerState, updateState, onBackToWeekList, onSelectTouch, onOpenMhpiWeekly }) {
   const weeks = content?.weeks || [];
   const safeWeekIdx = Math.max(0, Math.min(weekIdx || 0, (weeks.length || 1) - 1));
   const week = weeks[safeWeekIdx] || weeks[0];
   const completedTouches = playerState?.completedTouches || [];
 
-  const [showRetrievalReveal, setShowRetrievalReveal] = useState(false);
+  const rcKey = `rc_w${week?.num || 0}`;
+  const savedRcAnswers = playerState?.userAnswers?.[rcKey] || {};
+  const [rcAnswers, setRcAnswers] = useState({
+    prompt1: savedRcAnswers.prompt1 || '',
+    prompt2: savedRcAnswers.prompt2 || ''
+  });
+  const [showRetrievalReveal, setShowRetrievalReveal] = useState(
+    Boolean(savedRcAnswers.submitted || completedTouches.includes(rcKey))
+  );
+  const [rcEscalationWarning, setRcEscalationWarning] = useState(null);
+
+  useEffect(() => {
+    const currentSaved = playerState?.userAnswers?.[`rc_w${week?.num || 0}`] || {};
+    setRcAnswers({
+      prompt1: currentSaved.prompt1 || '',
+      prompt2: currentSaved.prompt2 || ''
+    });
+    setShowRetrievalReveal(Boolean(currentSaved.submitted || completedTouches.includes(`rc_w${week?.num || 0}`)));
+    setRcEscalationWarning(null);
+  }, [weekIdx, week?.num]);
 
   if (!week) return null;
 
@@ -15,6 +34,59 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
   const weekCompletedCount = touches.filter(t => completedTouches.includes(t.id)).length;
   const isWeekTouchesDone = weekCompletedCount === touches.length && touches.length > 0;
   const isMhpiWeeklyDone = completedTouches.includes(`mhpi_w${week.num}`);
+
+  // Safety escalation offline scan helper for retrieval answers
+  const checkTextEscalation = (text) => {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    const t1 = [
+      "kill myself", "end my life", "suicide", "don't want to live",
+      "can't face them if i fail", "if this exam doesn't work out there's no point going on",
+      "have a way to end it", "point in living if i fail", "better off dead if i don't clear"
+    ];
+    const t2 = [
+      "worthless", "fundamental failure", "everyone better off without me",
+      "completely hopeless", "unable to function", "cannot face family"
+    ];
+    for (const w of t1) {
+      if (lower.includes(w)) {
+        return "Support Notice: Your safety is our highest priority. Please contact KIRAN (1800-599-0019) or TeleMANAS (14416) immediately.";
+      }
+    }
+    for (const w of t2) {
+      if (lower.includes(w)) {
+        return "Notice: You expressed deep distress. Please remember you can talk to a licensed therapist or loved one.";
+      }
+    }
+    return null;
+  };
+
+  const handleRcSubmit = () => {
+    const combinedText = `${rcAnswers.prompt1} ${rcAnswers.prompt2}`;
+    const warning = checkTextEscalation(combinedText);
+    setRcEscalationWarning(warning);
+    setShowRetrievalReveal(true);
+
+    if (updateState) {
+      updateState(prev => {
+        const updatedTouches = Array.from(new Set([...(prev.completedTouches || []), rcKey]));
+        return {
+          ...prev,
+          persistentBanner: warning ? 'tier1' : prev.persistentBanner,
+          completedTouches: updatedTouches,
+          userAnswers: {
+            ...prev.userAnswers,
+            [rcKey]: {
+              prompt1: rcAnswers.prompt1,
+              prompt2: rcAnswers.prompt2,
+              submitted: true,
+              submittedAt: new Date().toISOString()
+            }
+          }
+        };
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -37,30 +109,82 @@ export default function ModuleWeekView({ content, weekIdx, playerState, onBackTo
         </span>
       </div>
 
-      {/* Retrieval Check Banner (if present) */}
+      {/* Retrieval Check Interactive Form (if present) */}
       {week.retrievalCheck && (
-        <div className="bg-white-paper border border-accent/25 rounded-2xl p-5 sm:p-6 space-y-3 shadow-xs">
+        <div className="bg-white-paper border border-accent/25 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
           <div className="text-[11px] uppercase tracking-widest text-accent font-bold flex items-center gap-2">
             <Brain size={14} />
-            <span>Retrieval Check — Review before continuing</span>
+            <span>Retrieval Check — Review & Recall</span>
           </div>
-          <div className="space-y-2 text-xs sm:text-sm text-primary/90 font-medium leading-relaxed">
-            <p>1. {week.retrievalCheck.prompt1}</p>
-            <p>2. {week.retrievalCheck.prompt2}</p>
+
+          {/* Safety Escalation Warning if triggered in retrieval */}
+          {rcEscalationWarning && (
+            <div className="p-4 bg-error-subtle border border-error/30 rounded-xl text-xs text-error space-y-1.5 shadow-xs">
+              <span className="font-semibold text-error flex items-center gap-1.5">
+                <AlertTriangle size={14} />
+                <span>Safety Resource Notification</span>
+              </span>
+              <p className="leading-relaxed">{rcEscalationWarning}</p>
+            </div>
+          )}
+
+          {/* Prompt 1 */}
+          <div className="space-y-1.5">
+            <label className="text-xs sm:text-sm font-semibold text-primary block leading-relaxed">
+              1. {week.retrievalCheck.prompt1}
+            </label>
+            <textarea
+              value={rcAnswers.prompt1}
+              onChange={(e) => setRcAnswers(prev => ({ ...prev, prompt1: e.target.value }))}
+              placeholder="In your own words, without looking back..."
+              rows={3}
+              maxLength={4000}
+              disabled={showRetrievalReveal}
+              className="w-full bg-warm-paper border border-primary/15 focus:border-accent focus:ring-1 focus:ring-accent/20 rounded-xl p-3.5 text-xs sm:text-sm text-primary placeholder-mid/40 outline-none leading-relaxed shadow-xs disabled:opacity-85"
+            />
           </div>
+
+          {/* Prompt 2 */}
+          <div className="space-y-1.5">
+            <label className="text-xs sm:text-sm font-semibold text-primary block leading-relaxed">
+              2. {week.retrievalCheck.prompt2}
+            </label>
+            <textarea
+              value={rcAnswers.prompt2}
+              onChange={(e) => setRcAnswers(prev => ({ ...prev, prompt2: e.target.value }))}
+              placeholder="In your own words, without looking back..."
+              rows={3}
+              maxLength={4000}
+              disabled={showRetrievalReveal}
+              className="w-full bg-warm-paper border border-primary/15 focus:border-accent focus:ring-1 focus:ring-accent/20 rounded-xl p-3.5 text-xs sm:text-sm text-primary placeholder-mid/40 outline-none leading-relaxed shadow-xs disabled:opacity-85"
+            />
+          </div>
+
+          {/* Reveal & Recall Key */}
           {showRetrievalReveal ? (
-            <div className="p-4 bg-warm-paper border border-secondary/40 rounded-xl text-xs sm:text-sm text-mid space-y-1 leading-relaxed">
-              <span className="font-semibold text-primary block">Key Takeaway & Recall:</span>
-              {week.retrievalCheck.reveal}
+            <div className="p-4 sm:p-5 bg-warm-paper border border-secondary/40 rounded-xl text-xs sm:text-sm text-mid space-y-1.5 leading-relaxed">
+              <span className="font-semibold text-primary block flex items-center gap-1.5 text-accent">
+                <Check size={14} />
+                <span>Key Takeaway & Recall Model:</span>
+              </span>
+              <p className="font-serif text-primary/85 leading-relaxed">{week.retrievalCheck.reveal}</p>
             </div>
           ) : (
-            <button
-              onClick={() => setShowRetrievalReveal(true)}
-              className="text-xs font-semibold text-accent hover:underline cursor-pointer flex items-center gap-1 pt-1"
-            >
-              <span>Show Model Answer / Recall Key</span>
-              <ArrowRight size={12} />
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleRcSubmit}
+                disabled={!rcAnswers.prompt1.trim() && !rcAnswers.prompt2.trim()}
+                className={`py-3 px-5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                  rcAnswers.prompt1.trim() || rcAnswers.prompt2.trim()
+                    ? 'bg-accent hover:bg-[#654652] active:bg-[#533842] text-white cursor-pointer'
+                    : 'bg-warm-paper border border-primary/15 text-mid/50 cursor-not-allowed'
+                }`}
+              >
+                <span>Submit & View Recall Key</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
           )}
         </div>
       )}
