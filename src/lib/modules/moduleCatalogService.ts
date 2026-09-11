@@ -243,6 +243,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M17-C01', 'M17-C02'],
     created_at: '2026-09-11T00:00:00.000Z',
     updated_at: '2026-09-11T00:00:00.000Z'
+  },
+  {
+    id: 'M18',
+    slug: 'pressure-burnout',
+    name: 'Pressure & Burnout',
+    description: 'A structured psychoeducation framework addressing work stress, burnout exhaustion and cynicism, overwork culture, and work-life boundaries using CBT, Applied Relaxation, ACT, Social Problem-Solving, Behavioural Activation, Maslach Burnout framework, and Compassion-Focused Therapy.',
+    price: 349.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 7,
+    taxonomy_concerns: ['M18-C01', 'M18-C02', 'M18-C03'],
+    created_at: '2026-09-11T00:00:00.000Z',
+    updated_at: '2026-09-11T00:00:00.000Z'
   }
 ];
 

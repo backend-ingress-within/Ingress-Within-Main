@@ -82,7 +82,11 @@ export default function ModuleWeekList({ catalog, content, playerState, onSelect
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-mid">
-                    <span>Mechanism: <strong className="text-primary font-semibold">{week.mechanism}</strong></span>
+                    <span>Mechanism: <strong className="text-primary font-semibold">{
+                      week.mechanism === 'both'
+                        ? (content?.brief?.mechanisms?.map(m => m.short || m.name).join(' & ') || 'All Mechanisms')
+                        : (content?.brief?.mechanisms?.find(m => m.key === week.mechanism)?.name || week.mechanism)
+                    }</strong></span>
                     <span>•</span>
                     <span>{weekTouches.length} Touches</span>
                   </div>

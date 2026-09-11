@@ -16,6 +16,7 @@ import { MODULE_14_CONTENT } from './content/module14Data';
 import { MODULE_15_CONTENT } from './content/module15Data';
 import { MODULE_16_CONTENT } from './content/module16Data';
 import { MODULE_17_CONTENT } from './content/module17Data';
+import { MODULE_18_CONTENT } from './content/module18Data';
 
 /**
  * Registry of active module content datasets.
@@ -54,7 +55,9 @@ const MODULE_CONTENT_REGISTRY: Record<string, ModuleContent> = {
   'M16': MODULE_16_CONTENT,
   'arranged-long-distance-realities': MODULE_16_CONTENT,
   'M17': MODULE_17_CONTENT,
-  'communication-intimacy': MODULE_17_CONTENT
+  'communication-intimacy': MODULE_17_CONTENT,
+  'M18': MODULE_18_CONTENT,
+  'pressure-burnout': MODULE_18_CONTENT
 };
 
 export class ModuleContentService {
@@ -99,7 +102,8 @@ export class ModuleContentService {
       MODULE_14_CONTENT,
       MODULE_15_CONTENT,
       MODULE_16_CONTENT,
-      MODULE_17_CONTENT
+      MODULE_17_CONTENT,
+      MODULE_18_CONTENT
     ];
   }
 
