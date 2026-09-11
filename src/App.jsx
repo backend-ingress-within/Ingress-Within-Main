@@ -540,7 +540,9 @@ export default function App({ initialRoute = 'home' }) {
   }, []);
 
   const renderPage = () => {
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const path = typeof window !== 'undefined' 
+      ? window.location.pathname 
+      : (currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`);
     const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
     if (isProtectedRoute && (!authChecked || isLoading)) {
