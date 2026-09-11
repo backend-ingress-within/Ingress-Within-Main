@@ -17,9 +17,11 @@ export default function V2Footer({ onOpenPolicy }) {
           {/* Brand Column */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full border-[1.5px] border-[#8DBFB4] flex items-center justify-center bg-white/5 flex-shrink-0">
-                <div className="w-2 h-2 rounded-full bg-[#8DBFB4]" />
-              </div>
+              <img
+                src="/logo-mark-light.png"
+                alt="Ingress Within"
+                className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] flex-shrink-0"
+              />
               <div className="flex flex-col justify-center">
                 <span className="font-serif text-xl tracking-[0.01em] text-[#FAF8F5] font-normal leading-none">
                   ingress <span className="font-semibold text-[#8DBFB4]">within</span>

@@ -33,15 +33,17 @@ export default function V2Navbar({ currentPath = '/v2' }) {
         }`}
       >
         <div className="w-full max-w-6xl mx-auto px-6 flex items-center justify-between">
-          {/* Logo with official ring-and-dot mark and tagline */}
+          {/* Logo with original logo mark and tagline */}
           <a
             href="/v2"
             onClick={(e) => handleNavClick('/v2', e)}
             className="flex items-center gap-3 group cursor-pointer no-underline"
           >
-            <div className="w-8 h-8 rounded-full border-[1.5px] border-[#2E7A70] flex items-center justify-center bg-white shadow-2xs group-hover:border-[#1E3633] transition-colors flex-shrink-0">
-              <div className="w-2 h-2 rounded-full bg-[#2E7A70]" />
-            </div>
+            <img
+              src="/logo-mark-transparent.png"
+              alt="Ingress Within"
+              className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-105 flex-shrink-0"
+            />
             <div className="flex flex-col justify-center">
               <span className="font-serif tracking-[0.01em] text-xl text-[#1A2421] font-normal leading-none">
                 ingress <span className="font-semibold text-[#2E7A70]">within</span>

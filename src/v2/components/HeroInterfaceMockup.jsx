@@ -73,6 +73,11 @@ export default function HeroInterfaceMockup() {
       <div className="grid grid-cols-1 md:grid-cols-12 min-h-[480px]">
         {/* Left Sidebar */}
         <div className="hidden md:block md:col-span-3 border-r border-[#E7E0D3] bg-[#FAF8F5]/60 p-4 space-y-6">
+          <div className="flex items-center gap-2 px-3 py-1 mb-2">
+            <img src="/logo-mark-transparent.png" alt="Ingress Within" className="w-5 h-5 object-contain" />
+            <span className="font-serif text-sm text-[#1A2421]">ingress <em className="text-[#2E7A70] not-italic font-semibold">within</em></span>
+          </div>
+
           <div className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

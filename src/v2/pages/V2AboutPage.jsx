@@ -143,9 +143,11 @@ export default function V2AboutPage({ onOpenPolicy }) {
       {/* Section 4: Final CTA Section */}
       <section className="min-h-screen w-full flex flex-col justify-center items-center py-16 xl:py-24 px-6 bg-white">
         <div className="w-full max-w-4xl mx-auto text-center space-y-8 p-12 sm:p-16 rounded-3xl bg-[#FAF8F5] border border-[#E7E0D3]">
-          <div className="w-16 h-16 rounded-full border-[1.5px] border-[#2E7A70] flex items-center justify-center mx-auto bg-white shadow-xs">
-            <div className="w-4 h-4 rounded-full bg-[#1E3633]" />
-          </div>
+          <img
+            src="/logo-mark-transparent.png"
+            alt="Ingress Within"
+            className="w-16 h-16 object-contain mx-auto"
+          />
           
           <div className="space-y-3">
             <h2 className="text-3xl sm:text-5xl font-serif text-[#1A2421] tracking-tight">
