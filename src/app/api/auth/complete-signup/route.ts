@@ -8,6 +8,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { signup_token, name, device_id, device_name } = body;
 
+    // Reject any client attempts to supply account role or type
+    const FORBIDDEN_AUTH_KEYS = ['role', 'user_type', 'account_type', 'user_role', 'user_category'];
+    for (const key of FORBIDDEN_AUTH_KEYS) {
+      if (key in body) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'FORBIDDEN_ROLE_ASSIGNMENT',
+              message: 'Account role assignment cannot be supplied by the client.'
+            }
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // 1. Verify signup token
     if (!signup_token) {
       return NextResponse.json(

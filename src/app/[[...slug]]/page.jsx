@@ -4,6 +4,8 @@ import AppClient from './AppClient';
 
 const KNOWN_PUBLIC_ROUTES = new Set([
   '',
+  'user/login',
+  'user/auth',
   'login',
   'auth',
   'what-it-is',
@@ -89,6 +91,8 @@ export async function generateMetadata({ params }) {
 export function generateStaticParams() {
   return [
     { slug: [] },
+    { slug: ['user', 'login'] },
+    { slug: ['user', 'auth'] },
     { slug: ['login'] },
     { slug: ['auth'] },
     { slug: ['what-it-is'] },
@@ -136,7 +140,7 @@ export default async function CatchAllPage({ params }) {
   }
 
   let initialRoute = 'home';
-  if (rawPath === 'login' || rawPath === 'auth') initialRoute = 'login';
+  if (rawPath === 'user/login' || rawPath === 'user/auth' || rawPath === 'login' || rawPath === 'auth') initialRoute = 'login';
   else if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
   else if (rawPath === 'guided-journaling') initialRoute = 'guided-journaling';
   else if (rawPath === 'self-reflection') initialRoute = 'self-reflection';

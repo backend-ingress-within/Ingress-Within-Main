@@ -46,8 +46,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     onboarding_completed BOOLEAN DEFAULT false,
     notifications_completed BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- 3b. EXPLICIT USER BOUNDARY VIEWS (Semantic separation from future therapist tables)
+CREATE OR REPLACE VIEW public.user_accounts AS 
+SELECT id, id AS auth_user_id, phone_number, name, account_status, is_active, created_at, updated_at 
+FROM public.users;
+
+CREATE OR REPLACE VIEW public.user_profiles AS 
+SELECT id AS user_id, phone_number, full_name, account_status, onboarding_status, created_at, updated_at 
+FROM public.profiles;
 
 -- 4. OTP VERIFICATIONS TABLE (Server-side tracking & lockout)
 CREATE TABLE IF NOT EXISTS public.otp_verifications (

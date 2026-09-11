@@ -227,15 +227,15 @@ export default function App({ initialRoute = 'home' }) {
 
     if (isProtectedRoute) {
       if (!user) {
-        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /login. Reason: SESSION_INVALID');
-        window.navigateTo('/login');
+        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /user/login. Reason: SESSION_INVALID');
+        window.navigateTo('/user/login');
       } else if (profile) {
         // Authenticated user with profile
         if (path.startsWith('/onboarding') && profile.onboarding_completed) {
           window.navigateTo('/dashboard');
         }
       }
-    } else if ((path.startsWith('/auth') || path.startsWith('/login')) && user) {
+    } else if ((path.startsWith('/auth') || path.startsWith('/login') || path.startsWith('/user/login') || path.startsWith('/user/auth')) && user) {
       console.log('[App.jsx] Redirect Engine: Authenticated user attempting to access auth/login. Redirecting to dashboard.');
       window.navigateTo('/dashboard');
     }
@@ -302,7 +302,18 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/contact' || path === '/contact/') {
         setCurrentRoute('contact');
         window.scrollTo(0, 0);
-      } else if (path === '/login' || path === '/login/' || path.startsWith('/login') || path.startsWith('/auth')) {
+      } else if (
+        path === '/user/login' || 
+        path === '/user/login/' || 
+        path === '/user/auth' || 
+        path === '/user/auth/' || 
+        path.startsWith('/user/login') ||
+        path.startsWith('/user/auth') ||
+        path === '/login' || 
+        path === '/login/' || 
+        path.startsWith('/login') || 
+        path.startsWith('/auth')
+      ) {
         setCurrentRoute('login');
         window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {
