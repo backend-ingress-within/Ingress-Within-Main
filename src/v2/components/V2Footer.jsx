@@ -16,22 +16,24 @@ export default function V2Footer({ onOpenPolicy }) {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-12 pb-16 border-b border-[#2D3E3A]">
           {/* Brand Column */}
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full border border-white/20 flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-[#A5C0B3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.2" />
-                  <path d="M12 3 C16.97 3 21 7.03 21 12 C21 16.97 16.97 21 12 21 C7.03 21 3 16.97 3 12 C3 8 6 5 9 6" strokeLinecap="round" />
-                </svg>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border-[1.5px] border-[#8DBFB4] flex items-center justify-center bg-white/5 flex-shrink-0">
+                <div className="w-2 h-2 rounded-full bg-[#8DBFB4]" />
               </div>
-              <span className="font-serif text-lg tracking-tight text-[#FAF8F5] font-semibold">
-                INGRESS WITHIN
-              </span>
+              <div className="flex flex-col justify-center">
+                <span className="font-serif text-xl tracking-[0.01em] text-[#FAF8F5] font-normal leading-none">
+                  ingress <span className="font-semibold text-[#8DBFB4]">within</span>
+                </span>
+                <span className="font-sans text-[9px] font-medium tracking-[0.14em] text-[#A8D4CE] uppercase leading-tight mt-1">
+                  Understand. Grow. Continue
+                </span>
+              </div>
             </div>
             <p className="font-serif italic text-[#A5C0B3] text-sm leading-relaxed max-w-sm">
               "Whatever brings you here, you can start there."
             </p>
             <p className="text-xs text-[#8A9E97] leading-relaxed max-w-sm font-sans">
-              A calm, continuous psychological growth ecosystem bringing together self-guided inquiry, therapist collaboration, and structured self-understanding.
+              Guided journaling and longitudinal pattern recognition for self-understanding.
             </p>
           </div>
 

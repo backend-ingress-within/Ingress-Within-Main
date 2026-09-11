@@ -33,26 +33,21 @@ export default function V2Navbar({ currentPath = '/v2' }) {
         }`}
       >
         <div className="w-full max-w-6xl mx-auto px-6 flex items-center justify-between">
-          {/* Logo with Spiral / Constellation icon */}
+          {/* Logo with official ring-and-dot mark and tagline */}
           <a
             href="/v2"
             onClick={(e) => handleNavClick('/v2', e)}
-            className="flex items-center gap-3 group cursor-pointer"
+            className="flex items-center gap-3 group cursor-pointer no-underline"
           >
-            <div className="w-8 h-8 rounded-full border border-[#1A2421]/20 flex items-center justify-center bg-white shadow-2xs group-hover:border-[#1E3633] transition-colors">
-              <svg className="w-4 h-4 text-[#1E3633]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.2" />
-                <path d="M12 3 C16.97 3 21 7.03 21 12 C21 16.97 16.97 21 12 21 C7.03 21 3 16.97 3 12 C3 8 6 5 9 6" strokeLinecap="round" />
-                <circle cx="19" cy="6" r="1.5" fill="currentColor" />
-                <circle cx="5" cy="18" r="1.5" fill="currentColor" />
-              </svg>
+            <div className="w-8 h-8 rounded-full border-[1.5px] border-[#2E7A70] flex items-center justify-center bg-white shadow-2xs group-hover:border-[#1E3633] transition-colors flex-shrink-0">
+              <div className="w-2 h-2 rounded-full bg-[#2E7A70]" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-serif tracking-tight text-lg text-[#1A2421] font-semibold leading-none">
-                INGRESS WITHIN
+            <div className="flex flex-col justify-center">
+              <span className="font-serif tracking-[0.01em] text-xl text-[#1A2421] font-normal leading-none">
+                ingress <span className="font-semibold text-[#2E7A70]">within</span>
               </span>
-              <span className="font-mono text-[9px] tracking-[0.2em] text-[#7D8E87] uppercase mt-0.5">
-                V2 · SANCTUARY
+              <span className="font-sans text-[9px] font-medium tracking-[0.14em] text-[#4A6A64] uppercase leading-tight mt-1">
+                Understand. Grow. Continue
               </span>
             </div>
           </a>
