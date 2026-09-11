@@ -1,19 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { checkRateLimit } from '../../../../lib/rate-limit';
 import { getOtpProvider } from '../../../../providers/otpProvider';
 import { getClientIp } from '../../../../utils/ip';
-import { validateIndianPhone } from '../../../../lib/auth/phone';
-import { checkPhoneLockout } from '../../../../lib/auth/lockout';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     // 1. Parse payload
     const body = await request.json().catch(() => ({}));
     const { phone_number } = body;
 
-    // 2. Validate phone formatting (India-only +91 and 10 digits)
-    const phoneValidation = validateIndianPhone(phone_number);
-    if (!phoneValidation.isValid || !phoneValidation.canonicalPhone) {
+    // 2. Validate phone formatting (E.164 with +91 Indian prefix and 10 digits)
+    const phoneRegex = /^\+91[6-9]\d{9}$/;
+    if (!phone_number || !phoneRegex.test(phone_number)) {
       return NextResponse.json(
         {
           error: {
@@ -25,27 +23,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const canonicalPhone = phoneValidation.canonicalPhone;
-
-    // 3. Server-side Lockout Check (10-minute wait after 3 wrong attempts)
-    const lockout = await checkPhoneLockout(canonicalPhone);
-    if (lockout.isLocked) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'AUTH_LOCKOUT',
-            message: 'Too many incorrect attempts. Try again in 10 minutes.',
-            remaining_seconds: lockout.remainingSeconds
-          }
-        },
-        { status: 429 }
-      );
-    }
-
-    // 4. Rate Limit Check (IP-based and Phone-based)
+    // 3. Rate Limit Check (IP-based and Phone-based)
     const ipAddress = getClientIp(request);
-    const rateLimit = await checkRateLimit(canonicalPhone, ipAddress);
-
+    const rateLimit = await checkRateLimit(phone_number, ipAddress);
+    
     if (!rateLimit.allowed) {
       return NextResponse.json(
         {
@@ -58,27 +39,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Send OTP via configured provider (Zero account enumeration)
+    // 4. Send OTP via configured provider
     const provider = getOtpProvider();
-    const result = await provider.sendOtp(canonicalPhone, rateLimit.count + 1);
+    const result = await provider.sendOtp(phone_number, rateLimit.count + 1);
 
     if (!result.success) {
-      const status = result.code === 'AUTH_LOCKOUT' ? 429 : 500;
       return NextResponse.json(
         {
           error: {
-            code: result.code || 'NETWORK_ISSUE',
-            message: result.message || "We couldn't send the code. Check your connection and try again."
+            code: 'NETWORK_ISSUE',
+            message: result.message
           }
         },
-        { status }
+        { status: 500 }
       );
     }
 
-    // 6. Return success (Never expose OTP or account existence)
+    // 5. Return success
     return NextResponse.json({
       success: true,
-      message: 'Code sent successfully.',
+      message: result.message,
       resend_in_seconds: result.resendInSeconds || 30
     });
 
@@ -87,8 +67,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: {
-          code: 'NETWORK_ISSUE',
-          message: "We couldn't send the code. Check your connection and try again."
+          code: 'INTERNAL_ERROR',
+          message: 'An unexpected server error occurred.'
         }
       },
       { status: 500 }
