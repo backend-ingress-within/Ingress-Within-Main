@@ -15,26 +15,50 @@ export interface Milestone {
   isCompleted: boolean;
 }
 
+export type PatternLifecycleStatus = 'emerging' | 'active' | 'quiet' | 're_emerging';
+
 export interface PatternCard {
   id: string;
   name: string;
-  status: 'present' | 'shifting' | 'quiet' | 'new' | 'returned';
+  status: 'present' | 'shifting' | 'quiet' | 'new' | 'returned' | 'emerging' | 'active' | 're_emerging' | 'absent';
+  lifecycleStatus: PatternLifecycleStatus;
   body: string;
   meta: string;
   orientation: string;
   timeline: string[];
   firstAppeared: string;
+  firstObservedCycle: number;
+  lastActiveCycle: number;
+  quietSinceCycle?: number;
+  reEmergedCycle?: number;
+  historicalStrength: 'strong' | 'moderate' | 'emerging';
+  currentActivity: 'high' | 'moderate' | 'low';
+  confidence: number;
   totalOccurrences: number;
   connectedPatterns: string[];
+}
+
+export interface LifecycleGroup {
+  active: PatternCard[];
+  emerging: PatternCard[];
+  reEmerging: PatternCard[];
+  quiet: PatternCard[];
 }
 
 export interface PatternDetail {
   name: string;
   status: string;
+  lifecycleStatus: PatternLifecycleStatus;
   badgeClass: string;
   body: string;
   meta: string;
   orientation: string;
+  historicalStrength: 'strong' | 'moderate' | 'emerging';
+  currentActivity: 'high' | 'moderate' | 'low';
+  firstObservedCycle: number;
+  lastActiveCycle: number;
+  quietSinceCycle?: number;
+  reEmergedCycle?: number;
   connected: boolean;
   connectedBody: string;
   connectedLinks: { label: string; id: string }[];
@@ -49,6 +73,9 @@ export interface SummaryStrip {
   quiet: number;
   new: number;
   returned: number;
+  active?: number;
+  emerging?: number;
+  reEmerging?: number;
 }
 
 export interface ConnectedPattern {
@@ -65,10 +92,13 @@ export interface PatternTransition {
 
 export interface PatternOverview {
   patterns: PatternCard[];
+  lifecycle: LifecycleGroup;
+  hasHistoricalPatterns: boolean;
   summary: SummaryStrip;
   totalCyclesObserved: number;
   isAvailable: boolean;
   snapshots?: any[];
+  userState?: PatternUserState;
 }
 
 export type PatternUserStateType = 'new_user' | 'backfill_pending' | 'active';
@@ -92,6 +122,25 @@ export class PatternIntelligenceService {
   /**
    * Generates a unique URL-friendly slug/id for a pattern name.
    */
+  /**
+   * Evaluates historical strength based on total occurrences and cycle observation depth.
+   */
+  public static calculateHistoricalStrength(occurrences: number, cyclesObserved: number): 'strong' | 'moderate' | 'emerging' {
+    if (occurrences >= 4 || cyclesObserved >= 3) return 'strong';
+    if (occurrences >= 2 || cyclesObserved >= 2) return 'moderate';
+    return 'emerging';
+  }
+
+  /**
+   * Evaluates current activity based on recency, confidence, and observation gaps.
+   */
+  public static calculateCurrentActivity(currentScore: number, confidence: number, weeksAbsent: number): 'high' | 'moderate' | 'low' {
+    if (weeksAbsent === 0 && currentScore >= 6.0 && confidence >= 0.7) return 'high';
+    if (weeksAbsent === 0 && currentScore >= 3.5) return 'moderate';
+    if (weeksAbsent === 1 && currentScore >= 5.0) return 'moderate';
+    return 'low';
+  }
+
   public static getPatternSlug(name: string): string {
     return name
       .toLowerCase()
@@ -317,37 +366,58 @@ export class PatternIntelligenceService {
       // Find this pattern in the latest snapshot
       const currentPat = latestPatterns.find((p: any) => (p.pattern_name || p.name) === name);
       
-      let status: 'present' | 'shifting' | 'quiet' | 'new' | 'returned' = 'quiet';
+      let status: 'present' | 'shifting' | 'quiet' | 'new' | 'returned' | 'emerging' | 'active' | 're_emerging' | 'absent' = 'quiet';
+      let lifecycleStatus: PatternLifecycleStatus = 'quiet';
       let body = '';
       let orientation = '';
       let totalOccurrences = 0;
       let firstAppearedCycle = totalCycles;
       let lastAppearedCycle = 1;
+      let lastActiveCycle = 1;
+      let quietSinceCycle: number | undefined = undefined;
+      let reEmergedCycle: number | undefined = undefined;
       let connected: string[] = [];
+      let latestConfidence = 0.8;
+      let latestEvidenceScore = 0.0;
+      let cyclesObservedCount = 0;
 
       // Find first/last appearance and gather stats
       orderedSnapshots.forEach(snap => {
         const snapPat = (snap.snapshot_data?.patterns || []).find((p: any) => (p.pattern_name || p.name) === name);
-        if (snapPat && snapPat.status !== 'absent' && snapPat.status !== 'quiet') {
+        if (snapPat && snapPat.status !== 'absent' && snapPat.status !== 'quiet' && snapPat.lifecycle_status !== 'quiet') {
           if (snap.cycle_number < firstAppearedCycle) {
             firstAppearedCycle = snap.cycle_number;
           }
           if (snap.cycle_number > lastAppearedCycle) {
             lastAppearedCycle = snap.cycle_number;
+            lastActiveCycle = snap.cycle_number;
           }
           totalOccurrences += 1;
+          cyclesObservedCount += 1;
         }
       });
 
       if (currentPat) {
         status = currentPat.status || 'present';
+        lifecycleStatus = currentPat.lifecycle_status || (
+          status === 'quiet' || status === 'absent' ? 'quiet' :
+          status === 'returned' ? 're_emerging' :
+          status === 'new' ? (totalOccurrences >= 2 ? 'active' : 'emerging') :
+          'active'
+        );
         body = currentPat.summary || currentPat.body || '';
         orientation = currentPat.why_it_matters || currentPat.orientation || '';
         connected = currentPat.connected_patterns || [];
+        latestConfidence = currentPat.confidence ?? 0.8;
+        latestEvidenceScore = currentPat.evidence_score ?? (lifecycleStatus === 'quiet' ? 0.0 : 5.0);
+        quietSinceCycle = currentPat.quiet_since || (lifecycleStatus === 'quiet' ? (currentPat.week_number || lastActiveCycle) : undefined);
+        reEmergedCycle = currentPat.re_emerged_at;
       } else {
+        lifecycleStatus = 'quiet';
         status = 'quiet';
-        body = `Active in early cycles. Has not appeared in recent reports.`;
-        orientation = `This pattern went quiet in Cycle ${lastAppearedCycle}.`;
+        body = 'Observed in earlier entries. Currently quiet in your recent writing.';
+        orientation = `This pattern was observed earlier and has been quieter in your recent entries (last active Cycle ${lastActiveCycle}).`;
+        quietSinceCycle = lastActiveCycle + 1;
       }
 
       // Build timeline array across ALL cycles chronologically
@@ -355,44 +425,69 @@ export class PatternIntelligenceService {
       for (let c = 1; c <= totalCycles; c++) {
         const cycleSnap = orderedSnapshots.find(s => s.cycle_number === c);
         const cyclePat = (cycleSnap?.snapshot_data?.patterns || []).find((p: any) => (p.pattern_name || p.name) === name);
-        timeline.push(cyclePat ? cyclePat.status : 'absent');
+        if (cyclePat) {
+          timeline.push(cyclePat.lifecycle_status || cyclePat.status || 'absent');
+        } else {
+          timeline.push('absent');
+        }
       }
 
+      const weeksAbsent = lifecycleStatus === 'quiet' ? Math.max(1, totalCycles - lastActiveCycle) : 0;
+      const historicalStrength = PatternIntelligenceService.calculateHistoricalStrength(totalOccurrences, cyclesObservedCount);
+      const currentActivity = PatternIntelligenceService.calculateCurrentActivity(latestEvidenceScore, latestConfidence, weeksAbsent);
+
       const firstSeenLabel = `Cycle ${firstAppearedCycle}`;
-      const lastSeenLabel = `Cycle ${lastAppearedCycle}`;
-      const nextSeenLabel = `Cycle ${lastAppearedCycle + 1}`;
+      const lastSeenLabel = `Cycle ${lastActiveCycle}`;
 
       let meta = '';
-      if (status === 'quiet') {
-        meta = `Last appeared ${lastSeenLabel} · not surfacing since ${nextSeenLabel}`;
-      } else if (status === 'new') {
-        meta = `First appeared ${firstSeenLabel}`;
+      if (lifecycleStatus === 'quiet') {
+        meta = `Observed: ${firstSeenLabel} · Quieter recently (last active ${lastSeenLabel})`;
+      } else if (lifecycleStatus === 're_emerging') {
+        meta = `Observed: ${firstSeenLabel} · Re-appearing in recent entries`;
+      } else if (lifecycleStatus === 'emerging') {
+        meta = `First observed: ${firstSeenLabel}`;
       } else {
-        meta = `First appeared ${firstSeenLabel}`;
+        meta = `Observed: ${firstSeenLabel} · Active across ${totalOccurrences} cycles`;
       }
 
       cards.push({
         id: this.getPatternSlug(name),
         name,
         status,
+        lifecycleStatus,
         body,
         meta,
         orientation,
         timeline,
         firstAppeared: firstSeenLabel,
+        firstObservedCycle: firstAppearedCycle,
+        lastActiveCycle: lastActiveCycle,
+        quietSinceCycle,
+        reEmergedCycle,
+        historicalStrength,
+        currentActivity,
+        confidence: latestConfidence,
         totalOccurrences,
         connectedPatterns: connected
       });
     });
 
     // Count states
+    let activeCount = 0;
+    let emergingCount = 0;
+    let reEmergingCount = 0;
+    let quietCount = 0;
     let presentCount = 0;
     let shiftingCount = 0;
-    let quietCount = 0;
     let newCount = 0;
     let returnedCount = 0;
 
     cards.forEach(c => {
+      if (c.lifecycleStatus === 'active') activeCount++;
+      else if (c.lifecycleStatus === 'emerging') emergingCount++;
+      else if (c.lifecycleStatus === 're_emerging') reEmergingCount++;
+      else if (c.lifecycleStatus === 'quiet') quietCount++;
+
       if (c.status === 'present') presentCount++;
       else if (c.status === 'shifting') shiftingCount++;
       else if (c.status === 'quiet') quietCount++;
@@ -400,17 +495,38 @@ export class PatternIntelligenceService {
       else if (c.status === 'returned') returnedCount++;
     });
 
-    const summarySentence = `You have ${cards.length} pattern${cards.length === 1 ? '' : 's'} identified across ${totalCycles} cycles. ${presentCount} ${presentCount === 1 ? 'is' : 'are'} still present, ${shiftingCount} ${shiftingCount === 1 ? 'is' : 'are'} shifting, and ${quietCount} ${quietCount === 1 ? 'has' : 'have'} gone quiet. Having more patterns isn't worse — it means the writing has been honest enough to surface them.`;
+    const hasHistoricalPatterns = allPatternNames.size > 0;
+
+    let summarySentence = '';
+    if (cards.length === 0) {
+      summarySentence = 'No patterns have emerged yet.';
+    } else if (activeCount === 0 && reEmergingCount === 0 && emergingCount === 0) {
+      summarySentence = `You don't have any active patterns right now. ${quietCount} previously observed pattern${quietCount === 1 ? ' is' : 's are'} currently quiet in your recent writing.`;
+    } else {
+      summarySentence = `You have ${cards.length} pattern${cards.length === 1 ? '' : 's'} identified across ${totalCycles} cycles. ${activeCount} active, ${emergingCount > 0 ? emergingCount + ' emerging, ' : ''}${reEmergingCount > 0 ? reEmergingCount + ' re-emerging, ' : ''}${quietCount} currently quiet. Patterns quiet and re-emerge naturally based on your current focus.`;
+    }
+
+    const lifecycle: LifecycleGroup = {
+      active: cards.filter(c => c.lifecycleStatus === 'active'),
+      reEmerging: cards.filter(c => c.lifecycleStatus === 're_emerging'),
+      emerging: cards.filter(c => c.lifecycleStatus === 'emerging'),
+      quiet: cards.filter(c => c.lifecycleStatus === 'quiet')
+    };
 
     return {
       patterns: cards,
+      lifecycle,
+      hasHistoricalPatterns,
       summary: {
         sentence: summarySentence,
         present: presentCount,
         shifting: shiftingCount,
         quiet: quietCount,
         new: newCount,
-        returned: returnedCount
+        returned: returnedCount,
+        active: activeCount,
+        emerging: emergingCount,
+        reEmerging: reEmergingCount
       },
       totalCyclesObserved: totalCycles,
       isAvailable: true,
@@ -528,26 +644,58 @@ export class PatternIntelligenceService {
       meta = `First appeared ${firstSeenLabel}`;
     }
 
+    let lifecycleStatus: PatternLifecycleStatus = 'quiet';
+    if (latestPat) {
+      lifecycleStatus = latestPat.lifecycle_status || (
+        latestPat.status === 'quiet' || latestPat.status === 'absent' ? 'quiet' :
+        latestPat.status === 'returned' ? 're_emerging' :
+        latestPat.status === 'new' ? (totalOccurrences >= 2 ? 'active' : 'emerging') :
+        'active'
+      );
+    } else {
+      lifecycleStatus = 'quiet';
+    }
+
+    const weeksAbsent = lifecycleStatus === 'quiet' ? Math.max(1, totalCycles - lastAppearedCycle) : 0;
+    const historicalStrength = PatternIntelligenceService.calculateHistoricalStrength(totalOccurrences, totalCycles);
+    const currentActivity = PatternIntelligenceService.calculateCurrentActivity(
+      latestPat?.evidence_score ?? (lifecycleStatus === 'quiet' ? 0.0 : 5.0),
+      latestPat?.confidence ?? 0.8,
+      weeksAbsent
+    );
+
     // Badge styling mapping
     let badgeClass = 'badge quiet';
-    if (status === 'present') badgeClass = 'badge present';
-    else if (status === 'shifting') badgeClass = 'badge shifting';
-    else if (status === 'new') badgeClass = 'badge new';
-    else if (status === 'returned') badgeClass = 'badge returned';
+    if (lifecycleStatus === 'active') badgeClass = 'badge present';
+    else if (lifecycleStatus === 'emerging') badgeClass = 'badge new';
+    else if (lifecycleStatus === 're_emerging') badgeClass = 'badge returned';
+    else if (lifecycleStatus === 'quiet') badgeClass = 'badge quiet';
 
     // Build timeline details
     const timeline: any[] = [];
     for (let c = 1; c <= totalCycles; c++) {
       const snap = orderedSnapshots.find(s => s.cycle_number === c);
       const pat = (snap?.snapshot_data?.patterns || []).find((p: any) => (p.pattern_name || p.name) === matchedName);
-      const state = pat ? pat.status : 'absent';
+      const rawState = pat ? (pat.lifecycle_status || pat.status) : 'absent';
       
-      let label = 'Not present';
-      if (state === 'present') label = 'Present';
-      else if (state === 'shifting') label = 'Shifting';
-      else if (state === 'quiet') label = 'Quiet';
-      else if (state === 'new') label = 'New';
-      else if (state === 'returned') label = 'Returned';
+      let label = 'Not observed';
+      let state = 'absent';
+      if (rawState === 'active' || rawState === 'present') {
+        label = 'Active';
+        state = 'active';
+      } else if (rawState === 'emerging' || rawState === 'new') {
+        label = 'Emerging';
+        state = 'emerging';
+      } else if (rawState === 're_emerging' || rawState === 'returned') {
+        label = 'Re-emerging';
+        state = 're_emerging';
+      } else if (rawState === 'quiet') {
+        label = 'Quiet';
+        state = 'quiet';
+      } else if (rawState === 'shifting') {
+        label = 'Shifting';
+        state = 'shifting';
+      }
 
       timeline.push({
         n: c,
@@ -620,11 +768,18 @@ export class PatternIntelligenceService {
 
     return {
       name: matchedName,
-      status,
+      status: lifecycleStatus,
+      lifecycleStatus,
       badgeClass,
       body,
       meta,
       orientation,
+      historicalStrength,
+      currentActivity,
+      firstObservedCycle: firstAppearedCycle,
+      lastActiveCycle: lastAppearedCycle,
+      quietSinceCycle: latestPat?.quiet_since,
+      reEmergedCycle: latestPat?.re_emerged_at,
       connected,
       connectedBody,
       connectedLinks,
@@ -981,42 +1136,119 @@ If no patterns are found, return: []`;
       });
     });
 
-    // Process current week's patterns
+    // Process current week's patterns with deterministic longitudinal lifecycle transitions
     parsedPatterns.forEach((detected: any) => {
       const name = detected.pattern_name;
       if (!name) return;
 
       let wasEverActive = false;
-      let isActiveInLastWeek = false;
+      let lastKnownLifecycleStatus: PatternLifecycleStatus | null = null;
+      let wasQuietInPreviousWeek = false;
+      let firstObservedWeek = sequenceNumber;
+      let totalPriorOccurrences = 0;
 
       previousSnaps.forEach(snap => {
         const snapPatterns = snap.snapshot_data?.patterns || [];
         const snapPat = snapPatterns.find(
           (p: any) => (p.pattern_name || p.name).toLowerCase() === name.toLowerCase()
         );
-        if (snapPat && snapPat.status !== 'absent' && snapPat.status !== 'quiet') {
-          wasEverActive = true;
+        if (snapPat) {
+          if (snap.cycle_number < firstObservedWeek) {
+            firstObservedWeek = snap.cycle_number;
+          }
+          if (snapPat.status !== 'absent' && snapPat.status !== 'quiet' && snapPat.lifecycle_status !== 'quiet') {
+            wasEverActive = true;
+            totalPriorOccurrences += 1;
+          }
+          if (snapPat.lifecycle_status) {
+            lastKnownLifecycleStatus = snapPat.lifecycle_status;
+          } else if (snapPat.status === 'quiet') {
+            lastKnownLifecycleStatus = 'quiet';
+          } else if (snapPat.status === 'returned') {
+            lastKnownLifecycleStatus = 're_emerging';
+          } else if (snapPat.status === 'new') {
+            lastKnownLifecycleStatus = 'emerging';
+          } else if (snapPat.status === 'present' || snapPat.status === 'shifting') {
+            lastKnownLifecycleStatus = 'active';
+          }
           if (snap.cycle_number === sequenceNumber - 1) {
-            isActiveInLastWeek = true;
+            wasQuietInPreviousWeek = (snapPat.lifecycle_status === 'quiet' || snapPat.status === 'quiet' || snapPat.status === 'absent');
           }
         }
       });
 
-      let status: 'new' | 'present' | 'shifting' | 'returned' = 'present';
+      const confidence = Number(detected.confidence ?? 0.8);
+      const evidenceScore = Number(detected.evidence_score ?? 5.0);
+      let lifecycleStatus: PatternLifecycleStatus = 'active';
+      let legacyStatus: 'new' | 'present' | 'shifting' | 'returned' | 'quiet' = 'present';
+      let reEmergedAt: number | undefined = undefined;
+
       if (!wasEverActive) {
-        status = 'new';
-      } else if (isActiveInLastWeek) {
-        status = detected.meaning_or_intensity_changed ? 'shifting' : 'present';
+        // Brand new pattern: check if strong enough for active vs emerging
+        if (evidenceScore >= 6.5 && confidence >= 0.8) {
+          lifecycleStatus = 'active';
+          legacyStatus = 'new';
+        } else {
+          lifecycleStatus = 'emerging';
+          legacyStatus = 'new';
+        }
+      } else if (wasQuietInPreviousWeek || lastKnownLifecycleStatus === 'quiet') {
+        // Was quiet: check for re-emergence with hysteresis
+        if (evidenceScore >= 6.5 && confidence >= 0.8) {
+          // Extremely strong return -> straight to active
+          lifecycleStatus = 'active';
+          legacyStatus = 'returned';
+          reEmergedAt = sequenceNumber;
+        } else if (evidenceScore >= 4.5 && confidence >= 0.65) {
+          // Meaningful new evidence -> transitions to re_emerging
+          lifecycleStatus = 're_emerging';
+          legacyStatus = 'returned';
+          reEmergedAt = sequenceNumber;
+        } else {
+          // Noisy or very weak evidence (< 4.0) -> stays quiet, does not flutter
+          lifecycleStatus = 'quiet';
+          legacyStatus = 'quiet';
+        }
+      } else if (lastKnownLifecycleStatus === 're_emerging') {
+        // Sustained evidence after re-emergence -> transitions to active
+        if (evidenceScore >= 5.0 && confidence >= 0.65) {
+          lifecycleStatus = 'active';
+          legacyStatus = 'present';
+        } else {
+          lifecycleStatus = 're_emerging';
+          legacyStatus = 'present';
+        }
+      } else if (lastKnownLifecycleStatus === 'emerging') {
+        // Emerging with repeated/strong evidence -> transitions to active
+        if (evidenceScore >= 5.0 && confidence >= 0.65) {
+          lifecycleStatus = 'active';
+          legacyStatus = 'present';
+        } else {
+          lifecycleStatus = 'emerging';
+          legacyStatus = 'present';
+        }
       } else {
-        status = 'returned';
+        // Was active
+        lifecycleStatus = 'active';
+        legacyStatus = detected.meaning_or_intensity_changed ? 'shifting' : 'present';
       }
 
+      const historicalStrength = PatternIntelligenceService.calculateHistoricalStrength(totalPriorOccurrences + 1, sequenceNumber);
+      const currentActivity = PatternIntelligenceService.calculateCurrentActivity(evidenceScore, confidence, 0);
+
       activePatterns.push({
+        id: this.getPatternSlug(name),
         pattern_name: name,
         name,
-        status,
-        confidence: detected.confidence || 0.8,
-        evidence_score: detected.evidence_score || 5.0,
+        status: legacyStatus,
+        lifecycle_status: lifecycleStatus,
+        confidence,
+        evidence_score: evidenceScore,
+        historical_strength: historicalStrength,
+        current_activity: currentActivity,
+        first_observed_at: firstObservedWeek,
+        last_active_at: sequenceNumber,
+        re_emerged_at: reEmergedAt,
         summary: detected.summary || '',
         why_it_matters: detected.why_it_matters || '',
         supporting_vocabulary: detected.supporting_vocabulary || [],
@@ -1027,7 +1259,7 @@ If no patterns are found, return: []`;
       });
     });
 
-    // Carry forward absent historical patterns
+    // Carry forward absent historical patterns without deleting them
     historicalPatternNames.forEach(name => {
       if (activePatterns.some(ap => ap.pattern_name.toLowerCase() === name.toLowerCase())) {
         return;
@@ -1035,24 +1267,52 @@ If no patterns are found, return: []`;
 
       let wasEverActive = false;
       let lastActiveWeek = 0;
+      let lastKnownLifecycleStatus: PatternLifecycleStatus | null = null;
+      let totalOccurrences = 0;
+      let firstObservedWeek = sequenceNumber;
 
       previousSnaps.forEach(snap => {
         const snapPatterns = snap.snapshot_data?.patterns || [];
         const snapPat = snapPatterns.find(
           (p: any) => (p.pattern_name || p.name).toLowerCase() === name.toLowerCase()
         );
-        if (snapPat && snapPat.status !== 'absent' && snapPat.status !== 'quiet') {
-          wasEverActive = true;
-          lastActiveWeek = snap.cycle_number;
+        if (snapPat) {
+          if (snap.cycle_number < firstObservedWeek) {
+            firstObservedWeek = snap.cycle_number;
+          }
+          if (snapPat.status !== 'absent' && snapPat.status !== 'quiet' && snapPat.lifecycle_status !== 'quiet') {
+            wasEverActive = true;
+            lastActiveWeek = snap.cycle_number;
+            totalOccurrences += 1;
+          }
+          if (snapPat.lifecycle_status) {
+            lastKnownLifecycleStatus = snapPat.lifecycle_status;
+          } else if (snapPat.status === 'quiet') {
+            lastKnownLifecycleStatus = 'quiet';
+          }
         }
       });
 
       if (!wasEverActive) return;
 
       const weeksAbsent = sequenceNumber - lastActiveWeek;
-      let status: 'quiet' | 'absent' = 'absent';
-      if (weeksAbsent >= 2) {
-        status = 'quiet';
+      let lifecycleStatus: PatternLifecycleStatus = 'quiet';
+      let legacyStatus: 'quiet' | 'absent' | 'shifting' = 'quiet';
+      let quietSince: number | undefined = undefined;
+
+      if (lastKnownLifecycleStatus === 'quiet') {
+        lifecycleStatus = 'quiet';
+        legacyStatus = 'quiet';
+        quietSince = lastActiveWeek + 1;
+      } else if (weeksAbsent >= 2) {
+        // Absent for 2+ weeks -> transitions to quiet
+        lifecycleStatus = 'quiet';
+        legacyStatus = 'quiet';
+        quietSince = sequenceNumber;
+      } else {
+        // Absent for only 1 week: apply hysteresis (remains in current lifecycle status with decaying activity)
+        lifecycleStatus = lastKnownLifecycleStatus || 'active';
+        legacyStatus = 'shifting';
       }
 
       let lastWhy = '';
@@ -1067,14 +1327,26 @@ If no patterns are found, return: []`;
         }
       }
 
+      const historicalStrength = PatternIntelligenceService.calculateHistoricalStrength(totalOccurrences, sequenceNumber);
+      const currentActivity = PatternIntelligenceService.calculateCurrentActivity(0, 0, weeksAbsent);
+
       activePatterns.push({
+        id: this.getPatternSlug(name),
         pattern_name: name,
         name,
-        status,
+        status: legacyStatus,
+        lifecycle_status: lifecycleStatus,
         confidence: 0.0,
         evidence_score: 0.0,
-        summary: status === 'quiet' ? `Went quiet in Week ${lastActiveWeek}.` : `Absent in Week ${sequenceNumber}.`,
-        why_it_matters: lastWhy,
+        historical_strength: historicalStrength,
+        current_activity: currentActivity,
+        first_observed_at: firstObservedWeek,
+        last_active_at: lastActiveWeek,
+        quiet_since: quietSince,
+        summary: lifecycleStatus === 'quiet' 
+          ? `This pattern was observed earlier and has been quieter in your recent entries (last active Week ${lastActiveWeek}).` 
+          : `Absent in Week ${sequenceNumber}.`,
+        why_it_matters: lastWhy || 'A recurring theme observed across past journal entries.',
         supporting_vocabulary: [],
         supporting_entries: [],
         supporting_threads: [],
@@ -1296,16 +1568,26 @@ If no patterns are found, return: []`;
   /**
    * Returns a canonical empty overview for users with no snapshots.
    */
-  private static getEmptyOverview(): PatternOverview {
+  public static getEmptyOverview(): PatternOverview {
     return {
       patterns: [],
+      lifecycle: {
+        active: [],
+        emerging: [],
+        reEmerging: [],
+        quiet: []
+      },
+      hasHistoricalPatterns: false,
       summary: {
-        sentence: 'The Pattern Engine will begin observing your themes once your first cycle is underway.',
+        sentence: 'No patterns have emerged yet.',
         present: 0,
         shifting: 0,
         quiet: 0,
         new: 0,
-        returned: 0
+        returned: 0,
+        active: 0,
+        emerging: 0,
+        reEmerging: 0
       },
       totalCyclesObserved: 0,
       isAvailable: false

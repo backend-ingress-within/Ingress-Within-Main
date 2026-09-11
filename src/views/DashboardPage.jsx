@@ -1176,13 +1176,19 @@ export default function DashboardPage({ user, profile, onSignOut }) {
               <div className="space-y-2 pt-0.5">
                 {(() => {
                   const isBackfilling = patternsOverview?.userState?.state === 'backfill_pending';
-                  const activePatterns = patternsOverview?.patterns?.filter(p => p.status === 'present' || p.status === 'new' || p.status === 'shifting' || p.status === 'returned') || [];
-                  const activeToShow = activePatterns.slice(0, 3);
+                  const activeList = patternsOverview?.lifecycle?.active || [];
+                  const reEmergingList = patternsOverview?.lifecycle?.reEmerging || [];
+                  const emergingList = patternsOverview?.lifecycle?.emerging || [];
+                  const quietList = patternsOverview?.lifecycle?.quiet || [];
 
-                  const getDotColor = (status) => {
+                  const surfacedPatterns = [...activeList, ...reEmergingList, ...emergingList];
+                  const surfacedToShow = surfacedPatterns.slice(0, 3);
+
+                  const getDotColor = (status, lifecycleStatus) => {
+                    if (lifecycleStatus === 'emerging') return 'bg-[#B8A8D4]';
+                    if (lifecycleStatus === 're_emerging') return 'bg-[#E0A898]/80';
                     if (status === 'shifting') return 'bg-[#8DBFB4]';
-                    if (status === 'new') return 'bg-[#B8A8D4]';
-                    return 'bg-[#E0A898]'; // present / returned
+                    return 'bg-[#E0A898]'; // active
                   };
 
                   if (isBackfilling) {
@@ -1194,17 +1200,28 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                     );
                   }
 
-                  if (activeToShow.length > 0) {
-                    return activeToShow.map((p, idx) => (
+                  if (surfacedToShow.length > 0) {
+                    return surfacedToShow.map((p, idx) => (
                       <div key={p.id || idx} className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getDotColor(p.status)}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getDotColor(p.status, p.lifecycleStatus)}`} />
                         <div className="text-[12px] font-medium text-primary truncate">{p.name}</div>
                       </div>
                     ));
                   }
 
+                  if (quietList.length > 0) {
+                    return (
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-mid font-medium">No active patterns right now.</div>
+                        <div className="text-[10px] text-secondary font-mono">
+                          {quietList.length} previously observed · quiet
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div className="text-[11px] text-[#4A6A64] italic">No active patterns established.</div>
+                    <div className="text-[11px] text-[#4A6A64] italic">No patterns have emerged yet.</div>
                   );
                 })()}
               </div>
