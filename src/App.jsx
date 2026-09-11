@@ -362,7 +362,7 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/contact' || path === '/contact/') {
         setCurrentRoute('contact');
         window.scrollTo(0, 0);
-      } else if (path.startsWith('/auth')) {
+      } else if (path.startsWith('/auth') || path.startsWith('/login') || path === '/user/login' || path === '/user/login/' || path === '/user/auth' || path === '/user/auth/') {
         setCurrentRoute('auth');
         window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {

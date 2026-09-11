@@ -30,10 +30,11 @@ import { verifyJwt, hashOtp } from '../src/utils/crypto';
 import { COOKIE_ACCESS_NAME } from '../src/utils/cookies';
 import { NextRequest } from 'next/server';
 import { GET as getProfile, PATCH as patchProfile } from '../src/app/api/profile/route';
+import { POST as completeSignup } from '../src/app/api/auth/complete-signup/route';
 
 async function runComprehensiveUserAuthTests() {
   console.log('================================================================');
-  console.log('  INGRESS WITHIN — USER AUTHENTICATION TEST SUITE');
+  console.log('  INGRESS WITHIN — USER AUTHENTICATION & ISOLATION SUITE');
   console.log('================================================================\n');
 
   let passedTests = 0;
@@ -177,8 +178,8 @@ async function runComprehensiveUserAuthTests() {
   const jwtSecret = AuthService.getJwtSecret();
   const decodedJwt = verifyJwt(sessionResult.accessToken, jwtSecret);
   assert(decodedJwt !== null && decodedJwt.uid === mockUserRecord.id, 'JWT payload contains valid uid');
-  assert(decodedJwt.phone === mockUserRecord.phone_number, 'JWT payload contains valid phone claim');
-  assert(decodedJwt.did === 'device_test_mock_1', 'JWT payload contains valid deviceId claim');
+  assert(decodedJwt !== null && decodedJwt.phone === mockUserRecord.phone_number, 'JWT payload contains valid phone claim');
+  assert(decodedJwt !== null && decodedJwt.did === 'device_test_mock_1', 'JWT payload contains valid deviceId claim');
 
   // ----------------------------------------------------
   // SECTION 5: Profile API Strict Allowlist Security
@@ -204,14 +205,47 @@ async function runComprehensiveUserAuthTests() {
   }
 
   // ----------------------------------------------------
-  // SECTION 6: Therapist Isolation Architectural Boundary
+  // SECTION 6: Strict Client Role Injection Protection
   // ----------------------------------------------------
-  console.log('\n--- SECTION 6: Therapist Isolation Architectural Boundary ---');
+  console.log('\n--- SECTION 6: Rejection of Client-Supplied Role in Signup ---');
+
+  const maliciousSignupPayloads = [
+    { role: 'admin' },
+    { user_type: 'practitioner' },
+    { account_type: 'clinician' },
+    { user_role: 'provider' }
+  ];
+
+  for (const payload of maliciousSignupPayloads) {
+    const mockMaliciousReq = new NextRequest('http://localhost:3000/api/auth/complete-signup', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        signup_token: signupToken,
+        name: 'Aarav User',
+        device_id: 'test_dev_1',
+        ...payload
+      })
+    });
+
+    const res = await completeSignup(mockMaliciousReq);
+    const json = await res.json();
+    assert(
+      res.status === 400 && json.error?.code === 'FORBIDDEN_ROLE_ASSIGNMENT',
+      `complete-signup strictly rejects client-supplied role key "${Object.keys(payload)[0]}"`
+    );
+  }
+
+  // ----------------------------------------------------
+  // SECTION 7: Therapist Isolation Architectural Boundary
+  // ----------------------------------------------------
+  console.log('\n--- SECTION 7: Therapist Isolation Architectural Boundary ---');
 
   // Audit user views and routes for therapist code leakage
   const authPageContent = fs.readFileSync(path.join(process.cwd(), 'src/views/AuthPage.jsx'), 'utf8');
   assert(!authPageContent.toLowerCase().includes('therapist'), 'AuthPage.jsx contains zero therapist references');
   assert(!authPageContent.toLowerCase().includes('role-selection'), 'AuthPage.jsx contains zero role selectors');
+  assert(!authPageContent.toLowerCase().includes('continue as'), 'AuthPage.jsx contains zero "Continue as..." role prompts');
   assert(!authPageContent.toLowerCase().includes('i\'m a user'), 'AuthPage.jsx contains zero "I\'m a user / therapist" toggles');
 
   const sendOtpContent = fs.readFileSync(path.join(process.cwd(), 'src/app/api/auth/send-otp/route.ts'), 'utf8');
@@ -225,6 +259,14 @@ async function runComprehensiveUserAuthTests() {
 
   const profileRouteContent = fs.readFileSync(path.join(process.cwd(), 'src/app/api/profile/route.ts'), 'utf8');
   assert(!profileRouteContent.toLowerCase().includes('therapist'), 'profile route contains zero therapist references');
+
+  // Verify routing includes /user/login and /user/auth
+  const pageContent = fs.readFileSync(path.join(process.cwd(), 'src/app/[[...slug]]/page.jsx'), 'utf8');
+  assert(pageContent.includes('user/login'), '[[...slug]]/page.jsx registers /user/login route');
+  assert(pageContent.includes('user/auth'), '[[...slug]]/page.jsx registers /user/auth route');
+
+  const appContent = fs.readFileSync(path.join(process.cwd(), 'src/App.jsx'), 'utf8');
+  assert(appContent.includes('/user/login'), 'App.jsx handles /user/login route');
 
   console.log('\n================================================================');
   console.log(`  USER AUTH TEST SUITE RESULT: ${passedTests}/${totalTests} TESTS PASSED`);

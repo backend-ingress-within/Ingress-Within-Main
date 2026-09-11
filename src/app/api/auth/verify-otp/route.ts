@@ -3,8 +3,8 @@ import { getOtpProvider } from '../../../../providers/otpProvider';
 import { AuthService } from '../../../../services/authService';
 import { supabase } from '../../../../lib/db';
 import { COOKIE_ACCESS_NAME, COOKIE_REFRESH_NAME, getCookieOptions } from '../../../../utils/cookies';
-
 import { getClientIp } from '../../../../utils/ip';
+import { validateIndianPhone } from '../../../../lib/auth/phone';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +12,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { phone_number, otp_code, device_id, device_name } = body;
 
-    // 2. Validate parameters
-    const phoneRegex = /^\+91[6-9]\d{9}$/;
-    if (!phone_number || !phoneRegex.test(phone_number)) {
+    // 2. Validate phone formatting
+    const phoneValidation = validateIndianPhone(phone_number);
+    if (!phoneValidation.isValid || !phoneValidation.canonicalPhone) {
       return NextResponse.json(
         {
           error: {
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!otp_code || !/^\d{6}$/.test(otp_code)) {
+    const canonicalPhone = phoneValidation.canonicalPhone;
+
+    // 3. Validate OTP format (exactly 6 numeric digits)
+    if (!otp_code || !/^\d{6}$/.test(String(otp_code).trim())) {
       return NextResponse.json(
         {
           error: {
@@ -43,24 +46,25 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'INVALID_DEVICE',
-            message: 'Device fingerprint information is required.'
+            message: 'Device information is required.'
           }
         },
         { status: 400 }
       );
     }
 
-    // 3. Verify OTP via configured provider
+    // 4. Verify OTP via configured provider
     const provider = getOtpProvider();
-    const result = await provider.verifyOtp(phone_number, otp_code);
+    const result = await provider.verifyOtp(canonicalPhone, String(otp_code).trim());
 
     if (!result.success) {
-      const status = result.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400;
+      const status = result.code === 'AUTH_LOCKOUT' ? 429 : 400;
       return NextResponse.json(
         {
           error: {
             code: result.code || 'AUTH_OTP_MISMATCH',
-            message: result.message
+            message: result.message || "That code didn't match. Try again.",
+            attempts_remaining: result.attemptsRemaining
           }
         },
         { status }
@@ -70,53 +74,67 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
-    // 4. Establish Session using AuthService
-    const sessionResult = await AuthService.establishSession(
-      phone_number,
-      device_id,
-      device_name || 'Browser',
-      ipAddress,
-      userAgent,
-      result.userId
-    );
+    // 5. Check if user already has an active account
+    const existingUser = await AuthService.findUserByPhone(canonicalPhone);
 
-    // Fetch user profile and onboarding flags to determine next routing destination
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', sessionResult.user.id)
-      .maybeSingle();
+    if (existingUser && existingUser.name) {
+      // ----------------------------------------------------
+      // BRANCH A: EXISTING USER -> Authenticate & Session
+      // ----------------------------------------------------
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', existingUser.id)
+        .maybeSingle();
 
-    // 5. Assemble response
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: sessionResult.user.id,
-        phone_number: sessionResult.user.phone_number,
-        name: sessionResult.user.name,
-        is_active: sessionResult.user.is_active,
-        created_at: sessionResult.user.created_at
-      },
-      profile: profile || null,
-      session: {
-        access_token: sessionResult.accessToken,
-        expires_in: sessionResult.expiresIn
-      }
-    });
+      const sessionResult = await AuthService.establishSession(
+        existingUser,
+        profile,
+        device_id,
+        device_name || 'Browser',
+        ipAddress,
+        userAgent,
+        false
+      );
 
-    // Set secure cookies
-    response.cookies.set(COOKIE_ACCESS_NAME, sessionResult.accessToken, getCookieOptions(sessionResult.expiresIn));
-    response.cookies.set(COOKIE_REFRESH_NAME, sessionResult.refreshToken, getCookieOptions(30 * 24 * 60 * 60));
+      const response = NextResponse.json({
+        success: true,
+        is_new_user: false,
+        user: sessionResult.user,
+        profile: sessionResult.profile,
+        session: {
+          access_token: sessionResult.accessToken,
+          expires_in: sessionResult.expiresIn
+        }
+      });
 
-    return response;
+      // Set secure HTTP-only cookies
+      response.cookies.set(COOKIE_ACCESS_NAME, sessionResult.accessToken, getCookieOptions(sessionResult.expiresIn));
+      response.cookies.set(COOKIE_REFRESH_NAME, sessionResult.refreshToken, getCookieOptions(sessionResult.expiresIn));
+
+      return response;
+    } else {
+      // ----------------------------------------------------
+      // BRANCH B: NEW USER -> Verified Signup Token
+      // ----------------------------------------------------
+      // Do NOT create incomplete user record until name is submitted
+      const signupToken = AuthService.createSignupToken(canonicalPhone);
+
+      return NextResponse.json({
+        success: true,
+        is_new_user: true,
+        signup_token: signupToken,
+        phone_number: canonicalPhone
+      });
+    }
 
   } catch (error) {
     console.error('Verify OTP Route Error:', error);
     return NextResponse.json(
       {
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'An unexpected server error occurred.'
+          code: 'NETWORK_ISSUE',
+          message: "We couldn't verify your code. Check your connection and try again."
         }
       },
       { status: 500 }

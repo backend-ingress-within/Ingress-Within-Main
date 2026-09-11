@@ -4,6 +4,10 @@ import AppClient from './AppClient';
 
 const KNOWN_PUBLIC_ROUTES = new Set([
   '',
+  'login',
+  'auth',
+  'user/login',
+  'user/auth',
   'what-it-is',
   'how-it-works',
   'about',
@@ -38,7 +42,7 @@ const KNOWN_PUBLIC_ROUTES = new Set([
 function isKnownRoute(rawPath) {
   if (!rawPath || KNOWN_PUBLIC_ROUTES.has(rawPath)) return true;
   if (rawPath.startsWith('v2')) return true;
-  if (rawPath === 'auth') return true;
+  if (rawPath === 'auth' || rawPath === 'login' || rawPath === 'user/login' || rawPath === 'user/auth') return true;
   if (
     rawPath.startsWith('onboarding') ||
     rawPath.startsWith('dashboard') ||
@@ -87,6 +91,10 @@ export async function generateMetadata({ params }) {
 export function generateStaticParams() {
   return [
     { slug: [] },
+    { slug: ['auth'] },
+    { slug: ['login'] },
+    { slug: ['user', 'login'] },
+    { slug: ['user', 'auth'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
