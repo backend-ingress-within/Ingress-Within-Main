@@ -521,6 +521,7 @@ export default function App({ initialRoute = 'home' }) {
         return <FaqPage onOpenPolicy={handleOpenPolicy} />;
       case 'contact':
         return <ContactPage onOpenPolicy={handleOpenPolicy} />;
+      case 'login':
       case 'auth':
         return <AuthPage onOpenPolicy={handleOpenPolicy} onAuthSuccess={handleAuthSuccess} />;
       case 'onboarding':
