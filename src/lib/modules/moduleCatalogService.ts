@@ -229,6 +229,20 @@ export const STATIC_MODULE_CATALOG: ModuleWithTaxonomy[] = [
     taxonomy_concerns: ['M16-C01', 'M16-C02'],
     created_at: '2026-09-02T00:00:00.000Z',
     updated_at: '2026-09-02T00:00:00.000Z'
+  },
+  {
+    id: 'M17',
+    slug: 'communication-intimacy',
+    name: 'Communication & Intimacy',
+    description: 'A structured psychoeducation framework addressing communication difficulties, conflict avoidance, expressing needs to a partner, and intimacy and sexual concerns using Gottman Method, Person-Centred Therapy, IPT, CBT, and Somatic Experiencing approaches.',
+    price: 349.00,
+    currency: 'INR',
+    status: 'active',
+    version: '1.0',
+    duration_weeks: 5,
+    taxonomy_concerns: ['M17-C01', 'M17-C02'],
+    created_at: '2026-09-11T00:00:00.000Z',
+    updated_at: '2026-09-11T00:00:00.000Z'
   }
 ];
 

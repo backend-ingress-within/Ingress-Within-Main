@@ -78,7 +78,7 @@ async function runProductionSmokeTest(): Promise<SmokeTestResult[]> {
   // =========================================================================
   // 2. New User Registration & Silent Provisioning Flow
   // =========================================================================
-  const testPhoneNew = '+919811122233';
+  const testPhoneNew = '+9198' + Math.floor(10000000 + Math.random() * 90000000);
   const testDeviceIdNew = 'smoke_device_new_' + Date.now();
   let createdUserId = '';
 
