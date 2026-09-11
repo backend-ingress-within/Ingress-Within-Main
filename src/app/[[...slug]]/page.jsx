@@ -4,6 +4,8 @@ import AppClient from './AppClient';
 
 const KNOWN_PUBLIC_ROUTES = new Set([
   '',
+  'login',
+  'auth',
   'what-it-is',
   'how-it-works',
   'about',
@@ -38,7 +40,7 @@ const KNOWN_PUBLIC_ROUTES = new Set([
 function isKnownRoute(rawPath) {
   if (!rawPath || KNOWN_PUBLIC_ROUTES.has(rawPath)) return true;
   if (rawPath.startsWith('v2')) return true;
-  if (rawPath === 'auth') return true;
+  if (rawPath === 'auth' || rawPath === 'login') return true;
   if (
     rawPath.startsWith('onboarding') ||
     rawPath.startsWith('dashboard') ||
@@ -87,6 +89,8 @@ export async function generateMetadata({ params }) {
 export function generateStaticParams() {
   return [
     { slug: [] },
+    { slug: ['login'] },
+    { slug: ['auth'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
@@ -132,7 +136,8 @@ export default async function CatchAllPage({ params }) {
   }
 
   let initialRoute = 'home';
-  if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
+  if (rawPath === 'login' || rawPath === 'auth') initialRoute = 'login';
+  else if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
   else if (rawPath === 'guided-journaling') initialRoute = 'guided-journaling';
   else if (rawPath === 'self-reflection') initialRoute = 'self-reflection';
   else if (rawPath === 'emotional-patterns') initialRoute = 'emotional-patterns';
@@ -146,7 +151,6 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'faq') initialRoute = 'faq';
   else if (rawPath === 'contact') initialRoute = 'contact';
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
-  else if (rawPath === 'auth') initialRoute = 'auth';
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;

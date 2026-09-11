@@ -130,7 +130,7 @@ export default function App({ initialRoute = 'home' }) {
       setUser(null);
       setProfile(null);
       setAuthError(null);
-      window.navigateTo('/auth');
+      window.navigateTo('/login');
     } catch (err) {
       console.error('Logout failed:', err);
     }
@@ -152,13 +152,6 @@ export default function App({ initialRoute = 'home' }) {
       console.log(`[App.jsx] checkUserStatus API response status: ${res.status}`);
       if (res.ok) {
         const data = await res.json();
-        console.log('[App.jsx] checkUserStatus user resolved:', data.user ? data.user.id : null);
-        console.log('[App.jsx] checkUserStatus profile resolved:', data.profile ? {
-          id: data.profile.id,
-          consent_completed: data.profile.consent_completed,
-          profile_completed: data.profile.profile_completed,
-          onboarding_completed: data.profile.onboarding_completed
-        } : null);
         setUser(data.user);
         setProfile(data.profile);
         setAuthError(null); // Clear any previous auth errors
@@ -180,9 +173,17 @@ export default function App({ initialRoute = 'home' }) {
         } else {
           // Actual authentication failure (401, etc. - e.g., AUTH_REQUIRED, AUTH_INVALID_TOKEN, AUTH_SESSION_EXPIRED)
           console.warn('[App.jsx] checkUserStatus: True authentication invalidity. Clearing user session. Error Code:', errorCode);
+          const wasLoggedIn = !!user;
           setUser(null);
           setProfile(null);
           setAuthError(null);
+
+          if (wasLoggedIn && (errorCode === 'AUTH_SESSION_EXPIRED' || errorCode === 'AUTH_INVALID_TOKEN')) {
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login' && !currentPath.startsWith('/login')) {
+              window.navigateTo('/login?reason=session_expired');
+            }
+          }
         }
       }
     } catch (err) {
@@ -194,7 +195,6 @@ export default function App({ initialRoute = 'home' }) {
         message: 'Could not connect to the server. Please check your network connection.'
       });
     } finally {
-      console.log('[App.jsx] checkUserStatus complete. Setting isLoading(false) and authChecked(true)');
       if (!silent) {
         setIsLoading(false);
       }
@@ -204,7 +204,6 @@ export default function App({ initialRoute = 'home' }) {
 
   useEffect(() => {
     // Check user state on initial load.
-    // Only check user status if it hasn't been checked yet, to avoid duplicate auth checks on every route change.
     if (!authChecked) {
       checkUserStatus(false);
     }
@@ -213,89 +212,32 @@ export default function App({ initialRoute = 'home' }) {
   // Protective Redirect Engine
   useEffect(() => {
     const path = window.location.pathname;
-    console.log('[App.jsx] Redirect Engine evaluated with states:', {
-      authChecked,
-      isLoading,
-      authErrorExists: !!authError,
-      authErrorCode: authError?.code || null,
-      userExists: !!user,
-      userId: user?.id || null,
-      profileExists: !!profile,
-      onboardingCompleted: profile?.onboarding_completed,
-      path,
-      currentRoute
-    });
 
     if (!authChecked || isLoading) {
-      console.log('[App.jsx] Redirect Engine: auth not checked or currently loading, skipping redirects.');
       return;
     }
 
-    // If there is a transient database/network error on a pointer/protected route, prevent redirect loops to /auth
+    // If there is a transient database/network error on a pointer/protected route, prevent redirect loops to /login
     if (authError && (path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread'))) {
-      console.warn('[App.jsx] Redirect Engine: Database/Network error detected on protected path. Preventing redirect to /auth. Reason: TRANSIENT_ERROR_SHIELD');
+      console.warn('[App.jsx] Redirect Engine: Database/Network error detected on protected path. Preventing redirect to /login. Reason: TRANSIENT_ERROR_SHIELD');
       return;
     }
 
     const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
-
     if (isProtectedRoute) {
       if (!user) {
-        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /auth. Reason: SESSION_INVALID');
-        window.navigateTo('/auth');
+        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /login. Reason: SESSION_INVALID');
+        window.navigateTo('/login');
       } else if (profile) {
-        console.log('[App.jsx] Redirect Engine: Authenticated user with profile on protected route. Onboarding state:', {
-          consent_completed: profile.consent_completed,
-          profile_completed: profile.profile_completed,
-          orientation_completed: profile.orientation_completed,
-          onboarding_completed: profile.onboarding_completed
-        });
-        if (!profile.onboarding_completed) {
-          if (!path.startsWith('/onboarding')) {
-            console.log('[App.jsx] Redirect Engine: onboarding_completed is false. Redirecting to /onboarding. Reason: ONBOARDING_INCOMPLETE');
-            window.navigateTo('/onboarding');
-          } else {
-            console.log('[App.jsx] Redirect Engine: User is on onboarding flow:', path);
-          }
-        } else {
-          // Onboarding complete: prevent getting stuck on onboarding pages
-          if (path.startsWith('/onboarding')) {
-            console.log('[App.jsx] Redirect Engine: Onboarding is already complete. Redirecting from onboarding path to /dashboard. Reason: ONBOARDING_ALREADY_COMPLETE');
-            window.navigateTo('/dashboard');
-          } else {
-            console.log('[App.jsx] Redirect Engine: Onboarding complete, user is on allowed protected page:', path);
-          }
-        }
-      } else {
-        // User is authenticated but profile is null: fallback redirect to onboarding/consent if not already there
-        console.warn('[App.jsx] Redirect Engine: User is authenticated but profile is null! Redirecting to /onboarding/consent. Reason: PROFILE_MISSING');
-        if (path !== '/onboarding/consent') {
-          window.navigateTo('/onboarding/consent');
+        // Authenticated user with profile
+        if (path.startsWith('/onboarding') && profile.onboarding_completed) {
+          window.navigateTo('/dashboard');
         }
       }
-    } else if (path.startsWith('/auth') && user) {
-      console.log('[App.jsx] Redirect Engine: Authenticated user attempting to access /auth. Redirecting forward.');
-      if (profile && !profile.onboarding_completed) {
-        if (!profile.consent_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/consent. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/consent');
-        } else if (!profile.profile_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/profile. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/profile');
-        } else if (!profile.orientation_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/welcome. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/welcome');
-        } else if (!profile.assessment_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/assessment. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/assessment');
-        }
-      } else {
-        console.log('[App.jsx] Redirect Engine: Redirecting to /dashboard. Reason: ONBOARDING_ALREADY_COMPLETE');
-        window.navigateTo('/dashboard');
-      }
-    } else {
-      console.log('[App.jsx] Redirect Engine: Public route or unauthenticated user on /auth. No redirect needed.');
+    } else if ((path.startsWith('/auth') || path.startsWith('/login')) && user) {
+      console.log('[App.jsx] Redirect Engine: Authenticated user attempting to access auth/login. Redirecting to dashboard.');
+      window.navigateTo('/dashboard');
     }
   }, [authChecked, isLoading, user, profile, currentRoute, authError]);
 
@@ -314,7 +256,6 @@ export default function App({ initialRoute = 'home' }) {
   useEffect(() => {
     // Define global navigate function so pages/components can trigger programmatically
     window.navigateTo = (path) => {
-      console.log('[App.jsx] window.navigateTo called with path:', path);
       window.history.pushState({}, '', path);
       handleLocationChange();
       window.dispatchEvent(new PopStateEvent('popstate'));
@@ -322,7 +263,6 @@ export default function App({ initialRoute = 'home' }) {
 
     const handleLocationChange = () => {
       const path = window.location.pathname;
-      console.log('[App.jsx] handleLocationChange fired. Path:', path);
       if (path === '/what-it-is' || path === '/what-it-is/') {
         setCurrentRoute('what-it-is');
         window.scrollTo(0, 0);
@@ -362,8 +302,8 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/contact' || path === '/contact/') {
         setCurrentRoute('contact');
         window.scrollTo(0, 0);
-      } else if (path.startsWith('/auth')) {
-        setCurrentRoute('auth');
+      } else if (path === '/login' || path === '/login/' || path.startsWith('/login') || path.startsWith('/auth')) {
+        setCurrentRoute('login');
         window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {
         setCurrentRoute('onboarding');
