@@ -8,6 +8,8 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'auth',
   'user/login',
   'user/auth',
+  'therapist/auth',
+  'therapist/login',
   'what-it-is',
   'how-it-works',
   'about',
@@ -64,7 +66,8 @@ function isKnownRoute(rawPath) {
     rawPath.startsWith('thread') ||
     rawPath.startsWith('entry') ||
     rawPath.startsWith('test') ||
-    rawPath.startsWith('admin')
+    rawPath.startsWith('admin') ||
+    rawPath.startsWith('therapist')
   ) {
     return true;
   }
@@ -95,6 +98,8 @@ export function generateStaticParams() {
     { slug: ['login'] },
     { slug: ['user', 'login'] },
     { slug: ['user', 'auth'] },
+    { slug: ['therapist', 'auth'] },
+    { slug: ['therapist', 'login'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },

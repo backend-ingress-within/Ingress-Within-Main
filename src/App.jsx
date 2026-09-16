@@ -17,6 +17,7 @@ const PricingPage = lazy(() => import('./views/PricingPage'));
 const FaqPage = lazy(() => import('./views/FaqPage'));
 const ContactPage = lazy(() => import('./views/ContactPage'));
 const AuthPage = lazy(() => import('./views/AuthPage'));
+const TherapistAuthPage = lazy(() => import('./views/TherapistAuthPage'));
 const AiDataPage = lazy(() => import('./views/AiDataPage'));
 const OnboardingPage = lazy(() => import('./views/OnboardingPage'));
 const DashboardPage = lazy(() => import('./views/DashboardPage'));
@@ -583,6 +584,9 @@ export default function App({ initialRoute = 'home' }) {
         return <ContactPage onOpenPolicy={handleOpenPolicy} />;
       case 'auth':
         return <AuthPage onOpenPolicy={handleOpenPolicy} onAuthSuccess={handleAuthSuccess} />;
+      case 'therapist/auth':
+      case 'therapist/login':
+        return <TherapistAuthPage onAuthSuccess={(data) => {}} />;
       case 'onboarding':
         return (
           <OnboardingPage
