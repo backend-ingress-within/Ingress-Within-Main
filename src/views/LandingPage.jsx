@@ -552,10 +552,10 @@ export default function LandingPage({ onOpenPolicy }) {
                 Founding 50 only
               </div>
               <div className="space-y-5">
-                <div className="font-sans text-[11px] font-medium tracking-[0.12em] uppercase text-secondary">Launch discount</div>
-                <div className="font-serif text-5xl font-light text-mint-grey leading-none">&#8377;799</div>
-                <div className="font-sans text-xs font-light text-light-mid">for a limited time</div>
-                <div className="font-sans text-xs font-light text-[#A8D4CE]">Then &#8377;999 / month, locked for you forever</div>
+                <div className="font-sans text-[11px] font-medium tracking-[0.12em] uppercase text-secondary">Self-Work Platform</div>
+                <div className="font-serif text-5xl font-light text-mint-grey leading-none">&#8377;499</div>
+                <div className="font-sans text-xs font-light text-light-mid">per month (+ 18% GST)</div>
+                <div className="font-sans text-xs font-light text-[#A8D4CE]">Full access to all daily reflections &amp; 19 modules</div>
                 <div className="h-[1.5px] bg-white/15" />
                 <ul className="list-none space-y-2 p-0">
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
@@ -568,7 +568,7 @@ export default function LandingPage({ onOpenPolicy }) {
                     <span className="text-accent">&rarr;</span> Cycle summary reports
                   </li>
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> &#8377;999 locked for you, even if price rises
+                    <span className="text-accent">&rarr;</span> Cancel or pause anytime with one click
                   </li>
                 </ul>
               </div>

@@ -40,6 +40,7 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'v2/journaling-prompts-for-self-discovery',
   'v2/how-to-start-journaling',
   'v2/how-to-practice-self-reflection',
+  'razorpay-verification',
 ]);
 
 function isKnownRoute(rawPath) {

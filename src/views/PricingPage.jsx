@@ -42,8 +42,8 @@ const FAQ_ITEMS = [
     answer: "Yes. No minimum period, no cancellation fee. If you cancel mid-cycle you keep access until the end of your billing period. Your entries and reports remain accessible after cancellation. If you are a founding user, cancelling releases your ₹999 locked price — but you get one grace reinstatement. Return within 6 months and your founding price is restored. After 6 months or a second cancellation, standard rate applies."
   },
   {
-    question: "What does the ₹799 founding price mean exactly?",
-    answer: "₹799 is a launch discount available only to the first 50 users, for a limited time after launch. After the offer period ends, the price moves to ₹999 for everyone — including the founding 50. What founding users keep is ₹999 locked forever, even if the price rises further as costs grow. One condition: the subscription must stay continuous. If you cancel and miss a billing month, the founding price is released. One grace reinstatement: if you return within 6 months of cancelling, your founding price is restored — once. After that, standard rate applies. If a founding spot opens permanently, it goes to someone on our founding waitlist."
+    question: "What is included in the ₹499 monthly subscription?",
+    answer: "The ₹499 / month plan (+ 18% GST = ₹588.82) provides full access to daily reflections, longitudinal pattern tracking, psychoeducation modules, and weekly & monthly reports. Billed monthly with one-click cancellation at any time without fees."
   },
   {
     question: "What if I miss a day?",
@@ -157,13 +157,13 @@ export default function PricingPage({ onOpenPolicy }) {
               </div>
               <div className="space-y-6">
                 <div>
-                  <span className="text-[10px] font-semibold text-accent uppercase tracking-[0.25em] block">Launch discount</span>
+                  <span className="text-[10px] font-semibold text-accent uppercase tracking-[0.25em] block">Self-Work Platform</span>
                   <div className="flex items-baseline gap-1 mt-4">
-                    <span className="font-headline-md text-4xl md:text-5xl font-bold text-white">₹799</span>
-                    <span className="text-xs opacity-50 font-label-md">/ month</span>
+                    <span className="font-headline-md text-4xl md:text-5xl font-bold text-white">₹499</span>
+                    <span className="text-xs opacity-75 font-label-md">/ month (+ 18% GST)</span>
                   </div>
-                  <p className="font-body-md text-xs text-white/50 pt-2 font-bold uppercase tracking-wider">for a limited time</p>
-                  <p className="text-[11px] text-accent/80 line-through mt-1">Then ₹999 / month, locked for you forever</p>
+                  <p className="font-body-md text-xs text-white/70 pt-2 font-bold uppercase tracking-wider">Full platform access</p>
+                  <p className="text-[11px] text-accent/80 mt-1">Billed monthly. Cancel anytime with one click.</p>
                 </div>
                 <div className="h-[1px] bg-white/10" />
                 <ul className="space-y-4 text-sm font-body-md opacity-95 leading-relaxed">
@@ -263,7 +263,7 @@ export default function PricingPage({ onOpenPolicy }) {
             <div className="grid grid-cols-4 bg-primary text-white font-label-md text-[10px] md:text-xs font-bold uppercase tracking-wider p-4 text-center items-center">
               <div className="text-left pl-2 text-white/60">Feature</div>
               <div>Free</div>
-              <div className="text-accent bg-white/5 py-1 rounded">₹799 / ₹999</div>
+              <div className="text-accent bg-white/5 py-1 rounded">₹499 / mo</div>
               <div>Notes</div>
             </div>
 

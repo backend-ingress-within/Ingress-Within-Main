@@ -18,6 +18,7 @@ const FaqPage = lazy(() => import('./views/FaqPage'));
 const ContactPage = lazy(() => import('./views/ContactPage'));
 const AuthPage = lazy(() => import('./views/AuthPage'));
 const TherapistAuthPage = lazy(() => import('./views/TherapistAuthPage'));
+const RazorpayVerificationPage = lazy(() => import('./views/RazorpayVerificationPage'));
 const AiDataPage = lazy(() => import('./views/AiDataPage'));
 const OnboardingPage = lazy(() => import('./views/OnboardingPage'));
 const DashboardPage = lazy(() => import('./views/DashboardPage'));
@@ -591,6 +592,8 @@ export default function App({ initialRoute = 'home' }) {
       case 'therapist/login':
       case 'therapist':
         return <TherapistAuthPage onAuthSuccess={(data) => {}} />;
+      case 'razorpay-verification':
+        return <RazorpayVerificationPage />;
       case 'onboarding':
         return (
           <OnboardingPage
