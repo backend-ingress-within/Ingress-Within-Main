@@ -1,6 +1,7 @@
 import { supabase } from '../db';
-import { signJwt, verifyJwt, generateToken, hashOtp } from '../../utils/crypto';
+import { signJwt, generateToken, hashOtp } from '../../utils/crypto';
 import { normalizePhoneNumber } from '../auth/phone';
+import crypto from 'crypto';
 
 export interface EstablishTherapistSessionResult {
   success: boolean;
@@ -51,7 +52,7 @@ export class TherapistAuthService {
   }
 
   /**
-   * Finds an active therapist account by phone number.
+   * Finds an active or pending therapist account by phone number.
    */
   static async findTherapistByPhone(phoneNumber: string) {
     const canonical = normalizePhoneNumber(phoneNumber) || phoneNumber;
@@ -59,7 +60,7 @@ export class TherapistAuthService {
       .from('therapist_accounts')
       .select('*')
       .eq('phone_number', canonical)
-      .eq('is_active', true)
+      .neq('status', 'rejected')
       .maybeSingle();
 
     if (error) {
@@ -110,13 +111,15 @@ export class TherapistAuthService {
     let therapistRecord = await this.findTherapistByPhone(canonical);
 
     if (!therapistRecord) {
+      const authUserId = crypto.randomUUID();
+
       // Create new therapist account with status: 'pending'
       const { data: newAccount, error: createError } = await supabase
         .from('therapist_accounts')
         .insert({
+          auth_user_id: authUserId,
           phone_number: canonical,
-          status: 'pending',
-          is_active: true
+          status: 'pending'
         })
         .select()
         .single();
@@ -135,11 +138,11 @@ export class TherapistAuthService {
       }
     }
 
-    // 2. Ensure therapist profile exists
+    // 2. Ensure therapist profile exists (uses therapist_account_id foreign key)
     const { data: existingProfile } = await supabase
       .from('therapist_profiles')
       .select('*')
-      .eq('id', therapistRecord.id)
+      .eq('therapist_account_id', therapistRecord.id)
       .maybeSingle();
 
     let profileRecord = existingProfile;
@@ -148,8 +151,8 @@ export class TherapistAuthService {
       const { data: newProfile, error: profileError } = await supabase
         .from('therapist_profiles')
         .insert({
-          id: therapistRecord.id,
-          phone_number: canonical,
+          therapist_account_id: therapistRecord.id,
+          phone: canonical,
           full_name: cleanName
         })
         .select()
@@ -160,7 +163,8 @@ export class TherapistAuthService {
       }
       profileRecord = newProfile || {
         id: therapistRecord.id,
-        phone_number: canonical,
+        therapist_account_id: therapistRecord.id,
+        phone: canonical,
         full_name: cleanName,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -169,7 +173,7 @@ export class TherapistAuthService {
       await supabase
         .from('therapist_profiles')
         .update({ full_name: cleanName, updated_at: new Date().toISOString() })
-        .eq('id', therapistRecord.id);
+        .eq('therapist_account_id', therapistRecord.id);
       profileRecord.full_name = cleanName;
     }
 
@@ -207,21 +211,20 @@ export class TherapistAuthService {
     await supabase
       .from('therapist_sessions')
       .update({ is_active: false })
-      .eq('therapist_id', account.id)
+      .eq('therapist_account_id', account.id)
       .eq('device_id', deviceId)
       .eq('is_active', true);
 
-    // 3. Store Session Record
+    // 3. Store Session Record in therapist_sessions table
     const { error: sessionError } = await supabase
       .from('therapist_sessions')
       .insert({
-        therapist_id: account.id,
+        therapist_account_id: account.id,
         refresh_token_hash: hashedRefreshToken,
         device_id: deviceId,
         device_name: deviceName ? deviceName.substring(0, 100) : 'Browser',
         ip_address: sanitizedIp,
         user_agent: userAgent,
-        session_state: { status: account.status },
         expires_at: sessionExpiresAt,
         is_active: true
       });
@@ -242,18 +245,20 @@ export class TherapistAuthService {
       this.SESSION_EXPIRY_SECONDS
     );
 
+    const isAccountActive = account.status !== 'suspended' && account.status !== 'rejected';
+
     return {
       success: true,
       therapist: {
         id: account.id,
         phone_number: account.phone_number,
         status: account.status || 'pending',
-        is_active: account.is_active !== false,
+        is_active: isAccountActive,
         created_at: account.created_at || new Date().toISOString()
       },
       profile: {
         id: profile?.id || account.id,
-        phone_number: profile?.phone_number || account.phone_number,
+        phone_number: profile?.phone || profile?.phone_number || account.phone_number,
         full_name: profile?.full_name || '',
         created_at: profile?.created_at || new Date().toISOString(),
         updated_at: profile?.updated_at || new Date().toISOString()
@@ -271,7 +276,7 @@ export class TherapistAuthService {
     let query = supabase
       .from('therapist_sessions')
       .update({ is_active: false })
-      .eq('therapist_id', therapistId);
+      .eq('therapist_account_id', therapistId);
 
     if (deviceId) {
       query = query.eq('device_id', deviceId);

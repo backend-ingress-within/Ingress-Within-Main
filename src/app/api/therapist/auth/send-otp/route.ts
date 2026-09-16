@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      if (!existingTherapist.is_active) {
+      if (existingTherapist.status === 'suspended' || existingTherapist.status === 'rejected') {
         return NextResponse.json(
           {
             error: {

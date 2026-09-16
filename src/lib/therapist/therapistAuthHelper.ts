@@ -67,7 +67,7 @@ export async function getAuthenticatedTherapist(request: NextRequest): Promise<A
       const { data: sessions, error: sessionError } = await supabase
         .from('therapist_sessions')
         .select('id')
-        .eq('therapist_id', payload.tid)
+        .eq('therapist_account_id', payload.tid)
         .eq('device_id', payload.did)
         .eq('is_active', true)
         .gt('expires_at', new Date().toISOString())
@@ -116,9 +116,9 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
   // 1. Fetch therapist account
   const { data: account, error: accountError } = await supabase
     .from('therapist_accounts')
-    .select('id, phone_number, status, is_active, created_at, updated_at')
+    .select('id, phone_number, status, created_at, updated_at')
     .eq('id', authTherapist.therapistId)
-    .eq('is_active', true)
+    .neq('status', 'rejected')
     .single();
 
   if (accountError || !account) {
@@ -128,14 +128,22 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
     throw error;
   }
 
-  // 2. Fetch therapist profile
+  // 2. Fetch therapist profile (foreign key is therapist_account_id)
   const { data: profile } = await supabase
     .from('therapist_profiles')
     .select('*')
-    .eq('id', authTherapist.therapistId)
+    .eq('therapist_account_id', authTherapist.therapistId)
     .maybeSingle();
 
-  const profileData = profile || {
+  const isAccountActive = account.status !== 'suspended' && account.status !== 'rejected';
+
+  const profileData = profile ? {
+    id: profile.id,
+    phone_number: profile.phone || account.phone_number,
+    full_name: profile.full_name,
+    created_at: profile.created_at,
+    updated_at: profile.updated_at
+  } : {
     id: account.id,
     phone_number: account.phone_number,
     full_name: '',
@@ -144,7 +152,10 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
   };
 
   return {
-    account,
+    account: {
+      ...account,
+      is_active: isAccountActive
+    },
     profile: profileData
   };
 }

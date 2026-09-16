@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!existingTherapist.is_active) {
+      if (existingTherapist.status === 'suspended' || existingTherapist.status === 'rejected') {
         return NextResponse.json(
           {
             error: {
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       const { data: profile } = await supabase
         .from('therapist_profiles')
         .select('*')
-        .eq('id', existingTherapist.id)
+        .eq('therapist_account_id', existingTherapist.id)
         .maybeSingle();
 
       const sessionResult = await TherapistAuthService.establishTherapistSession(
@@ -168,13 +168,13 @@ export async function POST(request: NextRequest) {
 
       return response;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Therapist Verify OTP Route Error:', error);
     return NextResponse.json(
       {
         error: {
-          code: 'NETWORK_ISSUE',
-          message: "We couldn't verify your code. Check your connection and try again."
+          code: 'VERIFICATION_ERROR',
+          message: error?.message || "We couldn't verify your code. Check your connection and try again."
         }
       },
       { status: 500 }
