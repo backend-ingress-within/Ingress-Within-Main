@@ -366,6 +366,9 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path.startsWith('/auth') || path.startsWith('/login') || path === '/user/login' || path === '/user/login/' || path === '/user/auth' || path === '/user/auth/') {
         setCurrentRoute('auth');
         window.scrollTo(0, 0);
+      } else if (path === '/therapist' || path === '/therapist/' || path === '/therapist/auth' || path === '/therapist/auth/' || path === '/therapist/login' || path === '/therapist/login/' || path.startsWith('/therapist/')) {
+        setCurrentRoute('therapist/auth');
+        window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {
         setCurrentRoute('onboarding');
         window.scrollTo(0, 0);
@@ -586,6 +589,7 @@ export default function App({ initialRoute = 'home' }) {
         return <AuthPage onOpenPolicy={handleOpenPolicy} onAuthSuccess={handleAuthSuccess} />;
       case 'therapist/auth':
       case 'therapist/login':
+      case 'therapist':
         return <TherapistAuthPage onAuthSuccess={(data) => {}} />;
       case 'onboarding':
         return (

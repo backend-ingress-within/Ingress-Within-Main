@@ -8,6 +8,7 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'auth',
   'user/login',
   'user/auth',
+  'therapist',
   'therapist/auth',
   'therapist/login',
   'what-it-is',
@@ -98,6 +99,7 @@ export function generateStaticParams() {
     { slug: ['login'] },
     { slug: ['user', 'login'] },
     { slug: ['user', 'auth'] },
+    { slug: ['therapist'] },
     { slug: ['therapist', 'auth'] },
     { slug: ['therapist', 'login'] },
     { slug: ['what-it-is'] },
@@ -160,6 +162,7 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'contact') initialRoute = 'contact';
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
   else if (rawPath === 'auth') initialRoute = 'auth';
+  else if (rawPath === 'therapist' || rawPath === 'therapist/auth' || rawPath === 'therapist/login') initialRoute = 'therapist/auth';
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;

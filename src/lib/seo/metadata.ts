@@ -67,8 +67,11 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
   } else if (normalizedPath === 'contact') {
     routeKey = 'contact';
     isKnownPublicRoute = true;
-  } else if (normalizedPath === 'auth') {
+  } else if (normalizedPath === 'auth' || normalizedPath === 'login' || normalizedPath === 'user/auth' || normalizedPath === 'user/login') {
     routeKey = 'auth';
+    isKnownPublicRoute = true;
+  } else if (normalizedPath === 'therapist' || normalizedPath === 'therapist/auth' || normalizedPath === 'therapist/login') {
+    routeKey = 'therapistAuth';
     isKnownPublicRoute = true;
   }
 

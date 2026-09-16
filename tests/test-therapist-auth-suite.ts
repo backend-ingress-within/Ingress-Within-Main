@@ -85,6 +85,7 @@ async function runTherapistAuthTests() {
   const appJsxContent = fs.readFileSync(path.join(process.cwd(), 'src/App.jsx'), 'utf8');
   assert(appJsxContent.includes('TherapistAuthPage'), 'App.jsx imports TherapistAuthPage');
   assert(appJsxContent.includes("case 'therapist/auth':"), 'App.jsx handles therapist/auth route');
+  assert(appJsxContent.includes("'/therapist/login'"), 'App.jsx handles /therapist/login in handleLocationChange');
 
   // ----------------------------------------------------
   // SECTION 2: Dedicated Supabase Schema & Zero Polymorphic Role Columns
