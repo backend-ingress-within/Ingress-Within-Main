@@ -336,8 +336,9 @@ export class BillingService {
         });
         gatewaySubscriptionId = rzpSub.id;
       } catch (err: any) {
+        const errorDesc = err.error?.description || err.message || 'Unable to create subscription plan';
         console.error('[BillingService] Razorpay Subscription API error:', err);
-        throw new Error(`Razorpay gateway error: ${err.message || 'Unable to create subscription plan'}`);
+        throw new Error(`Razorpay gateway error: ${errorDesc}`);
       }
     }
 
@@ -399,8 +400,9 @@ export class BillingService {
         });
         gatewayOrderId = rzpOrder.id;
       } catch (err: any) {
+        const errorDesc = err.error?.description || err.message || 'Unable to create order';
         console.error('[BillingService] Razorpay Orders API error:', err);
-        throw new Error(`Razorpay gateway error: ${err.message || 'Unable to create order'}`);
+        throw new Error(`Razorpay gateway error: ${errorDesc}`);
       }
     }
 
