@@ -115,7 +115,64 @@
   --color-fog-blue: #BFCAD7;
 
   --font-serif: var(--font-reflective, 'Lora', Georgia, serif);
-  --font-sans: var(--font-ui, 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  --font-sans: var(--font-zen-maru, var(--font-ui, 'Zen Maru Gothic', 'Instrument Sans', sans-serif));
   --font-ui: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-reflective: 'Lora', Georgia, serif;
+  --font-mono: var(--font-mono, 'IBM Plex Mono', monospace);
+  --font-hand: var(--font-hand, 'Kalam', cursive);
 }
+
+.font-editorial {
+  font-family: var(--font-reflective, 'Lora', Georgia, serif);
+}
+
+.font-zen {
+  font-family: var(--font-zen-maru, var(--font-ui, 'Zen Maru Gothic', 'Instrument Sans', sans-serif));
+}
+
+.font-mono-code {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+}
+
+.font-handwriting {
+  font-family: var(--font-hand, 'Kalam', cursive);
+}
+
+/* Paper and Watercolor textures */
+.paper-warm {
+  background-color: #FAF7F2;
+}
+
+.paper-card {
+  background-color: #FDFBF8;
+  border: 1px solid rgba(231, 222, 207, 0.85);
+  box-shadow: 0 4px 20px -2px rgba(1, 22, 39, 0.04), 0 2px 6px -1px rgba(1, 22, 39, 0.02);
+}
+
+.paper-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.paper-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -4px rgba(1, 22, 39, 0.07), 0 4px 10px -2px rgba(1, 22, 39, 0.03);
+}
+
+/* Brass pushpin */
+.brass-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #E5C365, #9E7D2E 70%, #4A3A13);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  position: relative;
+  z-index: 10;
+}
+
+/* Translucent Washi tape */
+.washi-tape {
+  background-color: rgba(220, 215, 200, 0.6);
+  backdrop-filter: blur(1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
