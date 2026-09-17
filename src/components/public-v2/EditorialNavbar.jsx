@@ -64,30 +64,19 @@ export default function EditorialNavbar({ activeTab = 'home', onSelectTab }) {
           onClick={(e) => handleNavClick({ id: 'home', path: '/' }, e)}
           className="flex items-center gap-3 group text-left cursor-pointer"
         >
-          {/* Logo Mark */}
-          <div className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 transition-transform group-hover:scale-105">
-            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-              <path
-                d="M32,34 C32,28 27,24 22,26 C16,28 15,36 20,40 C25,44 33,42 35,35 C37,27 30,20 22,21"
-                stroke="#1E2A2E"
-                strokeWidth="3.2"
-                strokeLinecap="round"
-              />
-              <line x1="22" y1="21" x2="18" y2="10" stroke="#1E2A2E" strokeWidth="3.2" strokeLinecap="round" />
-              <circle cx="16" cy="7" r="5" fill="#795663" />
-              <line x1="35" y1="35" x2="46" y2="30" stroke="#1E2A2E" strokeWidth="3.2" strokeLinecap="round" />
-              <circle cx="49" cy="28" r="5" fill="#8AA688" />
-              <line x1="20" y1="40" x2="14" y2="50" stroke="#1E2A2E" strokeWidth="3.2" strokeLinecap="round" />
-              <circle cx="11" cy="53" r="5" fill="#BFCAD7" />
-            </svg>
-          </div>
+          {/* Official Brand Logo */}
+          <img
+            src="/logo-mark-transparent.png"
+            alt="Ingress Within"
+            className="w-8 h-8 sm:w-9 sm:h-9 object-contain flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
+          />
 
           <div>
             <div className="font-editorial text-[21px] sm:text-[23px] text-[#162723] tracking-tight leading-none">
-              ingress within
+              ingress <span className="font-medium text-[#2E7A70]">within</span>
             </div>
             <div className="font-mono-code text-[8.5px] sm:text-[9px] tracking-[0.16em] uppercase text-[#7D8E87] mt-1">
-              UNDERSTAND · GROW · CONTINUE
+              Understand · Grow · Continue
             </div>
           </div>
         </a>
@@ -165,7 +154,22 @@ export default function EditorialNavbar({ activeTab = 'home', onSelectTab }) {
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="sm:hidden bg-[#FAF7F2] border-b border-[#E7DECF] px-6 py-6 space-y-3 shadow-lg animate-fadeDown">
+        <div className="sm:hidden bg-[#FAF7F2] border-b border-[#E7DECF] px-6 py-5 space-y-4 shadow-lg animate-fadeDown">
+          <div className="flex items-center gap-3 pb-3 border-b border-[#E7DECF]/60">
+            <img
+              src="/logo-mark-transparent.png"
+              alt="Ingress Within"
+              className="w-7 h-7 object-contain flex-shrink-0"
+            />
+            <div>
+              <div className="font-editorial text-lg text-[#162723] leading-none">
+                ingress <span className="font-medium text-[#2E7A70]">within</span>
+              </div>
+              <div className="font-mono-code text-[8px] tracking-[0.14em] uppercase text-[#7D8E87] mt-1">
+                Understand · Grow · Continue
+              </div>
+            </div>
+          </div>
           <div className="space-y-1">
             {navItems.map((item) => (
               <a

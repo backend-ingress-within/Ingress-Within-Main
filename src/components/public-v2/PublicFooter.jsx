@@ -26,27 +26,16 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
           
           {/* Brand Info */}
           <div className="space-y-3 md:pr-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 flex-shrink-0">
-                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-                  <path
-                    d="M32,34 C32,28 27,24 22,26 C16,28 15,36 20,40 C25,44 33,42 35,35 C37,27 30,20 22,21"
-                    stroke="#DCE2E7"
-                    strokeWidth="3.2"
-                    strokeLinecap="round"
-                  />
-                  <line x1="22" y1="21" x2="18" y2="10" stroke="#DCE2E7" strokeWidth="3.2" strokeLinecap="round" />
-                  <circle cx="16" cy="7" r="5" fill="#D9BCAF" />
-                  <line x1="35" y1="35" x2="46" y2="30" stroke="#DCE2E7" strokeWidth="3.2" strokeLinecap="round" />
-                  <circle cx="49" cy="28" r="5" fill="#8AA688" />
-                  <line x1="20" y1="40" x2="14" y2="50" stroke="#DCE2E7" strokeWidth="3.2" strokeLinecap="round" />
-                  <circle cx="11" cy="53" r="5" fill="#BFCAD7" />
-                </svg>
-              </div>
-              <span className="font-editorial italic text-xl text-white">Ingress Within</span>
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo-mark-light.png"
+                alt="Ingress Within"
+                className="w-8 h-8 object-contain flex-shrink-0"
+              />
+              <span className="font-editorial italic text-2xl text-white">ingress within</span>
             </div>
-            <p className="font-zen text-xs text-[#8D98A3] leading-relaxed">
-              Understand. Grow. Continue.
+            <p className="font-mono-code text-[10px] tracking-[0.16em] uppercase text-[#BFCAD7] font-medium">
+              Understand · Grow · Continue
             </p>
             <p className="font-zen text-xs text-[#8D98A3] leading-relaxed pt-1">
               One platform for different ways of working on your mental health.

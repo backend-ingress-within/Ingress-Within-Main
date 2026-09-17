@@ -72,9 +72,14 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
       <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 px-5 sm:px-8 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center space-y-6 relative z-10">
           
-          {/* Eyebrow */}
-          <div className="inline-block font-mono-code text-[10.5px] sm:text-[11.5px] tracking-[0.22em] uppercase text-[#795663] font-semibold bg-[#EFE3E4]/70 px-4 py-1.5 rounded-full">
-            UNDERSTAND · GROW · CONTINUE
+          {/* Brand Eyebrow with Official Logo Mark & Tagline */}
+          <div className="inline-flex items-center gap-2.5 font-mono-code text-[10.5px] sm:text-[11.5px] tracking-[0.2em] uppercase text-[#795663] font-semibold bg-[#FDFBF8] border border-[#E7DECF] shadow-xs px-4.5 py-2 rounded-full mb-1">
+            <img
+              src="/logo-mark-transparent.png"
+              alt="Ingress Within Logo"
+              className="w-4 h-4 sm:w-5 sm:h-5 object-contain"
+            />
+            <span>UNDERSTAND · GROW · CONTINUE</span>
           </div>
 
           {/* Headline with soft terracotta brushstroke under "start" */}
@@ -885,6 +890,21 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
   const renderAbout = () => (
     <div className="py-16 sm:py-24 px-5 sm:px-8 space-y-16 max-w-5xl mx-auto text-left">
       <div className="space-y-4 max-w-3xl">
+        <div className="flex items-center gap-3.5 pb-2">
+          <img
+            src="/logo-mark-transparent.png"
+            alt="Ingress Within"
+            className="w-10 h-10 object-contain flex-shrink-0"
+          />
+          <div>
+            <div className="font-editorial text-2xl text-[#162723] leading-none">
+              ingress <span className="font-medium text-[#2E7A70]">within</span>
+            </div>
+            <div className="font-mono-code text-[9px] tracking-[0.16em] uppercase text-[#7D8E87] mt-1">
+              Understand · Grow · Continue
+            </div>
+          </div>
+        </div>
         <div className="font-mono-code text-xs tracking-widest uppercase text-[#795663] font-semibold">
           ABOUT INGRESS WITHIN
         </div>
@@ -971,6 +991,14 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
   const renderStart = () => (
     <div className="py-16 sm:py-24 px-5 sm:px-8 space-y-16 max-w-5xl mx-auto text-left">
       <div className="text-center space-y-4 max-w-2xl mx-auto">
+        <div className="inline-flex items-center gap-2.5 font-mono-code text-[11px] tracking-[0.16em] uppercase text-[#795663] font-semibold bg-[#FDFBF8] border border-[#E7DECF] px-3.5 py-1.5 rounded-full shadow-xs">
+          <img
+            src="/logo-mark-transparent.png"
+            alt="Ingress Within"
+            className="w-4 h-4 object-contain"
+          />
+          <span>Understand · Grow · Continue</span>
+        </div>
         <div className="font-mono-code text-xs tracking-widest uppercase text-[#795663] font-semibold">
           START HERE
         </div>
