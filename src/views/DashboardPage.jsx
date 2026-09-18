@@ -209,8 +209,15 @@ export default function DashboardPage({ user, profile, onSignOut }) {
       setCyclesList((prevList) => {
         return freshCycles.map((freshCycle) => {
           const existingCycle = prevList.find(c => c.id === freshCycle.id);
-          if (existingCycle && existingCycle.entries !== null) {
-            return { ...freshCycle, ...existingCycle };
+          if (existingCycle) {
+            return {
+              ...freshCycle,
+              entries: existingCycle.entries !== null ? existingCycle.entries : freshCycle.entries,
+              entries_count: Math.max(freshCycle.entries_count || 0, existingCycle.entries_count || 0),
+              open_threads_count: existingCycle.open_threads_count || freshCycle.open_threads_count,
+              weekly_summaries_count: existingCycle.weekly_summaries_count || freshCycle.weekly_summaries_count,
+              vocabulary_count: existingCycle.vocabulary_count || freshCycle.vocabulary_count
+            };
           }
           return freshCycle;
         });
@@ -643,7 +650,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                       </div>
                       <h3 className="font-serif text-base sm:text-lg text-primary">Your account is in reflective read-only mode</h3>
                       <p className="text-[12px] sm:text-[12.5px] text-mid leading-relaxed max-w-lg">
-                        You can read and reflect on all your past journals, weekly reports, and pattern syntheses. To resume daily guided writing sessions and AI reflections, subscribe to Ingress Within Self-Work.
+                        You can still view everything you've written, including your past journals, reports, and patterns. Subscribe to continue daily guided writing and AI reflections.
                       </p>
                       <div className="pt-1">
                         <button

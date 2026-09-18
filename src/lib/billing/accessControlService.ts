@@ -38,22 +38,31 @@ export interface CustomerAccess {
   selfHelp: {
     canWrite: boolean;
     canStartSession: boolean;
+    canStartDailySession: boolean;
     canUseExercises: boolean;
+    canStartNewExercise: boolean;
+    canSubmitExercise: boolean;
     canUseAI: boolean;
+    canCreateReflection: boolean;
     canGenerateWeeklyReflection: boolean;
     canGenerateReports: boolean;
     canGeneratePatterns: boolean;
+    canGenerateVocabulary: boolean;
   };
   history: {
     canViewEntries: boolean;
+    canViewCycles: boolean;
+    canViewSessions: boolean;
     canViewReflections: boolean;
     canViewReports: boolean;
     canViewPatterns: boolean;
+    canViewVocabulary: boolean;
     canViewExerciseResults: boolean;
   };
   firstWeeklyReport: {
     canView: boolean;
     permanent: boolean;
+    isPermanent: boolean;
   };
   psychoeducation: {
     canViewRecommendations: boolean;
@@ -79,7 +88,7 @@ export class AccessDeniedError extends Error {
   public readonly state: CustomerState;
   public readonly statusCode: number;
 
-  constructor(message: string, state: CustomerState, code: string = 'SUBSCRIPTION_REQUIRED') {
+  constructor(message: string, state: CustomerState, code: string = 'SELF_HELP_SUBSCRIPTION_REQUIRED') {
     super(message);
     this.name = 'AccessDeniedError';
     this.code = code;
@@ -125,22 +134,31 @@ export class AccessControlService {
       selfHelp: {
         canWrite: canSelfHelp,
         canStartSession: canSelfHelp,
+        canStartDailySession: canSelfHelp,
         canUseExercises: canSelfHelp,
+        canStartNewExercise: canSelfHelp,
+        canSubmitExercise: canSelfHelp,
         canUseAI: canSelfHelp,
+        canCreateReflection: canSelfHelp,
         canGenerateWeeklyReflection: canSelfHelp,
         canGenerateReports: canSelfHelp,
-        canGeneratePatterns: canSelfHelp
+        canGeneratePatterns: canSelfHelp,
+        canGenerateVocabulary: canSelfHelp
       },
       history: {
         canViewEntries: true,
+        canViewCycles: true,
+        canViewSessions: true,
         canViewReflections: true,
         canViewReports: true,
         canViewPatterns: true,
+        canViewVocabulary: true,
         canViewExerciseResults: true
       },
       firstWeeklyReport: {
         canView: true,
-        permanent: true
+        permanent: true,
+        isPermanent: true
       },
       psychoeducation: {
         canViewRecommendations: true,
@@ -497,7 +515,7 @@ export class AccessControlService {
       throw new AccessDeniedError(
         'Your account is currently in reflective read-only mode. An active Ingress Within Self-Work subscription (₹499/mo) is required to write entries or start sessions.',
         access.state,
-        'SUBSCRIPTION_REQUIRED'
+        'SELF_HELP_SUBSCRIPTION_REQUIRED'
       );
     }
     return access;
@@ -513,7 +531,7 @@ export class AccessControlService {
       throw new AccessDeniedError(
         'Your account is currently in reflective read-only mode. An active Ingress Within Self-Work subscription (₹499/mo) is required to progress through exercises.',
         access.state,
-        'SUBSCRIPTION_REQUIRED'
+        'SELF_HELP_SUBSCRIPTION_REQUIRED'
       );
     }
     return access;
@@ -529,7 +547,23 @@ export class AccessControlService {
       throw new AccessDeniedError(
         'Your account is currently in reflective read-only mode. An active Ingress Within Self-Work subscription (₹499/mo) is required to generate new reports.',
         access.state,
-        'SUBSCRIPTION_REQUIRED'
+        'SELF_HELP_SUBSCRIPTION_REQUIRED'
+      );
+    }
+    return access;
+  }
+
+  /**
+   * Guard for generating new pattern analysis.
+   * Throws AccessDeniedError if customer is dormant.
+   */
+  public static async requirePatternGenerateAccess(userId: string): Promise<CustomerAccess> {
+    const access = await this.getCustomerAccess(userId);
+    if (!access.selfHelp.canGeneratePatterns) {
+      throw new AccessDeniedError(
+        'Your account is currently in reflective read-only mode. An active Ingress Within Self-Work subscription (₹499/mo) is required to generate new patterns.',
+        access.state,
+        'SELF_HELP_SUBSCRIPTION_REQUIRED'
       );
     }
     return access;
