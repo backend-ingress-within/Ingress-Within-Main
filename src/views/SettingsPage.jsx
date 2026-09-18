@@ -1498,10 +1498,12 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           >
             ☰
           </button>
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.navigateTo('/dashboard')}>
-            <div className="w-[18px] h-[18px] rounded-full border-2 border-[#2E7A70] flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#2E7A70]" />
-            </div>
+          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => window.navigateTo('/dashboard')}>
+            <img 
+              src="/logo-mark-transparent.png" 
+              alt="Ingress Within" 
+              className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-105 shrink-0" 
+            />
             <span className="text-[13px] font-semibold tracking-tight text-primary">
               ingress <em className="text-[#2E7A70] font-serif not-italic font-normal">within</em>
             </span>
