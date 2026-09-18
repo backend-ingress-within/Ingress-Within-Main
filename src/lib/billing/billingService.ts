@@ -152,23 +152,24 @@ export class BillingService {
 
   /**
    * Authoritative pricing calculation in integer paise.
-   * Centralizes:
-   * base = 49900 paise (₹499.00)
-   * gst = 8982 paise (₹89.82)
-   * total = 58882 paise (₹588.82)
+   * GST INCLUSIVE:
+   * Total Customer Price = 49900 paise (₹499.00)
+   * Subtotal (Taxable)   = Math.round(49900 / 1.18) = 42288 paise (₹422.88)
+   * GST (18%)            = 49900 - 42288 = 7612 paise (₹76.12)
+   * Invariant: 42288 + 7612 === 49900
    */
-  public static calculatePricing(basePaise: number, gstRate: number = GST_RATE): PricingCalculation {
-    const subtotalPaise = Math.round(basePaise);
-    const gstPaise = Math.round(subtotalPaise * gstRate);
-    const totalPaise = subtotalPaise + gstPaise;
+  public static calculatePricing(totalPaise: number = 49900, gstRate: number = GST_RATE): PricingCalculation {
+    const total = Math.round(totalPaise);
+    const subtotalPaise = Math.round(total / (1 + gstRate));
+    const gstPaise = total - subtotalPaise;
 
     return {
       subtotalPaise,
       gstPaise,
-      totalPaise,
+      totalPaise: total,
       formattedSubtotal: `₹${(subtotalPaise / 100).toFixed(2)}`,
       formattedGst: `₹${(gstPaise / 100).toFixed(2)}`,
-      formattedTotal: `₹${(totalPaise / 100).toFixed(2)}`,
+      formattedTotal: `₹${(total / 100).toFixed(2)}`,
       gstRate
     };
   }
@@ -179,10 +180,10 @@ export class BillingService {
   public static readonly DEFAULT_SELF_HELP_PRODUCT: ProductRecord = {
     id: 'prod_self_help_monthly',
     sku: 'SELF_HELP_MONTHLY',
-    name: 'Self-Work Platform',
-    description: 'Unlimited daily guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and psychoeducation modules.',
+    name: 'Ingress Within Self-Work',
+    description: 'Unlimited daily guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and therapeutic self-work exercises.',
     type: 'subscription',
-    price_inr: 49900, // ₹499.00 in paise
+    price_inr: 49900, // ₹499.00 GST inclusive in paise
     gst_rate: 0.18,
     interval: 'monthly',
     gateway_plan_id: process.env.RAZORPAY_PLAN_ID || null,
@@ -598,7 +599,7 @@ export class BillingService {
     const year = now.getFullYear();
     const randomSeq = Math.floor(10000 + Math.random() * 90000);
     const invoiceNumber = `INV-${year}-${randomSeq}`;
-    const pricing = this.calculatePricing(amount / (1 + GST_RATE)); // derive subtotal from total amount
+    const pricing = this.calculatePricing(amount);
 
     try {
       await supabase
@@ -694,7 +695,7 @@ export class BillingService {
 
       if (sub) {
         const pricing = this.calculatePricing(
-          sub.metadata?.subtotal_paise || this.DEFAULT_SELF_HELP_PRODUCT.price_inr,
+          sub.metadata?.total_paise || this.DEFAULT_SELF_HELP_PRODUCT.price_inr,
           this.DEFAULT_SELF_HELP_PRODUCT.gst_rate
         );
 

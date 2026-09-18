@@ -397,11 +397,11 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
             <div className="paper-card rounded-2xl p-8 bg-white border border-[#E7DECF] flex flex-col justify-between space-y-6">
               <div>
                 <span className="font-mono-code text-[10px] tracking-wider uppercase font-semibold text-[#5C7D64]">
-                  SELF-WORK PLATFORM
+                  INGRESS WITHIN SELF-WORK
                 </span>
                 <div className="flex items-baseline gap-2 mt-3">
                   <span className="font-mono-code text-4xl text-[#795663] font-semibold">₹499</span>
-                  <span className="font-zen text-xs text-[#5C6873]">/ month (+ 18% GST)</span>
+                  <span className="font-zen text-xs text-[#5C6873]">/ month (GST inclusive)</span>
                 </div>
                 <p className="font-zen text-xs text-[#5C6873] leading-relaxed pt-3">
                   Journal, weekly & monthly reports included. Psychoeducation modules purchased separately, only when relevant.
@@ -710,11 +710,11 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
         <div className="paper-card rounded-2xl p-8 bg-white border border-[#E7DECF] flex flex-col justify-between space-y-6">
           <div className="space-y-4">
             <span className="font-mono-code text-xs text-[#5C7D64] font-semibold tracking-wider uppercase">
-              SELF-WORK PLATFORM
+              INGRESS WITHIN SELF-WORK
             </span>
             <div className="flex items-baseline gap-2">
               <span className="font-mono-code text-5xl font-semibold text-[#795663]">₹499</span>
-              <span className="font-zen text-sm text-[#5C6873]">/ month (+ 18% GST)</span>
+              <span className="font-zen text-sm text-[#5C6873]">/ month (GST inclusive)</span>
             </div>
             <p className="font-zen text-xs sm:text-sm text-[#5C6873] leading-relaxed">
               Journal (free-flow + guided), and weekly & monthly reports with pattern and emotional vocabulary tracking — included in your subscription.

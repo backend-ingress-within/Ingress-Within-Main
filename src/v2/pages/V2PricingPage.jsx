@@ -50,10 +50,10 @@ export default function V2PricingPage({ onOpenPolicy }) {
             <div className="p-8 sm:p-10 rounded-2xl bg-[#FAF8F5] border border-[#E7E0D3] shadow-xs flex flex-col justify-between space-y-6 hover:shadow-md transition-all">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#758D7E] uppercase font-semibold">INDEPENDENT PRACTICE</span>
-                <h3 className="text-2xl sm:text-3xl font-serif text-[#1A2421]">Self-Work Platform</h3>
+                <h3 className="text-2xl sm:text-3xl font-serif text-[#1A2421]">Ingress Within Self-Work</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl sm:text-5xl font-serif font-bold text-[#1A2421]">₹499</span>
-                  <span className="text-xs text-[#7D8E87] font-mono">/ month</span>
+                  <span className="text-xs text-[#7D8E87] font-mono">/ month (GST inclusive)</span>
                 </div>
                 <p className="text-xs sm:text-sm text-[#5E706A] leading-relaxed">
                   Unlimited guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and complete private history.
@@ -62,7 +62,7 @@ export default function V2PricingPage({ onOpenPolicy }) {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> Unlimited daily entries &amp; AI mirror reflection</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> Longitudinal pattern engine (4-state lifecycle)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> Emotional vocabulary discovery &amp; shift radar</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> 19 structured psychoeducation modules</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> Integrated therapeutic self-work exercises</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#758D7E] flex-shrink-0" /> Cancel or pause anytime with one click</li>
                 </ul>
               </div>

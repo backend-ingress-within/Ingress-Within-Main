@@ -111,9 +111,9 @@ const FAQ_DATA = {
       ]
     },
     {
-      q: "What does the standard membership cost?",
+      q: "What does the membership cost?",
       a: [
-        "Standard membership is ₹999 per month, which includes unlimited daily guided entries, weekly summaries, and complete monthly cycle reports. Cancel anytime."
+        "Ingress Within Self-Work is ₹499 per month (GST inclusive), which includes unlimited daily guided entries, weekly pattern reports, 30-day synthesis, and therapeutic self-work exercises. Cancel anytime."
       ]
     }
   ],

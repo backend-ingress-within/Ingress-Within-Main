@@ -48,24 +48,25 @@ export class EntitlementService {
   }
 
   /**
-   * Checks if user has access to a psychoeducation module.
-   * Subscription unlocks all 19 modules; otherwise checks single-module purchase.
+   * Checks if user has access to a psychoeducation module / workshop.
+   * Modules and workshops are independent one-time purchases (never auto-unlocked by subscription).
    */
   public static async hasModuleAccess(userId: string, moduleId: string): Promise<boolean> {
     if (!userId) return false;
 
-    // Active subscription grants access to all modules
-    const hasSub = await this.hasActiveSubscription(userId);
-    if (hasSub) return true;
+    // Dedicated synthetic reviewer bypass for compliance verification testing
+    if (userId === 'usr_synthetic_razorpay_reviewer' || userId === 'synthetic-reviewer-user') {
+      return true;
+    }
 
     // Check single module purchase in entitlements
     try {
-      const normalizedModuleId = moduleId.toLowerCase();
+      const cleanModuleId = moduleId.toLowerCase().replace(/^module_/, '');
       const { data: ent } = await supabase
         .from('entitlements')
         .select('id')
         .eq('user_id', userId)
-        .eq('feature_key', `module_${normalizedModuleId}`)
+        .in('feature_key', [`module_${cleanModuleId}`, cleanModuleId, moduleId])
         .eq('is_active', true)
         .maybeSingle();
 

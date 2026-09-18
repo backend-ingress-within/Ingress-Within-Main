@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/db';
 import { getAuthenticatedUser } from '../../../lib/auth-helper';
 import { triggerAIProcessing, checkWeeklyAndMonthlySummary } from '../../../lib/queue/triggers';
 import { queueRegistry } from '../../../lib/queue/registry';
+import { AccessControlService, AccessDeniedError } from '../../../lib/billing/accessControlService';
 
 /**
  * GET: Fetches the active daily session or check if today's session is complete.
@@ -148,6 +149,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Access control: Ensure user has active/trial self-work access
+    await AccessControlService.requireSelfHelpWriteAccess(authUser.userId);
 
     const body = await request.json().catch(() => ({}));
     const { action } = body;
@@ -488,7 +492,20 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to perform daily sessions.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('Session POST Route Error:', error);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'An unexpected server error occurred.' } },

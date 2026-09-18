@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
 import { backfillWeeklyReports } from '../../../../lib/weeklyReportBackfill';
 import { supabase } from '../../../../lib/db';
+import { AccessControlService, AccessDeniedError } from '../../../../lib/billing/accessControlService';
 
 /**
  * POST /api/reports/backfill: Manually triggers the backfill orchestrator to scan and backfill missing reports.
@@ -57,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     const userId = authUser.userId;
 
+    // Access control: Ensure user has report generation capabilities
+    await AccessControlService.requireReportGenerateAccess(userId);
+
     // Run the backfill audit programmatically for a single user
     const backfillResult = await backfillWeeklyReports(userId);
 
@@ -66,6 +70,19 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to generate new reports.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('[API Reports Backfill POST] Error:', error);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: error.message || 'An unexpected server error occurred.' } },

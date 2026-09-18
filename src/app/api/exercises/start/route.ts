@@ -4,6 +4,7 @@ import { ExerciseRepository } from '../../../../lib/exercises/v4/repository/exer
 import { ExerciseService } from '../../../../lib/exercises/v4/services/exerciseService';
 import { Exercise2Service } from '../../../../lib/exercises/v4/services/exercise2Service';
 import { Exercise3Service } from '../../../../lib/exercises/v4/services/exercise3Service';
+import { AccessControlService, AccessDeniedError } from '../../../../lib/billing/accessControlService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +19,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const exerciseId = body.exercise_id;
     let instanceId = body.instance_id;
+
+    // Access control: Ensure user is TRIAL, ACTIVE, PAST_DUE, or CANCELLED_PENDING (not DORMANT)
+    await AccessControlService.requireExerciseProgressAccess(authUser.userId, exerciseId);
 
     // Delegate Exercise 3 to isolated Exercise3Service
     if (exerciseId === 'exercise_3' || exerciseId === 'self_perception') {
@@ -63,6 +67,19 @@ export async function POST(request: NextRequest) {
     const startedInstance = await ExerciseService.startExercise(instance.id);
     return NextResponse.json({ success: true, instance: startedInstance });
   } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to progress through exercises.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('[POST /api/exercises/start] Error:', error);
     return NextResponse.json(
       { error: { code: 'START_FAILED', message: error.message || 'Failed to start exercise.' } },

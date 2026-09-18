@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
 import { ExerciseRepository } from '../../../../lib/exercises/v4/repository/exerciseRepository';
 import { ExerciseService } from '../../../../lib/exercises/v4/services/exerciseService';
+import { AccessControlService, AccessDeniedError } from '../../../../lib/billing/accessControlService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Access control: Ensure user has exercise progress capabilities
+    await AccessControlService.requireExerciseProgressAccess(authUser.userId, instance.exercise_id);
 
     const submittedInstance = await ExerciseService.submitExercise(instance_id);
 
@@ -192,6 +196,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, instance: submittedInstance });
   } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to submit exercises.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('[POST /api/exercises/submit] Error:', error);
     return NextResponse.json(
       { error: { code: 'SUBMIT_FAILED', message: error.message || 'Failed to submit exercise.' } },

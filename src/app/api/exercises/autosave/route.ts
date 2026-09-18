@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from '../../../../lib/auth-helper';
 import { ExerciseRepository } from '../../../../lib/exercises/v4/repository/exerciseRepository';
 import { ExerciseService } from '../../../../lib/exercises/v4/services/exerciseService';
 import { supabase } from '../../../../lib/db';
+import { AccessControlService, AccessDeniedError } from '../../../../lib/billing/accessControlService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Access control: Ensure user has exercise progress capabilities
+    await AccessControlService.requireExerciseProgressAccess(authUser.userId, instance.exercise_id);
+
     const result = await ExerciseService.saveResponse({
       instance_id,
       user_id: authUser.userId,
@@ -55,6 +59,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, response: result.response, instance: result.instance });
   } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to progress through exercises.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('[POST /api/exercises/autosave] Error:', error);
     return NextResponse.json(
       { error: { code: 'AUTOSAVE_FAILED', message: error.message || 'Failed to save exercise response.' } },

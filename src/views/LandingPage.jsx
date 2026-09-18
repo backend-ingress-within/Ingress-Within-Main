@@ -515,7 +515,7 @@ export default function LandingPage({ onOpenPolicy }) {
           </ScrollReveal>
 
           {/* Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[900px] mx-auto text-left items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[760px] mx-auto text-left items-stretch">
             {/* Free */}
             <ScrollReveal className="bg-white rounded-card p-8 flex flex-col justify-between hover:translate-y-[-2px] transition-transform duration-300 w-full h-full" delay={0.05}>
               <div className="space-y-5">
@@ -546,29 +546,26 @@ export default function LandingPage({ onOpenPolicy }) {
               </button>
             </ScrollReveal>
 
-            {/* Founding 50 */}
+            {/* Ingress Within Self-Work */}
             <ScrollReveal className="bg-primary text-mint-grey rounded-card p-8 flex flex-col justify-between hover:translate-y-[-2px] transition-transform duration-300 relative overflow-hidden w-full h-full" delay={0.15}>
-              <div className="absolute top-[12px] right-4 bg-accent text-primary font-sans text-[9px] font-bold tracking-wide uppercase px-2.5 py-0.5 rounded-full">
-                Founding 50 only
-              </div>
               <div className="space-y-5">
-                <div className="font-sans text-[11px] font-medium tracking-[0.12em] uppercase text-secondary">Self-Work Platform</div>
+                <div className="font-sans text-[11px] font-medium tracking-[0.12em] uppercase text-secondary">Ingress Within Self-Work</div>
                 <div className="font-serif text-5xl font-light text-mint-grey leading-none">&#8377;499</div>
-                <div className="font-sans text-xs font-light text-light-mid">per month (+ 18% GST)</div>
-                <div className="font-sans text-xs font-light text-[#A8D4CE]">Full access to all daily reflections &amp; 19 modules</div>
+                <div className="font-sans text-xs font-light text-light-mid">per month (GST inclusive)</div>
+                <div className="font-sans text-xs font-light text-[#A8D4CE]">Unlimited daily entries, pattern reports, and therapeutic exercises</div>
                 <div className="h-[1.5px] bg-white/15" />
                 <ul className="list-none space-y-2 p-0">
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
                     <span className="text-accent">&rarr;</span> One entry a day, every day
                   </li>
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Full pattern tracking
+                    <span className="text-accent">&rarr;</span> Longitudinal pattern engine (4-state lifecycle)
                   </li>
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Cycle summary reports
+                    <span className="text-accent">&rarr;</span> Weekly summary &amp; monthly cycle reports
                   </li>
                   <li className="font-sans text-[13.5px] font-light text-light-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Cancel or pause anytime with one click
+                    <span className="text-accent">&rarr;</span> Cancel anytime with one click
                   </li>
                 </ul>
               </div>
@@ -576,41 +573,9 @@ export default function LandingPage({ onOpenPolicy }) {
                 onClick={(e) => { e.preventDefault(); document.getElementById('auth').scrollIntoView({ behavior: 'smooth' }); }}
                 className="w-full mt-6 py-3 px-4 rounded bg-accent text-primary hover:bg-[#D49888] border-none font-sans text-sm font-medium tracking-wide transition-all cursor-pointer text-center"
               >
-                Get early access &rarr;
-              </button>
-            </ScrollReveal>
-
-            {/* Standard */}
-            <ScrollReveal className="bg-white rounded-card p-8 flex flex-col justify-between hover:translate-y-[-2px] transition-transform duration-300 w-full h-full" delay={0.25}>
-              <div className="space-y-5">
-                <div className="font-sans text-[11px] font-medium tracking-[0.12em] uppercase text-secondary">Standard</div>
-                <div className="font-serif text-5xl font-light text-primary leading-none">&#8377;999</div>
-                <div className="font-sans text-xs font-light text-mid">per month</div>
-                <div className="font-sans text-xs font-light text-mid">Price may increase as costs grow</div>
-                <div className="h-[1.5px] bg-mint-grey" />
-                <ul className="list-none space-y-2 p-0">
-                  <li className="font-sans text-[13.5px] font-light text-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> One entry a day, every day
-                  </li>
-                  <li className="font-sans text-[13.5px] font-light text-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Full pattern tracking
-                  </li>
-                  <li className="font-sans text-[13.5px] font-light text-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Cycle summary reports
-                  </li>
-                  <li className="font-sans text-[13.5px] font-light text-mid flex items-start gap-2 leading-relaxed">
-                    <span className="text-accent">&rarr;</span> Cancel any time
-                  </li>
-                </ul>
-              </div>
-              <button
-                onClick={(e) => { e.preventDefault(); document.getElementById('auth').scrollIntoView({ behavior: 'smooth' }); }}
-                className="w-full mt-6 py-3 px-4 rounded border border-primary/20 bg-transparent text-primary hover:border-primary font-sans text-sm font-medium tracking-wide transition-all cursor-pointer text-center"
-              >
                 Get started &rarr;
               </button>
             </ScrollReveal>
-
           </div>
 
           <ScrollReveal className="pricing-addon font-sans text-sm font-light text-mid pt-8">

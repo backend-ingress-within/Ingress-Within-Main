@@ -81,13 +81,14 @@ export async function POST(request: NextRequest) {
     switch (eventType) {
       // Recurring Subscription Events
       case 'subscription.activated':
-      case 'subscription.charged': {
+      case 'subscription.charged':
+      case 'subscription.resumed': {
         const subEntity = payload.payload?.subscription?.entity;
         const paymentEntity = payload.payload?.payment?.entity;
 
         const gatewaySubscriptionId = subEntity?.id;
         const paymentId = paymentEntity?.id || `pay_sub_${Date.now()}`;
-        const amount = paymentEntity?.amount || subEntity?.plan_amount || 58882; // Paise
+        const amount = paymentEntity?.amount || subEntity?.plan_amount || 49900; // 49900 paise (₹499.00 GST inclusive)
         const userId = subEntity?.notes?.user_id;
 
         if (gatewaySubscriptionId) {
@@ -118,6 +119,32 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'subscription.pending': {
+        // Out-of-order protection: Do not downgrade an already active subscription to pending
+        const subEntity = payload.payload?.subscription?.entity;
+        if (subEntity?.id) {
+          const { data: currentSub } = await supabase
+            .from('subscriptions')
+            .select('status')
+            .eq('gateway_subscription_id', subEntity.id)
+            .maybeSingle();
+
+          if (!currentSub || currentSub.status !== 'active') {
+            await supabase
+              .from('subscriptions')
+              .update({
+                status: 'pending',
+                updated_at: new Date().toISOString()
+              })
+              .eq('gateway_subscription_id', subEntity.id);
+            console.log(`[Razorpay Webhook] billing.subscription.pending sub=${subEntity.id}`);
+          } else {
+            console.log(`[Razorpay Webhook] Ignored stale pending event for already active subscription ${subEntity.id}`);
+          }
+        }
+        break;
+      }
+
       case 'subscription.halted':
       case 'subscription.paused': {
         const subEntity = payload.payload?.subscription?.entity;
@@ -137,10 +164,13 @@ export async function POST(request: NextRequest) {
       case 'subscription.cancelled': {
         const subEntity = payload.payload?.subscription?.entity;
         if (subEntity?.id) {
+          const currentPeriodEnd = subEntity.current_end ? new Date(subEntity.current_end * 1000).toISOString() : undefined;
           await supabase
             .from('subscriptions')
             .update({
               status: 'cancelled',
+              cancel_at_period_end: true,
+              current_period_end: currentPeriodEnd,
               cancelled_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             })

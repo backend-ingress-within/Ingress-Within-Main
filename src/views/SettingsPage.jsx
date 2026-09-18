@@ -173,7 +173,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         key: key_id,
         subscription_id: subscription_id,
         name: 'Ingress Within',
-        description: `${product.name} (₹499 + GST / month)`,
+        description: `${product.name} (₹499/month GST inclusive)`,
         image: '/favicon.ico',
         handler: async function (response) {
           setCheckoutMsg("Payment received. We're confirming your subscription…");
@@ -830,17 +830,17 @@ export default function SettingsPage({ user, profile, onSignOut }) {
             </div>
             <div className="sub-area px-5 py-5 border-b border-[#1E2A2E]/8 space-y-3">
               <div className="font-serif text-2xl font-normal text-primary">
-                {sub.plan_name || 'Self-Work Platform'}
+                {sub.plan_name || 'Ingress Within Self-Work'}
               </div>
               <div className="text-[13px] text-mid">
                 {sub.current_period_end ? (
                   sub.cancel_at_period_end ? (
                     `Access remains active until ${new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}. You will not be charged again.`
                   ) : (
-                    `Renews on ${new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · ₹588.82/month (Base: ₹499.00 + 18% GST)`
+                    `Renews on ${new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · ₹499.00/month (GST inclusive)`
                   )
                 ) : (
-                  'Base: ₹499.00/month + 18% GST (₹89.82) · Total ₹588.82/month'
+                  '₹499.00/month (GST inclusive · Taxable ₹422.88 + 18% GST ₹76.12)'
                 )}
               </div>
               {billingData?.payment_methods?.[0] && (
@@ -876,24 +876,24 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               </div>
               <div className="sub-area px-5 py-4 border-b-0">
                 <div className="text-[13px] text-mid leading-relaxed">
-                  You do not currently have an active membership. Subscribe below to unlock all guided journaling, pattern reports, and psychoeducation modules.
+                  You do not currently have an active membership. Subscribe below to unlock daily self-work journaling, weekly pattern reports, and therapeutic exercises.
                 </div>
               </div>
             </div>
 
             <div className="price-card bg-[#1E2A2E] text-white rounded-xl p-6 mb-4 relative overflow-hidden">
               <div className="price-ey inline-block bg-[#8DBFB4]/15 border border-[#8DBFB4]/25 px-3 py-1 rounded-full text-[10px] font-bold text-[#8DBFB4] uppercase tracking-wider mb-3.5">
-                Self-Work Platform
+                Ingress Within Self-Work
               </div>
               <div className="flex items-baseline gap-2 mb-1">
                 <span className="price-amt font-serif text-3xl font-semibold text-[#E0A898]">₹499</span>
                 <span className="text-xs text-[#A8D4CE] font-mono">/ month</span>
               </div>
               <div className="text-xs text-[#A8D4CE]/80 mb-3">
-                + 18% GST (₹89.82) · Total ₹588.82 / month
+                GST Inclusive · ₹499.00 total (Taxable ₹422.88 + 18% GST ₹76.12)
               </div>
               <div className="price-desc text-[13px] text-[#A8D4CE]/70 leading-relaxed mb-4.5">
-                Unlimited daily guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and access to all 19 clinical psychoeducation modules. Cancel anytime.
+                Unlimited daily guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and therapeutic self-work exercises. Cancel anytime.
               </div>
               <div className="price-feats mb-5 flex flex-col gap-2">
                 <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
@@ -903,7 +903,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
                   <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Longitudinal pattern engine (4-state lifecycle)
                 </div>
                 <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> 19 structured psychoeducation modules
+                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Integrated self-reflection &amp; therapeutic exercises
                 </div>
                 <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
                   <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Weekly summary, monthly and annual reports
@@ -914,7 +914,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
                 onClick={handleSubscribe}
                 disabled={isCheckingOut}
               >
-                {isCheckingOut ? (checkoutMsg || 'Opening gateway…') : 'Subscribe · ₹588.82/month'}
+                {isCheckingOut ? (checkoutMsg || 'Opening gateway…') : 'Subscribe · ₹499/month (GST Inclusive)'}
               </button>
               <p className="text-[11px] text-[#A8D4CE]/60 text-center leading-relaxed mt-2.5">
                 Billed monthly via Razorpay · Recurring mandate per RBI guidelines · Cancel any time
@@ -952,16 +952,20 @@ export default function SettingsPage({ user, profile, onSignOut }) {
                   <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">
                     {new Date(inv.issued_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
                   </div>
-                  <div className="bill-desc text-[13.5px] font-semibold text-primary">Self-Work Platform (Monthly)</div>
+                  <div className="bill-desc text-[13.5px] font-semibold text-primary">Ingress Within Self-Work (Monthly)</div>
                   <div className="bill-detail text-[12px] text-mid mt-0.5">
                     {new Date(inv.issued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · Invoice {inv.invoice_number}
+                  </div>
+                  <div className="text-[11px] text-mid/70 mt-0.5">
+                    Taxable: ₹{(inv.amount_subtotal / 100).toFixed(2)} + 18% GST: ₹{(inv.amount_gst / 100).toFixed(2)}
                   </div>
                   <div className="bill-status bs-paid text-[12px] font-semibold text-[#1A5040] mt-1 capitalize">
                     {inv.status}
                   </div>
                 </div>
-                <div className="bill-r text-right font-bold text-[14.5px]">
-                  ₹{(inv.amount_total / 100).toFixed(2)}
+                <div className="bill-r text-right">
+                  <div className="font-bold text-[14.5px]">₹{(inv.amount_total / 100).toFixed(2)}</div>
+                  <div className="text-[10px] text-mid/60 uppercase">GST Included</div>
                 </div>
               </div>
             ))
