@@ -557,10 +557,22 @@ export class BillingService {
             status: 'active',
             current_period_start: currentPeriodStart,
             current_period_end: currentPeriodEnd,
+            cancel_at_period_end: false,
             paid_count: (sub.paid_count || 0) + 1,
             updated_at: now.toISOString()
           })
           .eq('id', sub.id);
+
+        // Supersede any prior active or cancelling subscriptions for this user
+        await supabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            updated_at: now.toISOString()
+          })
+          .eq('user_id', userId)
+          .neq('id', sub.id)
+          .in('status', ['active', 'past_due', 'created']);
       }
     }
 
