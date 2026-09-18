@@ -820,8 +820,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">Your current plan and renewal details.</p>
 
         {isSubActive ? (
-          <div>
-            <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
             <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
               <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
               <span className="badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold text-[#1A5040] bg-[#8DBFB4]/15 border border-[#8DBFB4]/30">
@@ -857,17 +856,19 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               <span className="chev text-mid/30 text-lg">›</span>
             </div>
             {sub.cancel_at_period_end ? (
-              <div className="row flex flex-col sm:flex-row justify-between sm:items-center px-5 py-4 gap-3 bg-[#8DBFB4]/12">
-                <div className="row-l">
-                  <div className="row-lbl font-semibold text-[13.5px] text-primary">Resume or resubscribe</div>
-                  <div className="row-sub text-mid text-[12px] mt-0.5 leading-relaxed">Changed your mind? Continue your practice without interruption when this billing cycle ends.</div>
+              <div className="row flex justify-between items-center px-5 py-3.5 gap-4">
+                <div className="row-l flex-1 min-w-0">
+                  <div className="row-lbl font-semibold text-[13.5px] text-primary">Resume subscription</div>
+                  <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">
+                    Keep your practice uninterrupted after {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'this cycle'}.
+                  </div>
                 </div>
                 <button
-                  className="btn btn-terra px-5 py-2.5 bg-[#E0A898] text-[#1E2A2E] rounded-lg text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity whitespace-nowrap cursor-pointer self-start sm:self-auto shadow-sm"
+                  className="btn btn-dk px-4 py-2 bg-[#1E2A2E] text-white rounded-lg text-xs font-medium hover:bg-[#253338] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                   onClick={handleSubscribe}
                   disabled={isCheckingOut}
                 >
-                  {isCheckingOut ? (checkoutMsg || 'Opening gateway…') : 'Resubscribe · ₹499/mo'}
+                  {isCheckingOut ? (checkoutMsg || 'Connecting…') : 'Resubscribe (₹499/mo)'}
                 </button>
               </div>
             ) : (
@@ -880,35 +881,6 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               </div>
             )}
           </div>
-
-          {sub.cancel_at_period_end && (
-            <div className="card bg-[#1E2A2E] text-white rounded-xl p-6 mb-4 relative overflow-hidden">
-              <div className="price-ey inline-block bg-[#8DBFB4]/15 border border-[#8DBFB4]/25 px-3 py-1 rounded-full text-[10px] font-bold text-[#8DBFB4] uppercase tracking-wider mb-3.5">
-                Continue Your Practice
-              </div>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="price-amt font-serif text-3xl font-semibold text-[#E0A898]">₹499</span>
-                <span className="text-xs text-[#A8D4CE] font-mono">/ month</span>
-              </div>
-              <div className="text-xs text-[#A8D4CE]/80 mb-3">
-                GST Inclusive · ₹499.00 total (Taxable ₹422.88 + 18% GST ₹76.12)
-              </div>
-              <div className="price-desc text-[13px] text-[#A8D4CE]/70 leading-relaxed mb-4.5">
-                Your current cycle is set to end soon. Resubscribe now to renew your monthly membership. Your journal history, reflections, and reports will carry forward seamlessly.
-              </div>
-              <button
-                className="btn btn-terra w-full py-3 bg-[#E0A898] text-[#1E2A2E] rounded-lg text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shadow-sm"
-                onClick={handleSubscribe}
-                disabled={isCheckingOut}
-              >
-                {isCheckingOut ? (checkoutMsg || 'Opening gateway…') : 'Resubscribe · ₹499/month (GST Inclusive)'}
-              </button>
-              <p className="text-[11px] text-[#A8D4CE]/60 text-center leading-relaxed mt-2.5">
-                Billed monthly via Razorpay · Recurring mandate per RBI guidelines · Cancel any time
-              </p>
-            </div>
-          )}
-        </div>
         ) : (
           <div>
             <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
