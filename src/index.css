@@ -71,7 +71,7 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Headings: Lora, elegant, calm */
@@ -147,14 +147,19 @@
   background-color: #FDFBF8;
   border: 1px solid rgba(231, 222, 207, 0.85);
   box-shadow: 0 4px 20px -2px rgba(1, 22, 39, 0.04), 0 2px 6px -1px rgba(1, 22, 39, 0.02);
+  /* Transition styling properties only - NEVER transform, preventing conflicts with Framer Motion scroll animations */
+  transition-property: background-color, border-color, box-shadow, opacity;
+  transition-duration: 250ms;
+  transition-timing-function: ease-out;
 }
 
 .paper-card-hover {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-property: box-shadow, border-color;
+  transition-duration: 250ms;
+  transition-timing-function: ease-out;
 }
 
 .paper-card-hover:hover {
-  transform: translateY(-2px);
   box-shadow: 0 10px 30px -4px rgba(1, 22, 39, 0.07), 0 4px 10px -2px rgba(1, 22, 39, 0.03);
 }
 

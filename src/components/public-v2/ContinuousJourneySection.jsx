@@ -1,4 +1,5 @@
-import React from 'react';
+import { motion } from 'framer-motion';
+import { getCardEmergence } from '../../utils/cardEmergence';
 
 /**
  * Section 01 · A Continuous Journey
@@ -44,20 +45,10 @@ export default function ContinuousJourneySection() {
           01 · A CONTINUOUS JOURNEY
         </div>
 
-        {/* Heading with watercolor brushstroke under "clarity." */}
+        {/* Heading */}
         <h2 className="font-editorial text-3xl sm:text-4xl md:text-5xl text-[#162723] font-normal tracking-tight max-w-3xl mx-auto leading-[1.18]">
           A continuous path from{' '}
           <span className="block sm:inline">reflection to clarity.</span>
-          <div className="mx-auto w-36 sm:w-44 h-2 mt-1 relative">
-            <svg viewBox="0 0 160 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-60">
-              <path
-                d="M3 8 C40 3 100 4 157 7 C120 10 70 11 15 9"
-                stroke="#C49A8F"
-                strokeWidth="5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
         </h2>
 
         {/* Subtitle */}
@@ -65,12 +56,13 @@ export default function ContinuousJourneySection() {
           Self-awareness doesn't happen in a single breakthrough. It builds through consistent daily registration, noticing loops, and intentional reframing.
         </p>
 
-        {/* 5 Sequential Paper Cards */}
+        {/* 5 Sequential Paper Cards: Odd total (5) -> Center card (03 NOTICE) anchors, others emerge outward */}
         <div className="pt-12 sm:pt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 text-center">
-          {steps.map((step) => (
-            <div
+          {steps.map((step, idx) => (
+            <motion.div
               key={step.number}
-              className="paper-card paper-card-hover rounded-xl p-6 sm:p-7 flex flex-col items-center justify-center bg-[#FDFBF8] min-h-[160px]"
+              {...getCardEmergence(idx, 5)}
+              className="paper-card paper-card-hover rounded-xl p-6 sm:p-7 flex flex-col items-center justify-center bg-[#FDFBF8] hover:bg-white border border-[#E7DECF] hover:border-[#795663]/40 min-h-[160px] shadow-xs hover:shadow-md transition-shadow cursor-pointer"
             >
               {/* Number */}
               <div className="font-mono-code text-xs text-[#9AA59F] font-semibold mb-3">
@@ -86,7 +78,7 @@ export default function ContinuousJourneySection() {
               <p className="font-zen text-xs sm:text-[13px] text-[#5C6873] leading-relaxed max-w-[170px]">
                 {step.description}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
 

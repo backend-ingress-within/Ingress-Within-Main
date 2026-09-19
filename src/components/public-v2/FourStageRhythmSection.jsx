@@ -1,4 +1,6 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+import { getCardEmergence } from '../../utils/cardEmergence';
 
 /**
  * Section 05 · The 4-Stage Rhythm
@@ -85,11 +87,14 @@ export default function FourStageRhythmSection() {
             <div className="absolute right-0 -top-1 border-t-[5px] border-b-[5px] border-l-[8px] border-t-transparent border-b-transparent border-l-[#C4B7A5]" />
           </div>
 
-          {/* 4 Stage Nodes and Cards */}
+          {/* 4 Stage Nodes and Cards: Even total (4) -> Inner cards split from center, outer cards emerge outwards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-6 text-left relative z-10">
-            {stages.map((stage) => (
-              <div key={stage.number} className="flex flex-col items-start md:items-center">
-                
+            {stages.map((stage, idx) => (
+              <motion.div
+                key={stage.number}
+                {...getCardEmergence(idx, 4)}
+                className="flex flex-col items-start md:items-center cursor-pointer"
+              >
                 {/* Number & Node Dot */}
                 <div className="flex flex-col items-center mb-6">
                   <span className="font-mono-code text-xs text-[#7D8E87] font-semibold mb-2">
@@ -115,7 +120,7 @@ export default function FourStageRhythmSection() {
                   </p>
                 </div>
 
-              </div>
+              </motion.div>
             ))}
           </div>
 

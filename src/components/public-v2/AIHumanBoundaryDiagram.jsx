@@ -1,4 +1,5 @@
-import React from 'react';
+import { motion } from 'framer-motion';
+import { getCardEmergence } from '../../utils/cardEmergence';
 
 /**
  * Editorial System Diagram: Where the line sits (AI Zone vs Human Zone).
@@ -67,7 +68,7 @@ export default function AIHumanBoundaryDiagram() {
                   You interpret it
                 </div>
                 <div className="font-editorial italic text-sm text-[#795663]">
-                  — or your therapist
+                  or your therapist
                 </div>
               </div>
             </div>
@@ -76,11 +77,11 @@ export default function AIHumanBoundaryDiagram() {
             <div className="space-y-2 pt-2 border-t border-[#E7DECF]/60 text-xs font-zen text-[#5C6873]">
               <div className="flex items-center gap-2">
                 <span className="text-[#8AA688]">✓</span>
-                <span>No automated diagnosis</span>
+                <span>Therapy relationship is never replaced</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[#8AA688]">✓</span>
-                <span>No autonomous treatment</span>
+                <span>No automated diagnoses or prescriptions</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[#8AA688]">✓</span>
@@ -92,26 +93,35 @@ export default function AIHumanBoundaryDiagram() {
         </div>
       </div>
 
-      {/* Three Limitation Cards from HTML */}
+      {/* Three Limitation Cards: Odd total (3) -> Center card anchors, left/right emerge outward */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-        <div className="paper-card rounded-xl p-5 bg-[#FDFBF8]">
+        <motion.div
+          {...getCardEmergence(0, 3)}
+          className="paper-card paper-card-hover rounded-xl p-5 bg-[#FDFBF8] hover:bg-white border border-[#E7DECF] hover:border-[#795663]/40 shadow-xs hover:shadow-md transition-shadow cursor-pointer"
+        >
           <h4 className="font-editorial text-lg text-[#162723] mb-1">No diagnosis</h4>
           <p className="font-zen text-xs text-[#5C6873]">
             The system identifies repeating vocabulary and themes, never clinical disorders.
           </p>
-        </div>
-        <div className="paper-card rounded-xl p-5 bg-[#FDFBF8]">
+        </motion.div>
+        <motion.div
+          {...getCardEmergence(1, 3)}
+          className="paper-card paper-card-hover rounded-xl p-5 bg-[#FDFBF8] hover:bg-white border border-[#E7DECF] hover:border-[#795663]/40 shadow-xs hover:shadow-md transition-shadow cursor-pointer"
+        >
           <h4 className="font-editorial text-lg text-[#162723] mb-1">No autonomous treatment</h4>
           <p className="font-zen text-xs text-[#5C6873]">
             No algorithms prescribing medical action. Growth is self-directed or therapist-led.
           </p>
-        </div>
-        <div className="paper-card rounded-xl p-5 bg-[#FDFBF8]">
+        </motion.div>
+        <motion.div
+          {...getCardEmergence(2, 3)}
+          className="paper-card paper-card-hover rounded-xl p-5 bg-[#FDFBF8] hover:bg-white border border-[#E7DECF] hover:border-[#795663]/40 shadow-xs hover:shadow-md transition-shadow cursor-pointer"
+        >
           <h4 className="font-editorial text-lg text-[#162723] mb-1">No invisible path</h4>
           <p className="font-zen text-xs text-[#5C6873]">
             You see exactly why a pattern or suggestion appeared and what entries sparked it.
           </p>
-        </div>
+        </motion.div>
       </div>
 
     </div>

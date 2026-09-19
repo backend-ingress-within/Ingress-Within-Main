@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * Editorial Dark Ink Footer matching source HTML content.
  */
@@ -19,7 +17,7 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
   };
 
   return (
-    <footer className="bg-[#011627] text-[#DCE2E7] py-16 sm:py-20 px-5 sm:px-8 border-t border-[#1E2A2E]">
+    <footer className="relative z-20 bg-[#011627] text-[#DCE2E7] py-16 sm:py-20 px-5 sm:px-8 border-t border-[#1E2A2E] overflow-hidden">
       <div className="max-w-6xl mx-auto">
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 pb-14 border-b border-white/10">
@@ -32,7 +30,7 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
                 alt="Ingress Within"
                 className="w-8 h-8 object-contain flex-shrink-0"
               />
-              <span className="font-editorial italic text-2xl text-white">ingress within</span>
+              <span className="font-editorial italic text-2xl text-white">Ingress Within</span>
             </div>
             <p className="font-mono-code text-[10px] tracking-[0.16em] uppercase text-[#BFCAD7] font-medium">
               Understand · Grow · Continue

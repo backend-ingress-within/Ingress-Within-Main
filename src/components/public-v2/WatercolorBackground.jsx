@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * Ambient watercolor atmosphere inspired by the editorial design references.
  * Features organic bleeds in Sage Green (#8AA688), Dusty Rose (#D9BCAF / #795663),
@@ -68,36 +66,6 @@ export default function WatercolorBackground({ className = '' }) {
         <circle cx="185" cy="195" r="3" fill="#C49A8F" opacity="0.25" />
         <circle cx="160" cy="250" r="5" fill="#C49A8F" opacity="0.22" />
         <circle cx="230" cy="340" r="3.5" fill="#C49A8F" opacity="0.2" />
-      </svg>
-
-      {/* 3. Bottom-Left: Soft Mauve / Clay Wash */}
-      <svg
-        className="absolute -bottom-24 -left-28 w-[400px] sm:w-[520px] md:w-[640px] h-auto opacity-65 mix-blend-multiply"
-        viewBox="0 0 600 500"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M40 450 C90 360 170 310 270 320 C360 330 430 400 450 480 C400 520 220 540 130 520 C60 500 10 480 40 450 Z"
-          fill="url(#rose-wash)"
-          filter="url(#bleed-blur)"
-        />
-      </svg>
-
-      {/* 4. Bottom-Right: Soft Sage Wash */}
-      <svg
-        className="absolute -bottom-20 -right-20 w-[420px] sm:w-[540px] md:w-[660px] h-auto opacity-70 mix-blend-multiply"
-        viewBox="0 0 600 500"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M520 440 C450 350 360 320 270 340 C190 360 150 430 180 490 C250 530 410 520 480 500 C530 480 560 460 520 440 Z"
-          fill="url(#sage-wash)"
-          filter="url(#bleed-blur)"
-        />
-        <circle cx="250" cy="320" r="4" fill="#8AA688" opacity="0.25" />
-        <circle cx="290" cy="290" r="3" fill="#8AA688" opacity="0.2" />
       </svg>
     </div>
   );
