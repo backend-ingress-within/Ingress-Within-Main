@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Editorial Navbar matching the screenshot visual design.
@@ -18,13 +18,12 @@ export default function EditorialNavbar({ activeTab = 'home', onSelectTab }) {
   }, []);
 
   const navItems = [
-    { id: 'home', label: 'Home', path: '/' },
-    { id: 'solution', label: 'What It Is', path: '/solution' },
-    { id: 'how', label: 'How It Works', path: '/how-it-works' },
-    { id: 'about', label: 'About Us', path: '/about' },
+    { id: 'solution', label: 'Our solution', path: '/solution' },
+    { id: 'how', label: 'How it works', path: '/how-it-works' },
     { id: 'pricing', label: 'Pricing', path: '/pricing' },
-    { id: 'ai', label: 'AI & Data', path: '/ai-data' },
+    { id: 'ai', label: 'AI & data', path: '/ai-data' },
     { id: 'evidence', label: 'Evidence', path: '/evidence' },
+    { id: 'about', label: 'About', path: '/about' },
     { id: 'crisis', label: 'In crisis?', path: '/crisis', highlight: true }
   ];
 
@@ -73,7 +72,7 @@ export default function EditorialNavbar({ activeTab = 'home', onSelectTab }) {
 
           <div>
             <div className="font-editorial text-[21px] sm:text-[23px] text-[#162723] tracking-tight leading-none">
-              ingress <span className="font-medium text-[#2E7A70]">within</span>
+              Ingress <span className="font-medium text-[#2E7A70]">Within</span>
             </div>
             <div className="font-mono-code text-[8.5px] sm:text-[9px] tracking-[0.16em] uppercase text-[#7D8E87] mt-1">
               Understand · Grow · Continue
@@ -163,7 +162,7 @@ export default function EditorialNavbar({ activeTab = 'home', onSelectTab }) {
             />
             <div>
               <div className="font-editorial text-lg text-[#162723] leading-none">
-                ingress <span className="font-medium text-[#2E7A70]">within</span>
+                Ingress <span className="font-medium text-[#2E7A70]">Within</span>
               </div>
               <div className="font-mono-code text-[8px] tracking-[0.14em] uppercase text-[#7D8E87] mt-1">
                 Understand · Grow · Continue
