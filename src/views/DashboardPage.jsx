@@ -54,6 +54,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
   const [vocabStats, setVocabStats] = useState(null);
   const [weeklyReports, setWeeklyReports] = useState([]);
   const [patternsOverview, setPatternsOverview] = useState(null);
+  const [customerAccess, setCustomerAccess] = useState(null);
 
   // Reflection response states
   const [reflectionModalOpen, setReflectionModalOpen] = useState(false);
@@ -88,7 +89,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
     setIsLoading(true);
     setError(null);
     try {
-      const [result, vStats, cycles, reports, patterns] = await Promise.all([
+      const [result, vStats, cycles, reports, patterns, accessData] = await Promise.all([
         DashboardService.fetchDashboardData(force).catch((err) => {
           console.error('fetchDashboardData failed:', err);
           return null;
@@ -96,7 +97,8 @@ export default function DashboardPage({ user, profile, onSignOut }) {
         DashboardService.fetchVocabOverview(force).catch(() => null),
         DashboardService.fetchCyclesList(force).catch(() => []),
         DashboardService.fetchWeeklyReports(undefined, force).catch(() => []),
-        DashboardService.fetchPatternOverview(force).catch(() => null)
+        DashboardService.fetchPatternOverview(force).catch(() => null),
+        fetch('/api/billing/access').then((r) => r.json()).catch(() => null)
       ]);
 
       setData(result);
@@ -105,6 +107,9 @@ export default function DashboardPage({ user, profile, onSignOut }) {
       setVocabStats(vStats);
       setWeeklyReports(reports);
       setPatternsOverview(patterns);
+      if (accessData?.success && accessData?.access) {
+        setCustomerAccess(accessData.access);
+      }
 
       // Check for unanswered reflection on the most recent entry
       if (result && result.entries && result.entries.length > 0) {
@@ -204,8 +209,15 @@ export default function DashboardPage({ user, profile, onSignOut }) {
       setCyclesList((prevList) => {
         return freshCycles.map((freshCycle) => {
           const existingCycle = prevList.find(c => c.id === freshCycle.id);
-          if (existingCycle && existingCycle.entries !== null) {
-            return { ...freshCycle, ...existingCycle };
+          if (existingCycle) {
+            return {
+              ...freshCycle,
+              entries: existingCycle.entries !== null ? existingCycle.entries : freshCycle.entries,
+              entries_count: Math.max(freshCycle.entries_count || 0, existingCycle.entries_count || 0),
+              open_threads_count: existingCycle.open_threads_count || freshCycle.open_threads_count,
+              weekly_summaries_count: existingCycle.weekly_summaries_count || freshCycle.weekly_summaries_count,
+              vocabulary_count: existingCycle.vocabulary_count || freshCycle.vocabulary_count
+            };
           }
           return freshCycle;
         });
@@ -455,6 +467,40 @@ export default function DashboardPage({ user, profile, onSignOut }) {
       {/* Main Page Layout */}
       <main className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-6 sm:space-y-8">
         
+        {/* Centralized Billing & Access Control Banner */}
+        {customerAccess?.banner && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left border ${
+              customerAccess.state === 'DORMANT'
+                ? 'bg-[#1E2A2E]/5 border-[#1E2A2E]/15 text-primary'
+                : customerAccess.state === 'PAST_DUE'
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : customerAccess.state === 'CANCELLED_PENDING'
+                ? 'bg-slate-50 border-slate-200 text-slate-800'
+                : 'bg-[#8DBFB4]/10 border-[#8DBFB4]/30 text-primary'
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/80 border border-current/20">
+                  {customerAccess.state === 'DORMANT' ? 'Read-Only Mode' : customerAccess.state === 'TRIAL' ? '7-Day Free Trial' : customerAccess.state === 'PAST_DUE' ? 'Payment Alert' : 'Membership Notice'}
+                </span>
+              </div>
+              <p className="font-medium text-xs sm:text-[13px] leading-relaxed">{customerAccess.banner.message}</p>
+            </div>
+            {customerAccess.banner.ctaText && (
+              <button
+                onClick={() => window.navigateTo(customerAccess.banner.ctaHref || '/settings')}
+                className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-primary text-white hover:bg-primary/90 transition-all shrink-0 cursor-pointer shadow-xs"
+              >
+                {customerAccess.banner.ctaText}
+              </button>
+            )}
+          </motion.div>
+        )}
+
         {/* Welcome Section */}
         <section className="space-y-1">
           <div className="text-[10px] uppercase tracking-widest text-secondary font-semibold">{getGreeting()}</div>
@@ -636,7 +682,31 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 null
               ) : (
                 <>
-                  {data.cycleInfo.hasWrittenToday ? (
+                  {customerAccess?.state === 'DORMANT' ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white border border-[#1E2A2E]/10 rounded-xl p-5 text-left space-y-3 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-mid uppercase tracking-widest">Reflective Mode</span>
+                        <span className="text-xs font-mono text-mid">All archives safe</span>
+                      </div>
+                      <h3 className="font-serif text-base sm:text-lg text-primary">Your account is in reflective read-only mode</h3>
+                      <p className="text-[12px] sm:text-[12.5px] text-mid leading-relaxed max-w-lg">
+                        You can still view everything you've written, including your past journals, reports, and patterns. Subscribe to continue daily guided writing and AI reflections.
+                      </p>
+                      <div className="pt-1">
+                        <button
+                          onClick={() => window.navigateTo('/settings')}
+                          className="px-4 py-2.5 bg-primary text-white hover:bg-[#2A3A3E] text-xs font-semibold uppercase tracking-wider rounded-lg transition-all cursor-pointer shadow-sm flex items-center gap-2"
+                        >
+                          <span>Resume Daily Self-Work · ₹499/mo</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : data.cycleInfo.hasWrittenToday ? (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

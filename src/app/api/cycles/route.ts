@@ -47,6 +47,23 @@ export async function GET(request: NextRequest) {
       todayMidnight = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
     }
 
+    // Authoritatively compute actual entries count from the entries table
+    const cycleIds = cyclesToProcess.map((c: any) => c.id);
+    const countsMap: Record<string, number> = {};
+    if (cycleIds.length > 0) {
+      const { data: entriesForCycles } = await supabase
+        .from('entries')
+        .select('cycle_id')
+        .eq('user_id', userId)
+        .in('cycle_id', cycleIds);
+
+      (entriesForCycles || []).forEach((e: any) => {
+        if (e.cycle_id) {
+          countsMap[e.cycle_id] = (countsMap[e.cycle_id] || 0) + 1;
+        }
+      });
+    }
+
     const cyclesMetadata = cyclesToProcess.map((cy: any) => {
       let activeDay = cy.current_day || 1;
       const isCycleActive = cy.status?.toUpperCase() === 'ACTIVE' || cy.status?.toUpperCase() === 'ARCHIVED';
@@ -58,6 +75,7 @@ export async function GET(request: NextRequest) {
         activeDay = Math.min(cy.total_days || 30, Math.max(cy.current_day || 1, calculatedDay));
       }
       const progressPercentage = Math.round((activeDay / (cy.total_days || 30)) * 100);
+      const actualEntriesCount = countsMap[cy.id] !== undefined ? countsMap[cy.id] : (cy.entries_count || 0);
       
       return {
         id: cy.id,
@@ -66,7 +84,7 @@ export async function GET(request: NextRequest) {
         current_day: activeDay,
         total_days: cy.total_days || 30,
         progress_percentage: Math.min(100, progressPercentage),
-        entries_count: cy.entries_count || 0,
+        entries_count: actualEntriesCount,
         open_threads_count: 0, // Loaded on-demand
         weekly_summaries_count: 0, // Loaded on-demand
         vocabulary_count: 0, // Loaded on-demand

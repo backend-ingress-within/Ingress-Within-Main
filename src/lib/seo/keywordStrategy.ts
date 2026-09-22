@@ -163,6 +163,11 @@ export const ROUTE_INTENT_MAP: Record<string, { title: string; description: stri
     title: 'Sign In & Register | Ingress Within',
     description: 'Access your private guided journaling account, view your pattern reports, and continue your daily self-reflection.',
     clusterId: 'guidedJournaling'
+  },
+  therapistAuth: {
+    title: 'Therapist Portal — Clinical Practitioner Access | Ingress Within',
+    description: 'Secure, dedicated portal for clinical practitioners and therapists at Ingress Within.',
+    clusterId: 'psychologyInformed'
   }
 };
 

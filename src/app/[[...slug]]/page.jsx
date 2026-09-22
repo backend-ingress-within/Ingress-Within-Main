@@ -8,13 +8,23 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'auth',
   'user/login',
   'user/auth',
+  'therapist',
+  'therapist/auth',
+  'therapist/login',
+  'solution',
   'what-it-is',
+  'how',
   'how-it-works',
   'about',
   'pricing',
   'faq',
+  'start',
   'contact',
+  'ai',
   'ai-data',
+  'evidence',
+  'policies',
+  'crisis',
   'guided-journaling',
   'self-reflection',
   'emotional-patterns',
@@ -37,6 +47,7 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'v2/journaling-prompts-for-self-discovery',
   'v2/how-to-start-journaling',
   'v2/how-to-practice-self-reflection',
+  'razorpay-verification',
 ]);
 
 function isKnownRoute(rawPath) {
@@ -74,7 +85,8 @@ function isKnownRoute(rawPath) {
     rawPath.startsWith('thread') ||
     rawPath.startsWith('entry') ||
     rawPath.startsWith('test') ||
-    rawPath.startsWith('admin')
+    rawPath.startsWith('admin') ||
+    rawPath.startsWith('therapist')
   ) {
     return true;
   }
@@ -107,6 +119,9 @@ export function generateStaticParams() {
     { slug: ['user', 'login'] },
     { slug: ['user', 'auth'] },
     { slug: ['therapy'] },
+    { slug: ['therapist'] },
+    { slug: ['therapist', 'auth'] },
+    { slug: ['therapist', 'login'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
@@ -168,6 +183,7 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
   else if (rawPath === 'therapy') initialRoute = 'therapy';
   else if (rawPath === 'auth') initialRoute = 'auth';
+  else if (rawPath === 'therapist' || rawPath === 'therapist/auth' || rawPath === 'therapist/login') initialRoute = 'therapist/auth';
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;

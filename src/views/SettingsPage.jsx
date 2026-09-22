@@ -26,8 +26,6 @@ export default function SettingsPage({ user, profile, onSignOut }) {
   const [showToast, setShowToast] = useState(false);
   
   // Modals State
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [isCancelIntroModalOpen, setIsCancelIntroModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLogoutAllModalOpen, setIsLogoutAllModalOpen] = useState(false);
   
@@ -61,8 +59,13 @@ export default function SettingsPage({ user, profile, onSignOut }) {
   const [reportReminder, setReportReminder] = useState(true);
   const [exerciseReminder, setExerciseReminder] = useState(false);
 
-  // Subscription state preview switcher
-  const [subState, setSubState] = useState('active'); // active, active-stepup, grace1, grace2, grace3, cancelled, trial, trial-ended, dormant
+  // Real dynamic billing states
+  const [billingData, setBillingData] = useState(null);
+  const [isBillingLoading, setIsBillingLoading] = useState(true);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutMsg, setCheckoutMsg] = useState('');
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Delete flow states
   const [deleteStep, setDeleteStep] = useState(1); // 1, 2, 3
@@ -117,6 +120,146 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     setShowToast(true);
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setShowToast(false), 2600);
+  };
+
+  const fetchBillingOverview = async () => {
+    try {
+      const res = await fetch('/api/billing/overview');
+      if (res.ok) {
+        const data = await res.json();
+        setBillingData(data.billing);
+      }
+    } catch (err) {
+      console.error('[Settings] Failed to fetch billing overview:', err);
+    } finally {
+      setIsBillingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBillingOverview();
+  }, []);
+
+  const handleSubscribe = async () => {
+    setIsCheckingOut(true);
+    setCheckoutMsg('Preparing secure checkout…');
+
+    try {
+      const res = await fetch('/api/billing/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku: 'SELF_HELP_MONTHLY' })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        triggerToast(data.error?.message || 'Failed to initiate checkout.');
+        setIsCheckingOut(false);
+        return;
+      }
+
+      const { subscription_id, key_id, product } = data;
+
+      // Ensure Razorpay script is loaded
+      if (typeof window !== 'undefined' && !window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise((resolve) => { script.onload = resolve; });
+      }
+
+      const options = {
+        key: key_id,
+        subscription_id: subscription_id,
+        name: 'Ingress Within',
+        description: `${product.name} (₹499/month GST inclusive)`,
+        image: '/favicon.ico',
+        handler: async function (response) {
+          setCheckoutMsg("Payment received. We're confirming your subscription…");
+          try {
+            await fetch('/api/billing/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            // Poll subscription confirmation
+            let pollCount = 0;
+            const pollTimer = setInterval(async () => {
+              pollCount++;
+              const checkRes = await fetch(`/api/billing/subscription-status/${subscription_id}`);
+              if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                if (checkData.subscription?.is_active || pollCount > 10) {
+                  clearInterval(pollTimer);
+                  await fetchBillingOverview();
+                  setIsCheckingOut(false);
+                  triggerToast('Subscription activated successfully!');
+                }
+              }
+            }, 1500);
+          } catch (e) {
+            await fetchBillingOverview();
+            setIsCheckingOut(false);
+          }
+        },
+        prefill: {
+          contact: user?.phone_number || profile?.phone_number || ''
+        },
+        theme: {
+          color: '#1E2A2E'
+        },
+        modal: {
+          ondismiss: function () {
+            setIsCheckingOut(false);
+            triggerToast('Checkout cancelled.');
+          }
+        }
+      };
+
+      if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (resp) {
+          setIsCheckingOut(false);
+          triggerToast(resp.error?.description || 'Payment could not be processed.');
+        });
+        rzp.open();
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setIsCheckingOut(false);
+      triggerToast('Unable to open checkout.');
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!billingData?.subscription?.gateway_subscription_id) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch('/api/billing/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription_id: billingData.subscription.gateway_subscription_id
+        })
+      });
+      if (res.ok) {
+        triggerToast('Subscription cancelled. Access remains active until the end of your billing cycle.');
+        await fetchBillingOverview();
+      } else {
+        triggerToast('Could not cancel subscription. Please try again.');
+      }
+    } catch (e) {
+      triggerToast('Network error during cancellation.');
+    } finally {
+      setIsCancelling(false);
+      setIsCancelModalOpen(false);
+    }
   };
 
   // Toggle Edit Panels
@@ -653,402 +796,286 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     </div>
   );
 
-  // 3. Subscription Tab
-  const renderSubscription = () => (
-    <div className="pad animate-fadeUp">
-      <p className="pg-ey">Billing</p>
-      <h1 className="pg-h font-serif text-3xl font-normal">Subscription</h1>
-      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">Your current plan and renewal details.</p>
-
-      {/* Dev preview switcher */}
-      <div className="dev bg-[#1E2A2E] rounded-xl p-3 mb-5 flex items-center gap-2.5 flex-wrap">
-        <span className="dev-lbl text-[9px] tracking-wider uppercase color-[#A8D4CE] font-bold text-[#A8D4CE]">Preview:</span>
-        <div className="dev-btns flex gap-1.5 flex-wrap">
-          {['active', 'active-stepup', 'grace1', 'grace2', 'grace3', 'cancelled', 'trial', 'trial-ended', 'dormant'].map((s) => (
-            <button 
-              key={s}
-              className={`dev-btn px-2 py-1 rounded text-[10px] font-semibold transition-all border border-[#8DBFB4]/20 ${subState === s ? 'bg-[#8DBFB4]/15 border-[#8DBFB4] text-[#8DBFB4]' : 'text-mid hover:text-white bg-transparent'}`}
-              onClick={() => setSubState(s)}
-            >
-              {s === 'active-stepup' ? 'Step-up (7d)' : s.replace('grace', 'Grace day ')}
-            </button>
-          ))}
+  // 3. Subscription Tab (Real dynamic state from database & Razorpay)
+  const renderSubscription = () => {
+    if (isBillingLoading) {
+      return (
+        <div className="pad animate-fadeUp">
+          <p className="pg-ey">Billing</p>
+          <h1 className="pg-h font-serif text-3xl font-normal">Subscription</h1>
+          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl p-8 text-center text-mid text-sm mt-6">
+            Loading your subscription details…
+          </div>
         </div>
-      </div>
+      );
+    }
 
-      {/* ACTIVE PLAN */}
-      {subState === 'active' && (
-        <div id="ss-active" className="animate-fadeUp">
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
+    const sub = billingData?.subscription;
+    const isSubActive = sub && (sub.status === 'active' || sub.status === 'authenticated');
+
+    return (
+      <div className="pad animate-fadeUp">
+        <p className="pg-ey">Billing</p>
+        <h1 className="pg-h font-serif text-3xl font-normal">Subscription</h1>
+        <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">Your current plan and renewal details.</p>
+
+        {isSubActive ? (
+          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
               <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
+              <span className="badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold text-[#1A5040] bg-[#8DBFB4]/15 border border-[#8DBFB4]/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1A5040]" />
+                {sub.cancel_at_period_end ? 'Cancelling at Period End' : 'Active'}
+              </span>
             </div>
-            <div className="sub-area px-5 py-4 border-b border-[#1E2A2E]/8">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-active inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#1A5040] bg-[#8DBFB4]/12 border border-[#8DBFB4]/30">
-                  <span className="bdot w-1.5 h-1.5 rounded-full bg-[#1A5040]" />Active
-                </span>
+            <div className="sub-area px-5 py-5 border-b border-[#1E2A2E]/8 space-y-3">
+              <div className="font-serif text-2xl font-normal text-primary">
+                {sub.plan_name || 'Ingress Within Self-Work'}
               </div>
-              <div className="sub-renew text-[13px] text-mid">Renews 14 July 2026 · ₹999/month</div>
-              <div className="sub-cta mt-3.5 flex gap-2.5 flex-wrap items-center">
-                <div className="pm-chip px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-medium text-primary">UPI · username@upi</div>
-                <button className="btn btn-ol px-3 py-1.5 border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5" onClick={() => handleTabSwitch('payment')}>Change payment method</button>
+              <div className="text-[13px] text-mid">
+                {sub.current_period_end ? (
+                  sub.cancel_at_period_end ? (
+                    `Access remains active until ${new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}. You will not be charged again.`
+                  ) : (
+                    `Renews on ${new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · ₹499.00/month (GST inclusive)`
+                  )
+                ) : (
+                  '₹499.00/month (GST inclusive · Taxable ₹422.88 + 18% GST ₹76.12)'
+                )}
               </div>
+              {billingData?.payment_methods?.[0] && (
+                <div className="pt-2">
+                  <div className="pm-chip inline-block px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-medium text-primary">
+                    {billingData.payment_methods[0].type.toUpperCase()} · {billingData.payment_methods[0].masked_account}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="row tap flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8 hover:bg-[#1E2A2E]/2 cursor-pointer transition-colors" onClick={() => handleTabSwitch('billing')}>
               <div className="row-l font-semibold text-[13.5px]">Billing history</div>
               <span className="chev text-mid/30 text-lg">›</span>
             </div>
-            <div className="row flex justify-between items-center px-5 py-3.5 gap-4">
-              <div className="row-l">
-                <div className="row-lbl font-semibold text-[13.5px]">Cancel subscription</div>
-                <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">You'll keep access until the end of your billing period.</div>
+            {sub.cancel_at_period_end ? (
+              <div className="row flex justify-between items-center px-5 py-3.5 gap-4">
+                <div className="row-l flex-1 min-w-0">
+                  <div className="row-lbl font-semibold text-[13.5px] text-primary">Resume subscription</div>
+                  <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">
+                    Keep your practice uninterrupted after {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'this cycle'}.
+                  </div>
+                </div>
+                <button
+                  className="btn btn-dk px-4 py-2 bg-[#1E2A2E] text-white rounded-lg text-xs font-medium hover:bg-[#253338] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  onClick={handleSubscribe}
+                  disabled={isCheckingOut}
+                >
+                  {isCheckingOut ? (checkoutMsg || 'Connecting…') : 'Resubscribe (₹499/mo)'}
+                </button>
               </div>
-              <button className="btn-lnk-red text-xs font-bold text-[#8A3020] underline hover:text-[#b91c1c] bg-transparent border-none cursor-pointer" onClick={() => setIsCancelModalOpen(true)}>Cancel</button>
-            </div>
+            ) : (
+              <div className="row flex justify-between items-center px-5 py-3.5 gap-4">
+                <div className="row-l">
+                  <div className="row-lbl font-semibold text-[13.5px]">Cancel subscription</div>
+                  <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">You'll keep access until the end of your billing period.</div>
+                </div>
+                <button className="btn-lnk-red text-xs font-bold text-[#8A3020] underline hover:text-[#b91c1c] bg-transparent border-none cursor-pointer" onClick={() => setIsCancelModalOpen(true)}>Cancel</button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* ACTIVE STEPUP */}
-      {subState === 'active-stepup' && (
-        <div id="ss-active-stepup" className="animate-fadeUp">
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-              <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
-            </div>
-            <div className="sub-area px-5 py-4 border-b border-[#1E2A2E]/8">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-active inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#1A5040] bg-[#8DBFB4]/12 border border-[#8DBFB4]/30">
-                  <span className="bdot w-1.5 h-1.5 rounded-full bg-[#1A5040]" />Active
+        ) : (
+          <div>
+            <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+              <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
+                <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current status</span>
+                <span className="badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold text-mid bg-[#1E2A2E]/6 border border-[#1E2A2E]/15">
+                  {sub?.status === 'past_due' ? 'Payment Past Due' : sub ? 'Subscription Ended' : 'No active subscription'}
                 </span>
               </div>
-              <div className="sub-renew text-[13px] text-mid font-medium">Renews 14 July 2026 · ₹799/month</div>
-              <div className="sub-stepup mt-2.5 p-3.5 bg-[#E0A898]/7 border-l-3 border-[#E0A898] rounded-r-lg text-[13px] text-[#8A3020] leading-relaxed">
-                Your rate changes to ₹999/month on 14 July 2026.
-              </div>
-              <div className="sub-cta mt-3.5">
-                <div className="pm-chip inline-block px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-medium text-primary">UPI · username@upi</div>
+              <div className="sub-area px-5 py-4 border-b-0">
+                <div className="text-[13px] text-mid leading-relaxed">
+                  {sub?.status === 'past_due'
+                    ? 'Your latest renewal payment could not be processed. Update your payment method or resubscribe below to keep your self-work active.'
+                    : sub
+                    ? 'Your subscription has ended. Everything you have written remains safely preserved in reflective read-only mode. Subscribe below to continue your practice.'
+                    : 'You do not currently have an active membership. Subscribe below to unlock daily self-work journaling, weekly pattern reports, and therapeutic exercises.'}
+                </div>
               </div>
             </div>
-            <div className="row tap flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8 hover:bg-[#1E2A2E]/2 cursor-pointer" onClick={() => handleTabSwitch('billing')}>
-              <div className="row-l font-semibold text-[13.5px]">Billing history</div>
-              <span className="chev text-mid/30 text-lg">›</span>
-            </div>
-            <div className="row flex justify-between items-center px-5 py-3.5 gap-4">
-              <div className="row-l">
-                <div className="row-lbl font-semibold text-[13.5px]">Cancel subscription</div>
-                <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">If you resubscribe later, your introductory rate may not be available.</div>
-              </div>
-              <button className="btn-lnk-red text-xs font-bold text-[#8A3020] underline hover:text-[#b91c1c] bg-transparent border-none cursor-pointer" onClick={() => setIsCancelIntroModalOpen(true)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* GRACE 1-3 */}
-      {subState.startsWith('grace') && (
-        <div className="animate-fadeUp">
-          <div className="alert alert-warn flex gap-3 p-4 rounded-xl border border-[#E0A898]/24 bg-[#E0A898]/9 text-[#8A3020] text-[13px] leading-relaxed mb-5">
-            <div className="alert-bar ab-warn w-1.5 self-stretch bg-[#E0A898] rounded-full shrink-0" />
-            <div>
-              <strong>Payment failed.</strong> Access pauses {subState === 'grace1' ? 'in 3 days' : subState === 'grace2' ? 'tomorrow' : 'today'} if not resolved.
+            <div className="price-card bg-[#1E2A2E] text-white rounded-xl p-6 mb-4 relative overflow-hidden">
+              <div className="price-ey inline-block bg-[#8DBFB4]/15 border border-[#8DBFB4]/25 px-3 py-1 rounded-full text-[10px] font-bold text-[#8DBFB4] uppercase tracking-wider mb-3.5">
+                Ingress Within Self-Work
+              </div>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="price-amt font-serif text-3xl font-semibold text-[#E0A898]">₹499</span>
+                <span className="text-xs text-[#A8D4CE] font-mono">/ month</span>
+              </div>
+              <div className="text-xs text-[#A8D4CE]/80 mb-3">
+                GST Inclusive · ₹499.00 total (Taxable ₹422.88 + 18% GST ₹76.12)
+              </div>
+              <div className="price-desc text-[13px] text-[#A8D4CE]/70 leading-relaxed mb-4.5">
+                Unlimited daily guided and free-flow journaling, weekly pattern reports, 30-day synthesis, and therapeutic self-work exercises. Cancel anytime.
+              </div>
+              <div className="price-feats mb-5 flex flex-col gap-2">
+                <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
+                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Unlimited daily entries &amp; AI mirror reflection
+                </div>
+                <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
+                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Longitudinal pattern engine (4-state lifecycle)
+                </div>
+                <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
+                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Integrated self-reflection &amp; therapeutic exercises
+                </div>
+                <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
+                  <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span> Weekly summary, monthly and annual reports
+                </div>
+              </div>
+              <button
+                className="btn btn-terra w-full py-3 bg-[#E0A898] text-[#1E2A2E] rounded-lg text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shadow-sm"
+                onClick={handleSubscribe}
+                disabled={isCheckingOut}
+              >
+                {isCheckingOut ? (checkoutMsg || 'Opening gateway…') : sub ? 'Resubscribe · ₹499/month (GST Inclusive)' : 'Subscribe · ₹499/month (GST Inclusive)'}
+              </button>
+              <p className="text-[11px] text-[#A8D4CE]/60 text-center leading-relaxed mt-2.5">
+                Billed monthly via Razorpay · Recurring mandate per RBI guidelines · Cancel any time
+              </p>
             </div>
           </div>
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-              <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
-            </div>
-            <div className="sub-area px-5 py-4 border-b border-[#1E2A2E]/8">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-warn inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#8A3020] bg-[#E0A898]/12 border border-[#E0A898]/28">
-                  <span className="bdot w-1.5 h-1.5 rounded-full bg-[#8A3020]" />Payment failed
-                </span>
-              </div>
-              <div className="sub-renew text-[13px] text-mid font-medium">Access pauses {subState === 'grace1' ? 'in 3 days' : subState === 'grace2' ? 'tomorrow' : 'today'} if not resolved.</div>
-              <div className="sub-cta mt-3.5 flex gap-2.5 flex-wrap items-center">
-                <div className="pm-chip px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-medium text-primary">UPI · username@upi</div>
-                <button className="btn btn-terra px-4 py-2 bg-[#E0A898] text-primary rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity" onClick={() => handleTabSwitch('payment')}>Update payment method</button>
-              </div>
-            </div>
-            <div className="row tap flex justify-between items-center px-5 py-3.5 border-b-0 hover:bg-[#1E2A2E]/2 cursor-pointer" onClick={() => handleTabSwitch('billing')}>
-              <div className="row-l font-semibold text-[13.5px]">Billing history</div>
-              <span className="chev text-mid/30 text-lg">›</span>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
+    );
+  };
 
-      {/* CANCELLED */}
-      {subState === 'cancelled' && (
-        <div id="ss-cancelled" className="animate-fadeUp">
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-              <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
-            </div>
-            <div className="sub-area px-5 py-4 border-b border-[#1E2A2E]/8">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-warn inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#8A3020] bg-[#E0A898]/12 border border-[#E0A898]/28">
-                  <span className="bdot w-1.5 h-1.5 rounded-full bg-[#8A3020]" />Cancelled
-                </span>
-              </div>
-              <div className="sub-renew text-[13px] text-mid">You have access until 14 July 2026. You won't be charged again.</div>
-              <div className="mt-1.5 text-xs text-mid">Your entries are still here. You can come back.</div>
-              <div className="sub-cta mt-3.5">
-                <button className="btn btn-sage px-4 py-2 bg-[#1A5040] text-white rounded-lg text-xs font-semibold hover:bg-[#143D30]" onClick={() => { setSubState('active'); triggerToast('Subscription reactivated.'); }}>Reactivate</button>
-              </div>
-            </div>
-            <div className="row tap flex justify-between items-center px-5 py-3.5 border-b-0 hover:bg-[#1E2A2E]/2 cursor-pointer" onClick={() => handleTabSwitch('billing')}>
-              <div className="row-l font-semibold text-[13.5px]">Billing history</div>
-              <span className="chev text-mid/30 text-lg">›</span>
-            </div>
-          </div>
-        </div>
-      )}
+  // 4. Billing History Tab (Real dynamic invoices from database)
+  const renderBilling = () => {
+    const invoices = billingData?.invoices || [];
 
-      {/* TRIAL */}
-      {subState === 'trial' && (
-        <div id="ss-trial" className="animate-fadeUp">
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-              <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
-            </div>
-            <div className="sub-area px-5 py-4 border-b-0">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-trial inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#4A3A6A] bg-[#B8A8D4]/12 border border-[#B8A8D4]/28">
-                  <span className="bdot w-1.5 h-1.5 rounded-full bg-[#4A3A6A]" />Trial · 5 days remaining
-                </span>
-              </div>
-              <div className="sub-renew text-[13px] text-mid font-medium">No card required yet.</div>
-            </div>
-          </div>
-          
-          <div className="price-card bg-[#1E2A2E] text-white rounded-xl p-6 mb-4 relative overflow-hidden">
-            <div className="price-ey inline-block bg-[#E0A898]/13 border border-[#E0A898]/22 px-3 py-1 rounded-full text-[10px] font-bold text-[#E0A898] mb-3.5">14 of 50 introductory spots remaining</div>
-            <div className="price-amt font-serif text-3xl font-semibold text-[#E0A898] mb-1">₹799</div>
-            <div className="price-per text-[13px] text-[#A8D4CE] mb-2">per month for 3 months, then ₹999/month</div>
-            <div className="price-desc text-[13px] text-[#A8D4CE]/70 leading-relaxed mb-4.5">
-              You'll be charged ₹799 today. Then ₹799/month for 2 more months. Then ₹999/month from month 4. Cancel any time from Settings. Your trial entries carry over.
-            </div>
-            <div className="price-feats mb-5 flex flex-col gap-2">
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>Daily prompts + AI reflection after every entry
-              </div>
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>Weekly reflection, monthly and annual reports
-              </div>
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>Structured exercises published periodically
-              </div>
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>All entries and patterns preserved across cycles
-              </div>
-            </div>
-            <button className="btn btn-terra w-full py-3 bg-[#E0A898] text-[#1E2A2E] rounded-lg text-xs font-bold uppercase tracking-wider hover:opacity-90" onClick={() => triggerToast('Opening Razorpay gateway…')}>Continue to payment</button>
-          </div>
-          <p className="text-[11px] text-mid/50 text-center leading-relaxed mt-2.5">
-            Billed monthly via Razorpay · Recurring mandate per RBI guidelines · Cancel any time
-          </p>
-        </div>
-      )}
+    return (
+      <div className="pad animate-fadeUp">
+        <p className="pg-ey">Billing</p>
+        <h1 className="pg-h font-serif text-3xl font-normal">Billing history</h1>
+        <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">
+          All charges in reverse chronological order. GST inclusive. Processed via Razorpay.
+        </p>
 
-      {/* TRIAL ENDED */}
-      {subState === 'trial-ended' && (
-        <div id="ss-trial-ended" className="animate-fadeUp">
-          <div className="alert alert-warn flex gap-3 p-4 rounded-xl border border-[#E0A898]/24 bg-[#E0A898]/9 text-[#8A3020] text-[13px] leading-relaxed mb-5">
-            <div className="alert-bar ab-warn w-1.5 self-stretch bg-[#E0A898] rounded-full shrink-0" />
-            <div>Your trial has ended. Subscribe to keep writing — your 14 trial entries are still here.</div>
+        <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+          <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
+            <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Charges</span>
           </div>
-          
-          <div className="price-card bg-[#1E2A2E] text-white rounded-xl p-6 relative overflow-hidden">
-            <div className="price-amt font-serif text-3xl font-semibold text-[#E0A898] mb-1">₹999</div>
-            <div className="price-per text-[13px] text-[#A8D4CE] mb-2">per month</div>
-            <div className="price-desc text-[13px] text-[#A8D4CE]/70 leading-relaxed mb-4.5">
-              You'll be charged ₹999 today. Then ₹999/month on the same date each month. Cancel any time from Settings. Your trial entries carry over.
-            </div>
-            <div className="price-feats mb-5 flex flex-col gap-2">
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>Daily prompts + AI reflection after every entry
+
+          {isBillingLoading ? (
+            <div className="p-8 text-center text-xs text-mid">Loading billing history…</div>
+          ) : invoices.length > 0 ? (
+            invoices.map((inv) => (
+              <div key={inv.id || inv.invoice_number} className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4 last:border-b-0">
+                <div className="bill-l flex-1">
+                  <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">
+                    {new Date(inv.issued_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <div className="bill-desc text-[13.5px] font-semibold text-primary">Ingress Within Self-Work (Monthly)</div>
+                  <div className="bill-detail text-[12px] text-mid mt-0.5">
+                    {new Date(inv.issued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · Invoice {inv.invoice_number}
+                  </div>
+                  <div className="text-[11px] text-mid/70 mt-0.5">
+                    Taxable: ₹{(inv.amount_subtotal / 100).toFixed(2)} + 18% GST: ₹{(inv.amount_gst / 100).toFixed(2)}
+                  </div>
+                  <div className="bill-status bs-paid text-[12px] font-semibold text-[#1A5040] mt-1 capitalize">
+                    {inv.status}
+                  </div>
+                </div>
+                <div className="bill-r text-right">
+                  <div className="font-bold text-[14.5px]">₹{(inv.amount_total / 100).toFixed(2)}</div>
+                  <div className="text-[10px] text-mid/60 uppercase">GST Included</div>
+                </div>
               </div>
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>Weekly reflection, monthly and annual reports
-              </div>
-              <div className="price-feat text-[13.5px] flex gap-2 leading-relaxed text-[#D8ECEA]">
-                <span className="text-[#8DBFB4] text-[11px] mt-0.5">✦</span>All 14 trial entries preserved and reflected on
-              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center space-y-2">
+              <p className="text-sm font-semibold text-primary">No invoices yet</p>
+              <p className="text-xs text-mid max-w-sm mx-auto leading-relaxed">
+                When your monthly subscription is processed or you purchase modules, your verified tax invoices will appear here.
+              </p>
             </div>
-            <button className="btn btn-terra w-full py-3 bg-[#E0A898] text-[#1E2A2E] rounded-lg text-xs font-bold uppercase tracking-wider hover:opacity-90" onClick={() => triggerToast('Opening Razorpay gateway…')}>Subscribe · ₹999/month</button>
+          )}
+
+          <div className="sec-note px-5 py-2.5 bg-[#1E2A2E]/2 border-t border-[#1E2A2E]/8 text-[11px] text-mid/50 leading-relaxed">
+            All amounts include 18% GST. Contact hello@ingresswithin.com for invoice queries.
           </div>
-        </div>
-      )}
-
-      {/* DORMANT */}
-      {subState === 'dormant' && (
-        <div id="ss-dormant" className="animate-fadeUp">
-          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden">
-            <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-              <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current plan</span>
-            </div>
-            <div className="sub-area px-5 py-4 border-b border-[#1E2A2E]/8">
-              <div className="sub-sr mb-2">
-                <span className="badge badge-muted inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-mid bg-[#1E2A2E]/6 border border-[#1E2A2E]/15">
-                  No active subscription
-                </span>
-              </div>
-              <div className="sub-renew text-[13px] text-mid mt-1.5">Your entries and reflections are still here.</div>
-              <div className="sub-cta mt-3.5">
-                <button className="btn btn-dk px-4 py-2 bg-[#1E2A2E] text-white rounded-lg text-xs font-semibold hover:bg-[#253338]" onClick={() => triggerToast('Redirecting to plans list…')}>Subscribe to continue</button>
-              </div>
-            </div>
-            <div className="row tap flex justify-between items-center px-5 py-3.5 border-b-0 hover:bg-[#1E2A2E]/2 cursor-pointer" onClick={() => handleTabSwitch('billing')}>
-              <div className="row-l font-semibold text-[13.5px]">Billing history</div>
-              <span className="chev text-mid/30 text-lg">›</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // 4. Billing History Tab
-  const renderBilling = () => (
-    <div className="pad animate-fadeUp">
-      <p className="pg-ey">Billing</p>
-      <h1 className="pg-h font-serif text-3xl font-normal">Billing history</h1>
-      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">
-        All charges in reverse chronological order. GST inclusive. Processed via Razorpay.
-      </p>
-
-      <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
-        <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
-          <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Charges</span>
-          <button className="card-act text-xs font-bold text-[#2E7A70] hover:underline bg-transparent border-none cursor-pointer" onClick={() => triggerToast('Downloading statements as PDF…')}>Export PDF</button>
-        </div>
-
-        {/* Invoice Rows */}
-        <div className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">June 2026</div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 Jun 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-paid text-[12px] font-semibold text-[#1A5040] mt-1">Paid</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹999</div>
-        </div>
-
-        <div className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">May 2026</div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 May 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-paid text-[12px] font-semibold text-[#1A5040] mt-1">Paid</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹999</div>
-        </div>
-
-        <div className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">April 2026</div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 Apr 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-failed text-[12px] font-semibold text-[#8A3020] mt-1">Failed · 14 Apr 2026</div>
-            <div className="bill-status bs-recovery text-[12px] font-semibold text-[#1A5040] mt-0.5">Recovered · 16 Apr 2026 · Visa ending 4242</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹999</div>
-        </div>
-
-        <div className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">March 2026</div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 Mar 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-intro text-[12px] font-semibold text-[#4A3A6A] mt-1">Introductory rate</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹799</div>
-        </div>
-
-        <div className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">February 2026</div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 Feb 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-intro text-[12px] font-semibold text-[#4A3A6A] mt-1">Introductory rate</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹799</div>
-        </div>
-
-        <div className="bill-row flex items-start justify-between p-5 border-b-0 gap-4">
-          <div className="bill-l flex-1">
-            <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">
-              January 2026 <span className="bill-first inline-block text-[9px] font-bold bg-[#1E2A2E]/6 text-mid px-1.5 py-0.5 rounded ml-1.5">first payment</span>
-            </div>
-            <div className="bill-desc text-[13.5px] font-semibold text-primary">Monthly subscription</div>
-            <div className="bill-detail text-[12px] text-mid mt-0.5">14 Jan 2026 · UPI · username@upi</div>
-            <div className="bill-status bs-intro text-[12px] font-semibold text-[#4A3A6A] mt-1">Introductory rate</div>
-          </div>
-          <div className="bill-r text-right font-bold text-[14.5px]">₹799</div>
-        </div>
-        <div className="sec-note px-5 py-2.5 bg-[#1E2A2E]/2 border-t border-[#1E2A2E]/8 text-[11px] text-mid/50 leading-relaxed">
-          All amounts include GST. Contact hello@ingresswithin.com for invoice queries.
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  // 5. Payment Method Tab
-  const renderPayment = () => (
-    <div className="pad animate-fadeUp">
-      <p className="pg-ey">Billing</p>
-      <h1 className="pg-h font-serif text-3xl font-normal">Payment method</h1>
-      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">
-        Your saved method for monthly renewals. Updating takes effect from the next billing cycle — or immediately if you're in a grace period.
-      </p>
+  // 5. Payment Method Tab (Real dynamic payment method)
+  const renderPayment = () => {
+    const paymentMethods = billingData?.payment_methods || [];
 
-      <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
-        <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-          <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current method</span>
-        </div>
-        <div className="row flex justify-between items-center px-5 py-4 gap-4">
-          <div className="row-l">
-            <div className="row-lbl font-semibold text-[13.5px]">UPI</div>
-            <div className="row-val text-mid text-[12.5px] mt-0.5">username@upi</div>
+    return (
+      <div className="pad animate-fadeUp">
+        <p className="pg-ey">Billing</p>
+        <h1 className="pg-h font-serif text-3xl font-normal">Payment method</h1>
+        <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">
+          Your saved method for monthly renewals. Updating takes effect from the next billing cycle.
+        </p>
+
+        <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+          <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
+            <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Current method</span>
           </div>
-          <div className="pm-chip px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-semibold text-primary shrink-0">UPI</div>
+
+          {isBillingLoading ? (
+            <div className="p-8 text-center text-xs text-mid">Loading payment methods…</div>
+          ) : paymentMethods.length > 0 ? (
+            paymentMethods.map((pm) => (
+              <div key={pm.id} className="row flex justify-between items-center px-5 py-4 gap-4 border-b border-[#1E2A2E]/8 last:border-b-0">
+                <div className="row-l">
+                  <div className="row-lbl font-semibold text-[13.5px]">{pm.type.toUpperCase()}</div>
+                  <div className="row-val text-mid text-[12.5px] mt-0.5">{pm.masked_account}</div>
+                </div>
+                <div className="pm-chip px-3 py-1.5 rounded-lg bg-[#1E2A2E]/5 border border-[#1E2A2E]/10 text-xs font-semibold text-primary shrink-0">
+                  {pm.mandate_status === 'active' ? 'Active Mandate' : pm.type.toUpperCase()}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center space-y-2 border-b border-[#1E2A2E]/8">
+              <p className="text-sm font-semibold text-primary">No saved payment method</p>
+              <p className="text-xs text-mid max-w-sm mx-auto leading-relaxed">
+                A secure recurring payment method will be linked automatically upon completing your first subscription payment.
+              </p>
+            </div>
+          )}
         </div>
-        <div style={{ padding: '15px 20px', borderTop: '1px solid rgba(30, 42, 46, 0.09)' }}>
-          <button className="btn btn-dk px-4 py-2 bg-[#1E2A2E] text-white rounded-lg text-xs font-semibold hover:bg-[#253338]" onClick={() => triggerToast('Redirecting to Razorpay…')}>Update payment method</button>
-          <p className="fhint text-[11px] text-mid/50 mt-2.5">You'll be redirected to Razorpay. No charge is made when adding a new method.</p>
+
+        <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl mb-5 overflow-hidden">
+          <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
+            <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Accepted methods</span>
+          </div>
+          <div className="row flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8">
+            <div className="row-l">
+              <div className="row-lbl font-semibold text-[13.5px]">UPI Autopay</div>
+              <div className="row-sub text-mid text-[11.5px] mt-0.5">Supports recurring mandate per RBI guidelines. Recommended.</div>
+            </div>
+          </div>
+          <div className="row flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8">
+            <div className="row-l">
+              <div className="row-lbl font-semibold text-[13.5px]">Debit / Credit Card</div>
+              <div className="row-sub text-mid text-[11.5px] mt-0.5">Visa, Mastercard, RuPay. Recurring mandate supported.</div>
+            </div>
+          </div>
+          <div className="row flex justify-between items-center px-5 py-3.5 border-b-0">
+            <div className="row-l">
+              <div className="row-lbl font-semibold text-[13.5px]">Net Banking</div>
+              <div className="row-sub text-mid text-[11.5px] mt-0.5">Selected major Indian banks via Razorpay gateway.</div>
+            </div>
+          </div>
+          <div className="sec-note px-5 py-2.5 bg-[#1E2A2E]/2 border-t border-[#1E2A2E]/8 text-[11px] text-mid/50 leading-relaxed">
+            Recurring mandate setup follows RBI guidelines. All processing handled securely by Razorpay.
+          </div>
         </div>
       </div>
-
-      <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl mb-5 overflow-hidden">
-        <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8">
-          <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Accepted methods</span>
-        </div>
-        <div className="row flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8">
-          <div className="row-l">
-            <div className="row-lbl font-semibold text-[13.5px]">UPI</div>
-            <div className="row-sub text-mid text-[11.5px] mt-0.5">Supports recurring mandate. Recommended.</div>
-          </div>
-        </div>
-        <div className="row flex justify-between items-center px-5 py-3.5 border-b border-[#1E2A2E]/8">
-          <div className="row-l">
-            <div className="row-lbl font-semibold text-[13.5px]">Card</div>
-            <div className="row-sub text-mid text-[11.5px] mt-0.5">Visa, Mastercard, RuPay. Supports recurring mandate.</div>
-          </div>
-        </div>
-        <div className="row flex justify-between items-center px-5 py-3.5 border-b-0">
-          <div className="row-l">
-            <div className="row-lbl font-semibold text-[13.5px]">Net banking</div>
-            <div className="row-sub text-mid text-[11.5px] mt-0.5">Selected banks. Recurring may require re-authorisation monthly.</div>
-          </div>
-        </div>
-        <div className="sec-note px-5 py-2.5 bg-[#1E2A2E]/2 border-t border-[#1E2A2E]/8 text-[11px] text-mid/50 leading-relaxed">
-          Recurring mandate setup follows RBI guidelines. All processing handled by Razorpay.
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // 6. How It Works Tab
   const renderHowItWorks = () => (
@@ -1471,10 +1498,12 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           >
             ☰
           </button>
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.navigateTo('/dashboard')}>
-            <div className="w-[18px] h-[18px] rounded-full border-2 border-[#2E7A70] flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#2E7A70]" />
-            </div>
+          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => window.navigateTo('/dashboard')}>
+            <img 
+              src="/logo-mark-transparent.png" 
+              alt="Ingress Within" 
+              className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-105 shrink-0" 
+            />
             <span className="text-[13px] font-semibold tracking-tight text-primary">
               ingress <em className="text-[#2E7A70] font-serif not-italic font-normal">within</em>
             </span>
@@ -1552,19 +1581,27 @@ export default function SettingsPage({ user, profile, onSignOut }) {
 
       {/* MODALS */}
       
-      {/* 1. Cancel Active Modal */}
+      {/* Dynamic Cancel Subscription Modal */}
       {isCancelModalOpen && (
-        <div className="modal-overlay fixed inset-0 bg-[#1E2A2E]/40 backdrop-blur-[6px] z-[500] flex items-center justify-center p-5" onClick={() => setIsCancelModalOpen(false)}>
+        <div className="modal-overlay fixed inset-0 bg-[#1E2A2E]/40 backdrop-blur-[6px] z-[500] flex items-center justify-center p-5" onClick={() => !isCancelling && setIsCancelModalOpen(false)}>
           <div className="modal bg-white rounded-2xl p-7 max-w-[400px] w-full shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-ttl font-serif text-xl font-normal text-primary mb-2.5 leading-snug">Cancel your subscription?</h2>
             <p className="modal-body text-[13.5px] text-mid mb-5.5 leading-relaxed">
-              Your access continues until <strong>14 July 2026</strong>. After that, you won't be charged again. Your entries are still here. You can come back.
+              Your access will remain active until <strong>{billingData?.subscription?.current_period_end ? new Date(billingData.subscription.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'the end of your current billing period'}</strong>. After that, your subscription will not renew and you won't be charged again.
             </p>
             <div className="modal-acts flex flex-col gap-2">
-              <button className="btn btn-red-ol py-3 w-full border border-[#E0A898]/40 text-[#8A3020] hover:bg-[#E0A898]/7 rounded-lg text-xs font-semibold" onClick={() => { setIsCancelModalOpen(false); setSubState('cancelled'); triggerToast('Subscription cancelled.'); }}>
-                Yes, cancel my subscription
+              <button 
+                className="btn btn-red-ol py-3 w-full border border-[#E0A898]/40 text-[#8A3020] hover:bg-[#E0A898]/7 rounded-lg text-xs font-semibold disabled:opacity-50" 
+                disabled={isCancelling}
+                onClick={handleConfirmCancel}
+              >
+                {isCancelling ? 'Cancelling…' : 'Yes, cancel my subscription'}
               </button>
-              <button className="btn btn-ol py-3 w-full border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5" onClick={() => setIsCancelModalOpen(false)}>
+              <button 
+                className="btn btn-ol py-3 w-full border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5" 
+                disabled={isCancelling}
+                onClick={() => setIsCancelModalOpen(false)}
+              >
                 Keep my subscription
               </button>
             </div>
@@ -1572,27 +1609,6 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         </div>
       )}
 
-      {/* 2. Cancel Intro Rate Modal */}
-      {isCancelIntroModalOpen && (
-        <div className="modal-overlay fixed inset-0 bg-[#1E2A2E]/40 backdrop-blur-[6px] z-[500] flex items-center justify-center p-5" onClick={() => setIsCancelIntroModalOpen(false)}>
-          <div className="modal bg-white rounded-2xl p-7 max-w-[400px] w-full shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <h2 className="modal-ttl font-serif text-xl font-normal text-primary mb-2.5 leading-snug">Cancel your subscription?</h2>
-            <p className="modal-body text-[13.5px] text-mid mb-5.5 leading-relaxed">
-              Your access continues until <strong>14 July 2026</strong>. After that, you won't be charged again. Your entries are still here. You can come back.
-              <br /><br />
-              If you resubscribe later, your introductory rate may not be available.
-            </p>
-            <div className="modal-acts flex flex-col gap-2">
-              <button className="btn btn-red-ol py-3 w-full border border-[#E0A898]/40 text-[#8A3020] hover:bg-[#E0A898]/7 rounded-lg text-xs font-semibold" onClick={() => { setIsCancelIntroModalOpen(false); setSubState('cancelled'); triggerToast('Subscription cancelled.'); }}>
-                Yes, cancel my subscription
-              </button>
-              <button className="btn btn-ol py-3 w-full border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5" onClick={() => setIsCancelIntroModalOpen(false)}>
-                Keep my subscription
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 3. Log Out Modal */}
       {isLogoutModalOpen && (

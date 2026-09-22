@@ -39,11 +39,11 @@ const FAQ_ITEMS = [
   },
   {
     question: "Can I cancel any time?",
-    answer: "Yes. No minimum period, no cancellation fee. If you cancel mid-cycle you keep access until the end of your billing period. Your entries and reports remain accessible after cancellation. If you are a founding user, cancelling releases your ₹999 locked price — but you get one grace reinstatement. Return within 6 months and your founding price is restored. After 6 months or a second cancellation, standard rate applies."
+    answer: "Yes. No minimum period, no cancellation fee. If you cancel mid-cycle you keep access until the end of your billing period. All your past entries, reflections, and reports remain safe and accessible forever in reflective read-only mode."
   },
   {
-    question: "What does the ₹799 founding price mean exactly?",
-    answer: "₹799 is a launch discount available only to the first 50 users, for a limited time after launch. After the offer period ends, the price moves to ₹999 for everyone — including the founding 50. What founding users keep is ₹999 locked forever, even if the price rises further as costs grow. One condition: the subscription must stay continuous. If you cancel and miss a billing month, the founding price is released. One grace reinstatement: if you return within 6 months of cancelling, your founding price is restored — once. After that, standard rate applies. If a founding spot opens permanently, it goes to someone on our founding waitlist."
+    question: "What is included in the ₹499 monthly subscription?",
+    answer: "Ingress Within Self-Work is ₹499 / month (GST inclusive: taxable subtotal ₹422.88 + 18% GST ₹76.12 = ₹499.00 total). It provides full access to daily reflections, longitudinal pattern tracking, psychoeducation exercises, and weekly & monthly reports. Billed monthly with one-click cancellation at any time without fees."
   },
   {
     question: "What if I miss a day?",
@@ -103,7 +103,7 @@ export default function PricingPage({ onOpenPolicy }) {
       <section className="py-20 px-6 md:px-16 max-w-container-max mx-auto space-y-16">
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto items-stretch">
 
           {/* Plan 1: Free */}
           <ScrollReveal className="h-full flex" delay={0.05}>
@@ -149,21 +149,18 @@ export default function PricingPage({ onOpenPolicy }) {
             </div>
           </ScrollReveal>
 
-          {/* Plan 2: Founding 50 */}
+          {/* Plan 2: Ingress Within Self-Work */}
           <ScrollReveal className="h-full flex" delay={0.15}>
             <div className="bg-primary text-on-primary border border-primary rounded-premium p-8 md:p-10 flex flex-col justify-between shadow-2xl relative overflow-hidden pricing-glow w-full text-left h-full">
-              <div className="absolute top-4 right-4 bg-accent text-primary px-3.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-[0.1em]">
-                Founding 50 only
-              </div>
               <div className="space-y-6">
                 <div>
-                  <span className="text-[10px] font-semibold text-accent uppercase tracking-[0.25em] block">Launch discount</span>
+                  <span className="text-[10px] font-semibold text-accent uppercase tracking-[0.25em] block">Ingress Within Self-Work</span>
                   <div className="flex items-baseline gap-1 mt-4">
-                    <span className="font-headline-md text-4xl md:text-5xl font-bold text-white">₹799</span>
-                    <span className="text-xs opacity-50 font-label-md">/ month</span>
+                    <span className="font-headline-md text-4xl md:text-5xl font-bold text-white">₹499</span>
+                    <span className="text-xs opacity-75 font-label-md">/ month (GST inclusive)</span>
                   </div>
-                  <p className="font-body-md text-xs text-white/50 pt-2 font-bold uppercase tracking-wider">for a limited time</p>
-                  <p className="text-[11px] text-accent/80 line-through mt-1">Then ₹999 / month, locked for you forever</p>
+                  <p className="font-body-md text-xs text-white/70 pt-2 font-bold uppercase tracking-wider">Full platform access</p>
+                  <p className="text-[11px] text-accent/80 mt-1">Taxable ₹422.88 + 18% GST ₹76.12 = ₹499.00 total</p>
                 </div>
                 <div className="h-[1px] bg-white/10" />
                 <ul className="space-y-4 text-sm font-body-md opacity-95 leading-relaxed">
@@ -177,7 +174,7 @@ export default function PricingPage({ onOpenPolicy }) {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <span className="text-accent mt-0.5">→</span>
-                    <span>One question per day</span>
+                    <span>Longitudinal pattern engine (4-state lifecycle)</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <span className="text-accent mt-0.5">→</span>
@@ -185,7 +182,7 @@ export default function PricingPage({ onOpenPolicy }) {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <span className="text-accent mt-0.5">→</span>
-                    <span>₹999 locked even if price rises</span>
+                    <span>Cancel anytime with one click</span>
                   </li>
                 </ul>
               </div>
@@ -193,52 +190,7 @@ export default function PricingPage({ onOpenPolicy }) {
                 onClick={handleStartWriting}
                 className="w-full bg-accent hover:opacity-95 hover:scale-[1.02] text-primary font-label-md text-xs font-bold tracking-wider uppercase py-4 rounded-xl mt-8 transition-all shadow-md cursor-pointer duration-300 text-center"
               >
-                Get early access &rarr;
-              </button>
-            </div>
-          </ScrollReveal>
-
-          {/* Plan 3: Standard */}
-          <ScrollReveal className="h-full flex" delay={0.25}>
-            <div className="bg-white border border-primary/5 rounded-premium p-8 md:p-10 flex flex-col justify-between shadow-sm hover:shadow-md transition-all w-full text-left h-full">
-              <div className="space-y-6">
-                <div>
-                  <span className="text-[10px] font-semibold text-secondary-dark uppercase tracking-[0.25em] block">Standard</span>
-                  <div className="flex items-baseline gap-1 mt-4">
-                    <span className="font-headline-md text-4xl md:text-5xl font-bold text-primary">₹999</span>
-                    <span className="text-xs text-primary/50 font-label-md">/ month</span>
-                  </div>
-                  <p className="font-body-md text-xs text-primary/50 pt-2 font-bold uppercase tracking-wider">Price may increase as costs grow</p>
-                </div>
-                <div className="h-[1px] bg-primary/5" />
-                <ul className="space-y-4 text-sm font-body-md text-mid leading-relaxed">
-                  <li className="flex items-start gap-2.5">
-                    <span className="text-accent mt-0.5">→</span>
-                    <span>One entry a day, every day</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <span className="text-accent mt-0.5">→</span>
-                    <span>AI reflection after every entry</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <span className="text-accent mt-0.5">→</span>
-                    <span>One question per day</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <span className="text-accent mt-0.5">→</span>
-                    <span>Weekly summary &amp; monthly report</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <span className="text-accent mt-0.5">→</span>
-                    <span>Cancel any time</span>
-                  </li>
-                </ul>
-              </div>
-              <button
-                onClick={handleStartWriting}
-                className="w-full bg-white hover:bg-primary hover:text-white border border-primary/15 hover:border-primary hover:scale-[1.02] text-primary font-label-md text-xs font-bold tracking-wider uppercase py-4 rounded-xl mt-8 transition-all shadow-xs cursor-pointer duration-300 text-center"
-              >
-                Get started &rarr;
+                Subscribe · ₹499/mo &rarr;
               </button>
             </div>
           </ScrollReveal>
@@ -263,7 +215,7 @@ export default function PricingPage({ onOpenPolicy }) {
             <div className="grid grid-cols-4 bg-primary text-white font-label-md text-[10px] md:text-xs font-bold uppercase tracking-wider p-4 text-center items-center">
               <div className="text-left pl-2 text-white/60">Feature</div>
               <div>Free</div>
-              <div className="text-accent bg-white/5 py-1 rounded">₹799 / ₹999</div>
+              <div className="text-accent bg-white/5 py-1 rounded">₹499 / mo</div>
               <div>Notes</div>
             </div>
 

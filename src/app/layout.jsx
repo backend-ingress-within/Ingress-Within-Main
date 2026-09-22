@@ -1,4 +1,4 @@
-import { Instrument_Sans, Lora } from "next/font/google";
+import { Instrument_Sans, Lora, Zen_Maru_Gothic, IBM_Plex_Mono, Kalam } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import StructuredData from "../components/seo/StructuredData";
@@ -14,9 +14,30 @@ const instrumentSans = Instrument_Sans({
 
 const lora = Lora({
   subsets: ['latin'],
-  weight: ['400', '600'],
+  weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
   variable: '--font-reflective',
+  display: 'swap',
+});
+
+const zenMaruGothic = Zen_Maru_Gothic({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-zen-maru',
+  display: 'swap',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
+const kalam = Kalam({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-hand',
   display: 'swap',
 });
 
@@ -111,7 +132,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`scroll-smooth ${instrumentSans.variable} ${lora.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`scroll-smooth ${instrumentSans.variable} ${lora.variable} ${zenMaruGothic.variable} ${ibmPlexMono.variable} ${kalam.variable}`}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />

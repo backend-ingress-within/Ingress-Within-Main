@@ -71,7 +71,7 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Headings: Lora, elegant, calm */
@@ -115,7 +115,88 @@
   --color-fog-blue: #BFCAD7;
 
   --font-serif: var(--font-reflective, 'Lora', Georgia, serif);
-  --font-sans: var(--font-ui, 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  --font-sans: var(--font-zen-maru, var(--font-ui, 'Zen Maru Gothic', 'Instrument Sans', sans-serif));
   --font-ui: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-reflective: 'Lora', Georgia, serif;
+  --font-mono: var(--font-mono, 'IBM Plex Mono', monospace);
+  --font-hand: var(--font-hand, 'Kalam', cursive);
 }
+
+.font-editorial {
+  font-family: var(--font-reflective, 'Lora', Georgia, serif);
+}
+
+.font-zen {
+  font-family: var(--font-zen-maru, var(--font-ui, 'Zen Maru Gothic', 'Instrument Sans', sans-serif));
+}
+
+.font-mono-code {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+}
+
+.font-handwriting {
+  font-family: var(--font-hand, 'Kalam', cursive);
+}
+
+/* Paper and Watercolor textures */
+.paper-warm {
+  background-color: #FAF7F2;
+}
+
+.paper-card {
+  background-color: #FDFBF8;
+  border: 1px solid rgba(231, 222, 207, 0.85);
+  box-shadow: 0 4px 20px -2px rgba(1, 22, 39, 0.04), 0 2px 6px -1px rgba(1, 22, 39, 0.02);
+  /* Transition styling properties only - NEVER transform, preventing conflicts with Framer Motion scroll animations */
+  transition-property: background-color, border-color, box-shadow, opacity;
+  transition-duration: 250ms;
+  transition-timing-function: ease-out;
+}
+
+.paper-card-hover {
+  transition-property: box-shadow, border-color;
+  transition-duration: 250ms;
+  transition-timing-function: ease-out;
+}
+
+.paper-card-hover:hover {
+  box-shadow: 0 10px 30px -4px rgba(1, 22, 39, 0.07), 0 4px 10px -2px rgba(1, 22, 39, 0.03);
+}
+
+/* Brass pushpin */
+.brass-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #E5C365, #9E7D2E 70%, #4A3A13);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  position: relative;
+  z-index: 10;
+}
+
+.brass-pin-realistic {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #F5DE88 0%, #D4A843 35%, #8C6520 70%, #4D350A 100%);
+  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  border: 0.5px solid rgba(110, 83, 26, 0.8);
+  position: relative;
+  z-index: 30;
+}
+
+/* Translucent Washi tape */
+.washi-tape {
+  background-color: rgba(220, 215, 200, 0.6);
+  backdrop-filter: blur(1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.washi-tape-realistic {
+  background-color: rgba(228, 220, 202, 0.65);
+  backdrop-filter: blur(1.5px);
+  box-shadow: 0 1px 3px rgba(40, 30, 20, 0.12);
+  border-left: 2px dashed rgba(200, 190, 170, 0.4);
+  border-right: 2px dashed rgba(200, 190, 170, 0.4);
+}
+

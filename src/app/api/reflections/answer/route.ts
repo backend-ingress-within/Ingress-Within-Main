@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/db';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
+import { AccessControlService, AccessDeniedError } from '../../../../lib/billing/accessControlService';
 
 /**
  * POST /api/reflections/answer: Submits or autosaves a response to a reflection question.
@@ -14,6 +15,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Access control: Ensure user has active/trial self-work access
+    await AccessControlService.requireSelfHelpWriteAccess(authUser.userId);
 
     const body = await request.json().catch(() => ({}));
     const { reflectionId, answer, status } = body;
@@ -166,7 +170,20 @@ export async function POST(request: NextRequest) {
       reflection: updatedReflection
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code || 'SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active subscription is required to answer reflections.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('Reflection answer route POST Error:', error);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'An unexpected server error occurred.' } },

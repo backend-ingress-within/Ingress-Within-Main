@@ -226,16 +226,18 @@ export default function PatternsPage({ user, profile, onSignOut }) {
 
   /** Trigger backfill API call for first-time users. */
   const triggerBackfill = useCallback(async () => {
-    if (backfillTriggeredRef.current) return;
+    if (backfillTriggeredRef.current) return false;
     backfillTriggeredRef.current = true;
     try {
       console.log('[PatternsPage] Triggering backfill for new user…');
-      await fetch('/api/patterns/backfill', {
+      const res = await fetch('/api/patterns/backfill', {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
       });
+      return res.ok;
     } catch (err) {
       console.warn('[PatternsPage] Backfill trigger failed:', err);
+      return false;
     }
   }, []);
 
@@ -279,10 +281,14 @@ export default function PatternsPage({ user, profile, onSignOut }) {
         setUserState(data.userState ?? { state: 'active' });
 
         if (state === 'new_user') {
-          // Trigger backfill, then immediately show processing screen + poll
-          await triggerBackfill();
-          setUserState({ state: 'backfill_pending' });
-          startPolling();
+          const started = await triggerBackfill();
+          if (started) {
+            setUserState({ state: 'backfill_pending' });
+            startPolling();
+          } else {
+            // If backfill was not queued (e.g. dormant user), stay active to view existing patterns
+            setUserState({ state: 'active' });
+          }
         } else if (state === 'backfill_pending') {
           startPolling();
         }
@@ -362,13 +368,16 @@ export default function PatternsPage({ user, profile, onSignOut }) {
   // --- State-based branching ---
   const currentState = userState?.state ?? 'active';
 
-  if (currentState === 'backfill_pending') {
+  const hasPatterns = (overview?.patterns && overview.patterns.length > 0) ||
+                      (overview?.lifecycle?.quiet && overview.lifecycle.quiet.length > 0) ||
+                      (overview?.lifecycle?.shifting && overview.lifecycle.shifting.length > 0) ||
+                      (overview?.lifecycle?.present && overview.lifecycle.present.length > 0);
+
+  if (currentState === 'backfill_pending' && !hasPatterns) {
     return <BackfillProcessingScreen />;
   }
 
-  const hasPatterns = overview?.isAvailable && overview?.patterns && overview.patterns.length > 0;
-
-  if (currentState === 'new_user' || !hasPatterns) {
+  if (!hasPatterns) {
     return <NewUserEmptyScreen />;
   }
 

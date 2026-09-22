@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../lib/db';
 import { getAuthenticatedUser } from '../../../lib/auth-helper';
 import { triggerAIProcessing, checkWeeklyAndMonthlySummary } from '../../../lib/queue/triggers';
+import { AccessControlService, AccessDeniedError } from '../../../lib/billing/accessControlService';
 
 /**
  * GET /api/entries: Fetches all journal entries for the user from Supabase.
@@ -243,6 +244,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Access control: Ensure user is TRIAL, ACTIVE, PAST_DUE, or CANCELLED_PENDING (not DORMANT)
+    await AccessControlService.requireSelfHelpWriteAccess(authUser.userId);
+
     const body = await request.json().catch(() => ({}));
     const { content, entry_mode, started_at, completed_at, completion_time, resume_count } = body;
 
@@ -470,6 +474,13 @@ export async function POST(request: NextRequest) {
       void checkWeeklyAndMonthlySummary(authUser.userId, cycleId, cycleDay).catch(err => {
         console.error('[API Entries POST] Weekly/monthly check error:', err);
       });
+
+      // 4. Synchronize cycle entries count in database
+      if (newEntry.cycle_id) {
+        import('../../../lib/cycles/cycleSync')
+          .then(m => m.CycleSync.syncCycleEntriesCount(newEntry.cycle_id, authUser.userId))
+          .catch(err => console.error('[API Entries POST] CycleSync error:', err));
+      }
     }
 
     return NextResponse.json({
@@ -480,7 +491,20 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AccessDeniedError || error.code === 'SUBSCRIPTION_REQUIRED' || error.code === 'SELF_HELP_SUBSCRIPTION_REQUIRED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SELF_HELP_SUBSCRIPTION_REQUIRED',
+            message: error.message || 'An active self-help subscription is required to continue.',
+            state: error.state || 'DORMANT'
+          }
+        },
+        { status: error.statusCode || 403 }
+      );
+    }
+
     console.error('Entries POST Route Error:', error);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'An unexpected server error occurred.' } },

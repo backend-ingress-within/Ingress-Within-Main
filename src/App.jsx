@@ -17,6 +17,8 @@ const PricingPage = lazy(() => import('./views/PricingPage'));
 const FaqPage = lazy(() => import('./views/FaqPage'));
 const ContactPage = lazy(() => import('./views/ContactPage'));
 const AuthPage = lazy(() => import('./views/AuthPage'));
+const TherapistAuthPage = lazy(() => import('./views/TherapistAuthPage'));
+const RazorpayVerificationPage = lazy(() => import('./views/RazorpayVerificationPage'));
 const AiDataPage = lazy(() => import('./views/AiDataPage'));
 const OnboardingPage = lazy(() => import('./views/OnboardingPage'));
 const DashboardPage = lazy(() => import('./views/DashboardPage'));
@@ -47,6 +49,9 @@ const FounderTestPage = (process.env.NODE_ENV === 'development' || process.env.N
 
 const PsychoeducationLabPage = lazy(() => import('./views/PsychoeducationLabPage'));
 const NotFoundPage = lazy(() => import('./views/NotFoundPage'));
+
+// Ingress Within V2 Public Website & Design System
+const PublicWebsiteV2 = lazy(() => import('./views/public-v2/PublicWebsiteV2'));
 
 // Ingress Within V2 Experimental Experience
 const V2LandingPage = lazy(() => import('./v2/pages/V2LandingPage'));
@@ -324,8 +329,35 @@ export default function App({ initialRoute = 'home' }) {
     const handleLocationChange = () => {
       const path = window.location.pathname;
       console.log('[App.jsx] handleLocationChange fired. Path:', path);
-      if (path === '/what-it-is' || path === '/what-it-is/') {
-        setCurrentRoute('what-it-is');
+      if (path === '/solution' || path === '/solution/' || path === '/what-it-is' || path === '/what-it-is/') {
+        setCurrentRoute('solution');
+        window.scrollTo(0, 0);
+      } else if (path === '/how-it-works' || path === '/how-it-works/' || path === '/how' || path === '/how/') {
+        setCurrentRoute('how');
+        window.scrollTo(0, 0);
+      } else if (path === '/about' || path === '/about/') {
+        setCurrentRoute('about');
+        window.scrollTo(0, 0);
+      } else if (path === '/pricing' || path === '/pricing/') {
+        setCurrentRoute('pricing');
+        window.scrollTo(0, 0);
+      } else if (path === '/ai-data' || path === '/ai-data/' || path === '/ai' || path === '/ai/') {
+        setCurrentRoute('ai');
+        window.scrollTo(0, 0);
+      } else if (path === '/evidence' || path === '/evidence/') {
+        setCurrentRoute('evidence');
+        window.scrollTo(0, 0);
+      } else if (path === '/policies' || path === '/policies/') {
+        setCurrentRoute('policies');
+        window.scrollTo(0, 0);
+      } else if (path === '/start' || path === '/start/' || path === '/contact' || path === '/contact/') {
+        setCurrentRoute('start');
+        window.scrollTo(0, 0);
+      } else if (path === '/crisis' || path === '/crisis/') {
+        setCurrentRoute('crisis');
+        window.scrollTo(0, 0);
+      } else if (path === '/faq' || path === '/faq/') {
+        setCurrentRoute('faq');
         window.scrollTo(0, 0);
       } else if (path === '/guided-journaling' || path === '/guided-journaling/') {
         setCurrentRoute('guided-journaling');
@@ -348,23 +380,11 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/how-to-practice-self-reflection' || path === '/how-to-practice-self-reflection/') {
         setCurrentRoute('how-to-practice-self-reflection');
         window.scrollTo(0, 0);
-      } else if (path === '/how-it-works' || path === '/how-it-works/') {
-        setCurrentRoute('how-it-works');
-        window.scrollTo(0, 0);
-      } else if (path === '/about' || path === '/about/') {
-        setCurrentRoute('about');
-        window.scrollTo(0, 0);
-      } else if (path === '/pricing' || path === '/pricing/') {
-        setCurrentRoute('pricing');
-        window.scrollTo(0, 0);
-      } else if (path === '/faq' || path === '/faq/') {
-        setCurrentRoute('faq');
-        window.scrollTo(0, 0);
-      } else if (path === '/contact' || path === '/contact/') {
-        setCurrentRoute('contact');
-        window.scrollTo(0, 0);
       } else if (path.startsWith('/auth') || path.startsWith('/login') || path === '/user/login' || path === '/user/login/' || path === '/user/auth' || path === '/user/auth/') {
         setCurrentRoute('auth');
+        window.scrollTo(0, 0);
+      } else if (path === '/therapist' || path === '/therapist/' || path === '/therapist/auth' || path === '/therapist/auth/' || path === '/therapist/login' || path === '/therapist/login/' || path.startsWith('/therapist/')) {
+        setCurrentRoute('therapist/auth');
         window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {
         setCurrentRoute('onboarding');
@@ -559,8 +579,32 @@ export default function App({ initialRoute = 'home' }) {
 
     switch (currentRoute) {
 
+      case 'home':
+        return <PublicWebsiteV2 initialTab="home" onOpenPolicy={handleOpenPolicy} />;
+      case 'solution':
       case 'what-it-is':
-        return <WhatItIsPage onOpenPolicy={handleOpenPolicy} />;
+        return <PublicWebsiteV2 initialTab="solution" onOpenPolicy={handleOpenPolicy} />;
+      case 'how':
+      case 'how-it-works':
+        return <PublicWebsiteV2 initialTab="how" onOpenPolicy={handleOpenPolicy} />;
+      case 'about':
+        return <PublicWebsiteV2 initialTab="about" onOpenPolicy={handleOpenPolicy} />;
+      case 'pricing':
+        return <PublicWebsiteV2 initialTab="pricing" onOpenPolicy={handleOpenPolicy} />;
+      case 'ai':
+      case 'ai-data':
+        return <PublicWebsiteV2 initialTab="ai" onOpenPolicy={handleOpenPolicy} />;
+      case 'evidence':
+        return <PublicWebsiteV2 initialTab="evidence" onOpenPolicy={handleOpenPolicy} />;
+      case 'policies':
+        return <PublicWebsiteV2 initialTab="policies" onOpenPolicy={handleOpenPolicy} />;
+      case 'start':
+      case 'contact':
+        return <PublicWebsiteV2 initialTab="start" onOpenPolicy={handleOpenPolicy} />;
+      case 'crisis':
+        return <PublicWebsiteV2 initialTab="crisis" onOpenPolicy={handleOpenPolicy} />;
+      case 'faq':
+        return <FaqPage onOpenPolicy={handleOpenPolicy} />;
       case 'guided-journaling':
         return <GuidedJournalingPage onOpenPolicy={handleOpenPolicy} />;
       case 'self-reflection':
@@ -575,18 +619,14 @@ export default function App({ initialRoute = 'home' }) {
         return <HowToStartJournalingPage onOpenPolicy={handleOpenPolicy} />;
       case 'how-to-practice-self-reflection':
         return <HowToPracticeSelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
-      case 'how-it-works':
-        return <HowItWorksPage onOpenPolicy={handleOpenPolicy} />;
-      case 'about':
-        return <AboutPage onOpenPolicy={handleOpenPolicy} />;
-      case 'pricing':
-        return <PricingPage onOpenPolicy={handleOpenPolicy} />;
-      case 'faq':
-        return <FaqPage onOpenPolicy={handleOpenPolicy} />;
-      case 'contact':
-        return <ContactPage onOpenPolicy={handleOpenPolicy} />;
       case 'auth':
         return <AuthPage onOpenPolicy={handleOpenPolicy} onAuthSuccess={handleAuthSuccess} />;
+      case 'therapist/auth':
+      case 'therapist/login':
+      case 'therapist':
+        return <TherapistAuthPage onAuthSuccess={(data) => {}} />;
+      case 'razorpay-verification':
+        return <RazorpayVerificationPage />;
       case 'onboarding':
         return (
           <OnboardingPage
@@ -684,9 +724,8 @@ export default function App({ initialRoute = 'home' }) {
       case 'not-found':
         return <NotFoundPage user={user} profile={profile} />;
       case 'home':
-
       default:
-        return <LandingPage onOpenPolicy={handleOpenPolicy} />;
+        return <PublicWebsiteV2 initialTab="home" onOpenPolicy={handleOpenPolicy} />;
     }
   };
 
