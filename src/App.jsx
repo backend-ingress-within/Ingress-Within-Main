@@ -22,6 +22,7 @@ const RazorpayVerificationPage = lazy(() => import('./views/RazorpayVerification
 const AiDataPage = lazy(() => import('./views/AiDataPage'));
 const OnboardingPage = lazy(() => import('./views/OnboardingPage'));
 const DashboardPage = lazy(() => import('./views/DashboardPage'));
+const TherapyPage = lazy(() => import('./views/TherapyPage'));
 const SettingsPage = lazy(() => import('./views/SettingsPage'));
 const WritePage = lazy(() => import('./views/WritePage'));
 const GuidedWritePage = lazy(() => import('./views/GuidedWritePage'));
@@ -237,12 +238,12 @@ export default function App({ initialRoute = 'home' }) {
     }
 
     // If there is a transient database/network error on a pointer/protected route, prevent redirect loops to /auth
-    if (authError && (path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread'))) {
+    if (authError && (path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/therapy'))) {
       console.warn('[App.jsx] Redirect Engine: Database/Network error detected on protected path. Preventing redirect to /auth. Reason: TRANSIENT_ERROR_SHIELD');
       return;
     }
 
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
+    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules') || path.startsWith('/therapy');
 
 
     if (isProtectedRoute) {
@@ -390,6 +391,9 @@ export default function App({ initialRoute = 'home' }) {
         window.scrollTo(0, 0);
       } else if (path === '/dashboard' || path === '/dashboard/') {
         setCurrentRoute('dashboard');
+        window.scrollTo(0, 0);
+      } else if (path === '/therapy' || path === '/therapy/') {
+        setCurrentRoute('therapy');
         window.scrollTo(0, 0);
       } else if (path === '/settings' || path === '/settings/') {
         setCurrentRoute('settings');
@@ -563,7 +567,7 @@ export default function App({ initialRoute = 'home' }) {
     const path = typeof window !== 'undefined' 
       ? window.location.pathname 
       : (currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`);
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
+    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules') || path.startsWith('/therapy');
 
     if (isProtectedRoute && (!authChecked || isLoading)) {
       return <LoadingScreen />;
@@ -634,6 +638,8 @@ export default function App({ initialRoute = 'home' }) {
         );
       case 'dashboard':
         return <DashboardPage user={user} profile={profile} onSignOut={handleSignOut} />;
+      case 'therapy':
+        return <TherapyPage user={user} profile={profile} onSignOut={handleSignOut} />;
       case 'settings':
         return <SettingsPage user={user} profile={profile} onSignOut={handleSignOut} />;
       case 'write':
