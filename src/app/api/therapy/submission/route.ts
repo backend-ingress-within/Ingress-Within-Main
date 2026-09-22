@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       callbackPreference,
       notes,
       metadata,
+      payload,
     } = body;
 
     if (
@@ -78,6 +79,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const resolvedMetadata =
+      metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+        ? metadata
+        : payload && typeof payload === 'object' && !Array.isArray(payload)
+          ? payload
+          : {};
+
     const submission = await createTherapySubmission({
       therapySessionId: therapySessionId.trim(),
       userId: authUser.userId,
@@ -91,12 +99,7 @@ export async function POST(request: NextRequest) {
         typeof notes === 'string'
           ? notes
           : null,
-      metadata:
-        metadata &&
-        typeof metadata === 'object' &&
-        !Array.isArray(metadata)
-          ? metadata
-          : {},
+      metadata: resolvedMetadata,
     });
 
     return NextResponse.json(

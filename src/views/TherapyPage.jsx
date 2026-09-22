@@ -341,6 +341,15 @@ const CSS = `
 }
 `;
 
+function extractErrorMessage(data, fallback = 'An unexpected error occurred') {
+  if (!data) return fallback;
+  if (typeof data === 'string') return data;
+  if (typeof data.error === 'string') return data.error;
+  if (data.error && typeof data.error.message === 'string') return data.error.message;
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
 function Option({ children, selected, onClick, disabled = false }) {
   return (
     <button
@@ -562,7 +571,7 @@ function Conversation({ exit }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to create therapy session');
+        throw new Error(extractErrorMessage(data, 'Failed to create therapy session'));
       }
 
       const sessionId = data?.session?.id || data?.id;
@@ -607,7 +616,7 @@ function Conversation({ exit }) {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data?.error || 'Failed to save therapy intake');
+      throw new Error(extractErrorMessage(data, 'Failed to save therapy intake'));
     }
 
     return true;
@@ -638,7 +647,7 @@ function Conversation({ exit }) {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to save therapy message');
+        throw new Error(extractErrorMessage(data, 'Failed to save therapy message'));
       }
 
       const assistantText =
@@ -661,14 +670,8 @@ function Conversation({ exit }) {
         console.error('Assistant message save failed:', assistantData?.error);
       }
     } catch (error) {
-      console.error('Therapy message save failed:', error);
-      setMessages((items) => [
-        ...items,
-        {
-          from: 'bot',
-          text: 'I’m having trouble saving this message right now. Please try again.',
-        },
-      ]);
+      console.error('Therapy message send failed:', error);
+      setSessionError(error instanceof Error ? error.message : 'Unable to send message');
     } finally {
       setLoading(false);
     }
@@ -718,7 +721,7 @@ function Conversation({ exit }) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data?.error || 'Failed to save safety assessment');
+      throw new Error(extractErrorMessage(data, 'Failed to save safety assessment'));
     }
 
     return true;
@@ -748,7 +751,7 @@ function Conversation({ exit }) {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to submit therapy intake');
+        throw new Error(extractErrorMessage(data, 'Failed to submit therapy intake'));
       }
 
       return true;
@@ -1001,7 +1004,13 @@ function Conversation({ exit }) {
           </>
         )}
 
-        {sessionError && <div className="iw-error">{sessionError}</div>}
+        {sessionError && (
+          <div className="iw-error">
+            {typeof sessionError === 'string'
+              ? sessionError
+              : (sessionError?.message || JSON.stringify(sessionError))}
+          </div>
+        )}
 
         <div className="iw-nav">
           <button
@@ -1224,8 +1233,7 @@ function Guided({ exit }) {
           currentSupport: d.currentSupport,
         },
         copingAndSupport: {
-          coping: d.coping,
-          copingOther: d.copingOther,
+          coping: d.coping === 'Other' ? d.copingOther : d.coping,
           support: d.support,
         },
         expectations: {
@@ -1238,11 +1246,9 @@ function Guided({ exit }) {
           stylePace: d.stylePace,
           styleLead: d.styleLead,
           termApproach: d.termApproach,
-          finalNotes: d.finalNotes,
         },
         contactPreferences: {
-          email: d.email.trim(),
-          phone: d.phone.trim(),
+          finalNotes: d.finalNotes.trim(),
         },
         consents,
         answers: {
@@ -1256,7 +1262,7 @@ function Guided({ exit }) {
 
     if (!response.ok) {
       throw new Error(
-        data?.error || 'Failed to save guided therapy intake'
+        extractErrorMessage(data, 'Failed to save guided therapy intake')
       );
     }
 
@@ -1314,7 +1320,7 @@ function Guided({ exit }) {
 
     if (!response.ok) {
       throw new Error(
-        data?.error || 'Failed to save guided safety assessment'
+        extractErrorMessage(data, 'Failed to save guided safety assessment')
       );
     }
 
@@ -1328,9 +1334,9 @@ function Guided({ exit }) {
       therapistAccountId: null,
       matchStatus: selectedTherapist?.id === therapist.id
         ? 'selected'
-        : 'recommended',
+        : 'shortlisted',
       matchRank: index + 1,
-      matchScore: therapist.score,
+      matchScore: typeof therapist.score === 'number' ? therapist.score : null,
       matchReasons: [
         therapist.concernHits > 0
           ? `${therapist.concernHits} concern specialization match(es)`
@@ -1375,7 +1381,7 @@ function Guided({ exit }) {
 
     if (!response.ok) {
       throw new Error(
-        data?.error || 'Failed to save therapist matches'
+        extractErrorMessage(data, 'Failed to save therapist matches')
       );
     }
 
@@ -1413,7 +1419,7 @@ function Guided({ exit }) {
 
     if (!response.ok) {
       throw new Error(
-        data?.error || 'Failed to submit guided therapy intake'
+        extractErrorMessage(data, 'Failed to submit guided therapy intake')
       );
     }
 
@@ -2022,7 +2028,11 @@ function Guided({ exit }) {
         )}
 
         {sessionError && (
-          <div className="iw-error">{sessionError}</div>
+          <div className="iw-error">
+            {typeof sessionError === 'string'
+              ? sessionError
+              : (sessionError?.message || JSON.stringify(sessionError))}
+          </div>
         )}
 
         <div className="iw-nav">
@@ -2087,7 +2097,7 @@ function Team({ exit }) {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload?.session?.id) {
-        throw new Error(payload?.error || 'Unable to start the therapy request.');
+        throw new Error(extractErrorMessage(payload, 'Unable to start the therapy request.'));
       }
 
       setTherapySessionId(payload.session.id);
@@ -2131,7 +2141,7 @@ function Team({ exit }) {
     });
 
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload?.error || 'Unable to save your request details.');
+    if (!response.ok) throw new Error(extractErrorMessage(payload, 'Unable to save your request details.'));
     return payload;
   };
 
@@ -2180,7 +2190,7 @@ function Team({ exit }) {
     });
 
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload?.error || 'Unable to save the safety assessment.');
+    if (!response.ok) throw new Error(extractErrorMessage(payload, 'Unable to save the safety assessment.'));
     return payload;
   };
 
@@ -2214,7 +2224,7 @@ function Team({ exit }) {
       });
 
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || 'Unable to submit the callback request.');
+      if (!response.ok) throw new Error(extractErrorMessage(payload, 'Unable to submit the callback request.'));
 
       setDone(true);
       return true;
@@ -2333,7 +2343,13 @@ function Team({ exit }) {
           </>
         )}
 
-        {sessionError && <div className="iw-error">{sessionError}</div>}
+        {sessionError && (
+          <div className="iw-error">
+            {typeof sessionError === 'string'
+              ? sessionError
+              : (sessionError?.message || JSON.stringify(sessionError))}
+          </div>
+        )}
 
         <div className="iw-nav">
           <button

@@ -428,16 +428,37 @@ export async function saveTherapyMatches(
     return [];
   }
 
-  const payload = matches.map((match) => ({
-    therapy_session_id: sessionId,
-    user_id: userId,
-    therapist_account_id: match.therapistAccountId ?? null,
-    match_status: match.matchStatus || 'candidate',
-    match_rank: match.matchRank ?? null,
-    match_score: match.matchScore ?? null,
-    match_reasons: match.matchReasons || [],
-    matching_metadata: match.matchingMetadata || {},
-  }));
+  const VALID_STATUSES = new Set([
+    'candidate',
+    'shortlisted',
+    'selected',
+    'rejected',
+    'unavailable',
+  ]);
+
+  const payload = matches.map((match) => {
+    let status = match.matchStatus || 'candidate';
+    if (!VALID_STATUSES.has(status)) {
+      status = status === 'recommended' ? 'shortlisted' : 'candidate';
+    }
+    return {
+      therapy_session_id: sessionId,
+      user_id: userId,
+      therapist_account_id: match.therapistAccountId ?? null,
+      match_status: status,
+      match_rank: match.matchRank ?? null,
+      match_score: match.matchScore ?? null,
+      match_reasons: match.matchReasons || [],
+      matching_metadata: match.matchingMetadata || {},
+    };
+  });
+
+  // Idempotently clear previous matches for this session
+  await supabase
+    .from('therapy_matches')
+    .delete()
+    .eq('therapy_session_id', sessionId)
+    .eq('user_id', userId);
 
   const { data, error } = await supabase
     .from('therapy_matches')
@@ -446,7 +467,7 @@ export async function saveTherapyMatches(
 
   if (error) {
     console.error('[TherapyService] saveTherapyMatches failed:', error);
-    throw new Error('Failed to save Therapy matches.');
+    throw new Error(error.message || 'Failed to save Therapy matches.');
   }
 
   return data || [];
