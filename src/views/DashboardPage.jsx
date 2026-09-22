@@ -531,6 +531,50 @@ export default function DashboardPage({ user, profile, onSignOut }) {
           }}
         />
 
+        {/* Therapy Module */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="w-full"
+          >
+            <div className="bg-white border border-primary/10 rounded-2xl p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+                
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-primary/5 flex items-center justify-center shrink-0">
+                    <HeartHandshake className="w-5 h-5 text-primary" />
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] font-semibold text-secondary uppercase tracking-widest">
+                      Therapy
+                    </span>
+
+                    <h2 className="font-serif text-xl text-primary font-normal mt-1">
+                      A space for deeper support
+                    </h2>
+
+                    <p className="text-sm text-mid font-light leading-relaxed mt-1 max-w-2xl">
+                      Explore your concerns, talk things through, or connect with
+                      professional support at your own pace.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => window.navigateTo('/therapy')}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white rounded-xl text-xs font-semibold uppercase tracking-wider hover:bg-[#2A3A3E] transition-all cursor-pointer shrink-0"
+                >
+                  Explore Therapy
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+              </div>
+            </div>
+          </motion.div>
+
         {/* Responsive Desktop 3-Column Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           

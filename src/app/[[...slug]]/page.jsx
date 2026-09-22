@@ -42,9 +42,19 @@ const KNOWN_PUBLIC_ROUTES = new Set([
 function isKnownRoute(rawPath) {
   if (!rawPath || KNOWN_PUBLIC_ROUTES.has(rawPath)) return true;
   if (rawPath.startsWith('v2')) return true;
-  if (rawPath === 'auth' || rawPath === 'login' || rawPath === 'user/login' || rawPath === 'user/auth') return true;
+
+  if (
+    rawPath === 'auth' ||
+    rawPath === 'login' ||
+    rawPath === 'user/login' ||
+    rawPath === 'user/auth'
+  ) {
+    return true;
+  }
+
   if (
     rawPath.startsWith('onboarding') ||
+    rawPath.startsWith('therapy') ||
     rawPath.startsWith('dashboard') ||
     rawPath.startsWith('settings') ||
     rawPath.startsWith('write') ||
@@ -68,6 +78,7 @@ function isKnownRoute(rawPath) {
   ) {
     return true;
   }
+
   return false;
 }
 
@@ -95,6 +106,7 @@ export function generateStaticParams() {
     { slug: ['login'] },
     { slug: ['user', 'login'] },
     { slug: ['user', 'auth'] },
+    { slug: ['therapy'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
@@ -113,7 +125,6 @@ export function generateStaticParams() {
     { slug: ['v2', 'what-it-is'] },
     { slug: ['v2', 'how-it-works'] },
     { slug: ['v2', 'about'] },
-    { slug: ['pricing'] },
     { slug: ['v2', 'pricing'] },
     { slug: ['v2', 'faq'] },
     { slug: ['v2', 'contact'] },
@@ -140,6 +151,7 @@ export default async function CatchAllPage({ params }) {
   }
 
   let initialRoute = 'home';
+
   if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
   else if (rawPath === 'guided-journaling') initialRoute = 'guided-journaling';
   else if (rawPath === 'self-reflection') initialRoute = 'self-reflection';
@@ -154,6 +166,7 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'faq') initialRoute = 'faq';
   else if (rawPath === 'contact') initialRoute = 'contact';
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
+  else if (rawPath === 'therapy') initialRoute = 'therapy';
   else if (rawPath === 'auth') initialRoute = 'auth';
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
