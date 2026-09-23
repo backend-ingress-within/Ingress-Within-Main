@@ -144,12 +144,14 @@ export async function processMonthlyReport(jobData: {
       .eq('status', 'READY')
       .order('week_number', { ascending: true });
 
-    const { data: completedExercises } = await supabase
-      .from('exercises')
-      .select('*')
-      .eq('cycle_id', cycle_id)
-      .eq('status', 'completed')
-      .order('cycle_day', { ascending: true });
+    const { data: cycleObj } = await supabase
+      .from('cycles')
+      .select('cycle_number, start_date, end_date')
+      .eq('id', cycle_id)
+      .maybeSingle();
+
+    const { fetchCompletedExercisesForCycle } = await import('../../reports/cycleReportBuilder');
+    const completedExercises = await fetchCompletedExercisesForCycle(user_id, cycleObj, [cycle_id, String(cycleObj?.cycle_number || 1)]);
 
     const { data: vocabExts } = await supabase
       .from('vocab_extractions')
@@ -218,11 +220,6 @@ export async function processMonthlyReport(jobData: {
       }
     }
 
-    const { data: cycleObj } = await supabase
-      .from('cycles')
-      .select('cycle_number, start_date, end_date')
-      .eq('id', cycle_id)
-      .maybeSingle();
 
     const cycleNum = cycleObj?.cycle_number || 1;
     const startDateFormatted = cycleObj?.start_date
@@ -233,7 +230,8 @@ export async function processMonthlyReport(jobData: {
       : '30 May 2026';
 
     const exercisesCompletedCount = completedExercises?.length || 0;
-    const totalExercisesCount = 3;
+    const baseTotalExercises = (cycleObj?.cycle_number || 1) === 1 ? 4 : 3;
+    const totalExercisesCount = Math.max(baseTotalExercises, exercisesCompletedCount);
 
     let compiledReport: any = null;
 
@@ -408,7 +406,20 @@ Do not include markdown wrappers (like \`\`\`json) in your raw response. Return 
           mostUsedWordContext: `${topWordFreq} times, always about yourself`,
           exercisesCompletedCount,
           totalExercisesCount,
-          missedExercisesText: exercisesCompletedCount < totalExercisesCount ? `${totalExercisesCount - exercisesCompletedCount} missed` : 'None missed'
+          missedExercisesText: exercisesCompletedCount >= totalExercisesCount ? 'All completed' : (exercisesCompletedCount === 0 ? `${totalExercisesCount} pending` : `${totalExercisesCount - exercisesCompletedCount} pending`)
+        },
+        exercises: (aiReport?.exercises?.items && aiReport.exercises.items.length > 0) ? aiReport.exercises : {
+          collectiveInsight: exercisesCompletedCount > 0
+            ? `Completed ${exercisesCompletedCount} reframing and assessment tasks during Cycle ${cycleNum}.`
+            : `No cognitive reframing exercises completed this cycle.`,
+          items: (completedExercises || []).map((ex: any) => ({
+            id: ex.id,
+            name: ex.name,
+            dayText: ex.dayText,
+            status: ex.status || 'completed',
+            entriesSaid: ex.entriesSaid,
+            exerciseShowed: ex.exerciseShowed
+          }))
         },
         chartData: {
           arcChart: {

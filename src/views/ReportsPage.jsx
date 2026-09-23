@@ -790,9 +790,9 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                   <div class="sec-label">What the exercises showed</div>
                   <div class="ex-top">
                     <div class="dots">
-                      <div class="dot ${parsedReport.stats.exercisesCompletedCount >= 1 ? 'dot-done' : 'dot-skip'}"></div>
-                      <div class="dot ${parsedReport.stats.exercisesCompletedCount >= 2 ? 'dot-done' : 'dot-skip'}"></div>
-                      <div class="dot ${parsedReport.stats.exercisesCompletedCount >= 3 ? 'dot-done' : 'dot-skip'}"></div>
+                      ${Array.from({ length: Math.max(3, parsedReport.stats.totalExercisesCount || 4) }).map((_, i) => `
+                        <div class="dot ${i < (parsedReport.stats.exercisesCompletedCount || 0) ? 'dot-done' : 'dot-skip'}"></div>
+                      `).join('')}
                     </div>
                     <div class="completion-text">
                       <strong>${parsedReport.stats.exercisesCompletedCount} of ${parsedReport.stats.totalExercisesCount}</strong> completed this cycle
@@ -800,15 +800,21 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                   </div>
 
                   <div class="ex-list">
-                    <!-- Core Values Card Sort (Day 4) -->
+                    <!-- Core Values / Baseline Assessment -->
                     ${(() => {
-                      const cbtEx = parsedReport.exercises.items.find(item => item.name.includes('Core Values') || item.dayText?.includes('4'));
+                      const cbtEx = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('core values') ||
+                        item.name?.toLowerCase().includes('baseline') ||
+                        item.id === 'exercise_0' ||
+                        item.dayText?.includes('1') ||
+                        item.dayText?.includes('4')
+                      );
                       if (cbtEx) {
                         return `
                           <div class="ex-row-card">
                             <div class="ex-row-top">
-                              <div class="ex-name">Core Values Card Sort</div>
-                              <div class="ex-day">${cbtEx.dayText || 'Day 4'}</div>
+                              <div class="ex-name">${cbtEx.name || 'Core Values & Baseline Assessment'}</div>
+                              <div class="ex-day">${cbtEx.dayText || 'Day 1'}</div>
                             </div>
                             <div class="ex-cols">
                               <div class="ex-col">
@@ -827,21 +833,27 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                         return `
                           <div class="ex-skip-row">
                             <div class="ex-skip-dot"></div>
-                            <div class="ex-skip-text">Core Values Card Sort — not completed this cycle.</div>
+                            <div class="ex-skip-text">Baseline / Core Values Assessment — not completed this cycle.</div>
                           </div>
                         `;
                       }
                     })()}
 
-                    <!-- Emotional Vocabulary Wheel (Day 9) -->
+                    <!-- Emotional Vocabulary Wheel -->
                     ${(() => {
-                      const cbtEx = parsedReport.exercises.items.find(item => item.name.includes('Vocabulary') || item.dayText?.includes('9'));
+                      const cbtEx = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('vocabulary') ||
+                        item.name?.toLowerCase().includes('word association') ||
+                        item.id === 'exercise_1' ||
+                        item.dayText?.includes('9') ||
+                        item.dayText?.includes('10')
+                      );
                       if (cbtEx) {
                         return `
                           <div class="ex-row-card">
                             <div class="ex-row-top">
-                              <div class="ex-name">Emotional Vocabulary Wheel</div>
-                              <div class="ex-day">${cbtEx.dayText || 'Day 9'}</div>
+                              <div class="ex-name">${cbtEx.name || 'Emotional Vocabulary Wheel'}</div>
+                              <div class="ex-day">${cbtEx.dayText || 'Day 10'}</div>
                             </div>
                             <div class="ex-cols">
                               <div class="ex-col">
@@ -866,15 +878,22 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                       }
                     })()}
 
-                    <!-- Self-Perception Check (Day 14) -->
+                    <!-- Self-Perception Check -->
                     ${(() => {
-                      const cbtEx = parsedReport.exercises.items.find(item => item.name.includes('Self-Perception') || item.dayText?.includes('14') || item.dayText?.includes('20') || item.dayText?.includes('28'));
+                      const cbtEx = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('self-perception') ||
+                        item.name?.toLowerCase().includes('self perception') ||
+                        item.id === 'exercise_3' ||
+                        item.dayText?.includes('14') ||
+                        item.dayText?.includes('24') ||
+                        item.dayText?.includes('28')
+                      );
                       if (cbtEx) {
                         return `
                           <div class="ex-row-card">
                             <div class="ex-row-top">
-                              <div class="ex-name">Self-Perception Check</div>
-                              <div class="ex-day">${cbtEx.dayText || 'Day 14'}</div>
+                              <div class="ex-name">${cbtEx.name || 'Self-Perception Check'}</div>
+                              <div class="ex-day">${cbtEx.dayText || 'Day 24'}</div>
                             </div>
                             <div class="ex-cols">
                               <div class="ex-col">
@@ -897,6 +916,54 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                           </div>
                         `;
                       }
+                    })()}
+
+                    <!-- Additional completed exercises -->
+                    ${(() => {
+                      const ex1 = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('core values') ||
+                        item.name?.toLowerCase().includes('baseline') ||
+                        item.id === 'exercise_0' ||
+                        item.dayText?.includes('1') ||
+                        item.dayText?.includes('4')
+                      );
+                      const ex2 = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('vocabulary') ||
+                        item.name?.toLowerCase().includes('word association') ||
+                        item.id === 'exercise_1' ||
+                        item.dayText?.includes('9') ||
+                        item.dayText?.includes('10')
+                      );
+                      const ex3 = parsedReport.exercises?.items?.find(item =>
+                        item.name?.toLowerCase().includes('self-perception') ||
+                        item.name?.toLowerCase().includes('self perception') ||
+                        item.id === 'exercise_3' ||
+                        item.dayText?.includes('14') ||
+                        item.dayText?.includes('24') ||
+                        item.dayText?.includes('28')
+                      );
+                      const matched = new Set([ex1, ex2, ex3].filter(Boolean));
+                      const others = (parsedReport.exercises?.items || []).filter(item => !matched.has(item));
+                      if (!others.length) return '';
+                      return others.map(item => `
+                        <div class="ex-row-card">
+                          <div class="ex-row-top">
+                            <div class="ex-name">${item.name}</div>
+                            <div class="ex-day">${item.dayText || 'Completed'}</div>
+                          </div>
+                          <div class="ex-cols">
+                            <div class="ex-col">
+                              <div class="ex-col-lbl lbl-e">Entries said</div>
+                              <div class="ex-col-text">${item.entriesSaid || 'Reflective journaling entry recorded.'}</div>
+                            </div>
+                            <div class="ex-col-sep"></div>
+                            <div class="ex-col">
+                              <div class="ex-col-lbl lbl-x">Exercise showed</div>
+                              <div class="ex-col-text">${item.exerciseShowed || 'Pattern analysis completed.'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      `).join('');
                     })()}
                   </div>
 
@@ -2963,9 +3030,12 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                             <div className="sec-label">What the exercises showed</div>
                             <div className="ex-top">
                               <div className="dots">
-                                <div className={`dot ${reportData.stats.exercisesCompletedCount >= 1 ? 'dot-done' : 'dot-skip'}`}></div>
-                                <div className={`dot ${reportData.stats.exercisesCompletedCount >= 2 ? 'dot-done' : 'dot-skip'}`}></div>
-                                <div className={`dot ${reportData.stats.exercisesCompletedCount >= 3 ? 'dot-done' : 'dot-skip'}`}></div>
+                                {Array.from({ length: Math.max(3, reportData.stats.totalExercisesCount || 4) }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`dot ${i < (reportData.stats.exercisesCompletedCount || 0) ? 'dot-done' : 'dot-skip'}`}
+                                  />
+                                ))}
                               </div>
                               <div className="completion-text">
                                 <strong>{reportData.stats.exercisesCompletedCount} of {reportData.stats.totalExercisesCount}</strong> completed this cycle
@@ -2973,15 +3043,21 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                             </div>
 
                             <div className="ex-list">
-                              {/* Core Values Card Sort (Day 4) */}
+                              {/* Core Values / Baseline Assessment */}
                               {(() => {
-                                const cbtEx = reportData.exercises.items.find(item => item.name.includes('Core Values') || item.dayText?.includes('4'));
+                                const cbtEx = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('core values') ||
+                                  item.name?.toLowerCase().includes('baseline') ||
+                                  item.id === 'exercise_0' ||
+                                  item.dayText?.includes('1') ||
+                                  item.dayText?.includes('4')
+                                );
                                 if (cbtEx) {
                                   return (
                                     <div className="ex-row-card">
                                       <div className="ex-row-top">
-                                        <div className="ex-name">Core Values Card Sort</div>
-                                        <div className="ex-day">{cbtEx.dayText || 'Day 4'}</div>
+                                        <div className="ex-name">{cbtEx.name || 'Core Values & Baseline Assessment'}</div>
+                                        <div className="ex-day">{cbtEx.dayText || 'Day 1'}</div>
                                       </div>
                                       <div className="ex-cols">
                                         <div className="ex-col">
@@ -3000,21 +3076,27 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                                   return (
                                     <div className="ex-skip-row">
                                       <div className="ex-skip-dot"></div>
-                                      <div className="ex-skip-text">Core Values Card Sort — not completed this cycle.</div>
+                                      <div className="ex-skip-text">Baseline / Core Values Assessment — not completed this cycle.</div>
                                     </div>
                                   );
                                 }
                               })()}
 
-                              {/* Emotional Vocabulary Wheel (Day 9) */}
+                              {/* Emotional Vocabulary Wheel */}
                               {(() => {
-                                const cbtEx = reportData.exercises.items.find(item => item.name.includes('Vocabulary') || item.dayText?.includes('9'));
+                                const cbtEx = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('vocabulary') ||
+                                  item.name?.toLowerCase().includes('word association') ||
+                                  item.id === 'exercise_1' ||
+                                  item.dayText?.includes('9') ||
+                                  item.dayText?.includes('10')
+                                );
                                 if (cbtEx) {
                                   return (
                                     <div className="ex-row-card">
                                       <div className="ex-row-top">
-                                        <div className="ex-name">Emotional Vocabulary Wheel</div>
-                                        <div className="ex-day">{cbtEx.dayText || 'Day 9'}</div>
+                                        <div className="ex-name">{cbtEx.name || 'Emotional Vocabulary Wheel'}</div>
+                                        <div className="ex-day">{cbtEx.dayText || 'Day 10'}</div>
                                       </div>
                                       <div className="ex-cols">
                                         <div className="ex-col">
@@ -3039,15 +3121,22 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                                 }
                               })()}
 
-                              {/* Self-Perception Check (Day 14) */}
+                              {/* Self-Perception Check */}
                               {(() => {
-                                const cbtEx = reportData.exercises.items.find(item => item.name.includes('Self-Perception') || item.dayText?.includes('14') || item.dayText?.includes('20') || item.dayText?.includes('28'));
+                                const cbtEx = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('self-perception') ||
+                                  item.name?.toLowerCase().includes('self perception') ||
+                                  item.id === 'exercise_3' ||
+                                  item.dayText?.includes('14') ||
+                                  item.dayText?.includes('24') ||
+                                  item.dayText?.includes('28')
+                                );
                                 if (cbtEx) {
                                   return (
                                     <div className="ex-row-card">
                                       <div className="ex-row-top">
-                                        <div className="ex-name">Self-Perception Check</div>
-                                        <div className="ex-day">{cbtEx.dayText || 'Day 14'}</div>
+                                        <div className="ex-name">{cbtEx.name || 'Self-Perception Check'}</div>
+                                        <div className="ex-day">{cbtEx.dayText || 'Day 24'}</div>
                                       </div>
                                       <div className="ex-cols">
                                         <div className="ex-col">
@@ -3070,6 +3159,53 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                                     </div>
                                   );
                                 }
+                              })()}
+
+                              {/* Additional completed exercises */}
+                              {(() => {
+                                const ex1 = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('core values') ||
+                                  item.name?.toLowerCase().includes('baseline') ||
+                                  item.id === 'exercise_0' ||
+                                  item.dayText?.includes('1') ||
+                                  item.dayText?.includes('4')
+                                );
+                                const ex2 = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('vocabulary') ||
+                                  item.name?.toLowerCase().includes('word association') ||
+                                  item.id === 'exercise_1' ||
+                                  item.dayText?.includes('9') ||
+                                  item.dayText?.includes('10')
+                                );
+                                const ex3 = reportData.exercises?.items?.find(item =>
+                                  item.name?.toLowerCase().includes('self-perception') ||
+                                  item.name?.toLowerCase().includes('self perception') ||
+                                  item.id === 'exercise_3' ||
+                                  item.dayText?.includes('14') ||
+                                  item.dayText?.includes('24') ||
+                                  item.dayText?.includes('28')
+                                );
+                                const matched = new Set([ex1, ex2, ex3].filter(Boolean));
+                                const others = (reportData.exercises?.items || []).filter(item => !matched.has(item));
+                                return others.map((item, idx) => (
+                                  <div className="ex-row-card" key={`other-ex-${item.id || idx}`}>
+                                    <div className="ex-row-top">
+                                      <div className="ex-name">{item.name}</div>
+                                      <div className="ex-day">{item.dayText || 'Completed'}</div>
+                                    </div>
+                                    <div className="ex-cols">
+                                      <div className="ex-col">
+                                        <div className="ex-col-lbl lbl-e">Entries said</div>
+                                        <div className="ex-col-text">{item.entriesSaid || 'Reflective journaling entry recorded.'}</div>
+                                      </div>
+                                      <div className="ex-col-sep"></div>
+                                      <div className="ex-col">
+                                        <div className="ex-col-lbl lbl-x">Exercise showed</div>
+                                        <div className="ex-col-text">{item.exerciseShowed || 'Pattern analysis completed.'}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ));
                               })()}
                             </div>
 

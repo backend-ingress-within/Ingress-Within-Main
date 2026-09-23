@@ -152,12 +152,14 @@ export async function GET(request: NextRequest) {
 
     // 5. Ensure report_text contains 100% real cycle data (never static hardcoded quotes/dates)
     let validJsonReport = false;
+    let parsedExisting: any = null;
     if (assessment.report_text && assessment.report_text.startsWith('{')) {
       try {
         const parsed = JSON.parse(assessment.report_text);
         // Verify that report text belongs to THIS cycle number
         if (parsed.cycleNumber === cycleNum || !parsed.cycleNumber) {
           validJsonReport = true;
+          parsedExisting = parsed;
         }
       } catch (e) {
         validJsonReport = false;
@@ -187,6 +189,41 @@ export async function GET(request: NextRequest) {
 
       assessment.report_text = realReportText;
       assessment.generation_status = 'ready';
+    } else if (parsedExisting) {
+      // Self-heal / synchronize exercises data if cached report has outdated or missing exercise stats
+      const realExercisesCount = reportContext.completedExercises.length;
+      const cachedCount = parsedExisting.stats?.exercisesCompletedCount ?? 0;
+      const cachedItemsCount = parsedExisting.exercises?.items?.length ?? 0;
+
+      if (cachedCount !== realExercisesCount || (realExercisesCount > 0 && cachedItemsCount === 0)) {
+        console.log(`[API Assessment GET] Synchronizing exercise data in assessment report for user ${userId} cycle ${effectiveCycleId}: cached=${cachedCount}, real=${realExercisesCount}`);
+        const freshReport = compileRealCycleReport(reportContext);
+
+        parsedExisting.stats = {
+          ...parsedExisting.stats,
+          exercisesCompletedCount: freshReport.stats.exercisesCompletedCount,
+          totalExercisesCount: freshReport.stats.totalExercisesCount,
+          missedExercisesText: freshReport.stats.missedExercisesText
+        };
+        parsedExisting.exercises = freshReport.exercises;
+
+        const updatedReportText = JSON.stringify(parsedExisting);
+        assessment.report_text = updatedReportText;
+
+        if (assessment.id && !assessment.id.startsWith('ass_synthetic_')) {
+          try {
+            await supabase
+              .from('assessments')
+              .update({
+                report_text: updatedReportText,
+                generated_at: new Date().toISOString()
+              })
+              .eq('id', assessment.id);
+          } catch (updErr: any) {
+            console.warn('[API Assessment GET] Warning updating report_text in database during sync:', updErr.message);
+          }
+        }
+      }
     }
 
     return NextResponse.json({
