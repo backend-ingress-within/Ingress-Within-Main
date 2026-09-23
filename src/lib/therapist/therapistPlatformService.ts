@@ -282,7 +282,7 @@ export class TherapistPlatformService {
     // 3. Pending matching requests assigned to this therapist
     const allAssignedRequests = await this.getAssignedRequests(therapistAccountId);
     const pendingRequests = allAssignedRequests
-      .filter((r) => r.matchStatus === 'candidate' || r.matchStatus === 'shortlisted')
+      .filter((r) => r.matchStatus === 'candidate' || r.matchStatus === 'shortlisted' || r.matchStatus === 'proposed')
       .map((r) => ({
         id: r.id,
         clientId: r.userId,
@@ -758,61 +758,66 @@ export class TherapistPlatformService {
    * Lists clients clinically connected to the authenticated therapist.
    */
   static async getAuthorizedClients(therapistAccountId: string, search?: string) {
-    const { data: relationships, error } = await supabase
-      .from('therapy_care_relationships')
-      .select(`
-        id,
-        user_id,
-        status,
-        care_stage,
-        started_at,
-        users (
+    try {
+      const { data: relationships, error } = await supabase
+        .from('therapy_care_relationships')
+        .select(`
           id,
-          name,
-          phone_number
-        )
-      `)
-      .eq('therapist_account_id', therapistAccountId)
-      .order('started_at', { ascending: false });
-
-    if (error) {
-      console.error('[TherapistPlatformService] getAuthorizedClients error:', error);
-      throw new Error('Failed to retrieve clients.');
-    }
-
-    // Enrich with appointment count
-    const clientIds = (relationships || []).map((r) => r.user_id);
-    let sessionCounts: Record<string, number> = {};
-
-    if (clientIds.length > 0) {
-      const { data: appts } = await supabase
-        .from('therapist_clinical_appointments')
-        .select('user_id')
+          user_id,
+          status,
+          care_stage,
+          started_at,
+          users (
+            id,
+            name,
+            phone_number
+          )
+        `)
         .eq('therapist_account_id', therapistAccountId)
-        .in('user_id', clientIds);
+        .order('started_at', { ascending: false });
 
-      (appts || []).forEach((a) => {
-        sessionCounts[a.user_id] = (sessionCounts[a.user_id] || 0) + 1;
-      });
+      if (error || !relationships) {
+        if (error) console.error('[TherapistPlatformService] getAuthorizedClients error:', error);
+        return [];
+      }
+
+      // Enrich with appointment count
+      const clientIds = relationships.map((r) => r.user_id);
+      let sessionCounts: Record<string, number> = {};
+
+      if (clientIds.length > 0) {
+        const { data: appts } = await supabase
+          .from('therapist_clinical_appointments')
+          .select('user_id')
+          .eq('therapist_account_id', therapistAccountId)
+          .in('user_id', clientIds);
+
+        (appts || []).forEach((a) => {
+          sessionCounts[a.user_id] = (sessionCounts[a.user_id] || 0) + 1;
+        });
+      }
+
+      let clients = relationships.map((r: any) => ({
+        relationshipId: r.id,
+        clientId: r.user_id,
+        name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
+        phone: r.users?.phone_number ? `+91••••••${r.users.phone_number.slice(-4)}` : 'Confidential',
+        status: r.status,
+        careStage: r.care_stage,
+        startedAt: r.started_at,
+        totalSessions: sessionCounts[r.user_id] || 0,
+      }));
+
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        clients = clients.filter((c) => c.name.toLowerCase().includes(q));
+      }
+
+      return clients;
+    } catch (e) {
+      console.error('[TherapistPlatformService] getAuthorizedClients exception:', e);
+      return [];
     }
-
-    let clients = (relationships || []).map((r: any) => ({
-      relationshipId: r.id,
-      clientId: r.user_id,
-      name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
-      phone: r.users?.phone_number ? `+91••••••${r.users.phone_number.slice(-4)}` : 'Confidential',
-      status: r.status,
-      careStage: r.care_stage,
-      startedAt: r.started_at,
-      totalSessions: sessionCounts[r.user_id] || 0,
-    }));
-
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      clients = clients.filter((c) => c.name.toLowerCase().includes(q));
-    }
-
-    return clients;
   }
 
   /**

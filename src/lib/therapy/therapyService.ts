@@ -500,3 +500,261 @@ export async function getTherapyMatches(
 
   return data || [];
 }
+
+export interface PublicTherapistProfile {
+  id: string;
+  displayName: string;
+  title: string;
+  bio: string;
+  qualification: string;
+  experienceYears: number;
+  specializations: string[];
+  languages: string[];
+  sessionFormats: string[];
+  profileImageUrl: string | null;
+  city: string | null;
+  state: string | null;
+  fee: number;
+  availability: string;
+  gender: string;
+}
+
+/**
+ * Retrieves discoverable therapists satisfying all 5 clinical practice criteria:
+ * 1. status = 'active'
+ * 2. application_status = 'approved'
+ * 3. verification_status = 'verified'
+ * 4. can_practice = true
+ * 5. valid therapist profile exists
+ *
+ * Privacy Shield: Returns strictly public-safe fields, never exposing phone,
+ * earnings, internal review metadata, or auth identifiers.
+ */
+export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]> {
+  const { data: accounts, error } = await supabase
+    .from('therapist_accounts')
+    .select(`
+      id,
+      status,
+      application_status,
+      verification_status,
+      can_practice,
+      per_session_fee,
+      therapist_profiles (
+        full_name,
+        title,
+        bio,
+        qualification,
+        experience_years,
+        specializations,
+        languages,
+        session_formats,
+        availability_hours,
+        profile_image_url,
+        city,
+        state
+      )
+    `)
+    .eq('status', 'active')
+    .eq('application_status', 'approved')
+    .eq('verification_status', 'verified')
+    .eq('can_practice', true);
+
+  if (error || !accounts) {
+    console.error('[TherapyService] getEligibleTherapists failed:', error);
+    return [];
+  }
+
+  const eligible: PublicTherapistProfile[] = [];
+
+  for (const acc of accounts) {
+    const profile = Array.isArray(acc.therapist_profiles)
+      ? acc.therapist_profiles[0]
+      : acc.therapist_profiles;
+
+    if (!profile || !profile.full_name) {
+      continue;
+    }
+
+    let availabilityText = 'Flexible hours';
+    if (profile.availability_hours && typeof profile.availability_hours === 'object') {
+      const days = Object.keys(profile.availability_hours);
+      if (days.length > 0) {
+        availabilityText = `${days.slice(0, 3).map((d: string) => d.charAt(0).toUpperCase() + d.slice(1)).join('/')} available`;
+      }
+    }
+
+    eligible.push({
+      id: acc.id,
+      displayName: profile.full_name,
+      title: profile.title || 'Consultant Psychologist',
+      bio: profile.bio || '',
+      qualification: profile.qualification || '',
+      experienceYears: profile.experience_years || 0,
+      specializations: Array.isArray(profile.specializations) ? profile.specializations : [],
+      languages: Array.isArray(profile.languages) ? profile.languages : ['English', 'Hindi'],
+      sessionFormats: Array.isArray(profile.session_formats) ? profile.session_formats : ['telehealth'],
+      profileImageUrl: profile.profile_image_url || null,
+      city: profile.city || null,
+      state: profile.state || null,
+      fee: acc.per_session_fee ? Number(acc.per_session_fee) : 1500,
+      availability: availabilityText,
+      gender: (profile as any).gender || 'Not specified',
+    });
+  }
+
+  return eligible;
+}
+
+/**
+ * Validates whether a therapist account ID is a real, currently eligible practitioner.
+ * Acts as the authoritative server-side gate at submission time.
+ */
+export async function validateEligibleTherapist(
+  therapistAccountId: string
+): Promise<{ valid: boolean; therapist?: PublicTherapistProfile; error?: string }> {
+  if (!therapistAccountId || typeof therapistAccountId !== 'string') {
+    return { valid: false, error: 'INVALID_THERAPIST_ID' };
+  }
+
+  // UUID format guard
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(therapistAccountId.trim())) {
+    return { valid: false, error: 'INVALID_THERAPIST_UUID' };
+  }
+
+  const { data: account, error } = await supabase
+    .from('therapist_accounts')
+    .select(`
+      id,
+      status,
+      application_status,
+      verification_status,
+      can_practice,
+      per_session_fee,
+      therapist_profiles (
+        full_name,
+        title,
+        bio,
+        qualification,
+        experience_years,
+        specializations,
+        languages,
+        session_formats,
+        availability_hours,
+        profile_image_url,
+        city,
+        state
+      )
+    `)
+    .eq('id', therapistAccountId.trim())
+    .maybeSingle();
+
+  if (error || !account) {
+    return { valid: false, error: 'THERAPIST_NOT_FOUND' };
+  }
+
+  // Enforce all 5 eligibility conditions
+  if (
+    account.status !== 'active' ||
+    account.application_status !== 'approved' ||
+    account.verification_status !== 'verified' ||
+    !account.can_practice
+  ) {
+    return { valid: false, error: 'THERAPIST_UNAVAILABLE' };
+  }
+
+  const profile = Array.isArray(account.therapist_profiles)
+    ? account.therapist_profiles[0]
+    : account.therapist_profiles;
+
+  if (!profile || !profile.full_name) {
+    return { valid: false, error: 'THERAPIST_PROFILE_MISSING' };
+  }
+
+  return {
+    valid: true,
+    therapist: {
+      id: account.id,
+      displayName: profile.full_name,
+      title: profile.title || 'Consultant Psychologist',
+      bio: profile.bio || '',
+      qualification: profile.qualification || '',
+      experienceYears: profile.experience_years || 0,
+      specializations: Array.isArray(profile.specializations) ? profile.specializations : [],
+      languages: Array.isArray(profile.languages) ? profile.languages : ['English', 'Hindi'],
+      sessionFormats: Array.isArray(profile.session_formats) ? profile.session_formats : ['telehealth'],
+      profileImageUrl: profile.profile_image_url || null,
+      city: profile.city || null,
+      state: profile.state || null,
+      fee: account.per_session_fee ? Number(account.per_session_fee) : 1500,
+      availability: 'Available',
+      gender: (profile as any).gender || 'Not specified',
+    },
+  };
+}
+
+/**
+ * Checks if client has an active care relationship with a therapist.
+ */
+export async function getClientConnectedTherapist(userId: string) {
+  if (!userId) return null;
+
+  const { data: relationship, error } = await supabase
+    .from('therapy_care_relationships')
+    .select(`
+      id,
+      therapist_account_id,
+      status,
+      care_stage,
+      started_at,
+      therapist_accounts (
+        id,
+        status,
+        can_practice,
+        therapist_profiles (
+          full_name,
+          title,
+          bio,
+          qualification,
+          experience_years,
+          specializations,
+          languages,
+          session_formats,
+          profile_image_url,
+          city,
+          state
+        )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !relationship) {
+    return null;
+  }
+
+  const account = relationship.therapist_accounts as any;
+  const profile = Array.isArray(account?.therapist_profiles)
+    ? account.therapist_profiles[0]
+    : account?.therapist_profiles;
+
+  return {
+    relationshipId: relationship.id,
+    careStage: relationship.care_stage,
+    startedAt: relationship.started_at,
+    therapist: {
+      id: relationship.therapist_account_id,
+      displayName: profile?.full_name || 'Assigned Therapist',
+      title: profile?.title || 'Consultant Psychologist',
+      qualification: profile?.qualification || '',
+      specializations: profile?.specializations || [],
+      sessionFormats: profile?.session_formats || ['telehealth'],
+      profileImageUrl: profile?.profile_image_url || null,
+      city: profile?.city || null,
+    },
+  };
+}

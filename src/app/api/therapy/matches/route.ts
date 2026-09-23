@@ -4,6 +4,8 @@ import {
   getTherapySession,
   saveTherapyMatches,
   getTherapyMatches,
+  validateEligibleTherapist,
+  getClientConnectedTherapist,
 } from '../../../../lib/therapy/therapyService';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -57,23 +59,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getTherapySession(
-      sessionId.trim(),
-      authUser.userId
-    );
-
-    if (!session) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'Therapy session was not found.',
-          },
-        },
-        { status: 404 }
-      );
-    }
-
     if (!Array.isArray(body.matches)) {
       return NextResponse.json(
         {
@@ -86,15 +71,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const matches = body.matches.map((match: unknown) => {
+    const parsedMatches = body.matches.map((match: unknown) => {
       if (!isRecord(match)) {
         return {};
       }
 
       return {
         therapistAccountId:
-          typeof match.therapistAccountId === 'string'
-            ? match.therapistAccountId
+          typeof match.therapistAccountId === 'string' && match.therapistAccountId.trim().length > 0
+            ? match.therapistAccountId.trim()
             : null,
 
         matchStatus:
@@ -124,10 +109,57 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // SERVER AS SOURCE OF TRUTH: Validate all submitted therapist account IDs
+    for (const m of parsedMatches) {
+      if (m.therapistAccountId) {
+        const validation = await validateEligibleTherapist(m.therapistAccountId);
+        if (!validation.valid) {
+          return NextResponse.json(
+            {
+              error: {
+                code: 'THERAPIST_UNAVAILABLE',
+                message: 'The selected therapist is currently unavailable or ineligible for practice. Please select another therapist.',
+                reason: validation.error,
+                therapistAccountId: m.therapistAccountId,
+              },
+            },
+            { status: 409 }
+          );
+        }
+      } else if (m.matchStatus === 'selected') {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'THERAPIST_REQUIRED_FOR_SELECTION',
+              message: 'A real therapist account ID is required when selecting a therapist.',
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    const session = await getTherapySession(
+      sessionId.trim(),
+      authUser.userId
+    );
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message: 'Therapy session was not found.',
+          },
+        },
+        { status: 404 }
+      );
+    }
+
     const savedMatches = await saveTherapyMatches(
       sessionId.trim(),
       authUser.userId,
-      matches
+      parsedMatches
     );
 
     return NextResponse.json(
@@ -200,14 +232,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const matches = await getTherapyMatches(
-      sessionId,
-      authUser.userId
-    );
+    const [matches, connectedTherapist] = await Promise.all([
+      getTherapyMatches(sessionId, authUser.userId),
+      getClientConnectedTherapist(authUser.userId),
+    ]);
 
     return NextResponse.json({
       success: true,
       matches,
+      connectedTherapist,
     });
   } catch (error) {
     console.error('[Therapy Matches GET] Error:', error);

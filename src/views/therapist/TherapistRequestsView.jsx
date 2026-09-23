@@ -92,24 +92,26 @@ export default function TherapistRequestsView({ onNavigate }) {
     }
   };
 
+  const isReqPending = (st) => st === 'candidate' || st === 'shortlisted' || st === 'proposed';
+  const isReqAccepted = (st) => st === 'selected' || st === 'accepted';
+  const isReqDeclined = (st) => st === 'rejected' || st === 'declined';
+
   const filtered = requests.filter((r) => {
     if (filterStatus === 'pending') {
-      return r.matchStatus === 'candidate' || r.matchStatus === 'shortlisted';
+      return isReqPending(r.matchStatus);
     }
     if (filterStatus === 'accepted') {
-      return r.matchStatus === 'selected';
+      return isReqAccepted(r.matchStatus);
     }
     if (filterStatus === 'declined') {
-      return r.matchStatus === 'rejected';
+      return isReqDeclined(r.matchStatus);
     }
     return true;
   });
 
-  const pendingCount = requests.filter(
-    (r) => r.matchStatus === 'candidate' || r.matchStatus === 'shortlisted'
-  ).length;
-  const acceptedCount = requests.filter((r) => r.matchStatus === 'selected').length;
-  const declinedCount = requests.filter((r) => r.matchStatus === 'rejected').length;
+  const pendingCount = requests.filter((r) => isReqPending(r.matchStatus)).length;
+  const acceptedCount = requests.filter((r) => isReqAccepted(r.matchStatus)).length;
+  const declinedCount = requests.filter((r) => isReqDeclined(r.matchStatus)).length;
 
   return (
     <div className="space-y-6">
@@ -247,10 +249,9 @@ export default function TherapistRequestsView({ onNavigate }) {
       ) : (
         <div className="space-y-4">
           {filtered.map((req) => {
-            const isPending =
-              req.matchStatus === 'candidate' || req.matchStatus === 'shortlisted';
-            const isSelected = req.matchStatus === 'selected';
-            const isDeclined = req.matchStatus === 'rejected';
+            const isPending = isReqPending(req.matchStatus);
+            const isSelected = isReqAccepted(req.matchStatus);
+            const isDeclined = isReqDeclined(req.matchStatus);
 
             const createdDate = new Date(req.createdAt).toLocaleDateString('en-GB', {
               day: 'numeric',
@@ -546,8 +547,7 @@ export default function TherapistRequestsView({ onNavigate }) {
                 Close
               </button>
 
-              {(selectedRequest.matchStatus === 'candidate' ||
-                selectedRequest.matchStatus === 'shortlisted') && (
+              {isReqPending(selectedRequest.matchStatus) && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {

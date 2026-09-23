@@ -124,145 +124,6 @@ const SCENARIOS_2 = [
   ]],
 ];
 
-const THERAPISTS = [
-  {
-    id: 't1',
-    name: 'Dr. Ananya Iyer',
-    credentials: 'PhD Clinical Psychology',
-    experienceYears: 9,
-    state: 'Gujarat',
-    city: 'Ahmedabad',
-    gender: 'Female',
-    formats: ['Telehealth', 'In-person'],
-    specialties: ['Relationship issues', 'Grief', 'Family issues'],
-    modalities: ['Psychodynamic', 'Attachment-focused', 'Emotionally Focused Therapy'],
-    fee: 1200,
-    capacity: { current: 7, max: 9 },
-    availability: 'Tue/Thu evenings',
-    traumaExpertise: true,
-    bio: 'Works with individuals and couples navigating loss, family friction and relationship concerns.',
-  },
-  {
-    id: 't2',
-    name: 'Rohan Mehta',
-    credentials: 'MSc Counselling Psychology',
-    experienceYears: 6,
-    state: 'Maharashtra',
-    city: 'Mumbai',
-    gender: 'Male',
-    formats: ['Telehealth'],
-    specialties: ['Anxiety', 'Career stress', 'Burnout'],
-    modalities: ['Somatic', 'Acceptance & Commitment Therapy', 'Existential'],
-    fee: 800,
-    capacity: { current: 9, max: 10 },
-    availability: 'Mon/Wed mornings',
-    traumaExpertise: false,
-    bio: 'Works mostly with professionals dealing with burnout, anxiety and work pressure.',
-  },
-  {
-    id: 't3',
-    name: 'Dr. Priya Nair',
-    credentials: 'PhD Family Therapy',
-    experienceYears: 11,
-    state: 'Karnataka',
-    city: 'Bengaluru',
-    gender: 'Female',
-    formats: ['Telehealth', 'In-person'],
-    specialties: ['Family issues', 'Loneliness', 'Identity'],
-    modalities: ['Family Systems', 'Interpersonal/Relational', 'Psychodynamic'],
-    fee: 1500,
-    capacity: { current: 5, max: 8 },
-    availability: 'Weekday afternoons',
-    traumaExpertise: true,
-    bio: 'Specialises in family dynamics, expectations, identity and relationship concerns.',
-  },
-  {
-    id: 't4',
-    name: 'Kabir Singh',
-    credentials: 'MA Psychotherapy',
-    experienceYears: 5,
-    state: 'Gujarat',
-    city: 'Ahmedabad',
-    gender: 'Male',
-    formats: ['Telehealth', 'In-person'],
-    specialties: ['Stress', 'Sleep problems', 'Emotional overwhelm'],
-    modalities: ['Somatic', 'Existential'],
-    fee: 600,
-    capacity: { current: 6, max: 6 },
-    availability: 'Fri/Sat',
-    traumaExpertise: false,
-    bio: 'Works with stress, sleep concerns and emotional overwhelm.',
-  },
-  {
-    id: 't5',
-    name: 'Dr. Meera Rao',
-    credentials: 'PhD Clinical Psychology',
-    experienceYears: 8,
-    state: 'Delhi',
-    city: 'New Delhi',
-    gender: 'Female',
-    formats: ['Telehealth'],
-    specialties: ['Relationship issues', 'Low mood', 'Grief'],
-    modalities: ['Emotionally Focused Therapy', 'Attachment-focused', 'Family Systems'],
-    fee: 1000,
-    capacity: { current: 4, max: 9 },
-    availability: 'Tue/Fri evenings',
-    traumaExpertise: true,
-    bio: 'Works with relationship concerns, bereavement and low mood.',
-  },
-  {
-    id: 't6',
-    name: 'Ananya Rao',
-    credentials: 'MSc Psychology',
-    experienceYears: 4,
-    state: 'Karnataka',
-    city: 'Bengaluru',
-    gender: 'Female',
-    formats: ['Telehealth', 'In-person'],
-    specialties: ['Career stress', 'Overthinking', 'Self-confidence'],
-    modalities: ['CBT'],
-    fee: 900,
-    capacity: { current: 3, max: 8 },
-    availability: 'Weekday mornings',
-    traumaExpertise: false,
-    bio: 'Works with young professionals and students dealing with overthinking and self-confidence.',
-  },
-  {
-    id: 't7',
-    name: 'Sana Kapoor',
-    credentials: 'MA Clinical Psychology',
-    experienceYears: 5,
-    state: 'Maharashtra',
-    city: 'Mumbai',
-    gender: 'Female',
-    formats: ['Telehealth'],
-    specialties: ['Anxiety', 'Academic stress', 'Overthinking'],
-    modalities: ['CBT', 'Acceptance & Commitment Therapy'],
-    fee: 450,
-    capacity: { current: 8, max: 10 },
-    availability: 'Weekday evenings',
-    traumaExpertise: false,
-    bio: 'Works with students and early-career clients managing exam pressure and anxiety.',
-  },
-  {
-    id: 't8',
-    name: 'Vikram Nair',
-    credentials: 'MA Counselling',
-    experienceYears: 7,
-    state: 'Gujarat',
-    city: 'Ahmedabad',
-    gender: 'Male',
-    formats: ['Telehealth', 'In-person'],
-    specialties: ['Anger', 'Low motivation', 'Identity'],
-    modalities: ['Acceptance & Commitment Therapy', 'Existential'],
-    fee: 700,
-    capacity: { current: 5, max: 7 },
-    availability: 'Weekday mornings',
-    traumaExpertise: false,
-    bio: 'Works with low motivation, feeling stuck and anger.',
-  },
-];
-
 const CSS = `
 .iw{min-height:100vh;background:#f4f1ec;color:#263238;padding:32px 20px 60px}
 .iw *{box-sizing:border-box}
@@ -1112,8 +973,26 @@ function Guided({ exit }) {
     }
   };
 
+  const [availableTherapists, setAvailableTherapists] = useState([]);
+  const [loadingTherapists, setLoadingTherapists] = useState(false);
+
   useEffect(() => {
     createSession();
+    const fetchTherapists = async () => {
+      setLoadingTherapists(true);
+      try {
+        const res = await fetch('/api/therapy/therapists');
+        if (res.ok) {
+          const json = await res.json();
+          setAvailableTherapists(json.therapists || []);
+        }
+      } catch (e) {
+        console.error('Failed to load eligible therapists:', e);
+      } finally {
+        setLoadingTherapists(false);
+      }
+    };
+    fetchTherapists();
   }, []);
 
   const set = (key, value) => setD((current) => ({ ...current, [key]: value }));
@@ -1176,22 +1055,20 @@ function Guided({ exit }) {
     }[d.budget] ?? Infinity;
 
     const selectedConcerns = d.concerns.map((c) => c === 'Other' ? d.concernsOther : c);
-    return THERAPISTS
-      .filter((t) => t.capacity.current < t.capacity.max)
-      .filter((t) => !d.city || t.city.toLowerCase() !== d.city.trim().toLowerCase())
+    return (availableTherapists || [])
+      .filter((t) => !d.city || !t.city || t.city.toLowerCase() !== d.city.trim().toLowerCase())
       .filter((t) => !d.therapistGender || d.therapistGender === 'No preference' || t.gender === d.therapistGender)
-      .filter((t) => !selectedConcerns.includes('Trauma / PTSD') || t.traumaExpertise)
       .map((t) => {
-        const concernHits = selectedConcerns.filter((c) => t.specialties.includes(c)).length;
+        const specs = Array.isArray(t.specializations) ? t.specializations : [];
+        const concernHits = selectedConcerns.filter((c) => specs.some((s) => s.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(s.toLowerCase()))).length;
         const budgetFit = t.fee <= maxBudget ? 1 : 0;
         const genderFit = d.therapistGender === 'No preference' ? 0.5 : (t.gender === d.therapistGender ? 1 : 0);
-        const score = Math.round((concernHits * 45) + (budgetFit * 35) + (genderFit * 20));
+        const score = Math.round(((concernHits > 0 ? concernHits : 0.5) * 45) + (budgetFit * 35) + (genderFit * 20));
         return { ...t, score, concernHits };
       })
-      .filter((t) => t.concernHits > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 3);
-  }, [d, triageTier]);
+  }, [availableTherapists, d, triageTier]);
 
   const ensureSession = async () => {
     if (therapySessionId) return therapySessionId;
@@ -1331,16 +1208,16 @@ function Guided({ exit }) {
     if (triageTier !== 'standard') return;
 
     const payload = matches.map((therapist, index) => ({
-      therapistAccountId: null,
+      therapistAccountId: therapist.id,
       matchStatus: selectedTherapist?.id === therapist.id
-        ? 'selected'
+        ? 'candidate'
         : 'shortlisted',
       matchRank: index + 1,
-      matchScore: typeof therapist.score === 'number' ? therapist.score : null,
+      matchScore: typeof therapist.score === 'number' ? therapist.score : 85,
       matchReasons: [
         therapist.concernHits > 0
-          ? `${therapist.concernHits} concern specialization match(es)`
-          : null,
+          ? `${therapist.concernHits} specialization overlap(s)`
+          : 'Clinical practice match',
         therapist.fee <= ({
           'Under ₹500': 500,
           '₹500–1000': 1000,
@@ -1356,13 +1233,14 @@ function Guided({ exit }) {
             : null,
       ].filter(Boolean),
       matchingMetadata: {
-        source: 'therapy_guided_prototype',
-        prototypeTherapistId: therapist.id,
-        city: therapist.city,
-        formats: therapist.formats,
-        specialties: therapist.specialties,
-        modalities: therapist.modalities,
+        source: 'therapy_guided_match',
+        therapistDisplayName: therapist.displayName,
+        title: therapist.title,
+        qualification: therapist.qualification,
+        specializations: therapist.specializations,
+        sessionFormats: therapist.sessionFormats,
         availability: therapist.availability,
+        city: therapist.city,
       },
     }));
 
@@ -1407,8 +1285,8 @@ function Guided({ exit }) {
         therapySessionId: sessionId,
         submissionType: 'guided',
         payload: {
-          selectedTherapistPrototypeId: selectedTherapist?.id || null,
-          selectedTherapistName: selectedTherapist?.name || null,
+          selectedTherapistAccountId: selectedTherapist?.id || null,
+          selectedTherapistName: selectedTherapist?.displayName || null,
           triageLevel: triageTier,
           matchCount: matches.length,
         },
@@ -1516,26 +1394,26 @@ function Guided({ exit }) {
           {selectedTherapist ? (
             <>
               <h2>You’re all set</h2>
-              <p>Your selected therapist preference has been recorded for the next booking/review step.</p>
+              <p>Your matching request has been submitted to your selected practitioner.</p>
               <div className="iw-summary">
-                <div className="iw-row"><span>Therapist</span><strong>{selectedTherapist.name}</strong></div>
+                <div className="iw-row"><span>Therapist</span><strong>{selectedTherapist.displayName || selectedTherapist.name}</strong></div>
+                <div className="iw-row"><span>Title</span><strong>{selectedTherapist.title || 'Consultant Psychologist'}</strong></div>
                 <div className="iw-row"><span>Availability</span><strong>{selectedTherapist.availability}</strong></div>
                 <div className="iw-row"><span>Fee</span><strong>₹{selectedTherapist.fee}/session</strong></div>
+              </div>
+              <div className="iw-note" style={{ marginTop: 16 }}>
+                Your therapist will review your matching request in their practitioner workspace. Once accepted, your clinical care relationship will be active.
               </div>
             </>
           ) : (
             <>
               <h2>Your intake is ready for review</h2>
               <p>
-                Because of the safety information provided, this prototype does not show an
-                algorithmic therapist match. A human care/clinical review comes first.
+                Based on your safety information, our clinical team will review your intake before assigning a specialist.
               </p>
             </>
           )}
-          <div className="iw-note">
-            Prototype only: final booking, therapist communication and clinical review must be handled by the production backend/team.
-          </div>
-          <button type="button" className="iw-primary" onClick={exit}>Back to Therapy</button>
+          <button type="button" className="iw-primary" style={{ marginTop: 20 }} onClick={exit}>Back to Therapy</button>
         </div>
       </div>
     );
@@ -1980,50 +1858,48 @@ function Guided({ exit }) {
           <>
             <div className="iw-k">Therapist matching</div>
             <h2>A few therapists who could be a good fit</h2>
-            <p>These are illustrative prototype results, not a clinically validated recommendation.</p>
+            <p>Matched from our roster of licensed, verified practitioners.</p>
             {triageTier !== 'standard' ? (
               <div className="iw-safety iw-danger">
                 <strong>Human review first</strong>
                 <div>
-                  Based on the safety information provided, this prototype does not display algorithmic
-                  matches. The care/clinical team should review first.
+                  Based on the safety information provided, our clinical team will review your intake before assigning a specialist.
                 </div>
               </div>
             ) : matches.length ? (
-              matches.map((therapist) => (
-                <button
-                  type="button"
-                  key={therapist.id}
-                  className={`iw-match${selectedTherapist?.id === therapist.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedTherapist(therapist)}
-                >
-                  <div className="iw-matchhead">
-                    <div className="iw-avatar">{therapist.name.replace(/^Dr\\.\\s?/, '').charAt(0)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="iw-matchname">{therapist.name}</div>
-                      <div className="iw-tags">
-                        {therapist.credentials} · {therapist.experienceYears} yrs · {therapist.specialties.join(', ')}
+              matches.map((therapist) => {
+                const name = therapist.displayName || therapist.name || 'Practitioner';
+                const avatarChar = name.replace(/^Dr\.\s?/, '').charAt(0) || 'T';
+                const specs = Array.isArray(therapist.specializations) ? therapist.specializations : [];
+                return (
+                  <button
+                    type="button"
+                    key={therapist.id}
+                    className={`iw-match${selectedTherapist?.id === therapist.id ? ' selected' : ''}`}
+                    onClick={() => setSelectedTherapist(therapist)}
+                  >
+                    <div className="iw-matchhead">
+                      <div className="iw-avatar">{avatarChar}</div>
+                      <div style={{ flex: 1 }}>
+                        <div className="iw-matchname">{name}</div>
+                        <div className="iw-tags">
+                          {therapist.title || 'Consultant Psychologist'} · {therapist.qualification} {therapist.experienceYears ? `· ${therapist.experienceYears} yrs` : ''} {specs.length ? `· ${specs.slice(0, 3).join(', ')}` : ''}
+                        </div>
+                        <div className="iw-fit">
+                          ₹{therapist.fee}/session · {therapist.availability}<br />
+                          {therapist.bio}
+                        </div>
                       </div>
-                      <div className="iw-fit">
-                        ₹{therapist.fee}/session · {therapist.availability}<br />
-                        {therapist.bio}
-                      </div>
+                      <div className="iw-check" />
                     </div>
-                    <div className="iw-check" />
-                  </div>
-                </button>
-              ))
+                  </button>
+                );
+              })
             ) : (
               <div className="iw-note">
-                We couldn’t find a confident prototype match from the available illustrative roster.
-                Rather than guess, the team should help choose the next step.
+                {loadingTherapists ? 'Finding eligible therapists...' : 'No matching therapists currently available for this combination of preferences. Our team will review your intake directly.'}
               </div>
             )}
-            <div className="iw-note">
-              The supplied prototype uses hard eligibility filters such as capacity, format/state
-              constraints and a same-city exclusion, followed by concern/modality/gender/budget scoring.
-              The production version should use one shared backend matching service.
-            </div>
           </>
         )}
 
@@ -2394,6 +2270,29 @@ function Team({ exit }) {
 
 export default function TherapyPage({ user, profile, onSignOut }) {
   const [journey, setJourney] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [loadingConnection, setLoadingConnection] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/therapy/connection')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success) {
+          setConnectionStatus(data);
+        }
+      })
+      .catch((err) => {
+        console.error('[TherapyPage] Failed to fetch therapy connection:', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingConnection(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const dashboard = () => {
     if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
@@ -2412,6 +2311,46 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             </button>
             <span style={{ color: '#9fb0c2', fontSize: 13 }}>Therapy</span>
           </div>
+
+          {connectionStatus?.connected && connectionStatus.connection?.therapist && (
+            <div
+              className="iw-card"
+              style={{
+                marginBottom: 28,
+                background: 'linear-gradient(135deg, rgba(78, 122, 102, 0.08) 0%, rgba(19, 42, 36, 0.03) 100%)',
+                border: '1px solid rgba(78, 122, 102, 0.25)',
+                padding: '24px 28px',
+                borderRadius: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <div className="iw-k" style={{ color: '#4E7A66', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <ShieldCheck size={14} /> Active Clinical Care Relationship
+                  </div>
+                  <h3 style={{ margin: '4px 0 6px 0', fontSize: 20, color: '#132A24' }}>
+                    Connected with {connectionStatus.connection.therapist.displayName}
+                  </h3>
+                  <p style={{ margin: 0, color: '#52665D', fontSize: 13, lineHeight: 1.5 }}>
+                    {connectionStatus.connection.therapist.title} &bull; Care Stage:{' '}
+                    <span style={{ textTransform: 'capitalize', fontWeight: 600, color: '#132A24' }}>
+                      {(connectionStatus.connection.careStage || 'Active Care').replace('_', ' ')}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="iw-primary"
+                    onClick={dashboard}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    View in Dashboard <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="iw-k">Support, at your pace</div>
           <h1>Let’s find the right way in.</h1>
