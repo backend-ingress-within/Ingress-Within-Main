@@ -25,12 +25,43 @@ import TherapistScheduleModal from './TherapistScheduleModal';
 import TherapistNotificationsModal from './TherapistNotificationsModal';
 
 export default function TherapistDashboardShell({ therapistData, onLogout }) {
-  const [activeTab, setActiveTab] = useState('today'); // 'today' | 'requests' | 'clients' | 'calendar' | 'earnings' | 'profile'
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.includes('/therapist/requests')) return 'requests';
+      if (path.includes('/therapist/clients')) return 'clients';
+      if (path.includes('/therapist/calendar')) return 'calendar';
+      if (path.includes('/therapist/earnings')) return 'earnings';
+      if (path.includes('/therapist/profile')) return 'profile';
+    }
+    return 'today';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSoapAppointmentId, setActiveSoapAppointmentId] = useState(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleDefaultClient, setScheduleDefaultClient] = useState(null);
   const [notificationsModalOpen, setNotificationsModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getInitialTab());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+    if (typeof window !== 'undefined') {
+      const targetPath = tabId === 'today' ? '/therapist' : `/therapist/${tabId}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  };
 
   const profile = therapistData?.profile;
   const account = therapistData?.therapist || therapistData?.account;
@@ -115,10 +146,7 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => handleTabChange(item.id)}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#132A24] text-white shadow-xs font-semibold'
@@ -170,13 +198,13 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
       <main className="flex-grow p-6 lg:p-10 max-w-6xl mx-auto w-full">
         {activeTab === 'today' && (
           <TherapistTodayView
-            onNavigate={(tab) => setActiveTab(tab)}
+            onNavigate={(tab) => handleTabChange(tab)}
             onOpenSoap={handleOpenSoap}
           />
         )}
         {activeTab === 'requests' && (
           <TherapistRequestsView
-            onNavigate={(tab) => setActiveTab(tab)}
+            onNavigate={(tab) => handleTabChange(tab)}
           />
         )}
         {activeTab === 'clients' && (

@@ -373,14 +373,18 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap }) {
                 <h3 className="font-serif text-lg font-normal text-[#132A24]">New Requests</h3>
                 <span className="text-xs text-[#132A24]/50">Client consultations awaiting your review</span>
               </div>
-              {onNavigate && pendingRequests.length > 0 && (
-                <button
-                  onClick={() => onNavigate('requests')}
-                  className="text-xs text-[#4E7A66] hover:text-[#132A24] font-medium inline-flex items-center gap-1 cursor-pointer"
-                >
-                  View All ({pendingRequests.length}) <ArrowRight size={12} />
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate('requests');
+                  } else if (typeof window !== 'undefined' && window.navigateTo) {
+                    window.navigateTo('/therapist/requests');
+                  }
+                }}
+                className="text-xs text-[#4E7A66] hover:text-[#132A24] font-medium inline-flex items-center gap-1 cursor-pointer"
+              >
+                View all requests <ArrowRight size={12} />
+              </button>
             </div>
 
             {pendingRequests.length === 0 ? (

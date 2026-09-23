@@ -8,9 +8,10 @@ export async function POST(
 ) {
   try {
     const { account } = await requireAuthorizedTherapist(request);
+
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const { action } = body;
+    const { action, reason } = body;
 
     if (action !== 'accept' && action !== 'decline') {
       return NextResponse.json(
@@ -22,7 +23,8 @@ export async function POST(
     const result = await TherapistPlatformService.handleRequestAction(
       account.id,
       id,
-      action
+      action,
+      reason
     );
 
     return NextResponse.json(result);

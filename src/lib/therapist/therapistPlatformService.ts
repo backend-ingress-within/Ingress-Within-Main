@@ -280,47 +280,20 @@ export class TherapistPlatformService {
       .limit(1);
 
     // 3. Pending matching requests assigned to this therapist
-    const { data: rawPendingRequests } = await supabase
-      .from('therapy_matches')
-      .select(`
-        id,
-        user_id,
-        match_status,
-        fit_score,
-        recommendation_rank,
-        client_response,
-        created_at,
-        users (
-          id,
-          name
-        ),
-        therapy_intakes (
-          primary_reasons,
-          preferred_format,
-          urgency_level,
-          presenting_summary
-        )
-      `)
-      .eq('therapist_account_id', therapistAccountId)
-      .in('match_status', ['candidate', 'shortlisted'])
-      .order('created_at', { ascending: false });
-
-    const pendingRequests = (rawPendingRequests || []).map((match: any) => {
-      const intake = Array.isArray(match.therapy_intakes)
-        ? match.therapy_intakes[0]
-        : match.therapy_intakes;
-      return {
-        id: match.id,
-        clientId: match.user_id,
-        clientDisplayName: match.users?.name || `Client #${match.user_id.substring(0, 6)}`,
-        matchStatus: match.match_status,
-        fitScore: match.fit_score || 85,
-        urgencyLevel: intake?.urgency_level || 'standard',
-        preferredFormat: intake?.preferred_format || 'telehealth',
-        presentingSummary: intake?.presenting_summary || 'Seeking professional therapeutic support.',
-        createdAt: match.created_at,
-      };
-    });
+    const allAssignedRequests = await this.getAssignedRequests(therapistAccountId);
+    const pendingRequests = allAssignedRequests
+      .filter((r) => r.matchStatus === 'candidate' || r.matchStatus === 'shortlisted')
+      .map((r) => ({
+        id: r.id,
+        clientId: r.userId,
+        clientDisplayName: r.clientDisplayName,
+        matchStatus: r.matchStatus,
+        fitScore: r.matchScore || 85,
+        urgencyLevel: r.triageLevel || 'standard',
+        preferredFormat: r.contactPreferences?.preferred_format || 'telehealth',
+        presentingSummary: r.presentingReason || 'Seeking professional therapeutic support.',
+        createdAt: r.createdAt,
+      }));
 
     // 4. Active therapy care relationships
     const { data: rawActiveClients } = await supabase
@@ -463,134 +436,401 @@ export class TherapistPlatformService {
    * Exposes clinically safe triage/intake fields, strictly preserving client journal privacy.
    */
   static async getAssignedRequests(therapistAccountId: string) {
-    const { data: matches, error } = await supabase
-      .from('therapy_matches')
-      .select(`
-        id,
-        therapy_session_id,
-        user_id,
-        match_status,
-        match_rank,
-        match_score,
-        match_reasons,
-        matching_metadata,
-        created_at,
-        therapy_intakes (
-          full_name,
-          age,
-          gender,
-          presenting_reason,
-          concerns,
-          affected_life_areas
-        ),
-        therapy_sessions (
-          journey_type,
-          triage_level,
-          created_at
-        )
-      `)
-      .eq('therapist_account_id', therapistAccountId)
-      .order('created_at', { ascending: false });
+    if (!therapistAccountId) return [];
 
-    if (error) {
-      console.error('[TherapistPlatformService] getAssignedRequests error:', error);
-      throw new Error('Failed to retrieve requests.');
+    try {
+      const { data: matches, error } = await supabase
+        .from('therapy_matches')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId)
+        .order('created_at', { ascending: false });
+
+      if (error || !matches || matches.length === 0) {
+        return [];
+      }
+
+      const sessionIds = Array.from(new Set(matches.map((m: any) => m.therapy_session_id).filter(Boolean)));
+      const userIds = Array.from(new Set(matches.map((m: any) => m.user_id).filter(Boolean)));
+
+      const [intakesRes, sessionsRes, usersRes] = await Promise.all([
+        sessionIds.length > 0
+          ? supabase.from('therapy_intakes').select('*').in('therapy_session_id', sessionIds)
+          : { data: [] },
+        sessionIds.length > 0
+          ? supabase.from('therapy_sessions').select('*').in('id', sessionIds)
+          : { data: [] },
+        userIds.length > 0
+          ? supabase.from('users').select('id, name').in('id', userIds)
+          : { data: [] },
+      ]);
+
+      const intakesBySessionId = new Map(
+        (intakesRes.data || []).map((i: any) => [i.therapy_session_id, i])
+      );
+      const sessionsById = new Map(
+        (sessionsRes.data || []).map((s: any) => [s.id, s])
+      );
+      const usersById = new Map(
+        (usersRes.data || []).map((u: any) => [u.id, u])
+      );
+
+      return matches.map((m: any) => {
+        const intake = intakesBySessionId.get(m.therapy_session_id);
+        const session = sessionsById.get(m.therapy_session_id);
+        const user = usersById.get(m.user_id);
+
+        const clientDisplayName =
+          intake?.full_name ||
+          user?.name ||
+          `Client #${(m.user_id || '').substring(0, 6).toUpperCase()}`;
+
+        return {
+          id: m.id,
+          therapySessionId: m.therapy_session_id,
+          userId: m.user_id,
+          clientDisplayName,
+          age: intake?.age || null,
+          gender: intake?.gender || null,
+          city: intake?.city || null,
+          occupation: intake?.occupation || null,
+          presentingReason: intake?.presenting_reason || 'General therapeutic consultation',
+          concerns: intake?.concerns || [],
+          affectedLifeAreas: intake?.affected_life_areas || [],
+          ownWords: intake?.own_words || null,
+          contactPreferences: intake?.contact_preferences || {},
+          matchStatus: m.match_status,
+          matchRank: m.match_rank || 1,
+          matchScore: m.match_score ? Number(m.match_score) : 85,
+          matchReasons: m.match_reasons || [],
+          matchingMetadata: m.matching_metadata || {},
+          journeyType: session?.journey_type || 'guided',
+          triageLevel: session?.triage_level || 'standard',
+          createdAt: m.created_at,
+          updatedAt: m.updated_at,
+        };
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single matching request by ID with strict therapist ownership verification.
+   * Throws 404 if not found, 403 if assigned to another therapist.
+   */
+  static async getRequestById(therapistAccountId: string, matchId: string) {
+    if (!therapistAccountId || !matchId) {
+      const err: any = new Error('Therapist ID and Match ID are required.');
+      err.code = 'INVALID_PARAMETERS';
+      err.status = 400;
+      throw err;
     }
 
-    return (matches || []).map((m: any) => {
-      const intake = Array.isArray(m.therapy_intakes) ? m.therapy_intakes[0] : m.therapy_intakes;
-      const session = Array.isArray(m.therapy_sessions) ? m.therapy_sessions[0] : m.therapy_sessions;
+    const { data: match, error: fetchErr } = await supabase
+      .from('therapy_matches')
+      .select('*')
+      .eq('id', matchId)
+      .maybeSingle();
 
-      return {
-        id: m.id,
-        therapySessionId: m.therapy_session_id,
-        userId: m.user_id,
-        clientDisplayName: intake?.full_name || `Client #${m.user_id.substring(0, 6)}`,
-        age: intake?.age || null,
-        gender: intake?.gender || null,
-        presentingReason: intake?.presenting_reason || 'General support',
-        concerns: intake?.concerns || [],
-        affectedLifeAreas: intake?.affected_life_areas || [],
-        matchStatus: m.match_status,
-        matchRank: m.match_rank,
-        matchReasons: m.match_reasons,
-        journeyType: session?.journey_type || 'guided',
-        triageLevel: session?.triage_level || 'standard',
-        createdAt: m.created_at,
-      };
-    });
+    if (!match) {
+      const err: any = new Error('Request not found.');
+      err.code = 'REQUEST_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    if (match.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Request is not assigned to your practice.');
+      err.code = 'REQUEST_FORBIDDEN';
+      err.status = 403;
+      throw err;
+    }
+
+    // Safely retrieve intake and session context
+    const [intakeRes, sessionRes, userRes] = await Promise.all([
+      match.therapy_session_id
+        ? supabase.from('therapy_intakes').select('*').eq('therapy_session_id', match.therapy_session_id).maybeSingle()
+        : { data: null },
+      match.therapy_session_id
+        ? supabase.from('therapy_sessions').select('*').eq('id', match.therapy_session_id).maybeSingle()
+        : { data: null },
+      match.user_id
+        ? supabase.from('users').select('id, name').eq('id', match.user_id).maybeSingle()
+        : { data: null },
+    ]);
+
+    const intake = intakeRes.data;
+    const session = sessionRes.data;
+    const user = userRes.data;
+
+    const clientDisplayName =
+      intake?.full_name ||
+      user?.name ||
+      `Client #${(match.user_id || '').substring(0, 6).toUpperCase()}`;
+
+    return {
+      id: match.id,
+      therapySessionId: match.therapy_session_id,
+      userId: match.user_id,
+      clientDisplayName,
+      age: intake?.age || null,
+      gender: intake?.gender || null,
+      city: intake?.city || null,
+      occupation: intake?.occupation || null,
+      presentingReason: intake?.presenting_reason || 'General therapeutic consultation',
+      concerns: intake?.concerns || [],
+      affectedLifeAreas: intake?.affected_life_areas || [],
+      ownWords: intake?.own_words || null,
+      contactPreferences: intake?.contact_preferences || {},
+      matchStatus: match.match_status,
+      matchRank: match.match_rank || 1,
+      matchScore: match.match_score ? Number(match.match_score) : 85,
+      matchReasons: match.match_reasons || [],
+      matchingMetadata: match.matching_metadata || {},
+      journeyType: session?.journey_type || 'guided',
+      triageLevel: session?.triage_level || 'standard',
+      createdAt: match.created_at,
+      updatedAt: match.updated_at,
+    };
   }
 
   /**
    * Action on request: accept or decline.
-   * If accept: transactionally creates therapy_care_relationships record!
+   * Concurrency-safe, idempotent, with transactional rollback compensation.
    */
   static async handleRequestAction(
     therapistAccountId: string,
     matchId: string,
-    action: 'accept' | 'decline'
+    action: 'accept' | 'decline',
+    reason?: string
   ) {
-    // 1. Verify match ownership
+    if (!therapistAccountId || !matchId) {
+      const err: any = new Error('Therapist ID and Match ID are required.');
+      err.code = 'INVALID_PARAMETERS';
+      err.status = 400;
+      throw err;
+    }
+
+    if (action !== 'accept' && action !== 'decline') {
+      const err: any = new Error(`Invalid action: ${action}. Action must be 'accept' or 'decline'.`);
+      err.code = 'INVALID_ACTION';
+      err.status = 400;
+      throw err;
+    }
+
+    // 1. Verify match existence and therapist ownership
     const { data: match, error: fetchErr } = await supabase
       .from('therapy_matches')
-      .select('id, user_id, therapy_session_id, match_status')
+      .select('*')
       .eq('id', matchId)
-      .eq('therapist_account_id', therapistAccountId)
-      .single();
+      .maybeSingle();
 
-    if (fetchErr || !match) {
-      throw new Error('Request not found or not assigned to you.');
+    if (!match) {
+      const err: any = new Error('Request not found.');
+      err.code = 'REQUEST_NOT_FOUND';
+      err.status = 404;
+      throw err;
     }
 
-    const nextStatus = action === 'accept' ? 'selected' : 'rejected';
+    if (match.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Request is not assigned to your practice.');
+      err.code = 'REQUEST_FORBIDDEN';
+      err.status = 403;
+      throw err;
+    }
 
-    // 2. Update match record
-    await supabase
-      .from('therapy_matches')
-      .update({
-        match_status: nextStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', matchId);
-
-    // 3. If accepted, create / activate care relationship
-    let relationship = null;
+    // 2. Handle ACCEPT Action
     if (action === 'accept') {
-      const { data: rel, error: relError } = await supabase
-        .from('therapy_care_relationships')
-        .insert({
-          therapist_account_id: therapistAccountId,
-          user_id: match.user_id,
-          therapy_session_id: match.therapy_session_id,
-          status: 'active',
-          care_stage: 'intake',
-          started_at: new Date().toISOString(),
-        })
-        .select('*')
-        .single();
+      // Idempotency: If already selected/accepted, reuse relationship
+      if (match.match_status === 'selected') {
+        const { data: existingRel } = await supabase
+          .from('therapy_care_relationships')
+          .select('*')
+          .eq('therapist_account_id', therapistAccountId)
+          .eq('user_id', match.user_id)
+          .eq('status', 'active')
+          .maybeSingle();
 
-      if (relError) {
-        console.error('[TherapistPlatformService] Care relationship creation error:', relError);
+        return {
+          success: true,
+          action: 'accept',
+          matchId,
+          matchStatus: 'selected',
+          alreadyAccepted: true,
+          relationship: existingRel,
+          message: 'Client request was already accepted.',
+        };
       }
-      relationship = rel;
 
-      // Add notification
-      await supabase.from('therapist_notifications').insert({
-        therapist_account_id: therapistAccountId,
-        type: 'request_accepted',
-        title: 'New Client Connected',
-        message: 'You have accepted the matching request. Client is now added to your roster.',
-        link: '/therapist/clients',
-      });
+      // Check for non-actionable stale states
+      if (match.match_status === 'rejected') {
+        const err: any = new Error('This request has already been declined and cannot be accepted.');
+        err.code = 'REQUEST_ALREADY_DECLINED';
+        err.status = 409;
+        throw err;
+      }
+
+      if (match.match_status === 'unavailable') {
+        const err: any = new Error('This request is no longer available.');
+        err.code = 'REQUEST_UNAVAILABLE';
+        err.status = 409;
+        throw err;
+      }
+
+      if (match.match_status !== 'candidate' && match.match_status !== 'shortlisted') {
+        const err: any = new Error(`Request cannot be accepted from status: ${match.match_status}`);
+        err.code = 'INVALID_REQUEST_STATUS';
+        err.status = 409;
+        throw err;
+      }
+
+      // Check whether an active care relationship already exists for therapist + client
+      const { data: existingActiveRel } = await supabase
+        .from('therapy_care_relationships')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('user_id', match.user_id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      let relationship = existingActiveRel;
+      let createdNewRelationship = false;
+      const now = new Date().toISOString();
+
+      if (!relationship) {
+        const { data: newRel, error: relError } = await supabase
+          .from('therapy_care_relationships')
+          .insert({
+            therapist_account_id: therapistAccountId,
+            user_id: match.user_id,
+            therapy_session_id: match.therapy_session_id || null,
+            status: 'active',
+            care_stage: 'intake',
+            started_at: now,
+            metadata: {
+              source_match_id: match.id,
+              accepted_at: now,
+            },
+          })
+          .select('*')
+          .single();
+
+        if (relError || !newRel) {
+          console.error('[TherapistPlatformService] Care relationship creation error:', relError);
+          const err: any = new Error('Failed to create clinical care relationship.');
+          err.code = 'CARE_RELATIONSHIP_CREATION_FAILED';
+          err.status = 500;
+          throw err;
+        }
+
+        relationship = newRel;
+        createdNewRelationship = true;
+      }
+
+      // Update match record to 'selected'
+      const { error: updateError } = await supabase
+        .from('therapy_matches')
+        .update({
+          match_status: 'selected',
+          updated_at: now,
+        })
+        .eq('id', matchId)
+        .eq('therapist_account_id', therapistAccountId);
+
+      if (updateError) {
+        console.error('[TherapistPlatformService] Match update error:', updateError);
+        // Compensate: rollback newly created relationship
+        if (createdNewRelationship && relationship?.id) {
+          await supabase
+            .from('therapy_care_relationships')
+            .delete()
+            .eq('id', relationship.id);
+        }
+        const err: any = new Error('Failed to update request state. Changes rolled back.');
+        err.code = 'MATCH_UPDATE_FAILED';
+        err.status = 500;
+        throw err;
+      }
+
+      // Notification
+      try {
+        await supabase.from('therapist_notifications').insert({
+          therapist_account_id: therapistAccountId,
+          type: 'request_accepted',
+          title: 'New Client Connected',
+          message: 'You have accepted the matching request. Client is now added to your care roster.',
+          link: '/therapist/clients',
+        });
+      } catch {}
+
+      return {
+        success: true,
+        action: 'accept',
+        matchId,
+        matchStatus: 'selected',
+        relationship,
+        message: 'Client request accepted successfully.',
+      };
     }
 
-    return {
-      success: true,
-      action,
-      matchId,
-      matchStatus: nextStatus,
-      relationship,
-    };
+    // 3. Handle DECLINE Action
+    if (action === 'decline') {
+      if (match.match_status === 'rejected') {
+        return {
+          success: true,
+          action: 'decline',
+          matchId,
+          matchStatus: 'rejected',
+          alreadyDeclined: true,
+          message: 'Client request was already declined.',
+        };
+      }
+
+      if (match.match_status === 'selected') {
+        const err: any = new Error('Cannot decline a request that has already been accepted.');
+        err.code = 'CANNOT_DECLINE_ACCEPTED_REQUEST';
+        err.status = 409;
+        throw err;
+      }
+
+      const now = new Date().toISOString();
+      const updatedMetadata = {
+        ...(match.matching_metadata || {}),
+        ...(reason ? { decline_reason: String(reason).trim() } : {}),
+        declined_at: now,
+      };
+
+      const { error: declineError } = await supabase
+        .from('therapy_matches')
+        .update({
+          match_status: 'rejected',
+          matching_metadata: updatedMetadata,
+          updated_at: now,
+        })
+        .eq('id', matchId)
+        .eq('therapist_account_id', therapistAccountId);
+
+      if (declineError) {
+        console.error('[TherapistPlatformService] Decline update error:', declineError);
+        const err: any = new Error('Failed to decline request.');
+        err.code = 'DECLINE_UPDATE_FAILED';
+        err.status = 500;
+        throw err;
+      }
+
+      return {
+        success: true,
+        action: 'decline',
+        matchId,
+        matchStatus: 'rejected',
+        message: 'Client request declined.',
+      };
+    }
+
+    const err: any = new Error(`Invalid action: ${action}`);
+    err.code = 'INVALID_ACTION';
+    err.status = 400;
+    throw err;
   }
 
   /**
