@@ -223,10 +223,26 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
 export async function requireAuthorizedTherapist(request: NextRequest): Promise<AuthenticatedTherapistProfile> {
   const profile = await requireTherapistProfile(request);
 
-  if (!profile.account.is_active) {
-    const error: any = new Error('Therapist account is suspended or inactive.');
+  if (!profile.account.is_active || profile.account.status !== 'active') {
+    const error: any = new Error('Therapist account is not active.');
     error.status = 403;
-    error.code = 'THERAPIST_SUSPENDED';
+    error.code = 'THERAPIST_NOT_ACTIVE';
+    throw error;
+  }
+
+  if (profile.account.application_status !== 'approved') {
+    const error: any = new Error('Therapist application is not approved.');
+    error.status = 403;
+    error.code = 'APPLICATION_NOT_APPROVED';
+    error.application_status = profile.account.application_status;
+    throw error;
+  }
+
+  if (profile.account.verification_status !== 'verified') {
+    const error: any = new Error('Therapist practitioner verification required.');
+    error.status = 403;
+    error.code = 'VERIFICATION_REQUIRED';
+    error.verification_status = profile.account.verification_status;
     throw error;
   }
 

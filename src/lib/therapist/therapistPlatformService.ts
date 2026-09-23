@@ -279,29 +279,98 @@ export class TherapistPlatformService {
       .order('scheduled_start', { ascending: true })
       .limit(1);
 
-    // 3. Count pending matching requests assigned to this therapist
-    const { count: pendingRequestsCount } = await supabase
+    // 3. Pending matching requests assigned to this therapist
+    const { data: rawPendingRequests } = await supabase
       .from('therapy_matches')
-      .select('id', { count: 'exact', head: true })
+      .select(`
+        id,
+        user_id,
+        match_status,
+        fit_score,
+        recommendation_rank,
+        client_response,
+        created_at,
+        users (
+          id,
+          name
+        ),
+        therapy_intakes (
+          primary_reasons,
+          preferred_format,
+          urgency_level,
+          presenting_summary
+        )
+      `)
       .eq('therapist_account_id', therapistAccountId)
-      .in('match_status', ['candidate', 'shortlisted']);
+      .in('match_status', ['candidate', 'shortlisted'])
+      .order('created_at', { ascending: false });
 
-    // 4. Count active clients
-    const { count: activeClientsCount } = await supabase
+    const pendingRequests = (rawPendingRequests || []).map((match: any) => {
+      const intake = Array.isArray(match.therapy_intakes)
+        ? match.therapy_intakes[0]
+        : match.therapy_intakes;
+      return {
+        id: match.id,
+        clientId: match.user_id,
+        clientDisplayName: match.users?.name || `Client #${match.user_id.substring(0, 6)}`,
+        matchStatus: match.match_status,
+        fitScore: match.fit_score || 85,
+        urgencyLevel: intake?.urgency_level || 'standard',
+        preferredFormat: intake?.preferred_format || 'telehealth',
+        presentingSummary: intake?.presenting_summary || 'Seeking professional therapeutic support.',
+        createdAt: match.created_at,
+      };
+    });
+
+    // 4. Active therapy care relationships
+    const { data: rawActiveClients } = await supabase
       .from('therapy_care_relationships')
-      .select('id', { count: 'exact', head: true })
+      .select(`
+        id,
+        user_id,
+        status,
+        total_sessions_completed,
+        started_at,
+        last_session_at,
+        users (
+          id,
+          name
+        )
+      `)
       .eq('therapist_account_id', therapistAccountId)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .order('last_session_at', { ascending: false, nullsFirst: false });
 
-    // 5. Count outstanding SOAP notes (completed sessions without finalized note)
-    const { data: completedSessions } = await supabase
+    const activeClients = (rawActiveClients || []).map((rel: any) => ({
+      id: rel.id,
+      clientId: rel.user_id,
+      clientDisplayName: rel.users?.name || `Client #${rel.user_id.substring(0, 6)}`,
+      status: rel.status,
+      totalSessionsCompleted: rel.total_sessions_completed || 0,
+      startedAt: rel.started_at,
+      lastSessionAt: rel.last_session_at,
+    }));
+
+    // 5. Notes Due: Completed sessions without finalized SOAP note
+    const { data: rawCompletedSessions } = await supabase
       .from('therapist_clinical_appointments')
-      .select('id')
+      .select(`
+        id,
+        user_id,
+        scheduled_start,
+        scheduled_end,
+        session_type,
+        users (
+          id,
+          name
+        )
+      `)
       .eq('therapist_account_id', therapistAccountId)
-      .eq('status', 'completed');
+      .eq('status', 'completed')
+      .order('scheduled_end', { ascending: false });
 
-    const completedIds = (completedSessions || []).map((s) => s.id);
-    let outstandingSoapNotesCount = 0;
+    const completedIds = (rawCompletedSessions || []).map((s) => s.id);
+    let notesDue: any[] = [];
 
     if (completedIds.length > 0) {
       const { data: notes } = await supabase
@@ -312,15 +381,49 @@ export class TherapistPlatformService {
       const finalizedSet = new Set(
         (notes || []).filter((n) => !n.is_draft).map((n) => n.appointment_id)
       );
-      outstandingSoapNotesCount = completedIds.filter((id) => !finalizedSet.has(id)).length;
+
+      notesDue = (rawCompletedSessions || [])
+        .filter((s: any) => !finalizedSet.has(s.id))
+        .map((s: any) => ({
+          id: s.id,
+          appointmentId: s.id,
+          clientId: s.user_id,
+          clientDisplayName: s.users?.name || `Client #${s.user_id.substring(0, 6)}`,
+          scheduledStart: s.scheduled_start,
+          scheduledEnd: s.scheduled_end,
+          sessionType: s.session_type,
+        }));
     }
 
-    // 6. Count unread notifications
-    const { count: unreadNotificationsCount } = await supabase
+    // 6. Unread notifications
+    const { data: rawNotifications } = await supabase
       .from('therapist_notifications')
-      .select('id', { count: 'exact', head: true })
+      .select('*')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const notifications = (rawNotifications || []).map((n: any) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      type: n.type || 'info',
+      createdAt: n.created_at,
+      isRead: Boolean(n.is_read),
+    }));
+
+    // Next upcoming session
+    const nextSession = upcomingSessions && upcomingSessions.length > 0 ? {
+      id: upcomingSessions[0].id,
+      clientId: upcomingSessions[0].user_id,
+      clientDisplayName: (upcomingSessions[0] as any).users?.name || `Client #${upcomingSessions[0].user_id.substring(0, 6)}`,
+      scheduledStart: upcomingSessions[0].scheduled_start,
+      scheduledEnd: upcomingSessions[0].scheduled_end,
+      status: upcomingSessions[0].status,
+      sessionType: upcomingSessions[0].session_type,
+      meetingLink: upcomingSessions[0].meeting_link,
+    } : null;
 
     return {
       todaySessions: (todaySessions || []).map((session: any) => ({
@@ -333,22 +436,18 @@ export class TherapistPlatformService {
         sessionType: session.session_type,
         meetingLink: session.meeting_link,
       })),
-      upcomingSession: upcomingSessions && upcomingSessions.length > 0 ? {
-        id: upcomingSessions[0].id,
-        clientId: upcomingSessions[0].user_id,
-        clientDisplayName: (upcomingSessions[0] as any).users?.name || `Client #${upcomingSessions[0].user_id.substring(0, 6)}`,
-        scheduledStart: upcomingSessions[0].scheduled_start,
-        scheduledEnd: upcomingSessions[0].scheduled_end,
-        status: upcomingSessions[0].status,
-        sessionType: upcomingSessions[0].session_type,
-        meetingLink: upcomingSessions[0].meeting_link,
-      } : null,
+      nextSession,
+      upcomingSession: nextSession, // Backward compatibility
+      pendingRequests,
+      activeClients,
+      notesDue,
+      notifications,
       metrics: {
         todaySessionsCount: (todaySessions || []).length,
-        pendingRequestsCount: pendingRequestsCount || 0,
-        activeClientsCount: activeClientsCount || 0,
-        outstandingSoapNotesCount,
-        unreadNotificationsCount: unreadNotificationsCount || 0,
+        pendingRequestsCount: pendingRequests.length,
+        activeClientsCount: activeClients.length,
+        outstandingSoapNotesCount: notesDue.length,
+        unreadNotificationsCount: notifications.length,
       }
     };
   }
