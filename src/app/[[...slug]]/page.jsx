@@ -11,6 +11,13 @@ const KNOWN_PUBLIC_ROUTES = new Set([
   'therapist',
   'therapist/auth',
   'therapist/login',
+  'therapist/onboarding',
+  'therapist/application',
+  'therapist/clients',
+  'therapist/calendar',
+  'therapist/sessions',
+  'therapist/earnings',
+  'therapist/profile',
   'solution',
   'what-it-is',
   'how',
@@ -122,6 +129,13 @@ export function generateStaticParams() {
     { slug: ['therapist'] },
     { slug: ['therapist', 'auth'] },
     { slug: ['therapist', 'login'] },
+    { slug: ['therapist', 'onboarding'] },
+    { slug: ['therapist', 'application'] },
+    { slug: ['therapist', 'clients'] },
+    { slug: ['therapist', 'calendar'] },
+    { slug: ['therapist', 'sessions'] },
+    { slug: ['therapist', 'earnings'] },
+    { slug: ['therapist', 'profile'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
@@ -183,7 +197,7 @@ export default async function CatchAllPage({ params }) {
   else if (rawPath === 'ai-data') initialRoute = 'ai-data';
   else if (rawPath === 'therapy') initialRoute = 'therapy';
   else if (rawPath === 'auth') initialRoute = 'auth';
-  else if (rawPath === 'therapist' || rawPath === 'therapist/auth' || rawPath === 'therapist/login') initialRoute = 'therapist/auth';
+  else if (rawPath === 'therapist' || rawPath === 'therapist/auth' || rawPath === 'therapist/login') initialRoute = 'therapist';
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;

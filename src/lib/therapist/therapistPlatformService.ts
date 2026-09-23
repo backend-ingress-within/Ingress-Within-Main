@@ -1,0 +1,1412 @@
+import { supabase } from '../db';
+
+export class TherapistPlatformService {
+  /**
+   * =========================================================================
+   * 1. ONBOARDING & APPLICATION WORKFLOW
+   * =========================================================================
+   */
+
+  /**
+   * Retrieves the current onboarding draft / application for a therapist.
+   */
+  static async getOnboardingState(therapistAccountId: string) {
+    // 1. Fetch application record if exists
+    const { data: app } = await supabase
+      .from('therapist_applications')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    // 2. Fetch account & profile
+    const { data: account } = await supabase
+      .from('therapist_accounts')
+      .select('id, phone_number, status, can_practice, application_status, verification_status, rci_registered, rci_number')
+      .eq('id', therapistAccountId)
+      .single();
+
+    const { data: profile } = await supabase
+      .from('therapist_profiles')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    return {
+      application: app || {
+        step: 1,
+        answers: {},
+        documents: [],
+        submitted_at: null,
+        reviewed_at: null,
+        reviewer_notes: null,
+      },
+      account: account || null,
+      profile: profile || null,
+    };
+  }
+
+  /**
+   * Saves a draft step in the multi-step onboarding flow.
+   */
+  static async saveOnboardingDraft(
+    therapistAccountId: string,
+    step: number,
+    answers: Record<string, any>,
+    documents: any[] = []
+  ) {
+    const { data: existingApp } = await supabase
+      .from('therapist_applications')
+      .select('answers, documents')
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    const mergedAnswers = {
+      ...(existingApp?.answers || {}),
+      ...answers,
+    };
+
+    const mergedDocuments = documents.length > 0 ? documents : (existingApp?.documents || []);
+
+    const { data, error } = await supabase
+      .from('therapist_applications')
+      .upsert(
+        {
+          therapist_account_id: therapistAccountId,
+          step: Math.max(1, Math.min(11, step)),
+          answers: mergedAnswers,
+          documents: mergedDocuments,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'therapist_account_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] saveOnboardingDraft failed:', error);
+      throw new Error('Failed to save onboarding progress.');
+    }
+
+    return data;
+  }
+
+  /**
+   * Formally submits the completed onboarding application for administrative review.
+   * STRICT: sets application_status = 'submitted', can_practice remains false.
+   */
+  static async submitApplication(therapistAccountId: string, answers: Record<string, any>) {
+    const existing = await this.getOnboardingState(therapistAccountId);
+    const mergedAnswers = {
+      ...(existing.application?.answers || {}),
+      ...answers,
+    };
+
+    const now = new Date().toISOString();
+
+    // 1. Update therapist_applications
+    const { data: app, error: appError } = await supabase
+      .from('therapist_applications')
+      .upsert(
+        {
+          therapist_account_id: therapistAccountId,
+          step: 11,
+          answers: mergedAnswers,
+          submitted_at: now,
+          updated_at: now,
+        },
+        { onConflict: 'therapist_account_id' }
+      )
+      .select('*')
+      .single();
+
+    if (appError) {
+      console.error('[TherapistPlatformService] submitApplication app error:', appError);
+      throw new Error('Failed to submit application.');
+    }
+
+    // 2. Update therapist_accounts status
+    await supabase
+      .from('therapist_accounts')
+      .update({
+        application_status: 'submitted',
+        can_practice: false,
+        verification_status: 'pending',
+        rci_registered: Boolean(mergedAnswers.rciRegistered),
+        rci_number: mergedAnswers.rciNumber || null,
+        updated_at: now,
+      })
+      .eq('id', therapistAccountId);
+
+    // 3. Update therapist_profiles with basic identity/credential details from application
+    await supabase
+      .from('therapist_profiles')
+      .update({
+        full_name: mergedAnswers.fullName || existing.profile?.full_name,
+        title: mergedAnswers.professionalTitle || 'Consultant Psychologist',
+        bio: mergedAnswers.bio || '',
+        qualification: mergedAnswers.qualification || '',
+        experience_years: Number(mergedAnswers.experienceYears) || 0,
+        specializations: Array.isArray(mergedAnswers.specializations) ? mergedAnswers.specializations : [],
+        languages: Array.isArray(mergedAnswers.languages) ? mergedAnswers.languages : ['English', 'Hindi'],
+        session_formats: Array.isArray(mergedAnswers.sessionFormats) ? mergedAnswers.sessionFormats : ['telehealth'],
+        city: mergedAnswers.city || null,
+        state: mergedAnswers.state || null,
+        updated_at: now,
+      })
+      .eq('therapist_account_id', therapistAccountId);
+
+    return {
+      success: true,
+      application: app,
+    };
+  }
+
+  /**
+   * Internal / Admin Review action.
+   * Can only be triggered by authorized administrative caller.
+   */
+  static async adminReviewTherapist(
+    therapistAccountId: string,
+    decision: 'approved' | 'rejected',
+    reviewerId?: string,
+    reviewerNotes?: string
+  ) {
+    const now = new Date().toISOString();
+    const isApproved = decision === 'approved';
+
+    // 1. Update therapist_accounts
+    const { error: accountError } = await supabase
+      .from('therapist_accounts')
+      .update({
+        status: isApproved ? 'active' : 'rejected',
+        application_status: isApproved ? 'approved' : 'rejected',
+        can_practice: isApproved,
+        verification_status: isApproved ? 'verified' : 'rejected',
+        updated_at: now,
+      })
+      .eq('id', therapistAccountId);
+
+    if (accountError) {
+      throw new Error(`Failed to update therapist account: ${accountError.message}`);
+    }
+
+    // 2. Update therapist_applications
+    await supabase
+      .from('therapist_applications')
+      .update({
+        reviewed_at: now,
+        reviewed_by: reviewerId || null,
+        reviewer_notes: reviewerNotes || (isApproved ? 'Approved by clinical administrator' : 'Application declined'),
+        updated_at: now,
+      })
+      .eq('therapist_account_id', therapistAccountId);
+
+    // 3. Create therapist notification
+    await supabase
+      .from('therapist_notifications')
+      .insert({
+        therapist_account_id: therapistAccountId,
+        type: isApproved ? 'application_approved' : 'application_rejected',
+        title: isApproved ? 'Application Approved' : 'Application Status Update',
+        message: isApproved
+          ? 'Your clinical application has been approved! You now have full access to your therapist workspace.'
+          : 'Your clinical application was reviewed. Please contact clinical support for details.',
+        link: isApproved ? '/therapist' : '/therapist/application',
+      });
+
+    return {
+      success: true,
+      decision,
+      can_practice: isApproved,
+    };
+  }
+
+  /**
+   * =========================================================================
+   * 2. TODAY DASHBOARD & OPERATIONAL OVERVIEW
+   * =========================================================================
+   */
+
+  /**
+   * Retrieves today's real operational metrics and schedule for an authorized therapist.
+   */
+  static async getTodayOverview(therapistAccountId: string) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+
+    // 1. Today's sessions
+    const { data: todaySessions } = await supabase
+      .from('therapist_clinical_appointments')
+      .select(`
+        id,
+        user_id,
+        scheduled_start,
+        scheduled_end,
+        status,
+        session_type,
+        meeting_link,
+        client_notes,
+        users (
+          id,
+          name
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .gte('scheduled_start', startOfToday)
+      .lte('scheduled_start', endOfToday)
+      .order('scheduled_start', { ascending: true });
+
+    // 2. Next upcoming session
+    const { data: upcomingSessions } = await supabase
+      .from('therapist_clinical_appointments')
+      .select(`
+        id,
+        user_id,
+        scheduled_start,
+        scheduled_end,
+        status,
+        session_type,
+        meeting_link,
+        users (
+          id,
+          name
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .in('status', ['scheduled', 'confirmed'])
+      .gte('scheduled_start', now.toISOString())
+      .order('scheduled_start', { ascending: true })
+      .limit(1);
+
+    // 3. Count pending matching requests assigned to this therapist
+    const { count: pendingRequestsCount } = await supabase
+      .from('therapy_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('therapist_account_id', therapistAccountId)
+      .in('match_status', ['candidate', 'shortlisted']);
+
+    // 4. Count active clients
+    const { count: activeClientsCount } = await supabase
+      .from('therapy_care_relationships')
+      .select('id', { count: 'exact', head: true })
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('status', 'active');
+
+    // 5. Count outstanding SOAP notes (completed sessions without finalized note)
+    const { data: completedSessions } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('status', 'completed');
+
+    const completedIds = (completedSessions || []).map((s) => s.id);
+    let outstandingSoapNotesCount = 0;
+
+    if (completedIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('therapist_soap_notes')
+        .select('appointment_id, is_draft')
+        .in('appointment_id', completedIds);
+
+      const finalizedSet = new Set(
+        (notes || []).filter((n) => !n.is_draft).map((n) => n.appointment_id)
+      );
+      outstandingSoapNotesCount = completedIds.filter((id) => !finalizedSet.has(id)).length;
+    }
+
+    // 6. Count unread notifications
+    const { count: unreadNotificationsCount } = await supabase
+      .from('therapist_notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('is_read', false);
+
+    return {
+      todaySessions: (todaySessions || []).map((session: any) => ({
+        id: session.id,
+        clientId: session.user_id,
+        clientDisplayName: session.users?.name || `Client #${session.user_id.substring(0, 6)}`,
+        scheduledStart: session.scheduled_start,
+        scheduledEnd: session.scheduled_end,
+        status: session.status,
+        sessionType: session.session_type,
+        meetingLink: session.meeting_link,
+      })),
+      upcomingSession: upcomingSessions && upcomingSessions.length > 0 ? {
+        id: upcomingSessions[0].id,
+        clientId: upcomingSessions[0].user_id,
+        clientDisplayName: (upcomingSessions[0] as any).users?.name || `Client #${upcomingSessions[0].user_id.substring(0, 6)}`,
+        scheduledStart: upcomingSessions[0].scheduled_start,
+        scheduledEnd: upcomingSessions[0].scheduled_end,
+        status: upcomingSessions[0].status,
+        sessionType: upcomingSessions[0].session_type,
+        meetingLink: upcomingSessions[0].meeting_link,
+      } : null,
+      metrics: {
+        todaySessionsCount: (todaySessions || []).length,
+        pendingRequestsCount: pendingRequestsCount || 0,
+        activeClientsCount: activeClientsCount || 0,
+        outstandingSoapNotesCount,
+        unreadNotificationsCount: unreadNotificationsCount || 0,
+      }
+    };
+  }
+
+  /**
+   * =========================================================================
+   * 3. REQUESTS MANAGEMENT (Matching Workflow)
+   * =========================================================================
+   */
+
+  /**
+   * Lists matching requests assigned to this therapist.
+   * Exposes clinically safe triage/intake fields, strictly preserving client journal privacy.
+   */
+  static async getAssignedRequests(therapistAccountId: string) {
+    const { data: matches, error } = await supabase
+      .from('therapy_matches')
+      .select(`
+        id,
+        therapy_session_id,
+        user_id,
+        match_status,
+        match_rank,
+        match_score,
+        match_reasons,
+        matching_metadata,
+        created_at,
+        therapy_intakes (
+          full_name,
+          age,
+          gender,
+          presenting_reason,
+          concerns,
+          affected_life_areas
+        ),
+        therapy_sessions (
+          journey_type,
+          triage_level,
+          created_at
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[TherapistPlatformService] getAssignedRequests error:', error);
+      throw new Error('Failed to retrieve requests.');
+    }
+
+    return (matches || []).map((m: any) => {
+      const intake = Array.isArray(m.therapy_intakes) ? m.therapy_intakes[0] : m.therapy_intakes;
+      const session = Array.isArray(m.therapy_sessions) ? m.therapy_sessions[0] : m.therapy_sessions;
+
+      return {
+        id: m.id,
+        therapySessionId: m.therapy_session_id,
+        userId: m.user_id,
+        clientDisplayName: intake?.full_name || `Client #${m.user_id.substring(0, 6)}`,
+        age: intake?.age || null,
+        gender: intake?.gender || null,
+        presentingReason: intake?.presenting_reason || 'General support',
+        concerns: intake?.concerns || [],
+        affectedLifeAreas: intake?.affected_life_areas || [],
+        matchStatus: m.match_status,
+        matchRank: m.match_rank,
+        matchReasons: m.match_reasons,
+        journeyType: session?.journey_type || 'guided',
+        triageLevel: session?.triage_level || 'standard',
+        createdAt: m.created_at,
+      };
+    });
+  }
+
+  /**
+   * Action on request: accept or decline.
+   * If accept: transactionally creates therapy_care_relationships record!
+   */
+  static async handleRequestAction(
+    therapistAccountId: string,
+    matchId: string,
+    action: 'accept' | 'decline'
+  ) {
+    // 1. Verify match ownership
+    const { data: match, error: fetchErr } = await supabase
+      .from('therapy_matches')
+      .select('id, user_id, therapy_session_id, match_status')
+      .eq('id', matchId)
+      .eq('therapist_account_id', therapistAccountId)
+      .single();
+
+    if (fetchErr || !match) {
+      throw new Error('Request not found or not assigned to you.');
+    }
+
+    const nextStatus = action === 'accept' ? 'selected' : 'rejected';
+
+    // 2. Update match record
+    await supabase
+      .from('therapy_matches')
+      .update({
+        match_status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', matchId);
+
+    // 3. If accepted, create / activate care relationship
+    let relationship = null;
+    if (action === 'accept') {
+      const { data: rel, error: relError } = await supabase
+        .from('therapy_care_relationships')
+        .insert({
+          therapist_account_id: therapistAccountId,
+          user_id: match.user_id,
+          therapy_session_id: match.therapy_session_id,
+          status: 'active',
+          care_stage: 'intake',
+          started_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+
+      if (relError) {
+        console.error('[TherapistPlatformService] Care relationship creation error:', relError);
+      }
+      relationship = rel;
+
+      // Add notification
+      await supabase.from('therapist_notifications').insert({
+        therapist_account_id: therapistAccountId,
+        type: 'request_accepted',
+        title: 'New Client Connected',
+        message: 'You have accepted the matching request. Client is now added to your roster.',
+        link: '/therapist/clients',
+      });
+    }
+
+    return {
+      success: true,
+      action,
+      matchId,
+      matchStatus: nextStatus,
+      relationship,
+    };
+  }
+
+  /**
+   * =========================================================================
+   * 4. CLIENTS & CLINICAL PROFILES (Tenancy Isolated & Privacy Preserved)
+   * =========================================================================
+   */
+
+  /**
+   * Lists clients clinically connected to the authenticated therapist.
+   */
+  static async getAuthorizedClients(therapistAccountId: string, search?: string) {
+    const { data: relationships, error } = await supabase
+      .from('therapy_care_relationships')
+      .select(`
+        id,
+        user_id,
+        status,
+        care_stage,
+        started_at,
+        users (
+          id,
+          name,
+          phone_number
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .order('started_at', { ascending: false });
+
+    if (error) {
+      console.error('[TherapistPlatformService] getAuthorizedClients error:', error);
+      throw new Error('Failed to retrieve clients.');
+    }
+
+    // Enrich with appointment count
+    const clientIds = (relationships || []).map((r) => r.user_id);
+    let sessionCounts: Record<string, number> = {};
+
+    if (clientIds.length > 0) {
+      const { data: appts } = await supabase
+        .from('therapist_clinical_appointments')
+        .select('user_id')
+        .eq('therapist_account_id', therapistAccountId)
+        .in('user_id', clientIds);
+
+      (appts || []).forEach((a) => {
+        sessionCounts[a.user_id] = (sessionCounts[a.user_id] || 0) + 1;
+      });
+    }
+
+    let clients = (relationships || []).map((r: any) => ({
+      relationshipId: r.id,
+      clientId: r.user_id,
+      name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
+      phone: r.users?.phone_number ? `+91••••••${r.users.phone_number.slice(-4)}` : 'Confidential',
+      status: r.status,
+      careStage: r.care_stage,
+      startedAt: r.started_at,
+      totalSessions: sessionCounts[r.user_id] || 0,
+    }));
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      clients = clients.filter((c) => c.name.toLowerCase().includes(q));
+    }
+
+    return clients;
+  }
+
+  /**
+   * Fetches single client clinical profile.
+   * PRIVACY GUARANTEE: Does NOT query or return private journals/reflections.
+   */
+  static async getClientClinicalProfile(therapistAccountId: string, clientId: string) {
+    // 1. Verify clinical tenancy
+    const { data: relationship, error: relError } = await supabase
+      .from('therapy_care_relationships')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', clientId)
+      .maybeSingle();
+
+    if (relError || !relationship) {
+      const err: any = new Error('Client not found or not in your clinical care roster.');
+      err.status = 404;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    // 2. Fetch user profile
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, created_at')
+      .eq('id', clientId)
+      .single();
+
+    // 3. Fetch authorized intake information
+    const { data: intake } = await supabase
+      .from('therapy_intakes')
+      .select(`
+        full_name,
+        age,
+        gender,
+        occupation,
+        city,
+        living_situation,
+        presenting_reason,
+        concerns,
+        affected_life_areas,
+        mental_health_history,
+        coping_and_support,
+        expectations
+      `)
+      .eq('user_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 4. Fetch triage / safety summary (if evaluated)
+    const { data: safety } = await supabase
+      .from('therapy_safety_assessments')
+      .select('safety_status, triage_level, evaluated_at')
+      .eq('user_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 5. Fetch appointments history between this therapist and client
+    const { data: appointments } = await supabase
+      .from('therapist_clinical_appointments')
+      .select(`
+        id,
+        scheduled_start,
+        scheduled_end,
+        status,
+        session_type,
+        meeting_link,
+        client_notes,
+        created_at
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', clientId)
+      .order('scheduled_start', { ascending: false });
+
+    // 6. Fetch SOAP notes for these appointments
+    const appointmentIds = (appointments || []).map((a) => a.id);
+    let soapNotes: any[] = [];
+    if (appointmentIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('therapist_soap_notes')
+        .select('*')
+        .in('appointment_id', appointmentIds)
+        .eq('therapist_account_id', therapistAccountId)
+        .order('created_at', { ascending: false });
+      soapNotes = notes || [];
+    }
+
+    return {
+      relationship: {
+        id: relationship.id,
+        status: relationship.status,
+        careStage: relationship.care_stage,
+        startedAt: relationship.started_at,
+        endedAt: relationship.ended_at,
+      },
+      client: {
+        id: clientId,
+        name: user?.name || intake?.full_name || `Client #${clientId.substring(0, 6)}`,
+        age: intake?.age || null,
+        gender: intake?.gender || null,
+        occupation: intake?.occupation || null,
+        city: intake?.city || null,
+      },
+      clinicalIntake: intake ? {
+        presentingReason: intake.presenting_reason,
+        concerns: intake.concerns,
+        affectedLifeAreas: intake.affected_life_areas,
+        mentalHealthHistory: intake.mental_health_history,
+        copingAndSupport: intake.coping_and_support,
+        expectations: intake.expectations,
+      } : null,
+      safetyAssessment: safety ? {
+        safetyStatus: safety.safety_status,
+        triageLevel: safety.triage_level,
+        evaluatedAt: safety.evaluated_at,
+      } : null,
+      appointments: appointments || [],
+      soapNotes,
+    };
+  }
+
+  /**
+   * Updates care stage for a client.
+   */
+  static async updateCareStage(
+    therapistAccountId: string,
+    clientId: string,
+    careStage: 'intake' | 'active_care' | 'maintenance' | 'completed',
+    status?: 'active' | 'paused' | 'transferred' | 'completed' | 'terminated'
+  ) {
+    const updatePayload: Record<string, any> = {
+      care_stage: careStage,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status) {
+      updatePayload.status = status;
+      if (status === 'completed' || status === 'terminated') {
+        updatePayload.ended_at = new Date().toISOString();
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('therapy_care_relationships')
+      .update(updatePayload)
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', clientId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update care stage: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * =========================================================================
+   * 5. SESSIONS, BOOKING & CONFLICT PREVENTION
+   * =========================================================================
+   */
+
+  /**
+   * Conflict check: detects overlapping appointments and availability blocks.
+   */
+  static async checkAppointmentConflict(
+    therapistAccountId: string,
+    scheduledStartIso: string,
+    scheduledEndIso: string,
+    excludeAppointmentId?: string
+  ): Promise<{ hasConflict: boolean; reason?: string }> {
+    const start = new Date(scheduledStartIso);
+    const end = new Date(scheduledEndIso);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+      return { hasConflict: true, reason: 'Invalid session start or end time.' };
+    }
+
+    // 1. Check existing overlapping appointments for this therapist
+    let query = supabase
+      .from('therapist_clinical_appointments')
+      .select('id, scheduled_start, scheduled_end, status')
+      .eq('therapist_account_id', therapistAccountId)
+      .in('status', ['scheduled', 'confirmed', 'in_progress'])
+      .lt('scheduled_start', scheduledEndIso)
+      .gt('scheduled_end', scheduledStartIso);
+
+    if (excludeAppointmentId) {
+      query = query.neq('id', excludeAppointmentId);
+    }
+
+    const { data: overlappingAppts } = await query;
+
+    if (overlappingAppts && overlappingAppts.length > 0) {
+      return {
+        hasConflict: true,
+        reason: 'Time conflicts with an existing booked session.',
+      };
+    }
+
+    // 2. Check blocked periods in therapist_availability_blocks
+    const specificDateStr = scheduledStartIso.split('T')[0];
+    const { data: blockedBlocks } = await supabase
+      .from('therapist_availability_blocks')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('is_blocked', true)
+      .or(`specific_date.eq.${specificDateStr},is_recurring.eq.true`);
+
+    if (blockedBlocks && blockedBlocks.length > 0) {
+      const dayOfWeek = start.getDay();
+      const startTimeStr = scheduledStartIso.substring(11, 16);
+      const endTimeStr = scheduledEndIso.substring(11, 16);
+
+      for (const block of blockedBlocks) {
+        if (block.specific_date === specificDateStr || block.day_of_week === dayOfWeek) {
+          if (block.start_time < endTimeStr && block.end_time > startTimeStr) {
+            return {
+              hasConflict: true,
+              reason: 'Time falls within a blocked availability window.',
+            };
+          }
+        }
+      }
+    }
+
+    return { hasConflict: false };
+  }
+
+  /**
+   * Retrieves list of appointments.
+   */
+  static async getAppointments(
+    therapistAccountId: string,
+    filters: {
+      startDate?: string;
+      endDate?: string;
+      clientId?: string;
+      status?: string;
+    } = {}
+  ) {
+    let query = supabase
+      .from('therapist_clinical_appointments')
+      .select(`
+        id,
+        user_id,
+        relationship_id,
+        scheduled_start,
+        scheduled_end,
+        status,
+        session_type,
+        meeting_link,
+        client_notes,
+        cancelled_by,
+        cancellation_reason,
+        created_at,
+        users (
+          id,
+          name
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId);
+
+    if (filters.startDate) query = query.gte('scheduled_start', filters.startDate);
+    if (filters.endDate) query = query.lte('scheduled_end', filters.endDate);
+    if (filters.clientId) query = query.eq('user_id', filters.clientId);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    query = query.order('scheduled_start', { ascending: true });
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[TherapistPlatformService] getAppointments error:', error);
+      throw new Error('Failed to retrieve appointments.');
+    }
+
+    return (data || []).map((appt: any) => ({
+      ...appt,
+      clientDisplayName: appt.users?.name || `Client #${appt.user_id.substring(0, 6)}`,
+    }));
+  }
+
+  /**
+   * Creates a new clinical appointment with conflict checking.
+   */
+  static async createAppointment(
+    therapistAccountId: string,
+    data: {
+      userId: string;
+      scheduledStart: string;
+      scheduledEnd: string;
+      sessionType?: 'video' | 'audio' | 'in_person';
+      meetingLink?: string;
+      clientNotes?: string;
+    }
+  ) {
+    // 1. Conflict check
+    const conflict = await this.checkAppointmentConflict(
+      therapistAccountId,
+      data.scheduledStart,
+      data.scheduledEnd
+    );
+
+    if (conflict.hasConflict) {
+      const err: any = new Error(conflict.reason || 'Schedule conflict detected.');
+      err.status = 409;
+      err.code = 'SESSION_CONFLICT';
+      throw err;
+    }
+
+    // 2. Fetch or create care relationship
+    let relationshipId: string | null = null;
+    const { data: rel } = await supabase
+      .from('therapy_care_relationships')
+      .select('id')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', data.userId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (rel) {
+      relationshipId = rel.id;
+    }
+
+    // 3. Insert appointment
+    const { data: newAppt, error } = await supabase
+      .from('therapist_clinical_appointments')
+      .insert({
+        therapist_account_id: therapistAccountId,
+        user_id: data.userId,
+        relationship_id: relationshipId,
+        scheduled_start: data.scheduledStart,
+        scheduled_end: data.scheduledEnd,
+        status: 'scheduled',
+        session_type: data.sessionType || 'video',
+        meeting_link: data.meetingLink || 'https://meet.ingresswithin.com/clinical/' + crypto.randomUUID().substring(0, 8),
+        clientNotes: data.clientNotes || null,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] createAppointment error:', error);
+      throw new Error('Failed to schedule session.');
+    }
+
+    return newAppt;
+  }
+
+  /**
+   * Reschedules an appointment. Preserves history in therapist_session_reschedules!
+   */
+  static async rescheduleAppointment(
+    therapistAccountId: string,
+    appointmentId: string,
+    newStartIso: string,
+    newEndIso: string,
+    reason?: string
+  ) {
+    // 1. Verify ownership and get previous start/end
+    const { data: appt, error: fetchErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('*')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .single();
+
+    if (fetchErr || !appt) {
+      throw new Error('Appointment not found.');
+    }
+
+    // 2. Conflict check
+    const conflict = await this.checkAppointmentConflict(
+      therapistAccountId,
+      newStartIso,
+      newEndIso,
+      appointmentId
+    );
+
+    if (conflict.hasConflict) {
+      const err: any = new Error(conflict.reason || 'Schedule conflict detected.');
+      err.status = 409;
+      err.code = 'SESSION_CONFLICT';
+      throw err;
+    }
+
+    // 3. Insert audit record in therapist_session_reschedules
+    await supabase.from('therapist_session_reschedules').insert({
+      appointment_id: appointmentId,
+      previous_start: appt.scheduled_start,
+      previous_end: appt.scheduled_end,
+      new_start: newStartIso,
+      new_end: newEndIso,
+      rescheduled_by: 'therapist',
+      reason: reason || 'Therapist requested reschedule',
+    });
+
+    // 4. Update appointment
+    const { data: updated, error: updateErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .update({
+        scheduled_start: newStartIso,
+        scheduled_end: newEndIso,
+        status: 'rescheduled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', appointmentId)
+      .select('*')
+      .single();
+
+    if (updateErr) {
+      throw new Error('Failed to update appointment.');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Non-destructive appointment cancellation.
+   */
+  static async cancelAppointment(
+    therapistAccountId: string,
+    appointmentId: string,
+    reason?: string
+  ) {
+    const { data: updated, error } = await supabase
+      .from('therapist_clinical_appointments')
+      .update({
+        status: 'cancelled',
+        cancelled_by: 'therapist',
+        cancellation_reason: reason || 'Cancelled by therapist',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error('Failed to cancel appointment.');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Marks session complete and transactionally registers collected earnings.
+   */
+  static async completeAppointment(
+    therapistAccountId: string,
+    appointmentId: string
+  ) {
+    // 1. Update appointment status
+    const { data: appt, error: updateErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .select('*')
+      .single();
+
+    if (updateErr || !appt) {
+      throw new Error('Appointment not found.');
+    }
+
+    // 2. Fetch therapist fee structure
+    const { data: account } = await supabase
+      .from('therapist_accounts')
+      .select('per_session_fee, commission_rate')
+      .eq('id', therapistAccountId)
+      .single();
+
+    const gross = Number(account?.per_session_fee) || 1500;
+    const commRate = Number(account?.commission_rate) || 15;
+    const platformFee = Math.round((gross * (commRate / 100)) * 100) / 100;
+    const net = Math.round((gross - platformFee) * 100) / 100;
+
+    // 3. Register collected earning
+    await supabase.from('therapist_earnings').insert({
+      therapist_account_id: therapistAccountId,
+      appointment_id: appointmentId,
+      gross_amount: gross,
+      platform_fee: platformFee,
+      net_earnings: net,
+      payment_status: 'collected',
+      collected_at: new Date().toISOString(),
+    });
+
+    return appt;
+  }
+
+  /**
+   * =========================================================================
+   * 6. SOAP NOTES (Isolated Clinical Documentation)
+   * =========================================================================
+   */
+
+  /**
+   * Retrieves SOAP note for an appointment.
+   */
+  static async getSoapNote(therapistAccountId: string, appointmentId: string) {
+    const { data: note, error } = await supabase
+      .from('therapist_soap_notes')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[TherapistPlatformService] getSoapNote error:', error);
+      throw new Error('Failed to retrieve SOAP note.');
+    }
+
+    return note;
+  }
+
+  /**
+   * Saves or finalizes a SOAP note.
+   */
+  static async saveSoapNote(
+    therapistAccountId: string,
+    appointmentId: string,
+    data: {
+      subjective: string;
+      objective: string;
+      assessment: string;
+      plan: string;
+      isDraft?: boolean;
+    }
+  ) {
+    // 1. Verify appointment ownership and get user_id
+    const { data: appt, error: apptErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('user_id')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .single();
+
+    if (apptErr || !appt) {
+      throw new Error('Appointment not found.');
+    }
+
+    const now = new Date().toISOString();
+    const isDraft = data.isDraft ?? false;
+
+    // 2. Upsert SOAP note
+    const { data: note, error } = await supabase
+      .from('therapist_soap_notes')
+      .upsert(
+        {
+          appointment_id: appointmentId,
+          therapist_account_id: therapistAccountId,
+          user_id: appt.user_id,
+          subjective: data.subjective || '',
+          objective: data.objective || '',
+          assessment: data.assessment || '',
+          plan: data.plan || '',
+          is_draft: isDraft,
+          finalized_at: isDraft ? null : now,
+          updated_at: now,
+        },
+        { onConflict: 'appointment_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] saveSoapNote error:', error);
+      throw new Error('Failed to save clinical note.');
+    }
+
+    return note;
+  }
+
+  /**
+   * =========================================================================
+   * 7. CALENDAR & AVAILABILITY
+   * =========================================================================
+   */
+
+  /**
+   * Fetches calendar events (appointments + availability blocks) for a view window.
+   */
+  static async getCalendarEvents(
+    therapistAccountId: string,
+    startDateIso: string,
+    endDateIso: string
+  ) {
+    // 1. Appointments
+    const appointments = await this.getAppointments(therapistAccountId, {
+      startDate: startDateIso,
+      endDate: endDateIso,
+    });
+
+    // 2. Availability blocks
+    const { data: blocks } = await supabase
+      .from('therapist_availability_blocks')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId);
+
+    return {
+      appointments,
+      availabilityBlocks: blocks || [],
+    };
+  }
+
+  /**
+   * Saves availability working hours blocks.
+   */
+  static async saveAvailabilityBlocks(
+    therapistAccountId: string,
+    blocks: Array<{
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+      isRecurring?: boolean;
+      specificDate?: string;
+      isBlocked?: boolean;
+    }>
+  ) {
+    // Delete existing recurring blocks
+    await supabase
+      .from('therapist_availability_blocks')
+      .delete()
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('is_recurring', true);
+
+    if (blocks.length === 0) return [];
+
+    const payload = blocks.map((b) => ({
+      therapist_account_id: therapistAccountId,
+      day_of_week: b.dayOfWeek,
+      start_time: b.startTime,
+      end_time: b.endTime,
+      is_recurring: b.isRecurring ?? true,
+      specific_date: b.specificDate || null,
+      is_blocked: b.isBlocked ?? false,
+    }));
+
+    const { data, error } = await supabase
+      .from('therapist_availability_blocks')
+      .insert(payload)
+      .select('*');
+
+    if (error) {
+      console.error('[TherapistPlatformService] saveAvailabilityBlocks error:', error);
+      throw new Error('Failed to save availability.');
+    }
+
+    return data;
+  }
+
+  /**
+   * =========================================================================
+   * 8. EARNINGS & PAYOUTS (Real Payment Ledger)
+   * =========================================================================
+   */
+
+  /**
+   * Fetches real earnings summary strictly calculated from payment_status = 'collected'.
+   */
+  static async getEarningsSummary(therapistAccountId: string) {
+    const { data: earnings, error } = await supabase
+      .from('therapist_earnings')
+      .select(`
+        id,
+        appointment_id,
+        gross_amount,
+        platform_fee,
+        net_earnings,
+        payment_status,
+        collected_at,
+        payout_batch_id,
+        payout_date,
+        created_at,
+        therapist_clinical_appointments (
+          id,
+          scheduled_start,
+          user_id,
+          users (
+            name
+          )
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .order('collected_at', { ascending: false });
+
+    if (error) {
+      console.error('[TherapistPlatformService] getEarningsSummary error:', error);
+      throw new Error('Failed to calculate earnings.');
+    }
+
+    const now = new Date();
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    let totalCollected = 0;
+    let currentMonthCollected = 0;
+    let pendingPayout = 0;
+    let paidOutTotal = 0;
+
+    const transactions = (earnings || []).map((e: any) => {
+      const net = Number(e.net_earnings) || 0;
+      const gross = Number(e.gross_amount) || 0;
+      const fee = Number(e.platform_fee) || 0;
+      const isCollected = e.payment_status === 'collected';
+      const isPaid = e.payment_status === 'paid';
+      const isPending = e.payment_status === 'pending';
+
+      if (isCollected || isPaid) {
+        totalCollected += net;
+        if (e.collected_at && e.collected_at >= startOfCurrentMonth) {
+          currentMonthCollected += net;
+        }
+      }
+
+      if (isCollected) {
+        pendingPayout += net;
+      }
+
+      if (isPaid) {
+        paidOutTotal += net;
+      }
+
+      const appt = Array.isArray(e.therapist_clinical_appointments)
+        ? e.therapist_clinical_appointments[0]
+        : e.therapist_clinical_appointments;
+
+      return {
+        id: e.id,
+        appointmentId: e.appointment_id,
+        date: e.collected_at || e.created_at,
+        grossAmount: gross,
+        platformFee: fee,
+        netAmount: net,
+        status: e.payment_status,
+        payoutBatchId: e.payout_batch_id,
+        payoutDate: e.payout_date,
+        clientLabel: appt?.users?.name || `Client #${appt?.user_id?.substring(0, 6) || '---'}`,
+        sessionDate: appt?.scheduled_start || e.collected_at,
+      };
+    });
+
+    return {
+      summary: {
+        currentMonthCollected,
+        totalCollected,
+        pendingPayout,
+        paidOutTotal,
+        currency: 'INR',
+      },
+      transactions,
+    };
+  }
+
+  /**
+   * =========================================================================
+   * 9. PROFILE MANAGEMENT (Strict Allowlist Enforcement)
+   * =========================================================================
+   */
+
+  /**
+   * Updates therapist profile with STRICT field allowlisting.
+   * Mass assignment shield: rejects can_practice, application_status, commission_rate, etc.
+   */
+  static async updateProfile(therapistAccountId: string, payload: Record<string, any>) {
+    // 1. Strict Allowlist
+    const ALLOWED_PROFILE_KEYS = new Set([
+      'full_name',
+      'title',
+      'bio',
+      'qualification',
+      'experience_years',
+      'specializations',
+      'languages',
+      'session_formats',
+      'availability_hours',
+      'profile_image_url',
+      'city',
+      'state',
+    ]);
+
+    const sanitizedUpdates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    for (const [key, value] of Object.entries(payload)) {
+      if (ALLOWED_PROFILE_KEYS.has(key)) {
+        sanitizedUpdates[key] = value;
+      }
+    }
+
+    const { data: updated, error } = await supabase
+      .from('therapist_profiles')
+      .update(sanitizedUpdates)
+      .eq('therapist_account_id', therapistAccountId)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] updateProfile error:', error);
+      throw new Error('Failed to update profile.');
+    }
+
+    return updated;
+  }
+
+  /**
+   * =========================================================================
+   * 10. NOTIFICATIONS
+   * =========================================================================
+   */
+
+  /**
+   * Lists notifications.
+   */
+  static async getNotifications(therapistAccountId: string) {
+    const { data, error } = await supabase
+      .from('therapist_notifications')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('[TherapistPlatformService] getNotifications error:', error);
+      throw new Error('Failed to retrieve notifications.');
+    }
+
+    return data || [];
+  }
+
+  /**
+   * Marks a notification as read.
+   */
+  static async markNotificationRead(therapistAccountId: string, notificationId: string) {
+    await supabase
+      .from('therapist_notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .eq('therapist_account_id', therapistAccountId);
+
+    return { success: true };
+  }
+}

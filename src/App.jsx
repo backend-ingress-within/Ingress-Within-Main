@@ -18,6 +18,7 @@ const FaqPage = lazy(() => import('./views/FaqPage'));
 const ContactPage = lazy(() => import('./views/ContactPage'));
 const AuthPage = lazy(() => import('./views/AuthPage'));
 const TherapistAuthPage = lazy(() => import('./views/TherapistAuthPage'));
+const TherapistPlatformView = lazy(() => import('./views/therapist/TherapistPlatformView'));
 const RazorpayVerificationPage = lazy(() => import('./views/RazorpayVerificationPage'));
 const AiDataPage = lazy(() => import('./views/AiDataPage'));
 const OnboardingPage = lazy(() => import('./views/OnboardingPage'));
@@ -384,7 +385,7 @@ export default function App({ initialRoute = 'home' }) {
         setCurrentRoute('auth');
         window.scrollTo(0, 0);
       } else if (path === '/therapist' || path === '/therapist/' || path === '/therapist/auth' || path === '/therapist/auth/' || path === '/therapist/login' || path === '/therapist/login/' || path.startsWith('/therapist/')) {
-        setCurrentRoute('therapist/auth');
+        setCurrentRoute(path.replace(/^\/|\/$/g, '') || 'therapist/auth');
         window.scrollTo(0, 0);
       } else if (path.startsWith('/onboarding')) {
         setCurrentRoute('onboarding');
@@ -624,7 +625,17 @@ export default function App({ initialRoute = 'home' }) {
       case 'therapist/auth':
       case 'therapist/login':
       case 'therapist':
-        return <TherapistAuthPage onAuthSuccess={(data) => {}} />;
+      case 'therapist/onboarding':
+      case 'therapist/application':
+      case 'therapist/dashboard':
+      case 'therapist/today':
+      case 'therapist/requests':
+      case 'therapist/clients':
+      case 'therapist/calendar':
+      case 'therapist/sessions':
+      case 'therapist/earnings':
+      case 'therapist/profile':
+        return <TherapistPlatformView />;
       case 'razorpay-verification':
         return <RazorpayVerificationPage />;
       case 'onboarding':
@@ -725,6 +736,9 @@ export default function App({ initialRoute = 'home' }) {
         return <NotFoundPage user={user} profile={profile} />;
       case 'home':
       default:
+        if (currentRoute && currentRoute.startsWith('therapist')) {
+          return <TherapistPlatformView />;
+        }
         return <PublicWebsiteV2 initialTab="home" onOpenPolicy={handleOpenPolicy} />;
     }
   };
