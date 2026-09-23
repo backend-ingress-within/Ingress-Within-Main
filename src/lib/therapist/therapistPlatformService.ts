@@ -639,192 +639,107 @@ export class TherapistPlatformService {
       throw err;
     }
 
-    // 2. Handle ACCEPT Action
+    // 2. Handle ACCEPT Action via True PostgreSQL Database Transaction
     if (action === 'accept') {
-      // Idempotency: If already selected/accepted, reuse relationship
-      if (match.match_status === 'selected') {
-        const { data: existingRel } = await supabase
-          .from('therapy_care_relationships')
-          .select('*')
-          .eq('therapist_account_id', therapistAccountId)
-          .eq('user_id', match.user_id)
-          .eq('status', 'active')
-          .maybeSingle();
+      // Primary transactional mechanism: PostgreSQL atomic transaction function accept_therapy_match
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('accept_therapy_match', {
+        p_therapist_account_id: therapistAccountId,
+        p_match_id: matchId,
+      });
 
+      if (!rpcError && rpcResult) {
         return {
           success: true,
           action: 'accept',
-          matchId,
-          matchStatus: 'selected',
-          alreadyAccepted: true,
-          relationship: existingRel,
-          message: 'Client request was already accepted.',
+          matchId: rpcResult.match_id || matchId,
+          matchStatus: rpcResult.match_status || 'selected',
+          alreadyAccepted: Boolean(rpcResult.already_accepted),
+          relationship: rpcResult.relationship || null,
+          message: rpcResult.message || 'Client request accepted successfully.',
         };
       }
 
-      // Check for non-actionable stale states
-      if (match.match_status === 'rejected') {
-        const err: any = new Error('This request has already been declined and cannot be accepted.');
-        err.code = 'REQUEST_ALREADY_DECLINED';
-        err.status = 409;
-        throw err;
-      }
-
-      if (match.match_status === 'unavailable') {
-        const err: any = new Error('This request is no longer available.');
-        err.code = 'REQUEST_UNAVAILABLE';
-        err.status = 409;
-        throw err;
-      }
-
-      if (match.match_status !== 'candidate' && match.match_status !== 'shortlisted') {
-        const err: any = new Error(`Request cannot be accepted from status: ${match.match_status}`);
-        err.code = 'INVALID_REQUEST_STATUS';
-        err.status = 409;
-        throw err;
-      }
-
-      // Check whether an active care relationship already exists for therapist + client
-      const { data: existingActiveRel } = await supabase
-        .from('therapy_care_relationships')
-        .select('*')
-        .eq('therapist_account_id', therapistAccountId)
-        .eq('user_id', match.user_id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      let relationship = existingActiveRel;
-      let createdNewRelationship = false;
-      const now = new Date().toISOString();
-
-      if (!relationship) {
-        const { data: newRel, error: relError } = await supabase
-          .from('therapy_care_relationships')
-          .insert({
-            therapist_account_id: therapistAccountId,
-            user_id: match.user_id,
-            therapy_session_id: match.therapy_session_id || null,
-            status: 'active',
-            care_stage: 'intake',
-            started_at: now,
-            metadata: {
-              source_match_id: match.id,
-              accepted_at: now,
-            },
-          })
-          .select('*')
-          .single();
-
-        if (relError || !newRel) {
-          console.error('[TherapistPlatformService] Care relationship creation error:', relError);
-          const err: any = new Error('Failed to create clinical care relationship.');
-          err.code = 'CARE_RELATIONSHIP_CREATION_FAILED';
-          err.status = 500;
+      if (rpcError) {
+        const errorMsg = rpcError.message || '';
+        if (errorMsg.includes('REQUEST_NOT_FOUND')) {
+          const err: any = new Error('Request not found.');
+          err.code = 'REQUEST_NOT_FOUND';
+          err.status = 404;
+          throw err;
+        }
+        if (errorMsg.includes('REQUEST_FORBIDDEN')) {
+          const err: any = new Error('Request is not assigned to your practice.');
+          err.code = 'REQUEST_FORBIDDEN';
+          err.status = 403;
+          throw err;
+        }
+        if (errorMsg.includes('REQUEST_ALREADY_DECLINED')) {
+          const err: any = new Error('This request has already been declined and cannot be accepted.');
+          err.code = 'REQUEST_ALREADY_DECLINED';
+          err.status = 409;
+          throw err;
+        }
+        if (errorMsg.includes('REQUEST_UNAVAILABLE')) {
+          const err: any = new Error('This request is no longer available.');
+          err.code = 'REQUEST_UNAVAILABLE';
+          err.status = 409;
+          throw err;
+        }
+        if (errorMsg.includes('INVALID_REQUEST_STATUS')) {
+          const err: any = new Error('Request cannot be accepted from its current status.');
+          err.code = 'INVALID_REQUEST_STATUS';
+          err.status = 409;
           throw err;
         }
 
-        relationship = newRel;
-        createdNewRelationship = true;
-      }
-
-      // Update match record to 'selected'
-      const { error: updateError } = await supabase
-        .from('therapy_matches')
-        .update({
-          match_status: 'selected',
-          updated_at: now,
-        })
-        .eq('id', matchId)
-        .eq('therapist_account_id', therapistAccountId);
-
-      if (updateError) {
-        console.error('[TherapistPlatformService] Match update error:', updateError);
-        // Compensate: rollback newly created relationship
-        if (createdNewRelationship && relationship?.id) {
-          await supabase
-            .from('therapy_care_relationships')
-            .delete()
-            .eq('id', relationship.id);
-        }
-        const err: any = new Error('Failed to update request state. Changes rolled back.');
-        err.code = 'MATCH_UPDATE_FAILED';
+        console.error('[TherapistPlatformService] Database transaction error in accept_therapy_match:', rpcError);
+        const err: any = new Error(rpcError.message || 'Database transaction failed during match acceptance.');
+        err.code = 'TRANSACTION_FAILED';
         err.status = 500;
         throw err;
       }
-
-      // Notification
-      try {
-        await supabase.from('therapist_notifications').insert({
-          therapist_account_id: therapistAccountId,
-          type: 'request_accepted',
-          title: 'New Client Connected',
-          message: 'You have accepted the matching request. Client is now added to your care roster.',
-          link: '/therapist/clients',
-        });
-      } catch {}
-
-      return {
-        success: true,
-        action: 'accept',
-        matchId,
-        matchStatus: 'selected',
-        relationship,
-        message: 'Client request accepted successfully.',
-      };
     }
 
-    // 3. Handle DECLINE Action
+    // 3. Handle DECLINE Action via True PostgreSQL Database Transaction
     if (action === 'decline') {
-      if (match.match_status === 'rejected') {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('decline_therapy_match', {
+        p_therapist_account_id: therapistAccountId,
+        p_match_id: matchId,
+        p_reason: reason ? String(reason).trim() : null,
+      });
+
+      if (!rpcError && rpcResult) {
         return {
           success: true,
           action: 'decline',
-          matchId,
-          matchStatus: 'rejected',
-          alreadyDeclined: true,
-          message: 'Client request was already declined.',
+          matchId: rpcResult.match_id || matchId,
+          matchStatus: rpcResult.match_status || 'rejected',
+          alreadyDeclined: Boolean(rpcResult.already_declined),
+          message: rpcResult.message || 'Client request declined successfully.',
         };
       }
 
-      if (match.match_status === 'selected') {
-        const err: any = new Error('Cannot decline a request that has already been accepted.');
-        err.code = 'CANNOT_DECLINE_ACCEPTED_REQUEST';
-        err.status = 409;
-        throw err;
-      }
+      if (rpcError) {
+        const errorMsg = rpcError.message || '';
+        if (errorMsg.includes('REQUEST_NOT_FOUND')) {
+          const err: any = new Error('Request not found.');
+          err.code = 'REQUEST_NOT_FOUND';
+          err.status = 404;
+          throw err;
+        }
+        if (errorMsg.includes('REQUEST_FORBIDDEN')) {
+          const err: any = new Error('Request is not assigned to your practice.');
+          err.code = 'REQUEST_FORBIDDEN';
+          err.status = 403;
+          throw err;
+        }
 
-      const now = new Date().toISOString();
-      const updatedMetadata = {
-        ...(match.matching_metadata || {}),
-        ...(reason ? { decline_reason: String(reason).trim() } : {}),
-        declined_at: now,
-      };
-
-      const { error: declineError } = await supabase
-        .from('therapy_matches')
-        .update({
-          match_status: 'rejected',
-          matching_metadata: updatedMetadata,
-          updated_at: now,
-        })
-        .eq('id', matchId)
-        .eq('therapist_account_id', therapistAccountId);
-
-      if (declineError) {
-        console.error('[TherapistPlatformService] Decline update error:', declineError);
-        const err: any = new Error('Failed to decline request.');
-        err.code = 'DECLINE_UPDATE_FAILED';
+        console.error('[TherapistPlatformService] Database transaction error in decline_therapy_match:', rpcError);
+        const err: any = new Error(rpcError.message || 'Database transaction failed during match decline.');
+        err.code = 'TRANSACTION_FAILED';
         err.status = 500;
         throw err;
       }
-
-      return {
-        success: true,
-        action: 'decline',
-        matchId,
-        matchStatus: 'rejected',
-        message: 'Client request declined.',
-      };
     }
 
     const err: any = new Error(`Invalid action: ${action}`);

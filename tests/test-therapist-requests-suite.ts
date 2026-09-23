@@ -240,6 +240,28 @@ async function runRequestsTestSuite() {
   assert(shellContent.includes("TherapistRequestsView"), 'Dashboard shell renders TherapistRequestsView');
 
   // ----------------------------------------------------
+  // SECTION 7: True Database Transaction & RPC Invariants
+  // ----------------------------------------------------
+  console.log('\n--- SECTION 7: True Database Transaction & RPC Invariants ---');
+
+  const migration004Path = path.join(process.cwd(), 'src/lib/auth/migrations/004_therapist_match_acceptance_transaction.sql');
+  const migration004Exists = fs.existsSync(migration004Path);
+  assert(migration004Exists, 'Migration 004 exists for database transaction');
+
+  const migration004Content = fs.readFileSync(migration004Path, 'utf8');
+  assert(migration004Content.includes('CREATE OR REPLACE FUNCTION public.accept_therapy_match'), 'accept_therapy_match database transaction procedure is defined');
+  assert(migration004Content.includes('FOR UPDATE'), 'Database transaction uses FOR UPDATE row-level locking');
+  assert(migration004Content.includes('INSERT INTO public.therapy_care_relationships'), 'Database transaction inserts therapy_care_relationships');
+  assert(migration004Content.includes('UPDATE public.therapy_matches'), 'Database transaction updates therapy_matches');
+  assert(migration004Content.includes('CREATE OR REPLACE FUNCTION public.decline_therapy_match'), 'decline_therapy_match procedure is defined');
+
+  const servicePath = path.join(process.cwd(), 'src/lib/therapist/therapistPlatformService.ts');
+  const serviceContent = fs.readFileSync(servicePath, 'utf8');
+  assert(serviceContent.includes("supabase.rpc('accept_therapy_match'"), 'TherapistPlatformService calls accept_therapy_match RPC');
+  assert(serviceContent.includes("supabase.rpc('decline_therapy_match'"), 'TherapistPlatformService calls decline_therapy_match RPC');
+  assert(!serviceContent.includes(".from('therapy_care_relationships').delete()"), 'TherapistPlatformService does not rely on application-level deletion rollback compensation');
+
+  // ----------------------------------------------------
   // SUMMARY
   // ----------------------------------------------------
   console.log('\n================================================================');
