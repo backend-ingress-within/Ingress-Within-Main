@@ -56,7 +56,14 @@ export default function VocabPage({ user, profile, onSignOut }) {
       
       // 2. Fetch cycle-by-cycle breakdowns
       const byCycle = await DashboardService.fetchVocabByCycle();
-      setCycles(byCycle || []);
+      const cycleList = byCycle || [];
+      setCycles(cycleList);
+      if (cycleList.length > 0) {
+        const currentCy = cycleList.find(c => c.is_current || c.is_active || c.status?.toUpperCase() === 'ACTIVE') || cycleList[0];
+        if (currentCy?.number !== undefined) {
+          setOpenCycles(prev => ({ ...prev, [currentCy.number]: true }));
+        }
+      }
 
       // 3. Fetch completed thread responses
       try {
@@ -473,12 +480,13 @@ export default function VocabPage({ user, profile, onSignOut }) {
                   const top3 = cy.most_used || [];
                   const maxCyFreq = top3[0]?.frequency || 1;
                   const cyPalette = ['#E0A898', '#E0A898', '#B8A8D4'];
+                  const isCurrent = cy.is_current ?? cy.is_active ?? (cy.status?.toUpperCase() === 'ACTIVE') ?? !cy.is_locked;
 
                   return (
                     <div 
                       key={cy.id || idx} 
                       className="bg-white border border-[#1E2A2E]/10 rounded-xl overflow-hidden"
-                      style={{ opacity: cy.is_locked ? 1.0 : 0.85 }}
+                      style={{ opacity: isCurrent ? 1.0 : 0.85 }}
                     >
                       <div 
                         onClick={() => toggleCycle(cy.number)}
@@ -486,16 +494,16 @@ export default function VocabPage({ user, profile, onSignOut }) {
                       >
                         <div className="flex items-center gap-2.5">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 border ${
-                            cy.is_locked 
+                            isCurrent 
                               ? 'bg-[#E0A898]/12 text-[#8A3020] border-[#E0A898]/28' 
                               : 'bg-[#8DBFB4]/10 text-[#1A5040] border-[#8DBFB4]/25'
                           }`}>
-                            {cy.is_locked ? 'Current' : 'Completed'}
+                            {isCurrent ? 'Current' : 'Completed'}
                           </span>
                           <div>
                             <div className="text-sm font-bold text-primary">Cycle {cy.number}</div>
                             <div className="text-[11px] text-[#8DBFB4] mt-0.5">
-                              {fmtDate(cy.started_at)} – {cy.is_locked ? 'present' : fmtDate(cy.ended_at)} · {cy.entry_count} entries
+                              {fmtDate(cy.started_at)} – {isCurrent ? 'present' : (fmtDate(cy.ended_at) || 'completed')} · {cy.entry_count} entries
                             </div>
                           </div>
                         </div>
@@ -573,7 +581,7 @@ export default function VocabPage({ user, profile, onSignOut }) {
                                 <div className="text-[10px] font-bold tracking-wider uppercase text-[#8DBFB4]">
                                   Word clusters
                                 </div>
-                                {cy.is_locked && (
+                                {isCurrent && (
                                   <div className="text-[10.5px] text-[#8DBFB4] italic">
                                     Auto-updates weekly
                                   </div>
