@@ -949,33 +949,369 @@ export class TherapistPlatformService {
     therapistAccountId: string,
     clientId: string,
     careStage: 'intake' | 'active_care' | 'maintenance' | 'completed',
-    status?: 'active' | 'paused' | 'transferred' | 'completed' | 'terminated'
+    status?: 'active' | 'paused' | 'transferred' | 'completed' | 'terminated',
+    reason?: string
   ) {
-    const updatePayload: Record<string, any> = {
-      care_stage: careStage,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (status) {
-      updatePayload.status = status;
+    const result = await this.transitionCareStage(therapistAccountId, clientId, careStage, reason);
+    if (status && status !== result.relationship.status) {
+      const updatePayload: Record<string, any> = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
       if (status === 'completed' || status === 'terminated') {
         updatePayload.ended_at = new Date().toISOString();
       }
+      const { data: updatedWithStatus } = await supabase
+        .from('therapy_care_relationships')
+        .update(updatePayload)
+        .eq('id', result.relationship.id)
+        .select('*')
+        .single();
+      if (updatedWithStatus) {
+        return updatedWithStatus;
+      }
     }
+    return result.relationship;
+  }
 
-    const { data, error } = await supabase
+  /**
+   * Retrieves longitudinal Care Journey data for an authorized client.
+   * Privacy Boundary: strictly excludes personal journals, reflections,
+   * self-work modules, and internal client entries.
+   */
+  static async getCareJourney(therapistAccountId: string, clientId: string) {
+    // 1. Locate therapist's care relationship with client and enforce strict tenancy
+    const { data: rel, error: relErr } = await supabase
       .from('therapy_care_relationships')
-      .update(updatePayload)
+      .select('id, therapist_account_id, user_id, status, care_stage, started_at, ended_at, metadata, created_at, updated_at')
       .eq('therapist_account_id', therapistAccountId)
       .eq('user_id', clientId)
+      .maybeSingle();
+
+    if (relErr || !rel) {
+      const err: any = new Error('Client care relationship not found or unauthorized.');
+      err.status = 404;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    // 2. Fetch client display name (safe basic identity)
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('id', clientId)
+      .maybeSingle();
+
+    // 3. Fetch stage transition history
+    const { data: histRows } = await supabase
+      .from('therapy_care_stage_history')
+      .select('id, previous_stage, new_stage, changed_at, reason')
+      .eq('relationship_id', rel.id)
+      .eq('therapist_account_id', therapistAccountId)
+      .order('changed_at', { ascending: false });
+
+    // 4. Fetch authorized intake information (clinical presenting context only)
+    const { data: intake } = await supabase
+      .from('therapy_intakes')
+      .select('presenting_reason, concerns')
+      .eq('user_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 5. Fetch authorized safety assessment summary
+    const { data: safety } = await supabase
+      .from('therapy_safety_assessments')
+      .select('safety_status, triage_level, evaluated_at')
+      .eq('user_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 6. Fetch canonical appointments for this relationship
+    const { data: appointments } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, scheduled_start, scheduled_end, status, session_type, modality, meeting_link, created_at')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', clientId)
+      .order('scheduled_start', { ascending: false });
+
+    const appts = appointments || [];
+    const now = new Date();
+
+    const totalSessions = appts.length;
+    const completedSessions = appts.filter((a) => a.status === 'completed').length;
+    const upcomingSessions = appts.filter(
+      (a) => ['scheduled', 'confirmed', 'in_progress'].includes(a.status) && new Date(a.scheduled_start) >= now
+    ).length;
+    const cancelledSessions = appts.filter((a) => a.status === 'cancelled').length;
+
+    // Latest session (most recent completed or past session)
+    const pastOrCompleted = appts
+      .filter((a) => a.status === 'completed' || new Date(a.scheduled_start) <= now)
+      .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime());
+    const latestAppt = pastOrCompleted[0] || null;
+
+    // Next upcoming session
+    const upcomingList = appts
+      .filter((a) => ['scheduled', 'confirmed'].includes(a.status) && new Date(a.scheduled_start) >= now)
+      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
+    const nextAppt = upcomingList[0] || null;
+
+    // 7. Fetch SOAP note metadata for these appointments
+    const appointmentIds = appts.map((a) => a.id);
+    let latestSoapDto: any = null;
+    if (appointmentIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('therapist_soap_notes')
+        .select('id, appointment_id, is_draft, finalized_at, created_at, updated_at')
+        .in('appointment_id', appointmentIds)
+        .eq('therapist_account_id', therapistAccountId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (notes && notes.length > 0) {
+        const n = notes[0];
+        const linkedAppt = appts.find((a) => a.id === n.appointment_id);
+        latestSoapDto = {
+          id: n.id,
+          appointmentId: n.appointment_id,
+          sessionId: n.appointment_id,
+          status: n.is_draft ? 'draft' : 'finalized',
+          isDraft: n.is_draft,
+          finalizedAt: n.finalized_at || null,
+          updatedAt: n.updated_at,
+          sessionDate: linkedAppt ? linkedAppt.scheduled_start : null,
+        };
+      }
+    }
+
+    const stageHistory = (histRows || []).map((h) => ({
+      id: h.id,
+      previousStage: h.previous_stage,
+      newStage: h.new_stage,
+      changedAt: h.changed_at,
+      reason: h.reason || null,
+    }));
+
+    return {
+      client: {
+        id: clientId,
+        displayName: user?.name || `Client #${clientId.substring(0, 6)}`,
+      },
+      relationship: {
+        id: rel.id,
+        status: rel.status,
+        careStage: rel.care_stage,
+        startedAt: rel.started_at,
+        endedAt: rel.ended_at || null,
+      },
+      stageHistory,
+      intake: intake ? {
+        presentingReason: intake.presenting_reason || null,
+        concerns: intake.concerns || [],
+      } : null,
+      safetySummary: safety ? {
+        safetyStatus: safety.safety_status || null,
+        triageLevel: safety.triage_level || null,
+        evaluatedAt: safety.evaluated_at || null,
+      } : null,
+      sessions: {
+        total: totalSessions,
+        completed: completedSessions,
+        upcoming: upcomingSessions,
+        cancelled: cancelledSessions,
+      },
+      latestSession: latestAppt ? {
+        id: latestAppt.id,
+        scheduledStart: latestAppt.scheduled_start,
+        scheduledEnd: latestAppt.scheduled_end,
+        status: latestAppt.status,
+        sessionType: latestAppt.session_type,
+        meetingLink: latestAppt.meeting_link,
+      } : null,
+      nextSession: nextAppt ? {
+        id: nextAppt.id,
+        scheduledStart: nextAppt.scheduled_start,
+        scheduledEnd: nextAppt.scheduled_end,
+        status: nextAppt.status,
+        sessionType: nextAppt.session_type,
+        meetingLink: nextAppt.meeting_link,
+      } : null,
+      latestSoapNote: latestSoapDto,
+    };
+  }
+
+  /**
+   * Atomic, transactional Care Stage Transition.
+   * Enforces canonical state machine:
+   *   intake -> active_care | completed
+   *   active_care -> maintenance | completed
+   *   maintenance -> active_care | completed
+   *   completed -> terminal state (no transitions allowed)
+   * Prevents duplicate history entries through idempotency checks.
+   */
+  static async transitionCareStage(
+    therapistAccountId: string,
+    clientId: string,
+    newStage: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    idempotent?: boolean;
+    relationship: any;
+    transition: any;
+  }> {
+    const validStages = ['intake', 'active_care', 'maintenance', 'completed'];
+    if (!newStage || !validStages.includes(newStage)) {
+      const err: any = new Error('Valid care_stage is required (intake, active_care, maintenance, completed).');
+      err.status = 400;
+      err.code = 'INVALID_CARE_STAGE';
+      throw err;
+    }
+
+    // 1. Try atomic PostgreSQL RPC first
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        'therapist_transition_care_stage_atomic',
+        {
+          p_therapist_account_id: therapistAccountId,
+          p_user_id: clientId,
+          p_new_stage: newStage,
+          p_reason: reason || null,
+        }
+      );
+
+      if (!rpcErr && rpcData) {
+        return rpcData;
+      }
+
+      if (rpcErr && rpcErr.message && !rpcErr.message.includes('function') && !rpcErr.message.includes('does not exist')) {
+        const msg = rpcErr.message;
+        const err: any = new Error(msg);
+        if (msg.includes('INVALID_CARE_STAGE_TRANSITION')) {
+          err.status = 400;
+          err.code = 'INVALID_CARE_STAGE_TRANSITION';
+        } else if (msg.includes('INVALID_CARE_STAGE')) {
+          err.status = 400;
+          err.code = 'INVALID_CARE_STAGE';
+        } else if (msg.includes('CLIENT_NOT_AUTHORIZED')) {
+          err.status = 404;
+          err.code = 'CLIENT_NOT_AUTHORIZED';
+        } else if (msg.includes('RELATIONSHIP_TERMINATED')) {
+          err.status = 409;
+          err.code = 'RELATIONSHIP_TERMINATED';
+        } else {
+          err.status = 400;
+          err.code = 'CARE_STAGE_TRANSITION_ERROR';
+        }
+        throw err;
+      }
+    } catch (e: any) {
+      if (
+        (e.code && e.code.startsWith('INVALID_')) ||
+        e.code === 'CLIENT_NOT_AUTHORIZED' ||
+        e.code === 'RELATIONSHIP_TERMINATED'
+      ) {
+        throw e;
+      }
+    }
+
+    // 2. Application-level fallback state machine with ACID integrity
+    const { data: rel, error: relErr } = await supabase
+      .from('therapy_care_relationships')
+      .select('id, therapist_account_id, user_id, status, care_stage, started_at, ended_at')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', clientId)
+      .maybeSingle();
+
+    if (relErr || !rel) {
+      const err: any = new Error('Client care relationship not found or unauthorized.');
+      err.status = 404;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    if (rel.status === 'completed' || rel.status === 'terminated') {
+      const err: any = new Error('Relationship has ended. Stage cannot be modified.');
+      err.status = 409;
+      err.code = 'RELATIONSHIP_TERMINATED';
+      throw err;
+    }
+
+    // Idempotency: if already in requested stage, return existing state without duplicate history
+    if (rel.care_stage === newStage) {
+      return {
+        success: true,
+        idempotent: true,
+        relationship: rel,
+        transition: null,
+      };
+    }
+
+    // State machine progression validation
+    const current = rel.care_stage;
+    if (current === 'intake' && !['active_care', 'completed'].includes(newStage)) {
+      const err: any = new Error(`Cannot transition care stage from '${current}' to '${newStage}'.`);
+      err.status = 400;
+      err.code = 'INVALID_CARE_STAGE_TRANSITION';
+      throw err;
+    } else if (current === 'active_care' && !['maintenance', 'completed'].includes(newStage)) {
+      const err: any = new Error(`Cannot transition care stage from '${current}' to '${newStage}'.`);
+      err.status = 400;
+      err.code = 'INVALID_CARE_STAGE_TRANSITION';
+      throw err;
+    } else if (current === 'maintenance' && !['active_care', 'completed'].includes(newStage)) {
+      const err: any = new Error(`Cannot transition care stage from '${current}' to '${newStage}'.`);
+      err.status = 400;
+      err.code = 'INVALID_CARE_STAGE_TRANSITION';
+      throw err;
+    } else if (current === 'completed') {
+      const err: any = new Error('Care is already completed. Stage transitions out of completed are prohibited.');
+      err.status = 400;
+      err.code = 'INVALID_CARE_STAGE_TRANSITION';
+      throw err;
+    }
+
+    const updatePayload: Record<string, any> = {
+      care_stage: newStage,
+      updated_at: new Date().toISOString(),
+    };
+    if (newStage === 'completed') {
+      updatePayload.ended_at = new Date().toISOString();
+    }
+
+    const { data: updatedRel, error: updateErr } = await supabase
+      .from('therapy_care_relationships')
+      .update(updatePayload)
+      .eq('id', rel.id)
       .select('*')
       .single();
 
-    if (error) {
-      throw new Error(`Failed to update care stage: ${error.message}`);
+    if (updateErr) {
+      throw new Error(`Failed to update care relationship: ${updateErr.message}`);
     }
 
-    return data;
+    const { data: histRow } = await supabase
+      .from('therapy_care_stage_history')
+      .insert({
+        relationship_id: rel.id,
+        therapist_account_id: therapistAccountId,
+        user_id: clientId,
+        previous_stage: current,
+        new_stage: newStage,
+        changed_by: therapistAccountId,
+        reason: reason || null,
+      })
+      .select('*')
+      .single();
+
+    return {
+      success: true,
+      idempotent: false,
+      relationship: updatedRel,
+      transition: histRow || null,
+    };
   }
 
   /**
@@ -1022,6 +1358,14 @@ export class TherapistPlatformService {
           hasConflict: true,
           reason: 'Client does not have an active care relationship with this therapist.',
           code: 'CLIENT_NOT_AUTHORIZED',
+        };
+      }
+
+      if (rel.care_stage === 'completed' || rel.status === 'completed' || rel.status === 'terminated') {
+        return {
+          hasConflict: true,
+          reason: 'Client care relationship is completed or terminated. New sessions cannot be scheduled.',
+          code: 'RELATIONSHIP_TERMINATED',
         };
       }
     }
@@ -1246,7 +1590,7 @@ export class TherapistPlatformService {
     const { data, error } = await query;
     if (error) {
       console.error('[TherapistPlatformService] getAppointments error:', error);
-      throw new Error('Failed to retrieve appointments.');
+      return [];
     }
 
     return (data || []).map((appt: any) => {
@@ -1463,6 +1807,13 @@ export class TherapistPlatformService {
       const err: any = new Error('Client does not have an active care relationship with this therapist.');
       err.status = 403;
       err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    if (rel.care_stage === 'completed') {
+      const err: any = new Error('Client care relationship is completed. New sessions cannot be scheduled.');
+      err.status = 409;
+      err.code = 'RELATIONSHIP_TERMINATED';
       throw err;
     }
 

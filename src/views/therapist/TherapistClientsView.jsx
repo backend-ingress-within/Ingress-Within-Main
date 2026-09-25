@@ -19,6 +19,7 @@ export default function TherapistClientsView({ onOpenSchedule, onOpenSoap }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [selectedClientTab, setSelectedClientTab] = useState('overview');
 
   const fetchClients = async () => {
     try {
@@ -125,7 +126,17 @@ export default function TherapistClientsView({ onOpenSchedule, onOpenSoap }) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedClientId(c.clientId);
+                        setSelectedClientTab('journey');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-xs text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                    >
+                      Care Journey
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -148,7 +159,11 @@ export default function TherapistClientsView({ onOpenSchedule, onOpenSoap }) {
       {selectedClientId && (
         <TherapistClientModal
           clientId={selectedClientId}
-          onClose={() => setSelectedClientId(null)}
+          initialTab={selectedClientTab}
+          onClose={() => {
+            setSelectedClientId(null);
+            setSelectedClientTab('overview');
+          }}
           onOpenSchedule={onOpenSchedule}
           onOpenSoap={onOpenSoap}
           onReloadCaseload={fetchClients}

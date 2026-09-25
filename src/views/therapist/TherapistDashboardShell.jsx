@@ -56,9 +56,17 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
     return null;
   };
 
+  const getInitialClientModalTab = () => {
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname.includes('/journey')) return 'journey';
+    }
+    return 'overview';
+  };
+
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [activeSessionId, setActiveSessionId] = useState(getInitialSessionId);
   const [activeClientModalId, setActiveClientModalId] = useState(getInitialClientId);
+  const [activeClientModalTab, setActiveClientModalTab] = useState(getInitialClientModalTab);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSoapAppointmentId, setActiveSoapAppointmentId] = useState(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -70,6 +78,7 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
       setActiveTab(getInitialTab());
       setActiveSessionId(getInitialSessionId());
       setActiveClientModalId(getInitialClientId());
+      setActiveClientModalTab(getInitialClientModalTab());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -102,10 +111,14 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
     }
   };
 
-  const handleOpenClient = (clientId) => {
+  const handleOpenClient = (clientId, initialTab = 'overview') => {
     setActiveClientModalId(clientId);
+    setActiveClientModalTab(initialTab);
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', `/therapist/clients/${clientId}`);
+      const targetPath = initialTab === 'journey'
+        ? `/therapist/clients/${clientId}/journey`
+        : `/therapist/clients/${clientId}`;
+      window.history.pushState(null, '', targetPath);
     }
   };
 
@@ -304,6 +317,7 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
       {activeClientModalId && (
         <TherapistClientModal
           clientId={activeClientModalId}
+          initialTab={activeClientModalTab}
           onClose={handleCloseClientModal}
           onOpenSchedule={(cId, cName) => handleOpenSchedule(cId, cName)}
           onOpenSoap={(apptId) => handleOpenSoap(apptId)}
