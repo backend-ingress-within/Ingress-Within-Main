@@ -31,25 +31,35 @@ export async function POST(request: NextRequest) {
   try {
     const { account } = await requireAuthorizedTherapist(request);
     const body = await request.json().catch(() => ({}));
-    const { user_id, scheduled_start, scheduled_end, session_type, meeting_link, client_notes } = body;
+    const clientId = body.clientId || body.user_id;
+    const startsAt = body.startsAt || body.scheduled_start;
+    const endsAt = body.endsAt || body.scheduled_end;
+    const sessionType = body.sessionType || body.session_type;
+    const modality = body.modality;
+    const meetingLink = body.meetingLink || body.meeting_link;
+    const clientNotes = body.clientNotes || body.client_notes;
 
-    if (!user_id || !scheduled_start || !scheduled_end) {
+    if (!clientId || !startsAt || !endsAt) {
       return NextResponse.json(
-        { error: { code: 'INVALID_INPUT', message: 'user_id, scheduled_start, and scheduled_end are required.' } },
+        { error: { code: 'INVALID_INPUT', message: 'clientId (or user_id), startsAt, and endsAt are required.' } },
         { status: 400 }
       );
     }
 
     const appointment = await TherapistPlatformService.createAppointment(account.id, {
-      userId: user_id,
-      scheduledStart: scheduled_start,
-      scheduledEnd: scheduled_end,
-      sessionType: session_type,
-      meetingLink: meeting_link,
-      clientNotes: client_notes,
+      clientId,
+      userId: clientId,
+      startsAt,
+      scheduledStart: startsAt,
+      endsAt,
+      scheduledEnd: endsAt,
+      sessionType,
+      modality,
+      meetingLink,
+      clientNotes,
     });
 
-    return NextResponse.json({ success: true, appointment });
+    return NextResponse.json({ success: true, session: appointment, appointment }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { error: { code: err.code || 'SESSION_CREATE_ERROR', message: err.message } },

@@ -18,7 +18,7 @@ export async function POST(
       reason
     );
 
-    return NextResponse.json({ success: true, appointment: cancelled });
+    return NextResponse.json({ success: true, session: cancelled, appointment: cancelled });
   } catch (err: any) {
     return NextResponse.json(
       { error: { code: err.code || 'CANCEL_ERROR', message: err.message } },

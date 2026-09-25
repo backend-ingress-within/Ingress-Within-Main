@@ -17,7 +17,7 @@ import {
   Inbox
 } from 'lucide-react';
 
-export default function TherapistTodayView({ onNavigate, onOpenSoap }) {
+export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSession }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -321,7 +321,10 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap }) {
                               {session.status}
                             </span>
                           </div>
-                          <h4 className="font-serif text-base font-medium text-[#132A24] mt-0.5">
+                          <h4 
+                            onClick={() => onOpenSession ? onOpenSession(session.id) : null}
+                            className="font-serif text-base font-medium text-[#132A24] mt-0.5 cursor-pointer hover:text-[#4E7A66] transition-colors"
+                          >
                             {session.clientDisplayName}
                           </h4>
                           <span className="text-[11px] text-[#132A24]/50 block capitalize">
@@ -331,6 +334,14 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap }) {
                       </div>
 
                       <div className="flex items-center gap-2 self-end sm:self-center">
+                        {onOpenSession && (
+                          <button
+                            onClick={() => onOpenSession(session.id)}
+                            className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 text-xs text-[#132A24]/80 hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                          >
+                            Details
+                          </button>
+                        )}
                         {session.meetingLink && session.status !== 'completed' && session.status !== 'cancelled' && (
                           <a
                             href={session.meetingLink}
@@ -510,7 +521,12 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap }) {
             {nextSession ? (
               <div className="space-y-3">
                 <div>
-                  <div className="text-xl font-serif font-medium">{nextSession.clientDisplayName}</div>
+                  <div 
+                    onClick={() => onOpenSession ? onOpenSession(nextSession.id) : null}
+                    className="text-xl font-serif font-medium cursor-pointer hover:text-[#8DBFB4] transition-colors"
+                  >
+                    {nextSession.clientDisplayName}
+                  </div>
                   <div className="text-xs text-white/70 mt-1">
                     {new Date(nextSession.scheduledStart).toLocaleDateString('en-GB', {
                       weekday: 'short',

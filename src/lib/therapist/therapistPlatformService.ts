@@ -985,23 +985,149 @@ export class TherapistPlatformService {
    */
 
   /**
-   * Conflict check: detects overlapping appointments and availability blocks.
+   * Comprehensive conflict check: validates timestamps, client authorization,
+   * working hours, busy blocks, and therapist/client overlaps.
    */
-  static async checkAppointmentConflict(
+  static async validateSessionConflict(
     therapistAccountId: string,
+    userId: string,
     scheduledStartIso: string,
     scheduledEndIso: string,
     excludeAppointmentId?: string
-  ): Promise<{ hasConflict: boolean; reason?: string }> {
+  ): Promise<{ hasConflict: boolean; reason?: string; code?: string }> {
     const start = new Date(scheduledStartIso);
     const end = new Date(scheduledEndIso);
 
+    // 1. Validate timestamps
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-      return { hasConflict: true, reason: 'Invalid session start or end time.' };
+      return {
+        hasConflict: true,
+        reason: 'Invalid session start or end time. End time must be after start time.',
+        code: 'INVALID_TIME_RANGE',
+      };
     }
 
-    // 1. Check existing overlapping appointments for this therapist
-    let query = supabase
+    // 2. Client authorization: Client must have an active/current care relationship with therapist
+    if (userId) {
+      const { data: rel } = await supabase
+        .from('therapy_care_relationships')
+        .select('id, status, care_stage')
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (!rel) {
+        return {
+          hasConflict: true,
+          reason: 'Client does not have an active care relationship with this therapist.',
+          code: 'CLIENT_NOT_AUTHORIZED',
+        };
+      }
+    }
+
+    // 3. Working Hours & Availability Blocks Validation
+    const specificDateStr = scheduledStartIso.split('T')[0];
+    const dayOfWeekIdx = start.getDay();
+    const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const dayKey = dayNames[dayOfWeekIdx];
+
+    const startFmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(start);
+    const endFmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(end);
+
+    const { data: availBlocks } = await supabase
+      .from('therapist_availability_blocks')
+      .select('*')
+      .eq('therapist_account_id', therapistAccountId);
+
+    const blockedBlocks = (availBlocks || []).filter((b: any) => b.is_blocked);
+    const nonBlockedBlocks = (availBlocks || []).filter((b: any) => !b.is_blocked);
+
+    // 3a. Check blocked availability windows (busy blocks)
+    for (const block of blockedBlocks) {
+      if (block.specific_date === specificDateStr || (block.is_recurring && block.day_of_week === dayOfWeekIdx)) {
+        const bStart = block.start_time.substring(0, 5);
+        const bEnd = block.end_time.substring(0, 5);
+        if (startFmt < bEnd && endFmt > bStart) {
+          return {
+            hasConflict: true,
+            reason: 'Time falls within a blocked availability window.',
+            code: 'BLOCKED_WINDOW',
+          };
+        }
+      }
+    }
+
+    // 3b. Working hours enforcement
+    if (nonBlockedBlocks.length > 0) {
+      let withinOpenBlock = false;
+      for (const block of nonBlockedBlocks) {
+        if (block.specific_date === specificDateStr || (block.is_recurring && block.day_of_week === dayOfWeekIdx)) {
+          const bStart = block.start_time.substring(0, 5);
+          const bEnd = block.end_time.substring(0, 5);
+          if (startFmt >= bStart && endFmt <= bEnd) {
+            withinOpenBlock = true;
+            break;
+          }
+        }
+      }
+      if (!withinOpenBlock) {
+        return {
+          hasConflict: true,
+          reason: 'Requested session time is outside configured working hours.',
+          code: 'OUTSIDE_WORKING_HOURS',
+        };
+      }
+    } else {
+      // Fallback: check therapist_profiles availability_hours
+      const { data: profile } = await supabase
+        .from('therapist_profiles')
+        .select('availability_hours')
+        .eq('therapist_account_id', therapistAccountId)
+        .maybeSingle();
+
+      const hours = profile?.availability_hours;
+      if (hours && typeof hours === 'object' && Object.keys(hours).length > 0) {
+        const ranges = hours[dayKey];
+        if (!Array.isArray(ranges) || ranges.length === 0) {
+          return {
+            hasConflict: true,
+            reason: 'Requested session time is outside configured working hours.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
+        let withinProfileHours = false;
+        for (const range of ranges) {
+          const [rStart, rEnd] = range.split('-');
+          if (rStart && rEnd) {
+            if (startFmt >= rStart.trim() && endFmt <= rEnd.trim()) {
+              withinProfileHours = true;
+              break;
+            }
+          }
+        }
+        if (!withinProfileHours) {
+          return {
+            hasConflict: true,
+            reason: 'Requested session time is outside configured working hours.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
+      }
+    }
+
+    // 4. Overlapping sessions for this therapist
+    let thQuery = supabase
       .from('therapist_clinical_appointments')
       .select('id, scheduled_start, scheduled_end, status')
       .eq('therapist_account_id', therapistAccountId)
@@ -1010,45 +1136,61 @@ export class TherapistPlatformService {
       .gt('scheduled_end', scheduledStartIso);
 
     if (excludeAppointmentId) {
-      query = query.neq('id', excludeAppointmentId);
+      thQuery = thQuery.neq('id', excludeAppointmentId);
     }
 
-    const { data: overlappingAppts } = await query;
-
+    const { data: overlappingAppts } = await thQuery;
     if (overlappingAppts && overlappingAppts.length > 0) {
       return {
         hasConflict: true,
         reason: 'Time conflicts with an existing booked session.',
+        code: 'SESSION_CONFLICT',
       };
     }
 
-    // 2. Check blocked periods in therapist_availability_blocks
-    const specificDateStr = scheduledStartIso.split('T')[0];
-    const { data: blockedBlocks } = await supabase
-      .from('therapist_availability_blocks')
-      .select('*')
-      .eq('therapist_account_id', therapistAccountId)
-      .eq('is_blocked', true)
-      .or(`specific_date.eq.${specificDateStr},is_recurring.eq.true`);
+    // 5. Overlapping sessions for this client
+    if (userId) {
+      let clQuery = supabase
+        .from('therapist_clinical_appointments')
+        .select('id, scheduled_start, scheduled_end, status')
+        .eq('user_id', userId)
+        .in('status', ['scheduled', 'confirmed', 'in_progress'])
+        .lt('scheduled_start', scheduledEndIso)
+        .gt('scheduled_end', scheduledStartIso);
 
-    if (blockedBlocks && blockedBlocks.length > 0) {
-      const dayOfWeek = start.getDay();
-      const startTimeStr = scheduledStartIso.substring(11, 16);
-      const endTimeStr = scheduledEndIso.substring(11, 16);
+      if (excludeAppointmentId) {
+        clQuery = clQuery.neq('id', excludeAppointmentId);
+      }
 
-      for (const block of blockedBlocks) {
-        if (block.specific_date === specificDateStr || block.day_of_week === dayOfWeek) {
-          if (block.start_time < endTimeStr && block.end_time > startTimeStr) {
-            return {
-              hasConflict: true,
-              reason: 'Time falls within a blocked availability window.',
-            };
-          }
-        }
+      const { data: clientOverlaps } = await clQuery;
+      if (clientOverlaps && clientOverlaps.length > 0) {
+        return {
+          hasConflict: true,
+          reason: 'Client has an overlapping scheduled session.',
+          code: 'CLIENT_CONFLICT',
+        };
       }
     }
 
     return { hasConflict: false };
+  }
+
+  /**
+   * Backward-compatible alias for checkAppointmentConflict.
+   */
+  static async checkAppointmentConflict(
+    therapistAccountId: string,
+    scheduledStartIso: string,
+    scheduledEndIso: string,
+    excludeAppointmentId?: string
+  ): Promise<{ hasConflict: boolean; reason?: string; code?: string }> {
+    return this.validateSessionConflict(
+      therapistAccountId,
+      '',
+      scheduledStartIso,
+      scheduledEndIso,
+      excludeAppointmentId
+    );
   }
 
   /**
@@ -1078,6 +1220,7 @@ export class TherapistPlatformService {
         cancelled_by,
         cancellation_reason,
         created_at,
+        updated_at,
         users (
           id,
           name
@@ -1098,67 +1241,261 @@ export class TherapistPlatformService {
       throw new Error('Failed to retrieve appointments.');
     }
 
-    return (data || []).map((appt: any) => ({
-      ...appt,
-      clientDisplayName: appt.users?.name || `Client #${appt.user_id.substring(0, 6)}`,
-    }));
+    return (data || []).map((appt: any) => {
+      const userObj = Array.isArray(appt.users) ? appt.users[0] : appt.users;
+      const clientName = userObj?.name || `Client #${appt.user_id.substring(0, 6)}`;
+      const durationMinutes = Math.round(
+        (new Date(appt.scheduled_end).getTime() - new Date(appt.scheduled_start).getTime()) / 60000
+      );
+
+      const modalityMapped =
+        appt.modality ||
+        (appt.session_type === 'in_person' ? 'in_person' : appt.session_type === 'audio' ? 'phone' : 'telehealth');
+
+      return {
+        id: appt.id,
+        startsAt: appt.scheduled_start,
+        endsAt: appt.scheduled_end,
+        durationMinutes: durationMinutes > 0 ? durationMinutes : 50,
+        status: appt.status,
+        sessionType: appt.session_type,
+        modality: modalityMapped,
+        client: {
+          id: appt.user_id,
+          displayName: clientName,
+        },
+        careStage: appt.care_stage || 'active_care',
+        meetingLink: appt.meeting_link,
+        clientNotes: appt.client_notes,
+        cancelledBy: appt.cancelled_by,
+        cancellationReason: appt.cancellation_reason,
+        createdAt: appt.created_at,
+        updatedAt: appt.updated_at,
+        // Backwards compatibility properties:
+        user_id: appt.user_id,
+        scheduled_start: appt.scheduled_start,
+        scheduled_end: appt.scheduled_end,
+        session_type: appt.session_type,
+        clientDisplayName: clientName,
+        relationship_id: appt.relationship_id,
+      };
+    });
   }
 
   /**
-   * Creates a new clinical appointment with conflict checking.
+   * Retrieves single appointment detail with safe client identity and reschedule history.
+   */
+  static async getAppointmentById(therapistAccountId: string, appointmentId: string) {
+    const { data: appt, error } = await supabase
+      .from('therapist_clinical_appointments')
+      .select(`
+        id,
+        therapist_account_id,
+        user_id,
+        relationship_id,
+        scheduled_start,
+        scheduled_end,
+        status,
+        session_type,
+        meeting_link,
+        client_notes,
+        cancelled_by,
+        cancellation_reason,
+        created_at,
+        updated_at,
+        users (
+          id,
+          name
+        )
+      `)
+      .eq('id', appointmentId)
+      .maybeSingle();
+
+    if (error || !appt || appt.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    // Care relationship lookup
+    let relationship: any = null;
+    if (appt.user_id) {
+      const { data: rel } = await supabase
+        .from('therapy_care_relationships')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('user_id', appt.user_id)
+        .maybeSingle();
+      relationship = rel;
+    }
+
+    // Reschedule audit history
+    const { data: reschedules } = await supabase
+      .from('therapist_session_reschedules')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .order('created_at', { ascending: false });
+
+    const userObj = Array.isArray(appt.users) ? appt.users[0] : appt.users;
+    const clientName = userObj?.name || `Client #${appt.user_id.substring(0, 6)}`;
+    const durationMinutes = Math.round(
+      (new Date(appt.scheduled_end).getTime() - new Date(appt.scheduled_start).getTime()) / 60000
+    );
+
+    const modalityMapped =
+      (appt as any).modality ||
+      (appt.session_type === 'in_person' ? 'in_person' : appt.session_type === 'audio' ? 'phone' : 'telehealth');
+
+    return {
+      id: appt.id,
+      startsAt: appt.scheduled_start,
+      endsAt: appt.scheduled_end,
+      durationMinutes: durationMinutes > 0 ? durationMinutes : 50,
+      status: appt.status,
+      sessionType: appt.session_type,
+      modality: modalityMapped,
+      meetingLink: appt.meeting_link,
+      clientNotes: appt.client_notes,
+      cancelledBy: appt.cancelled_by,
+      cancellationReason: appt.cancellation_reason,
+      client: {
+        id: appt.user_id,
+        displayName: clientName,
+      },
+      careRelationship: relationship ? {
+        id: relationship.id,
+        status: relationship.status,
+        careStage: relationship.care_stage,
+        startedAt: relationship.started_at,
+        endedAt: relationship.ended_at,
+      } : null,
+      careStage: relationship?.care_stage || (appt as any).care_stage || 'active_care',
+      rescheduleHistory: (reschedules || []).map((r: any) => ({
+        id: r.id,
+        previousStart: r.previous_start,
+        previousEnd: r.previous_end,
+        newStart: r.new_start,
+        newEnd: r.new_end,
+        rescheduledBy: r.rescheduled_by,
+        reason: r.reason,
+        createdAt: r.created_at,
+      })),
+      createdAt: appt.created_at,
+      updatedAt: appt.updated_at,
+      // Backwards compatibility properties:
+      user_id: appt.user_id,
+      scheduled_start: appt.scheduled_start,
+      scheduled_end: appt.scheduled_end,
+      session_type: appt.session_type,
+      clientDisplayName: clientName,
+    };
+  }
+
+  /**
+   * Creates a new clinical appointment with concurrency & conflict checking.
    */
   static async createAppointment(
     therapistAccountId: string,
     data: {
-      userId: string;
-      scheduledStart: string;
-      scheduledEnd: string;
+      userId?: string;
+      clientId?: string;
+      scheduledStart?: string;
+      startsAt?: string;
+      scheduledEnd?: string;
+      endsAt?: string;
       sessionType?: 'video' | 'audio' | 'in_person';
+      modality?: 'telehealth' | 'in_person' | 'chat' | 'phone';
       meetingLink?: string;
       clientNotes?: string;
     }
   ) {
-    // 1. Conflict check
-    const conflict = await this.checkAppointmentConflict(
+    const targetUserId = data.clientId || data.userId;
+    const targetStart = data.startsAt || data.scheduledStart;
+    const targetEnd = data.endsAt || data.scheduledEnd;
+    const targetModality = data.modality || 'telehealth';
+    const targetSessionType =
+      data.sessionType ||
+      (targetModality === 'in_person' ? 'in_person' : targetModality === 'phone' ? 'audio' : 'video');
+
+    if (!targetUserId || !targetStart || !targetEnd) {
+      const err: any = new Error('clientId, startsAt, and endsAt are required.');
+      err.status = 400;
+      err.code = 'INVALID_INPUT';
+      throw err;
+    }
+
+    // 1. Conflict and tenancy validation
+    const conflict = await this.validateSessionConflict(
       therapistAccountId,
-      data.scheduledStart,
-      data.scheduledEnd
+      targetUserId,
+      targetStart,
+      targetEnd
     );
 
     if (conflict.hasConflict) {
       const err: any = new Error(conflict.reason || 'Schedule conflict detected.');
-      err.status = 409;
-      err.code = 'SESSION_CONFLICT';
+      err.status = conflict.code === 'CLIENT_NOT_AUTHORIZED'
+        ? 403
+        : (conflict.code === 'INVALID_TIME_RANGE' ? 400 : 409);
+      err.code = conflict.code || 'SESSION_CONFLICT';
       throw err;
     }
 
-    // 2. Fetch or create care relationship
-    let relationshipId: string | null = null;
+    // 2. Fetch care relationship details
     const { data: rel } = await supabase
       .from('therapy_care_relationships')
-      .select('id')
+      .select('id, care_stage')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', data.userId)
+      .eq('user_id', targetUserId)
       .eq('status', 'active')
       .maybeSingle();
 
-    if (rel) {
-      relationshipId = rel.id;
+    if (!rel) {
+      const err: any = new Error('Client does not have an active care relationship with this therapist.');
+      err.status = 403;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
     }
 
-    // 3. Insert appointment
+    const meetingLink = data.meetingLink || 'https://meet.ingresswithin.com/clinical/' + crypto.randomUUID().substring(0, 8);
+
+    // 3. Try atomic RPC with transaction advisory locks
+    try {
+      const { data: rpcAppt, error: rpcErr } = await supabase.rpc('schedule_therapist_appointment', {
+        p_therapist_account_id: therapistAccountId,
+        p_user_id: targetUserId,
+        p_scheduled_start: targetStart,
+        p_scheduled_end: targetEnd,
+        p_session_type: targetSessionType,
+        p_modality: targetModality,
+        p_meeting_link: meetingLink,
+        p_client_notes: data.clientNotes || null,
+      });
+
+      if (!rpcErr && rpcAppt) {
+        return {
+          ...rpcAppt,
+          clientDisplayName: `Client #${targetUserId.substring(0, 6)}`,
+          careStage: rel.care_stage || 'intake',
+          modality: targetModality,
+        };
+      }
+    } catch (rpcCatch) {}
+
+    // 4. Standard insert fallback
     const { data: newAppt, error } = await supabase
       .from('therapist_clinical_appointments')
       .insert({
         therapist_account_id: therapistAccountId,
-        user_id: data.userId,
-        relationship_id: relationshipId,
-        scheduled_start: data.scheduledStart,
-        scheduled_end: data.scheduledEnd,
+        user_id: targetUserId,
+        relationship_id: rel.id,
+        scheduled_start: targetStart,
+        scheduled_end: targetEnd,
         status: 'scheduled',
-        session_type: data.sessionType || 'video',
-        meeting_link: data.meetingLink || 'https://meet.ingresswithin.com/clinical/' + crypto.randomUUID().substring(0, 8),
-        clientNotes: data.clientNotes || null,
+        session_type: targetSessionType,
+        meeting_link: meetingLink,
+        client_notes: data.clientNotes || null,
       })
       .select('*')
       .single();
@@ -1168,7 +1505,12 @@ export class TherapistPlatformService {
       throw new Error('Failed to schedule session.');
     }
 
-    return newAppt;
+    return {
+      ...newAppt,
+      clientDisplayName: `Client #${targetUserId.substring(0, 6)}`,
+      careStage: rel.care_stage || 'intake',
+      modality: targetModality,
+    };
   }
 
   /**
@@ -1186,16 +1528,26 @@ export class TherapistPlatformService {
       .from('therapist_clinical_appointments')
       .select('*')
       .eq('id', appointmentId)
-      .eq('therapist_account_id', therapistAccountId)
-      .single();
+      .maybeSingle();
 
-    if (fetchErr || !appt) {
-      throw new Error('Appointment not found.');
+    if (fetchErr || !appt || appt.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Appointment not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
     }
 
-    // 2. Conflict check
-    const conflict = await this.checkAppointmentConflict(
+    if (appt.status === 'completed' || appt.status === 'cancelled') {
+      const err: any = new Error('Cannot reschedule a completed or cancelled session.');
+      err.status = 400;
+      err.code = 'SESSION_IMMUTABLE';
+      throw err;
+    }
+
+    // 2. Conflict check on new slot
+    const conflict = await this.validateSessionConflict(
       therapistAccountId,
+      appt.user_id,
       newStartIso,
       newEndIso,
       appointmentId
@@ -1203,12 +1555,26 @@ export class TherapistPlatformService {
 
     if (conflict.hasConflict) {
       const err: any = new Error(conflict.reason || 'Schedule conflict detected.');
-      err.status = 409;
-      err.code = 'SESSION_CONFLICT';
+      err.status = conflict.code === 'INVALID_TIME_RANGE' ? 400 : 409;
+      err.code = conflict.code || 'SESSION_CONFLICT';
       throw err;
     }
 
-    // 3. Insert audit record in therapist_session_reschedules
+    // 3. Try atomic RPC
+    try {
+      const { data: rpcUpdated, error: rpcErr } = await supabase.rpc('reschedule_therapist_appointment', {
+        p_therapist_account_id: therapistAccountId,
+        p_appointment_id: appointmentId,
+        p_new_start: newStartIso,
+        p_new_end: newEndIso,
+        p_reason: reason || 'Therapist requested reschedule',
+      });
+      if (!rpcErr && rpcUpdated) {
+        return rpcUpdated;
+      }
+    } catch (rpcCatch) {}
+
+    // 4. Fallback: Insert audit record in therapist_session_reschedules
     await supabase.from('therapist_session_reschedules').insert({
       appointment_id: appointmentId,
       previous_start: appt.scheduled_start,
@@ -1219,7 +1585,7 @@ export class TherapistPlatformService {
       reason: reason || 'Therapist requested reschedule',
     });
 
-    // 4. Update appointment
+    // 5. Update appointment
     const { data: updated, error: updateErr } = await supabase
       .from('therapist_clinical_appointments')
       .update({
@@ -1247,6 +1613,30 @@ export class TherapistPlatformService {
     appointmentId: string,
     reason?: string
   ) {
+    const { data: appt, error: fetchErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('*')
+      .eq('id', appointmentId)
+      .maybeSingle();
+
+    if (fetchErr || !appt || appt.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Appointment not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    if (appt.status === 'completed') {
+      const err: any = new Error('Cannot cancel a completed session.');
+      err.status = 400;
+      err.code = 'SESSION_IMMUTABLE';
+      throw err;
+    }
+
+    if (appt.status === 'cancelled') {
+      return appt;
+    }
+
     const { data: updated, error } = await supabase
       .from('therapist_clinical_appointments')
       .update({
@@ -1256,7 +1646,6 @@ export class TherapistPlatformService {
         updated_at: new Date().toISOString(),
       })
       .eq('id', appointmentId)
-      .eq('therapist_account_id', therapistAccountId)
       .select('*')
       .single();
 
@@ -1426,6 +1815,7 @@ export class TherapistPlatformService {
       .eq('therapist_account_id', therapistAccountId);
 
     return {
+      sessions: appointments,
       appointments,
       availabilityBlocks: blocks || [],
     };

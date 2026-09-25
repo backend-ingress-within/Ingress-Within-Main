@@ -24,20 +24,41 @@ import TherapistSoapModal from './TherapistSoapModal';
 import TherapistScheduleModal from './TherapistScheduleModal';
 import TherapistNotificationsModal from './TherapistNotificationsModal';
 
+import TherapistSessionDetailView from './TherapistSessionDetailView';
+import TherapistClientModal from './TherapistClientModal';
+
 export default function TherapistDashboardShell({ therapistData, onLogout }) {
   const getInitialTab = () => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (path.includes('/therapist/requests')) return 'requests';
       if (path.includes('/therapist/clients')) return 'clients';
-      if (path.includes('/therapist/calendar')) return 'calendar';
+      if (path.includes('/therapist/calendar') || path.includes('/therapist/sessions')) return 'calendar';
       if (path.includes('/therapist/earnings')) return 'earnings';
       if (path.includes('/therapist/profile')) return 'profile';
     }
     return 'today';
   };
 
+  const getInitialSessionId = () => {
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/therapist\/sessions\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) return match[1];
+    }
+    return null;
+  };
+
+  const getInitialClientId = () => {
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/therapist\/clients\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) return match[1];
+    }
+    return null;
+  };
+
   const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [activeSessionId, setActiveSessionId] = useState(getInitialSessionId);
+  const [activeClientModalId, setActiveClientModalId] = useState(getInitialClientId);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSoapAppointmentId, setActiveSoapAppointmentId] = useState(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -47,6 +68,8 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
   React.useEffect(() => {
     const handlePopState = () => {
       setActiveTab(getInitialTab());
+      setActiveSessionId(getInitialSessionId());
+      setActiveClientModalId(getInitialClientId());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -54,12 +77,45 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
+    setActiveSessionId(null);
     setMobileMenuOpen(false);
     if (typeof window !== 'undefined') {
       const targetPath = tabId === 'today' ? '/therapist' : `/therapist/${tabId}`;
       if (window.location.pathname !== targetPath) {
         window.history.pushState(null, '', targetPath);
       }
+    }
+  };
+
+  const handleOpenSession = (sessionId) => {
+    setActiveSessionId(sessionId);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/therapist/sessions/${sessionId}`);
+    }
+  };
+
+  const handleCloseSessionDetail = () => {
+    setActiveSessionId(null);
+    if (typeof window !== 'undefined') {
+      const targetPath = activeTab === 'today' ? '/therapist' : `/therapist/${activeTab}`;
+      window.history.pushState(null, '', targetPath);
+    }
+  };
+
+  const handleOpenClient = (clientId) => {
+    setActiveClientModalId(clientId);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/therapist/clients/${clientId}`);
+    }
+  };
+
+  const handleCloseClientModal = () => {
+    setActiveClientModalId(null);
+    if (typeof window !== 'undefined') {
+      const targetPath = activeSessionId
+        ? `/therapist/sessions/${activeSessionId}`
+        : (activeTab === 'today' ? '/therapist' : `/therapist/${activeTab}`);
+      window.history.pushState(null, '', targetPath);
     }
   };
 
@@ -196,35 +252,63 @@ export default function TherapistDashboardShell({ therapistData, onLogout }) {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-grow p-6 lg:p-10 max-w-6xl mx-auto w-full">
-        {activeTab === 'today' && (
-          <TherapistTodayView
-            onNavigate={(tab) => handleTabChange(tab)}
+        {activeSessionId ? (
+          <TherapistSessionDetailView
+            sessionId={activeSessionId}
+            onBack={handleCloseSessionDetail}
+            onNavigate={(tab) => {
+              handleCloseSessionDetail();
+              handleTabChange(tab);
+            }}
+            onOpenClientProfile={handleOpenClient}
             onOpenSoap={handleOpenSoap}
           />
-        )}
-        {activeTab === 'requests' && (
-          <TherapistRequestsView
-            onNavigate={(tab) => handleTabChange(tab)}
-          />
-        )}
-        {activeTab === 'clients' && (
-          <TherapistClientsView
-            onOpenSchedule={handleOpenSchedule}
-            onOpenSoap={handleOpenSoap}
-          />
-        )}
-        {activeTab === 'calendar' && (
-          <TherapistCalendarView
-            onOpenSoap={handleOpenSoap}
-          />
-        )}
-        {activeTab === 'earnings' && (
-          <TherapistEarningsView />
-        )}
-        {activeTab === 'profile' && (
-          <TherapistProfileView />
+        ) : (
+          <>
+            {activeTab === 'today' && (
+              <TherapistTodayView
+                onNavigate={(tab) => handleTabChange(tab)}
+                onOpenSoap={handleOpenSoap}
+                onOpenSession={handleOpenSession}
+              />
+            )}
+            {activeTab === 'requests' && (
+              <TherapistRequestsView
+                onNavigate={(tab) => handleTabChange(tab)}
+              />
+            )}
+            {activeTab === 'clients' && (
+              <TherapistClientsView
+                onOpenSchedule={handleOpenSchedule}
+                onOpenSoap={handleOpenSoap}
+              />
+            )}
+            {activeTab === 'calendar' && (
+              <TherapistCalendarView
+                onOpenSession={handleOpenSession}
+                onOpenClient={handleOpenClient}
+                onOpenSoap={handleOpenSoap}
+              />
+            )}
+            {activeTab === 'earnings' && (
+              <TherapistEarningsView />
+            )}
+            {activeTab === 'profile' && (
+              <TherapistProfileView />
+            )}
+          </>
         )}
       </main>
+
+      {/* Client Detail Modal */}
+      {activeClientModalId && (
+        <TherapistClientModal
+          clientId={activeClientModalId}
+          onClose={handleCloseClientModal}
+          onOpenSchedule={(cId, cName) => handleOpenSchedule(cId, cName)}
+          onOpenSoap={(apptId) => handleOpenSoap(apptId)}
+        />
+      )}
 
       {/* SOAP Note Modal */}
       {activeSoapAppointmentId && (

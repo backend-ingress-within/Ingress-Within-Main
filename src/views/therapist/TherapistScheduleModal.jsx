@@ -62,10 +62,19 @@ export default function TherapistScheduleModal({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error?.message || 'Schedule conflict or error.');
+        if (data.error?.code === 'SESSION_CONFLICT' || data.error?.code === 'CLIENT_CONFLICT' || data.error?.code === 'BLOCKED_WINDOW') {
+          throw new Error('This time overlaps with another scheduled commitment.');
+        }
+        if (data.error?.code === 'OUTSIDE_WORKING_HOURS') {
+          throw new Error('This time is outside your configured working hours.');
+        }
+        if (data.error?.code === 'CLIENT_NOT_AUTHORIZED') {
+          throw new Error('Client does not have an active care relationship with you.');
+        }
+        throw new Error(data.error?.message || 'Failed to schedule session.');
       }
 
-      onSuccess && onSuccess(data.appointment);
+      onSuccess && onSuccess(data.appointment || data.session);
       onClose();
     } catch (err) {
       setErrorMessage(err.message);
