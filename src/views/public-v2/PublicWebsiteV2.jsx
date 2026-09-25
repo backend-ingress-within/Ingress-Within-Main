@@ -94,25 +94,23 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
             A continuous psychological growth ecosystem that brings together self-guided learning, therapist support and AI guidance, all in one place.
           </p>
 
-          {/* Dual Action CTAs */}
-          <div className="pt-5 flex flex-wrap items-center justify-center gap-4">
+          {/* Dual Action CTAs: 2 Types Only */}
+          <div className="pt-6 sm:pt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
             <a
               href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center gap-2 bg-[#203631] hover:bg-[#162723] text-white font-zen text-sm sm:text-[15px] font-medium px-8 py-3.5 rounded-full shadow-md hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer"
+              className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#162723] hover:bg-[#203631] text-white font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-md hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer text-center whitespace-nowrap"
             >
-              <span>Take the first step</span>
+              <span>Start your independent journey</span>
               <span className="text-base">→</span>
             </a>
             <button
               type="button"
-              onClick={() => handleSelectTab('how')}
-              className="inline-flex items-center gap-3 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#E7DECF] font-zen text-sm sm:text-[15px] font-medium px-6 py-3 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
             >
-              <span className="w-8 h-8 rounded-full border border-[#162723]/30 flex items-center justify-center text-xs bg-white text-[#162723]">
-                ▶
-              </span>
-              <span>See how it works</span>
+              <span>Start with a professional</span>
+              <span className="text-base text-[#795663]">→</span>
             </button>
           </div>
         </div>
@@ -172,6 +170,31 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               );
             })}
           </div>
+
+          {/* Distinct Action Block for Sound Familiar */}
+          <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-[#E7DECF]/70 max-w-2xl mx-auto flex flex-col items-center space-y-4">
+            <p className="font-zen text-xs sm:text-sm text-[#5C6873]">
+              Start working through these patterns:
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+              <a
+                href="/login"
+                onClick={handleAuthRedirect}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Reflect on these moments on your own</span>
+                <span>→</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => handleSelectTab('start')}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Talk through this with a therapist</span>
+                <span className="text-[#795663]">→</span>
+              </button>
+            </div>
+          </div>
         </motion.div>
       </section>
 
@@ -230,6 +253,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 Wants somewhere to put thoughts down between sessions.
               </p>
             </motion.div>
+          </div>
+
+          {/* Dual CTAs after Starting Points */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Begin private self-reflection</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Book a confidential therapy session</span>
+              <span className="text-[#795663]">→</span>
+            </button>
           </div>
         </div>
       </section>
@@ -298,7 +341,7 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               </motion.div>
             </div>
 
-            <div className="pt-6">
+            <div className="pt-6 flex flex-col items-center justify-center gap-4">
               <button
                 type="button"
                 onClick={() => handleSelectTab('how')}
@@ -306,6 +349,14 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               >
                 See the full walkthrough, including therapy →
               </button>
+              <a
+                href="/login"
+                onClick={handleAuthRedirect}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Start your Journal</span>
+                <span>→</span>
+              </a>
             </div>
           </motion.div>
         </div>
@@ -351,9 +402,9 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               <a
                 href="/login"
                 onClick={handleAuthRedirect}
-                className="w-full text-center py-3 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#E7DECF] rounded-full text-xs font-semibold cursor-pointer transition-colors"
+                className="w-full text-center py-3 bg-[#FAF7F2] hover:bg-[#162723] hover:text-white text-[#162723] border border-[#E7DECF] rounded-full text-xs font-semibold cursor-pointer transition-all"
               >
-                Write your first entry →
+                Start self-guided work →
               </a>
             </motion.div>
 
@@ -379,7 +430,7 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 onClick={() => handleSelectTab('start')}
                 className="w-full text-center py-3 bg-[#795663] hover:bg-[#654652] text-white rounded-full text-xs font-semibold cursor-pointer shadow-xs transition-colors"
               >
-                Book your first session →
+                Book therapist session →
               </button>
             </motion.div>
           </div>
@@ -414,15 +465,23 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-sm sm:text-base text-[#C7CDD3] max-w-xl mx-auto leading-relaxed pt-2">
             You might start with therapy. You might start by practising. You might just want to know what's going on. Ingress Within meets you where you are.
           </p>
-          <div className="pt-4">
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
             <a
               href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center gap-2 bg-white text-[#011627] hover:bg-[#FAF7F2] font-zen text-sm font-semibold px-7 py-3 rounded-full transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-white text-[#011627] hover:bg-[#FAF7F2] font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full transition-all cursor-pointer shadow-sm hover:scale-[1.02] text-center whitespace-nowrap"
             >
-              <span>Begin your reflection</span>
+              <span>Walk your own path first</span>
               <span>→</span>
             </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
+            >
+              <span>Begin with therapist guidance</span>
+              <span>→</span>
+            </button>
           </div>
         </motion.div>
       </section>
@@ -719,6 +778,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
             <p className="font-editorial italic text-xs sm:text-sm text-[#7D8E87] pt-2 border-t border-[#E7DECF]/70">
               Everything on the line is included with your ₹499/month subscription. Only the single point at the end, the module, is a separate, optional purchase.
             </p>
+
+            {/* Dual Contextual CTAs for Guided Journal & Pattern Line */}
+            <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full border-t border-[#E7DECF]/60">
+              <a
+                href="/login"
+                onClick={handleAuthRedirect}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Start guided daily journaling</span>
+                <span>→</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => handleSelectTab('start')}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Bring your journal into therapy</span>
+                <span className="text-[#795663]">→</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -865,6 +944,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               </div>
             </motion.div>
           </div>
+
+          {/* Dual Contextual CTAs for A Look at the Dashboard */}
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#203631] hover:bg-[#162723] text-white font-zen text-xs sm:text-sm font-medium px-6 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center"
+            >
+              <span>Begin private self-work</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-white hover:bg-[#FAF7F2] text-[#162723] border border-[#E7DECF] font-zen text-xs sm:text-sm font-medium px-6 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center"
+            >
+              <span>Start with a therapist</span>
+              <span className="text-[#795663]">→</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -941,6 +1040,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 </div>
               </motion.div>
             ))}
+          </div>
+
+          {/* Dual Contextual CTAs for Psychoeducation Library */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Explore modules via self-work</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Have a therapist assign your modules</span>
+              <span className="text-[#795663]">→</span>
+            </button>
           </div>
         </div>
       </section>
@@ -1023,18 +1142,22 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-sm sm:text-base text-[#9AA59F] max-w-xl mx-auto leading-relaxed">
             The difference is who is involved in guiding the work: you, or you and a licensed therapist.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => handleSelectTab('how')}
-              className="inline-flex items-center justify-center px-8 py-3.5 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-lg"
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
             >
-              See how both connect &rarr;
-            </button>
+              <span>Start self-work independently</span>
+              <span>→</span>
+            </a>
             <button
-              onClick={() => handleSelectTab('pricing')}
-              className="inline-flex items-center justify-center px-8 py-3.5 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-transparent text-white border border-white/20 hover:border-white transition-all cursor-pointer"
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
-              View transparent pricing &rarr;
+              <span>Start with a licensed therapist</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -1061,26 +1184,27 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-base sm:text-lg text-[#5C6873] leading-relaxed max-w-2xl mx-auto">
             Two distinct paths (working alone with our pattern engine, and working with a licensed therapist), designed to give you clarity without comfort-traps.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => {
-                const el = document.getElementById('approach-principles');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="inline-flex items-center justify-center px-6 py-3 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#162723] text-white hover:bg-[#2A3A3E] transition-all cursor-pointer shadow-xs"
+          {/* Dual Action CTAs */}
+          <div className="pt-6 sm:pt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#162723] hover:bg-[#203631] text-white font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-md hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer text-center whitespace-nowrap"
             >
-              Our 3 Principles &rarr;
-            </button>
+              <span>Start your independent journey</span>
+              <span className="text-base">→</span>
+            </a>
             <button
-              onClick={() => {
-                const el = document.getElementById('walkthrough-self');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="inline-flex items-center justify-center px-6 py-3 rounded-full text-xs font-mono-code font-medium tracking-wider uppercase bg-white border border-[#E7DECF] text-[#162723] hover:border-[#795663] transition-all cursor-pointer shadow-2xs"
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
             >
-              View the Walkthroughs &darr;
+              <span>Start with a professional</span>
+              <span className="text-base text-[#795663]">→</span>
             </button>
           </div>
+
+
         </div>
       </section>
 
@@ -1214,12 +1338,13 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                   </div>
                 </div>
               </div>
-              <button
+              <a
+                href="/login"
                 onClick={handleAuthRedirect}
-                className="w-full py-3.5 px-5 rounded-xl font-mono-code text-xs tracking-wider uppercase font-semibold text-center bg-[#F2ECE1] border border-[#E7DECF] text-[#162723] hover:bg-[#E7DECF] transition-colors cursor-pointer"
+                className="w-full py-3.5 px-5 rounded-xl font-mono-code text-xs tracking-wider uppercase font-semibold text-center bg-[#F2ECE1] border border-[#E7DECF] text-[#162723] hover:bg-[#E7DECF] transition-colors cursor-pointer inline-block"
               >
-                Start self-work &rarr;
-              </button>
+                Start independent onboarding &rarr;
+              </a>
             </motion.div>
 
             {/* Therapist panel */}
@@ -1250,10 +1375,11 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => handleSelectTab('start')}
                 className="w-full py-3.5 px-5 rounded-xl font-mono-code text-xs tracking-wider uppercase font-semibold text-center bg-[#162723] text-white hover:bg-[#2A3A3E] transition-colors cursor-pointer"
               >
-                Book a first session &rarr;
+                Book your therapist orientation &rarr;
               </button>
             </motion.div>
           </div>
@@ -1316,9 +1442,32 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                   <td className="py-4 pl-6 text-[#2E7A70] font-semibold">✓ Included</td>
                 </tr>
                 <tr className="font-semibold text-[#162723] bg-[#FDFBF8]/60">
-                  <td className="py-4 pr-6">Typical cost</td>
-                  <td className="py-4 px-6 font-mono-code text-[#795663]">₹499 / month</td>
-                  <td className="py-4 pl-6 font-mono-code text-[#162723]">From ₹999 / session</td>
+                  <td className="py-4 pr-6 font-medium text-sm">Typical cost</td>
+                  <td className="py-4 px-6 font-mono-code text-sm text-[#795663]">₹499 / month</td>
+                  <td className="py-4 pl-6 font-mono-code text-sm text-[#162723]">From ₹999 / session</td>
+                </tr>
+                <tr className="border-t border-[#E7DECF]/80">
+                  <td className="py-5 pr-6"></td>
+                  <td className="py-5 px-6">
+                    <a
+                      href="/login"
+                      onClick={handleAuthRedirect}
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs font-semibold py-2.5 px-4 rounded-full shadow-xs hover:shadow transition-all cursor-pointer whitespace-nowrap text-center"
+                    >
+                      <span>Start self-work</span>
+                      <span>→</span>
+                    </a>
+                  </td>
+                  <td className="py-5 pl-6">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTab('start')}
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs font-semibold py-2.5 px-4 rounded-full shadow-xs hover:shadow transition-all cursor-pointer whitespace-nowrap text-center"
+                    >
+                      <span>With a therapist</span>
+                      <span className="text-[#795663]">→</span>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1558,6 +1707,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
             <p className="font-mono-code text-xs text-[#795663] text-center pt-6 mt-4 border-t border-[#E7DECF]/60">
               Switch direction anytime: nothing is locked in.
             </p>
+
+            {/* Dual Contextual CTAs for Use Both */}
+            <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+              <a
+                href="/login"
+                onClick={handleAuthRedirect}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Begin private self-work</span>
+                <span>→</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => handleSelectTab('start')}
+                className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+              >
+                <span>Work with a therapist</span>
+                <span className="text-[#795663]">→</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1626,18 +1795,22 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-base sm:text-lg text-[#9AA59F] leading-relaxed max-w-xl mx-auto">
             Different entry points, same dedication to truth over comfort. Start exploring your own patterns today.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-lg"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
             >
-              Start self-work (₹499/mo) &rarr;
-            </button>
+              <span>Start self-work on your terms</span>
+              <span>→</span>
+            </a>
             <button
+              type="button"
               onClick={() => handleSelectTab('start')}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-transparent text-white border border-white/20 hover:border-white transition-all cursor-pointer"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
-              Book a therapist session &rarr;
+              <span>Start therapist sessions</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -1785,12 +1958,13 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                   Psychoeducation modules are priced and purchased separately, inside the app.
                 </p>
               </div>
-              <button
+              <a
+                href="/login"
                 onClick={handleAuthRedirect}
-                className="w-full text-center py-4 bg-[#162723] hover:bg-[#203631] text-white rounded-xl font-mono-code text-xs uppercase tracking-wider font-semibold shadow-xs cursor-pointer transition-colors"
+                className="w-full text-center py-4 bg-[#162723] hover:bg-[#203631] text-white rounded-xl font-mono-code text-xs uppercase tracking-wider font-semibold shadow-xs cursor-pointer transition-colors inline-block"
               >
-                Start self-work (₹499/mo) &rarr;
-              </button>
+                Start independent self-work &rarr;
+              </a>
             </motion.div>
 
             {/* Card 2: Therapy */}
@@ -1838,7 +2012,7 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 onClick={() => handleSelectTab('start')}
                 className="w-full text-center py-4 bg-[#795663] hover:bg-[#654652] text-white rounded-xl font-mono-code text-xs uppercase tracking-wider font-semibold shadow-xs cursor-pointer transition-colors"
               >
-                Book your first session &rarr;
+                Book a pay-per-session therapist &rarr;
               </button>
             </motion.div>
           </div>
@@ -1890,6 +2064,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 ≈₹999–1,500 × 4 sessions, depending on therapist. No subscription fee on top.
               </p>
             </motion.div>
+          </div>
+
+          {/* Dual Contextual CTAs for Psychoeducation section */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Track your patterns with self-work</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Let a therapist assign your modules</span>
+              <span className="text-[#795663]">→</span>
+            </button>
           </div>
         </div>
       </section>
@@ -1954,18 +2148,22 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-base sm:text-lg text-[#9AA59F] leading-relaxed max-w-xl mx-auto">
             We don't ask for commitment before we've earned it. Begin with our 7-day self-work trial or schedule a session with a therapist.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-lg"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
             >
-              Start 7-day free trial &rarr;
-            </button>
+              <span>Start 7-day free self-work trial</span>
+              <span>→</span>
+            </a>
             <button
+              type="button"
               onClick={() => handleSelectTab('start')}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-transparent text-white border border-white/20 hover:border-white transition-all cursor-pointer"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
-              Book a therapist session &rarr;
+              <span>Book your first session</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -2168,6 +2366,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
 
           {/* Boundary Diagram Component */}
           <AIHumanBoundaryDiagram />
+
+          {/* Dual Contextual CTAs for AI Human Boundary */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Use AI as your private mirror</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Bring AI pattern summaries to therapy</span>
+              <span className="text-[#795663]">→</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -2236,18 +2454,22 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-base sm:text-lg text-[#9AA59F] leading-relaxed max-w-xl mx-auto">
             The platform surfaces patterns so you and your therapist have clarity, but the judgment, direction, and authority remain entirely with a person.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-lg"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
             >
-              Start self-work (₹499/mo) &rarr;
-            </button>
+              <span>Start private, agency-led self-work</span>
+              <span>→</span>
+            </a>
             <button
-              onClick={() => handleSelectTab('how')}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-transparent text-white border border-white/20 hover:border-white transition-all cursor-pointer"
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
-              See how it works &rarr;
+              <span>Work with a human psychologist</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -2440,6 +2662,24 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-sm sm:text-base text-[#9AA59F] leading-relaxed max-w-2xl">
             We keep those claims separate as our own evidence develops. Ingress Within draws upon proven behavioral and psychotherapeutic literature while conducting independent longitudinal evaluation.
           </p>
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
+            >
+              <span>Practice evidence-based self-reflection</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Work with a licensed psychologist</span>
+              <span>→</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -2550,6 +2790,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
               </motion.div>
             ))}
           </div>
+
+          {/* Dual Contextual CTAs for Built For India */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Explore your thoughts privately</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Speak to an Indian psychologist</span>
+              <span className="text-[#795663]">→</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -2629,6 +2889,26 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
                 </p>
               </div>
             </motion.div>
+          </div>
+
+          {/* Dual Contextual CTAs for Who's Behind This */}
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
+              onClick={handleAuthRedirect}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#162723] hover:bg-[#203631] text-white font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Try self-reflection first</span>
+              <span>→</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
+            >
+              <span>Browse verified therapists</span>
+              <span className="text-[#795663]">→</span>
+            </button>
           </div>
         </div>
       </section>
@@ -2754,18 +3034,22 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
           <p className="font-zen text-base sm:text-lg text-[#9AA59F] leading-relaxed max-w-xl mx-auto">
             You don't have to wait for a breaking point to give your mental health structured care.
           </p>
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
+          <div className="pt-8 sm:pt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 w-full">
+            <a
+              href="/login"
               onClick={handleAuthRedirect}
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-lg"
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-[#C5A880] text-[#011627] hover:bg-[#D8BE9B] transition-all cursor-pointer shadow-sm text-center whitespace-nowrap"
             >
-              Start understanding yourself &rarr;
-            </button>
+              <span>Take the first step on your own</span>
+              <span>→</span>
+            </a>
             <button
-              onClick={() => handleSelectTab('how')}
-              className="inline-flex items-center justify-center px-7 py-4 rounded-full text-xs font-mono-code font-semibold tracking-wider uppercase bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-all cursor-pointer"
+              type="button"
+              onClick={() => handleSelectTab('start')}
+              className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
-              Show me how it connects &rarr;
+              <span>Take the first step with a therapist</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -2858,7 +3142,7 @@ export default function PublicWebsiteV2({ initialTab = 'home', onOpenPolicy }) {
             onClick={handleAuthRedirect}
             className="w-full text-center py-3 bg-[#162723] text-white rounded-full text-xs font-semibold cursor-pointer"
           >
-            Start journaling · ₹499/mo →
+            Start journaling independently →
           </a>
         </motion.div>
 

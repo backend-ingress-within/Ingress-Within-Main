@@ -53,7 +53,8 @@ export default function V2LandingPage({ initialTab = 'home' }) {
             <a onClick={() => go('crisis')}>In crisis?</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button className="cta primary" onClick={() => go('contact')}>Begin today</button>
+            <button className="cta secondary" style={{ padding: '9px 16px', fontSize: '13px' }} onClick={() => go('signup')}>Self-work</button>
+            <button className="cta primary" style={{ padding: '9px 16px', fontSize: '13px' }} onClick={() => go('intake')}>With a therapist</button>
             <button
               className="burger"
               aria-label="Menu"
@@ -73,6 +74,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
           <a onClick={() => { go('evidence'); closeMenu(); }}>Evidence</a>
           <a onClick={() => { go('about'); closeMenu(); }}>About</a>
           <a onClick={() => { go('crisis'); closeMenu(); }}>In crisis?</a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px 0', borderTop: '1px solid var(--line)' }}>
+            <button className="btn secondary" style={{ width: '100%' }} onClick={() => { go('signup'); closeMenu(); }}>Start your independent journey</button>
+            <button className="btn primary" style={{ width: '100%' }} onClick={() => { go('intake'); closeMenu(); }}>Start with a professional</button>
+          </div>
         </div>
       </div>
 
@@ -90,8 +95,8 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   Most of what brings people here isn't a disorder — it's feelings that got pushed aside for too long. You may want to work on something yourself. You may want a therapist. You may want both. Ingress Within brings those ways of working on your mental health into one platform.
                 </p>
                 <div className="actions">
-                  <button className="btn primary" onClick={() => go('contact')}>Take the first step</button>
-                  <button className="btn secondary" onClick={() => go('solution')}>Show me how it works</button>
+                  <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                  <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
                 </div>
                 <p className="note" style={{ marginTop: '16px' }}>There is no required order.</p>
                 <div className="chips" style={{ marginTop: '18px' }}>
@@ -171,6 +176,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   </div>
                 </div>
               </div>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '28px' }}>
+                <button className="btn secondary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn primary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
 
@@ -203,6 +212,9 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   See the full walkthrough, including therapy →
                 </a>
               </p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '16px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your Journal →</button>
+              </div>
             </div>
           </section>
 
@@ -215,11 +227,13 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   <div className="ey">SELF-WORK PLATFORM</div>
                   <div className="amt">₹499 <small>/ month</small></div>
                   <p className="muted">Journal, weekly & monthly reports included. Psychoeducation modules purchased separately, only when relevant.</p>
+                  <button className="btn secondary" style={{ marginTop: '16px', width: '100%' }} onClick={() => go('signup')}>Start self-guided work →</button>
                 </div>
                 <div className="price">
                   <div className="ey">THERAPY</div>
                   <div className="amt">From ₹999 <small>/ session</small></div>
                   <p className="muted">Licensed, verified therapists. No lock-in packages.</p>
+                  <button className="btn primary" style={{ marginTop: '16px', width: '100%' }} onClick={() => go('intake')}>Book therapist session →</button>
                 </div>
               </div>
               <p className="note" style={{ marginTop: '20px' }}>
@@ -235,6 +249,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
               <div className="ey">UNDERSTAND. GROW. CONTINUE.</div>
               <h2>The philosophy behind the platform — not a sequence you have to follow.</h2>
               <p className="lede muted">You might start with therapy. You might start by practising. You might just want to know what's going on. Ingress Within meets you where you are.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Walk your own path first →</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Begin with therapist guidance →</button>
+              </div>
             </div>
           </section>
         </div>
@@ -281,6 +299,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   <h3>When a pattern keeps showing up, we name it — gently.</h3>
                   <p className="muted">Interventions explain what a recurring pattern or emotional word might mean, in plain language, as soon as it appears — this part is included, not a paywall. If it's still showing up after about two months, we'll suggest one focused module that speaks directly to it. You decide if and when to take it — reading the free intervention is often enough on its own.</p>
                 </div>
+              </div>
+              <div className="actions" style={{ marginTop: '28px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey →</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
               </div>
             </div>
           </section>
@@ -357,6 +379,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   <p className="muted">Selected goals, session recaps and self-work can move with you when you change therapists — your therapist also gets a dashboard per client, so nothing depends on memory alone.</p>
                 </div>
               </div>
+              <div className="actions" style={{ marginTop: '28px' }}>
+                <button className="btn primary" onClick={() => go('intake')}>Start with a professional →</button>
+                <button className="btn secondary" onClick={() => go('signup')}>Start your independent journey</button>
+              </div>
             </div>
           </section>
 
@@ -395,6 +421,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                     <span className="muted">2 journal entries the client chose to share this week</span>
                   </div>
                 </div>
+              </div>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '28px', gap: '16px' }}>
+                <button className="btn secondary" style={{ minWidth: '260px', textAlign: 'center', justifyContent: 'center' }} onClick={() => go('signup')}>Begin private self-work →</button>
+                <button className="btn primary" style={{ minWidth: '260px', textAlign: 'center', justifyContent: 'center' }} onClick={() => go('intake')}>Start with a therapist →</button>
               </div>
             </div>
           </section>
@@ -438,6 +468,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
               <div className="ey">THE PLATFORM, NOT TWO PRODUCTS</div>
               <h2>The same capabilities can be used at different levels of support.</h2>
               <p className="lede muted">The difference is who is involved in guiding the work — you, or you and a therapist.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
         </div>
@@ -450,7 +484,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
             <div className="wrap">
               <div className="ey">OUR APPROACH & HOW IT WORKS</div>
               <h1>Different entry points. Shared capabilities.</h1>
-              <p className="lede">Two walkthroughs below — working alone, and working with a therapist — so you can see exactly what each week looks like.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '24px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
 
@@ -490,10 +527,12 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                 <div className="panel">
                   <h3>Starting with self-work</h3>
                   <p className="muted">Subscribe (₹499/month), answer a few quick questions about what's on your mind, and write your first journal entry — free-flow or guided. Nothing else is required before you begin.</p>
+                  <button className="btn secondary" style={{ marginTop: '16px', width: '100%' }} onClick={() => go('signup')}>Start your independent journey</button>
                 </div>
                 <div className="panel">
                   <h3>Starting with a therapist</h3>
                   <p className="muted">Browse therapist profiles filtered by language, gender, specialty and availability, book a first session at ₹999+ per session, and set up your dashboard together in that first session.</p>
+                  <button className="btn primary" style={{ marginTop: '16px', width: '100%' }} onClick={() => go('intake')}>Start with a professional</button>
                 </div>
               </div>
             </div>
@@ -518,7 +557,20 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   <tr><td>Psychoeducation modules</td><td>Self-selected, paid per module</td><td>Therapist-assigned, paid per module</td></tr>
                   <tr><td>Licensed therapist</td><td>—</td><td>✓</td></tr>
                   <tr><td>Dashboard with session recap & homework</td><td>—</td><td>✓</td></tr>
-                  <tr><td>Typical cost</td><td>₹499/month</td><td>From ₹999/session</td></tr>
+                  <tr>
+                    <td>Typical cost</td>
+                    <td>₹499/month</td>
+                    <td>From ₹999/session</td>
+                  </tr>
+                  <tr style={{ borderTop: '1px solid var(--line)' }}>
+                    <td></td>
+                    <td style={{ paddingTop: '16px', paddingBottom: '16px' }}>
+                      <button className="btn secondary" style={{ width: '100%', padding: '10px 16px', fontSize: '13px', borderRadius: '9999px', textAlign: 'center', justifyContent: 'center' }} onClick={() => go('signup')}>Start self-work →</button>
+                    </td>
+                    <td style={{ paddingTop: '16px', paddingBottom: '16px' }}>
+                      <button className="btn primary" style={{ width: '100%', padding: '10px 16px', fontSize: '13px', borderRadius: '9999px', textAlign: 'center', justifyContent: 'center' }} onClick={() => go('intake')}>With a therapist →</button>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -595,6 +647,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                 </div>
               </div>
               <p className="note" style={{ marginTop: '22px' }}>Switch direction anytime — nothing is locked in.</p>
+              <div className="actions" style={{ marginTop: '24px', justifyContent: 'center' }}>
+                <button className="btn secondary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn primary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
 
@@ -608,6 +664,18 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                 <details><summary>Do I have to buy a psychoeducation module when it's recommended?</summary><p className="muted">No. It's a suggestion based on a repeating pattern — buying it is always your choice, in both self-work and therapy.</p></details>
                 <details><summary>What happens if I pause my subscription?</summary><p className="muted">Your journal history and past reports stay saved. You won't get new weekly or monthly reports until you resume.</p></details>
                 <details><summary>Can I use self-work and therapy in the same week?</summary><p className="muted">Yes — many people journal on non-session weeks and bring select entries into their next session.</p></details>
+              </div>
+            </div>
+          </section>
+
+          <section className="band">
+            <div className="wrap center">
+              <div className="ey">READY TO BEGIN?</div>
+              <h2>Pick the starting point that fits you best today.</h2>
+              <p className="lede muted">You can always transition between independent self-work and therapist-guided care later.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
               </div>
             </div>
           </section>
@@ -639,7 +707,7 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                     <li>Cancel anytime</li>
                   </ul>
                   <p className="note">Psychoeducation modules are priced and purchased separately, inside the app.</p>
-                  <button className="btn secondary" onClick={() => go('signup')}>Write your first entry</button>
+                  <button className="btn secondary" onClick={() => go('signup')}>Start your independent journey →</button>
                 </div>
                 <div className="price" style={{ borderColor: 'var(--primary)' }}>
                   <div className="ey">THERAPIST-SUPPORTED</div>
@@ -652,7 +720,7 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                     <span className="paychip">Netbanking</span>
                   </div>
                   <p className="note">Psychoeducation modules assigned by your therapist are priced and purchased separately.</p>
-                  <button className="btn primary" onClick={() => go('intake')}>Book your first session</button>
+                  <button className="btn primary" onClick={() => go('intake')}>Start with a professional →</button>
                 </div>
               </div>
             </div>
@@ -672,6 +740,18 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                   <div className="ey">MONTH 1, THERAPY (WEEKLY)</div>
                   <p className="muted">≈₹999–1,500 × 4 sessions, depending on therapist. No subscription fee on top.</p>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="band">
+            <div className="wrap center">
+              <div className="ey">CLEAR & TRANSPARENT</div>
+              <h2>Ready to start your path?</h2>
+              <p className="lede muted">Pick the level of guidance that matches what you need right now.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '24px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
               </div>
             </div>
           </section>
@@ -785,6 +865,18 @@ export default function V2LandingPage({ initialTab = 'home' }) {
               </div>
             </div>
           </section>
+
+          <section className="band">
+            <div className="wrap center">
+              <div className="ey">YOUR DATA, YOUR CHOICE</div>
+              <h2>Private by default. Supported on your terms.</h2>
+              <p className="lede muted">Begin with independent self-work or connect with a licensed professional.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
+            </div>
+          </section>
         </div>
 
         {/* ========================================================================= */}
@@ -830,7 +922,11 @@ export default function V2LandingPage({ initialTab = 'home' }) {
             <div className="wrap center">
               <div className="ey">LIMITS</div>
               <h2>Evidence for an approach is not proof that this exact product works.</h2>
-              <p className="lede muted">We keep those claims separate as our own evidence develops.</p>
+              <p className="lede muted">We keep those claims separate as our own evidence develops. You can start either way.</p>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
         </div>
@@ -901,9 +997,10 @@ export default function V2LandingPage({ initialTab = 'home' }) {
             <div className="wrap center">
               <div className="ey">UNDERSTAND. GROW. CONTINUE.</div>
               <h2>If any of this sounded familiar, that's the point to start.</h2>
-              <button className="btn" style={{ background: '#fff', color: 'var(--primary)', marginTop: '20px' }} onClick={() => go('contact')}>
-                Start understanding yourself
-              </button>
+              <div className="actions" style={{ justifyContent: 'center', marginTop: '26px' }}>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey</button>
+                <button className="btn secondary" onClick={() => go('intake')}>Start with a professional</button>
+              </div>
             </div>
           </section>
         </div>
@@ -969,13 +1066,13 @@ export default function V2LandingPage({ initialTab = 'home' }) {
                 <div className="ey">WORK ON YOURSELF</div>
                 <h3>I want to work on something independently.</h3>
                 <p className="muted">Start with the journal, weekly reports and pattern detection.</p>
-                <button className="btn primary" onClick={() => go('signup')}>Start journaling — ₹499/mo</button>
+                <button className="btn primary" onClick={() => go('signup')}>Start your independent journey →</button>
               </div>
               <div className="panel">
                 <div className="ey">WITH A THERAPIST</div>
                 <h3>I want professional support.</h3>
                 <p className="muted">See goals, dashboard, homework, psychoeducation and continuity.</p>
-                <button className="btn primary" onClick={() => go('intake')}>Book your first session</button>
+                <button className="btn primary" onClick={() => go('intake')}>Start with a professional →</button>
               </div>
               <div className="panel">
                 <div className="ey">USE BOTH</div>
@@ -1182,6 +1279,8 @@ export default function V2LandingPage({ initialTab = 'home' }) {
           <div>
             <b>Explore</b>
             <p>
+              <a onClick={() => go('signup')}>Start independent journey</a><br/>
+              <a onClick={() => go('intake')}>Start with a professional</a><br/>
               <a onClick={() => go('solution')}>Our solution</a><br/>
               <a onClick={() => go('how')}>How it works</a><br/>
               <a onClick={() => go('pricing')}>Pricing</a><br/>
