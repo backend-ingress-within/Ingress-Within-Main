@@ -1027,10 +1027,20 @@ export class TherapistPlatformService {
     }
 
     // 3. Working Hours & Availability Blocks Validation
-    const specificDateStr = scheduledStartIso.split('T')[0];
-    const dayOfWeekIdx = start.getDay();
+    const kolkataDay = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      weekday: 'short',
+    }).format(start).toLowerCase(); // 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'
+
+    const kolkataDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(start); // 'YYYY-MM-DD'
+
     const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    const dayKey = dayNames[dayOfWeekIdx];
+    const kolkataDayIdx = dayNames.indexOf(kolkataDay);
 
     const startFmt = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Kolkata',
@@ -1053,9 +1063,9 @@ export class TherapistPlatformService {
     const blockedBlocks = (availBlocks || []).filter((b: any) => b.is_blocked);
     const nonBlockedBlocks = (availBlocks || []).filter((b: any) => !b.is_blocked);
 
-    // 3a. Check blocked availability windows (busy blocks)
+    // 3a. Check blocked availability windows (busy blackout blocks)
     for (const block of blockedBlocks) {
-      if (block.specific_date === specificDateStr || (block.is_recurring && block.day_of_week === dayOfWeekIdx)) {
+      if (block.specific_date === kolkataDateStr || (block.is_recurring && block.day_of_week === kolkataDayIdx)) {
         const bStart = block.start_time.substring(0, 5);
         const bEnd = block.end_time.substring(0, 5);
         if (startFmt < bEnd && endFmt > bStart) {
@@ -1071,8 +1081,11 @@ export class TherapistPlatformService {
     // 3b. Working hours enforcement
     if (nonBlockedBlocks.length > 0) {
       let withinOpenBlock = false;
-      for (const block of nonBlockedBlocks) {
-        if (block.specific_date === specificDateStr || (block.is_recurring && block.day_of_week === dayOfWeekIdx)) {
+      const dayBlocks = nonBlockedBlocks.filter(
+        (b: any) => b.specific_date === kolkataDateStr || (b.is_recurring && b.day_of_week === kolkataDayIdx)
+      );
+      if (dayBlocks.length > 0) {
+        for (const block of dayBlocks) {
           const bStart = block.start_time.substring(0, 5);
           const bEnd = block.end_time.substring(0, 5);
           if (startFmt >= bStart && endFmt <= bEnd) {
@@ -1080,13 +1093,13 @@ export class TherapistPlatformService {
             break;
           }
         }
-      }
-      if (!withinOpenBlock) {
-        return {
-          hasConflict: true,
-          reason: 'Requested session time is outside configured working hours.',
-          code: 'OUTSIDE_WORKING_HOURS',
-        };
+        if (!withinOpenBlock) {
+          return {
+            hasConflict: true,
+            reason: 'Requested session time is outside configured working hours.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
       }
     } else {
       // Fallback: check therapist_profiles availability_hours
@@ -1097,32 +1110,27 @@ export class TherapistPlatformService {
         .maybeSingle();
 
       const hours = profile?.availability_hours;
-      if (hours && typeof hours === 'object' && Object.keys(hours).length > 0) {
-        const ranges = hours[dayKey];
-        if (!Array.isArray(ranges) || ranges.length === 0) {
-          return {
-            hasConflict: true,
-            reason: 'Requested session time is outside configured working hours.',
-            code: 'OUTSIDE_WORKING_HOURS',
-          };
-        }
-        let withinProfileHours = false;
-        for (const range of ranges) {
-          const [rStart, rEnd] = range.split('-');
-          if (rStart && rEnd) {
-            if (startFmt >= rStart.trim() && endFmt <= rEnd.trim()) {
-              withinProfileHours = true;
-              break;
-            }
+      // Default clinical practice window across all 7 days is 07:00-23:00 if not explicitly defined
+      const ranges = (hours && typeof hours === 'object' && Array.isArray(hours[kolkataDay]) && hours[kolkataDay].length > 0)
+        ? hours[kolkataDay]
+        : ['07:00-23:00'];
+
+      let withinProfileHours = false;
+      for (const range of ranges) {
+        const [rStart, rEnd] = range.split('-');
+        if (rStart && rEnd) {
+          if (startFmt >= rStart.trim() && endFmt <= rEnd.trim()) {
+            withinProfileHours = true;
+            break;
           }
         }
-        if (!withinProfileHours) {
-          return {
-            hasConflict: true,
-            reason: 'Requested session time is outside configured working hours.',
-            code: 'OUTSIDE_WORKING_HOURS',
-          };
-        }
+      }
+      if (!withinProfileHours) {
+        return {
+          hasConflict: true,
+          reason: 'Requested session time is outside configured working hours.',
+          code: 'OUTSIDE_WORKING_HOURS',
+        };
       }
     }
 
