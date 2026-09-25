@@ -10,19 +10,19 @@ export async function POST(
     const { account } = await requireAuthorizedTherapist(request);
     const { id } = await params;
 
-    const completed = await TherapistPlatformService.completeAppointment(
+    const started = await TherapistPlatformService.startAppointment(
       account.id,
       id
     );
 
     return NextResponse.json({
       success: true,
-      session: completed,
-      appointment: completed,
+      session: started,
+      appointment: started,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: { code: err.code || 'COMPLETE_ERROR', message: err.message } },
+      { error: { code: err.code || 'START_SESSION_ERROR', message: err.message } },
       { status: err.status || 500 }
     );
   }

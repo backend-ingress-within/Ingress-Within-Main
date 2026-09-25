@@ -28,14 +28,14 @@ export async function POST(
     const { account } = await requireAuthorizedTherapist(request);
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const { subjective, objective, assessment, plan, is_draft } = body;
+    const { subjective, objective, assessment, plan, is_draft, isDraft } = body;
 
     const saved = await TherapistPlatformService.saveSoapNote(account.id, id, {
-      subjective: subjective || '',
-      objective: objective || '',
-      assessment: assessment || '',
-      plan: plan || '',
-      isDraft: is_draft ?? false,
+      subjective: subjective ?? '',
+      objective: objective ?? '',
+      assessment: assessment ?? '',
+      plan: plan ?? '',
+      isDraft: is_draft !== undefined ? Boolean(is_draft) : (isDraft !== undefined ? Boolean(isDraft) : true),
     });
 
     return NextResponse.json({ success: true, note: saved });
@@ -45,4 +45,11 @@ export async function POST(
       { status: err.status || 500 }
     );
   }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return POST(request, { params });
 }

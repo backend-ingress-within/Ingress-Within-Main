@@ -1657,14 +1657,120 @@ export class TherapistPlatformService {
   }
 
   /**
+   * Starts a scheduled session, transitioning it to 'in_progress'.
+   * Enforces strict ownership, active care relationship, and state eligibility.
+   */
+  static async startAppointment(
+    therapistAccountId: string,
+    appointmentId: string
+  ) {
+    // 1. Verify appointment ownership
+    const { data: appt, error: apptErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, user_id, status, therapist_account_id')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (apptErr || !appt) {
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    if (appt.status === 'cancelled') {
+      const err: any = new Error('Cannot start a cancelled session.');
+      err.status = 400;
+      err.code = 'SESSION_CANCELLED';
+      throw err;
+    }
+
+    if (appt.status === 'completed') {
+      const err: any = new Error('Cannot start a completed session.');
+      err.status = 400;
+      err.code = 'SESSION_COMPLETED';
+      throw err;
+    }
+
+    // Idempotent: if already in_progress, return existing
+    if (appt.status === 'in_progress') {
+      return appt;
+    }
+
+    // 2. Verify active care relationship
+    const { data: rel } = await supabase
+      .from('therapy_care_relationships')
+      .select('id, status')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', appt.user_id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!rel) {
+      const err: any = new Error('Client does not have an active care relationship with this therapist.');
+      err.status = 403;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    // 3. Atomically transition to in_progress
+    const now = new Date().toISOString();
+    const { data: updated, error: updateErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .update({
+        status: 'in_progress',
+        updated_at: now,
+      })
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .select('*')
+      .single();
+
+    if (updateErr || !updated) {
+      console.error('[TherapistPlatformService] startAppointment error:', updateErr);
+      throw new Error('Failed to start session.');
+    }
+
+    return updated;
+  }
+
+  /**
    * Marks session complete and transactionally registers collected earnings.
    */
   static async completeAppointment(
     therapistAccountId: string,
     appointmentId: string
   ) {
-    // 1. Update appointment status
-    const { data: appt, error: updateErr } = await supabase
+    // 1. Verify appointment ownership and current state
+    const { data: appt, error: apptErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, user_id, status, therapist_account_id')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (apptErr || !appt) {
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    if (appt.status === 'cancelled') {
+      const err: any = new Error('Cannot complete a cancelled session.');
+      err.status = 400;
+      err.code = 'SESSION_CANCELLED';
+      throw err;
+    }
+
+    // Idempotent: if already completed, return it
+    if (appt.status === 'completed') {
+      return appt;
+    }
+
+    // 2. Update appointment status
+    const { data: updatedAppt, error: updateErr } = await supabase
       .from('therapist_clinical_appointments')
       .update({
         status: 'completed',
@@ -1675,11 +1781,12 @@ export class TherapistPlatformService {
       .select('*')
       .single();
 
-    if (updateErr || !appt) {
-      throw new Error('Appointment not found.');
+    if (updateErr || !updatedAppt) {
+      console.error('[TherapistPlatformService] completeAppointment error:', updateErr);
+      throw new Error('Failed to mark session complete.');
     }
 
-    // 2. Fetch therapist fee structure
+    // 3. Fetch therapist fee structure
     const { data: account } = await supabase
       .from('therapist_accounts')
       .select('per_session_fee, commission_rate')
@@ -1691,18 +1798,27 @@ export class TherapistPlatformService {
     const platformFee = Math.round((gross * (commRate / 100)) * 100) / 100;
     const net = Math.round((gross - platformFee) * 100) / 100;
 
-    // 3. Register collected earning
-    await supabase.from('therapist_earnings').insert({
-      therapist_account_id: therapistAccountId,
-      appointment_id: appointmentId,
-      gross_amount: gross,
-      platform_fee: platformFee,
-      net_earnings: net,
-      payment_status: 'collected',
-      collected_at: new Date().toISOString(),
-    });
+    // 4. Register collected earning if not already registered
+    const { data: existingEarning } = await supabase
+      .from('therapist_earnings')
+      .select('id')
+      .eq('appointment_id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
 
-    return appt;
+    if (!existingEarning) {
+      await supabase.from('therapist_earnings').insert({
+        therapist_account_id: therapistAccountId,
+        appointment_id: appointmentId,
+        gross_amount: gross,
+        platform_fee: platformFee,
+        net_earnings: net,
+        payment_status: 'collected',
+        collected_at: new Date().toISOString(),
+      });
+    }
+
+    return updatedAppt;
   }
 
   /**
@@ -1712,9 +1828,50 @@ export class TherapistPlatformService {
    */
 
   /**
-   * Retrieves SOAP note for an appointment.
+   * Formats raw database SOAP note record into standardized DTO.
+   */
+  static formatSoapDto(note: any) {
+    if (!note) return null;
+    const isDraft = Boolean(note.is_draft);
+    return {
+      id: note.id,
+      appointmentId: note.appointment_id,
+      sessionId: note.appointment_id,
+      therapistAccountId: note.therapist_account_id,
+      clientId: note.user_id,
+      userId: note.user_id,
+      subjective: note.subjective || '',
+      objective: note.objective || '',
+      assessment: note.assessment || '',
+      plan: note.plan || '',
+      isDraft,
+      status: isDraft ? 'draft' : 'finalized',
+      finalizedAt: note.finalized_at || null,
+      finalizedBy: isDraft ? null : note.therapist_account_id,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at,
+    };
+  }
+
+  /**
+   * Retrieves SOAP note for an appointment with strict ownership verification.
    */
   static async getSoapNote(therapistAccountId: string, appointmentId: string) {
+    // 1. Verify appointment ownership
+    const { data: appt, error: apptErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, user_id, therapist_account_id')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (apptErr || !appt) {
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
     const { data: note, error } = await supabase
       .from('therapist_soap_notes')
       .select('*')
@@ -1727,39 +1884,115 @@ export class TherapistPlatformService {
       throw new Error('Failed to retrieve SOAP note.');
     }
 
-    return note;
+    if (!note) {
+      return null;
+    }
+
+    return this.formatSoapDto(note);
   }
 
   /**
-   * Saves or finalizes a SOAP note.
+   * Saves or updates a draft SOAP note.
+   * Prevents overwriting finalized notes (immutable clinical records).
    */
   static async saveSoapNote(
     therapistAccountId: string,
     appointmentId: string,
     data: {
-      subjective: string;
-      objective: string;
-      assessment: string;
-      plan: string;
+      subjective?: string;
+      objective?: string;
+      assessment?: string;
+      plan?: string;
       isDraft?: boolean;
     }
   ) {
     // 1. Verify appointment ownership and get user_id
     const { data: appt, error: apptErr } = await supabase
       .from('therapist_clinical_appointments')
-      .select('user_id')
+      .select('id, user_id, status, therapist_account_id')
       .eq('id', appointmentId)
       .eq('therapist_account_id', therapistAccountId)
-      .single();
+      .maybeSingle();
 
     if (apptErr || !appt) {
-      throw new Error('Appointment not found.');
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    if (appt.status === 'cancelled') {
+      const err: any = new Error('Cannot add or edit clinical SOAP notes for a cancelled session.');
+      err.status = 400;
+      err.code = 'SESSION_CANCELLED';
+      throw err;
+    }
+
+    // 2. Verify active care relationship
+    const { data: rel } = await supabase
+      .from('therapy_care_relationships')
+      .select('id, status')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', appt.user_id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!rel) {
+      const err: any = new Error('Client does not have an active care relationship with this therapist.');
+      err.status = 403;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    // 3. Check existing note immutability
+    const { data: existingNote } = await supabase
+      .from('therapist_soap_notes')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (existingNote && !existingNote.is_draft && existingNote.finalized_at) {
+      const err: any = new Error('Finalized clinical records are immutable and cannot be overwritten.');
+      err.status = 409;
+      err.code = 'SOAP_NOTE_FINALIZED';
+      throw err;
+    }
+
+    // 4. Validate payload sizes
+    const MAX_SECTION_LENGTH = 10000;
+    const subjective = typeof data.subjective === 'string' ? data.subjective : (existingNote?.subjective || '');
+    const objective = typeof data.objective === 'string' ? data.objective : (existingNote?.objective || '');
+    const assessment = typeof data.assessment === 'string' ? data.assessment : (existingNote?.assessment || '');
+    const plan = typeof data.plan === 'string' ? data.plan : (existingNote?.plan || '');
+
+    if (
+      subjective.length > MAX_SECTION_LENGTH ||
+      objective.length > MAX_SECTION_LENGTH ||
+      assessment.length > MAX_SECTION_LENGTH ||
+      plan.length > MAX_SECTION_LENGTH
+    ) {
+      const err: any = new Error(`SOAP note sections cannot exceed ${MAX_SECTION_LENGTH} characters.`);
+      err.status = 400;
+      err.code = 'PAYLOAD_TOO_LARGE';
+      throw err;
+    }
+
+    const isDraft = data.isDraft ?? true;
+
+    // If attempting to finalize via saveSoapNote, validate required content
+    if (!isDraft) {
+      if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) {
+        const err: any = new Error('All SOAP sections (Subjective, Objective, Assessment, Plan) must contain meaningful clinical content before finalization.');
+        err.status = 400;
+        err.code = 'VALIDATION_FAILED';
+        throw err;
+      }
     }
 
     const now = new Date().toISOString();
-    const isDraft = data.isDraft ?? false;
 
-    // 2. Upsert SOAP note
+    // 5. Upsert SOAP note
     const { data: note, error } = await supabase
       .from('therapist_soap_notes')
       .upsert(
@@ -1767,10 +2000,10 @@ export class TherapistPlatformService {
           appointment_id: appointmentId,
           therapist_account_id: therapistAccountId,
           user_id: appt.user_id,
-          subjective: data.subjective || '',
-          objective: data.objective || '',
-          assessment: data.assessment || '',
-          plan: data.plan || '',
+          subjective,
+          objective,
+          assessment,
+          plan,
           is_draft: isDraft,
           finalized_at: isDraft ? null : now,
           updated_at: now,
@@ -1785,7 +2018,128 @@ export class TherapistPlatformService {
       throw new Error('Failed to save clinical note.');
     }
 
-    return note;
+    return this.formatSoapDto(note);
+  }
+
+  /**
+   * Finalizes a SOAP note, making it an immutable clinical record.
+   * Validates that all 4 sections contain non-whitespace clinical content.
+   */
+  static async finalizeSoapNote(
+    therapistAccountId: string,
+    appointmentId: string,
+    data?: {
+      subjective?: string;
+      objective?: string;
+      assessment?: string;
+      plan?: string;
+    }
+  ) {
+    // 1. Verify appointment ownership
+    const { data: appt, error: apptErr } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, user_id, status, therapist_account_id')
+      .eq('id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    if (apptErr || !appt) {
+      const err: any = new Error('Session not found or unauthorized.');
+      err.status = 404;
+      err.code = 'SESSION_NOT_FOUND';
+      throw err;
+    }
+
+    if (appt.status === 'cancelled') {
+      const err: any = new Error('Cannot finalize clinical notes for a cancelled session.');
+      err.status = 400;
+      err.code = 'SESSION_CANCELLED';
+      throw err;
+    }
+
+    // 2. Verify active care relationship
+    const { data: rel } = await supabase
+      .from('therapy_care_relationships')
+      .select('id, status')
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('user_id', appt.user_id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!rel) {
+      const err: any = new Error('Client does not have an active care relationship with this therapist.');
+      err.status = 403;
+      err.code = 'CLIENT_NOT_AUTHORIZED';
+      throw err;
+    }
+
+    // 3. Fetch existing note if any
+    const { data: existing } = await supabase
+      .from('therapist_soap_notes')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    // Idempotency: If already finalized, return existing note
+    if (existing && !existing.is_draft && existing.finalized_at) {
+      return this.formatSoapDto(existing);
+    }
+
+    const sub = (data?.subjective !== undefined ? data.subjective : (existing?.subjective || ''));
+    const obj = (data?.objective !== undefined ? data.objective : (existing?.objective || ''));
+    const ass = (data?.assessment !== undefined ? data.assessment : (existing?.assessment || ''));
+    const pln = (data?.plan !== undefined ? data.plan : (existing?.plan || ''));
+
+    // Check required fields - must not be empty or whitespace only
+    if (!sub.trim() || !obj.trim() || !ass.trim() || !pln.trim()) {
+      const err: any = new Error('All SOAP sections (Subjective, Objective, Assessment, Plan) must contain meaningful clinical content before finalization.');
+      err.status = 400;
+      err.code = 'VALIDATION_FAILED';
+      throw err;
+    }
+
+    const MAX_SECTION_LENGTH = 10000;
+    if (
+      sub.length > MAX_SECTION_LENGTH ||
+      obj.length > MAX_SECTION_LENGTH ||
+      ass.length > MAX_SECTION_LENGTH ||
+      pln.length > MAX_SECTION_LENGTH
+    ) {
+      const err: any = new Error(`SOAP note sections cannot exceed ${MAX_SECTION_LENGTH} characters.`);
+      err.status = 400;
+      err.code = 'PAYLOAD_TOO_LARGE';
+      throw err;
+    }
+
+    const now = new Date().toISOString();
+
+    const { data: note, error } = await supabase
+      .from('therapist_soap_notes')
+      .upsert(
+        {
+          appointment_id: appointmentId,
+          therapist_account_id: therapistAccountId,
+          user_id: appt.user_id,
+          subjective: sub,
+          objective: obj,
+          assessment: ass,
+          plan: pln,
+          is_draft: false,
+          finalized_at: now,
+          updated_at: now,
+        },
+        { onConflict: 'appointment_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] finalizeSoapNote error:', error);
+      throw new Error('Failed to finalize clinical note.');
+    }
+
+    return this.formatSoapDto(note);
   }
 
   /**

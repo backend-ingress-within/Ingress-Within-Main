@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
   Clock,
@@ -13,9 +13,13 @@ import {
   History,
   CheckCircle2,
   XCircle,
-  RotateCcw
+  RotateCcw,
+  Play,
+  Lock,
+  Edit3
 } from 'lucide-react';
 import TherapistRescheduleModal from './TherapistRescheduleModal';
+import TherapistSoapModal from './TherapistSoapModal';
 
 export default function TherapistSessionDetailView({
   sessionId,
@@ -25,16 +29,23 @@ export default function TherapistSessionDetailView({
   onOpenSoap
 }) {
   const [session, setSession] = useState(null);
+  const [soapNote, setSoapNote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [completing, setCompleting] = useState(false);
 
-  const fetchSession = async () => {
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [soapModalOpen, setSoapModalOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
+
+  // 1. Fetch Session Details & SOAP note status
+  const fetchSessionData = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Fetch session
       const res = await fetch(`/api/therapist/sessions/${sessionId}`);
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -42,6 +53,17 @@ export default function TherapistSessionDetailView({
       }
       const json = await res.json();
       setSession(json.session);
+
+      // Fetch SOAP note status
+      try {
+        const soapRes = await fetch(`/api/therapist/sessions/${sessionId}/soap`);
+        if (soapRes.ok) {
+          const soapJson = await soapRes.json();
+          setSoapNote(soapJson.note);
+        }
+      } catch (e) {
+        console.warn('SOAP note status lookup note:', e);
+      }
     } catch (err) {
       console.error('Session detail error:', err);
       setError(err.message);
@@ -52,15 +74,39 @@ export default function TherapistSessionDetailView({
 
   useEffect(() => {
     if (sessionId) {
-      fetchSession();
+      fetchSessionData();
     }
   }, [sessionId]);
 
+  // 2. Start Session Handler
+  const handleStartSession = async () => {
+    setStarting(true);
+    setActionNotice('');
+    try {
+      const res = await fetch(`/api/therapist/sessions/${sessionId}/start`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || 'Failed to start session.');
+      }
+      setActionNotice('Session started. Clinical encounter is now in progress.');
+      setTimeout(() => setActionNotice(''), 4000);
+      await fetchSessionData();
+    } catch (err) {
+      alert(`Error starting session: ${err.message}`);
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // 3. Cancel Session Handler
   const handleCancelSession = async () => {
     const reason = window.prompt('Please enter the reason for session cancellation:');
     if (reason === null) return; // User cancelled prompt
 
     setCancelling(true);
+    setActionNotice('');
     try {
       const res = await fetch(`/api/therapist/sessions/${sessionId}/cancel`, {
         method: 'POST',
@@ -71,7 +117,9 @@ export default function TherapistSessionDetailView({
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error?.message || 'Failed to cancel session.');
       }
-      await fetchSession();
+      setActionNotice('Session cancelled successfully.');
+      setTimeout(() => setActionNotice(''), 4000);
+      await fetchSessionData();
     } catch (err) {
       alert(`Error cancelling session: ${err.message}`);
     } finally {
@@ -79,11 +127,13 @@ export default function TherapistSessionDetailView({
     }
   };
 
+  // 4. Complete Session Handler
   const handleCompleteSession = async () => {
-    if (!window.confirm('Mark this clinical session as completed? This will register the completed encounter.')) {
+    if (!window.confirm('Mark this clinical session as completed? This will finalize the encounter and register earnings.')) {
       return;
     }
     setCompleting(true);
+    setActionNotice('');
     try {
       const res = await fetch(`/api/therapist/sessions/${sessionId}/complete`, {
         method: 'POST',
@@ -92,11 +142,21 @@ export default function TherapistSessionDetailView({
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error?.message || 'Failed to mark session complete.');
       }
-      await fetchSession();
+      setActionNotice('Session marked as completed.');
+      setTimeout(() => setActionNotice(''), 4000);
+      await fetchSessionData();
     } catch (err) {
       alert(`Error completing session: ${err.message}`);
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleOpenSoap = () => {
+    if (onOpenSoap) {
+      onOpenSoap(sessionId);
+    } else {
+      setSoapModalOpen(true);
     }
   };
 
@@ -133,7 +193,7 @@ export default function TherapistSessionDetailView({
             The requested clinical session could not be retrieved. It may not exist or belongs to another provider.
           </p>
           <button
-            onClick={fetchSession}
+            onClick={fetchSessionData}
             className="px-4 py-2 rounded-lg bg-[#132A24] text-white text-xs font-medium cursor-pointer"
           >
             Retry
@@ -167,6 +227,7 @@ export default function TherapistSessionDetailView({
 
   const isCancelled = session.status === 'cancelled';
   const isCompleted = session.status === 'completed';
+  const isInProgress = session.status === 'in_progress';
   const isScheduled = session.status === 'scheduled' || session.status === 'confirmed' || session.status === 'rescheduled';
 
   return (
@@ -180,15 +241,25 @@ export default function TherapistSessionDetailView({
           <ArrowLeft size={14} /> Back
         </button>
 
-        <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${
-          isCompleted
-            ? 'bg-[#4E7A66]/10 text-[#4E7A66]'
-            : isCancelled
-            ? 'bg-red-50 text-red-600'
-            : 'bg-blue-50 text-blue-700'
-        }`}>
-          {session.status}
-        </span>
+        <div className="flex items-center gap-2">
+          {actionNotice && (
+            <span className="text-xs text-[#4E7A66] font-medium animate-pulse">
+              {actionNotice}
+            </span>
+          )}
+
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${
+            isCompleted
+              ? 'bg-[#4E7A66]/10 text-[#4E7A66]'
+              : isInProgress
+              ? 'bg-amber-100 text-amber-800 animate-pulse'
+              : isCancelled
+              ? 'bg-red-50 text-red-600'
+              : 'bg-blue-50 text-blue-700'
+          }`}>
+            {isInProgress ? 'In Progress' : session.status}
+          </span>
+        </div>
       </div>
 
       {/* Main Session Card */}
@@ -206,9 +277,10 @@ export default function TherapistSessionDetailView({
             </p>
           </div>
 
-          {/* Quick Actions */}
+          {/* Clinical Workflow Actions by State */}
           <div className="flex flex-wrap items-center gap-2.5">
-            {session.meetingLink && !isCancelled && !isCompleted && (
+            {/* Telehealth Call Link */}
+            {session.meetingLink && !isCancelled && (
               <a
                 href={session.meetingLink}
                 target="_blank"
@@ -219,20 +291,21 @@ export default function TherapistSessionDetailView({
               </a>
             )}
 
+            {/* Before Session Actions (Scheduled) */}
             {isScheduled && (
               <>
+                <button
+                  onClick={handleStartSession}
+                  disabled={starting}
+                  className="px-3.5 py-2 rounded-lg bg-[#4E7A66] text-white text-xs font-semibold hover:bg-[#4E7A66]/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                >
+                  <Play size={13} /> {starting ? 'Starting...' : 'Start Session'}
+                </button>
                 <button
                   onClick={() => setRescheduleModalOpen(true)}
                   className="px-3.5 py-2 rounded-lg border border-[#132A24]/15 text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <RotateCcw size={13} /> Reschedule
-                </button>
-                <button
-                  onClick={handleCompleteSession}
-                  disabled={completing}
-                  className="px-3.5 py-2 rounded-lg border border-[#4E7A66]/30 text-xs font-medium text-[#4E7A66] hover:bg-[#4E7A66]/10 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <CheckCircle2 size={13} /> {completing ? 'Completing...' : 'Mark Complete'}
                 </button>
                 <button
                   onClick={handleCancelSession}
@@ -244,12 +317,39 @@ export default function TherapistSessionDetailView({
               </>
             )}
 
-            {onOpenSoap && (
+            {/* During Session Actions (In Progress) */}
+            {isInProgress && (
+              <>
+                <button
+                  onClick={handleOpenSoap}
+                  className="px-4 py-2 rounded-lg bg-[#4E7A66] text-white text-xs font-semibold hover:bg-[#4E7A66]/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                >
+                  <Edit3 size={13} /> Open SOAP Note
+                </button>
+                <button
+                  onClick={handleCompleteSession}
+                  disabled={completing}
+                  className="px-3.5 py-2 rounded-lg border border-[#4E7A66]/30 text-xs font-medium text-[#4E7A66] hover:bg-[#4E7A66]/10 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={13} /> {completing ? 'Completing...' : 'Complete Session'}
+                </button>
+                <button
+                  onClick={handleCancelSession}
+                  disabled={cancelling}
+                  className="px-3 py-2 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <XCircle size={13} /> {cancelling ? 'Cancelling...' : 'Cancel'}
+                </button>
+              </>
+            )}
+
+            {/* After Session Actions (Completed) */}
+            {isCompleted && (
               <button
-                onClick={() => onOpenSoap(session.id)}
+                onClick={handleOpenSoap}
                 className="px-3.5 py-2 rounded-lg border border-[#132A24]/15 bg-white text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
-                <FileText size={13} /> Clinical SOAP Note
+                <FileText size={13} /> View SOAP Note
               </button>
             )}
           </div>
@@ -280,9 +380,54 @@ export default function TherapistSessionDetailView({
               Care Stage
             </span>
             <span className="text-xs font-semibold text-[#132A24] capitalize">
-              {(session.careStage || 'Intake').replace(/_/g, ' ')}
+              {(session.careStage || 'Active Care').replace(/_/g, ' ')}
             </span>
           </div>
+        </div>
+
+        {/* Clinical Documentation / SOAP Note Status Card */}
+        <div className="p-5 rounded-xl border border-[#132A24]/10 bg-white space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#4E7A66]/10 text-[#4E7A66] flex items-center justify-center">
+                <FileText size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#132A24]">
+                  Clinical SOAP Note
+                </h4>
+                <p className="text-[11px] text-[#132A24]/50">
+                  {soapNote
+                    ? soapNote.isDraft
+                      ? 'Draft in progress'
+                      : `Finalized on ${new Date(soapNote.finalizedAt).toLocaleDateString('en-IN')}`
+                    : 'No clinical note started for this encounter.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleOpenSoap}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                soapNote && !soapNote.isDraft
+                  ? 'border border-[#132A24]/15 bg-white text-[#132A24] hover:bg-[#132A24]/5'
+                  : 'bg-[#4E7A66] text-white hover:bg-[#4E7A66]/90 shadow-xs'
+              }`}
+            >
+              {soapNote ? (soapNote.isDraft ? 'Resume Draft' : 'View Note') : 'Create SOAP Note'}
+            </button>
+          </div>
+
+          {soapNote && !soapNote.isDraft && (
+            <div className="p-3 rounded-lg bg-[#FAFAF8] border border-[#132A24]/5 text-[11px] text-[#132A24]/70 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-[#4E7A66]">
+                <CheckCircle2 size={13} /> Finalized Clinical Record
+              </div>
+              <p className="line-clamp-2 italic text-[#132A24]/80">
+                "{soapNote.assessment || soapNote.subjective}"
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Cancellation Notice if Cancelled */}
@@ -348,31 +493,42 @@ export default function TherapistSessionDetailView({
             </h4>
             <div className="space-y-2">
               {session.rescheduleHistory.map((item, idx) => {
-                const prevStart = new Date(item.previousStart).toLocaleString('en-IN', {
-                  day: 'numeric',
+                const prevDate = new Date(item.previousStart).toLocaleString('en-IN', {
                   month: 'short',
+                  day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
                 });
-                const nextStart = new Date(item.newStart).toLocaleString('en-IN', {
-                  day: 'numeric',
+                const newDate = new Date(item.newStart).toLocaleString('en-IN', {
                   month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                const auditTime = new Date(item.createdAt).toLocaleString('en-IN', {
+                  month: 'short',
+                  day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
                 });
 
                 return (
-                  <div key={item.id || idx} className="p-3 rounded-lg bg-[#FAFAF8] border border-[#132A24]/5 text-xs flex items-center justify-between">
+                  <div
+                    key={item.id || idx}
+                    className="p-3 rounded-xl bg-[#FAFAF8] border border-[#132A24]/5 text-xs text-[#132A24]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
                     <div>
-                      <span className="text-[#132A24]/50">{prevStart}</span>
-                      <span className="mx-2 text-[#4E7A66] font-bold">&rarr;</span>
-                      <span className="font-semibold text-[#132A24]">{nextStart}</span>
-                      <p className="text-[11px] text-[#132A24]/60 mt-0.5">
-                        Reason: {item.reason || 'Schedule adjustment'} &bull; By: {item.rescheduledBy}
-                      </p>
+                      <span className="font-medium text-[#132A24]">
+                        {prevDate} &rarr; {newDate}
+                      </span>
+                      {item.reason && (
+                        <p className="text-[11px] text-[#132A24]/50 mt-0.5">
+                          Reason: {item.reason}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-[10px] text-[#132A24]/40">
-                      {new Date(item.createdAt).toLocaleDateString()}
+                    <span className="text-[10px] text-[#132A24]/40 shrink-0">
+                      Logged {auditTime} by {item.rescheduledBy || 'therapist'}
                     </span>
                   </div>
                 );
@@ -385,14 +541,23 @@ export default function TherapistSessionDetailView({
       {/* Reschedule Modal */}
       {rescheduleModalOpen && (
         <TherapistRescheduleModal
-          appointment={{
-            id: session.id,
-            scheduled_start: session.startsAt,
-            scheduled_end: session.endsAt,
-            clientDisplayName: session.client?.displayName,
-          }}
+          session={session}
           onClose={() => setRescheduleModalOpen(false)}
-          onSuccess={() => fetchSession()}
+          onSuccess={async () => {
+            setRescheduleModalOpen(false);
+            await fetchSessionData();
+          }}
+        />
+      )}
+
+      {/* SOAP Modal */}
+      {soapModalOpen && (
+        <TherapistSoapModal
+          sessionId={sessionId}
+          onClose={() => {
+            setSoapModalOpen(false);
+            fetchSessionData();
+          }}
         />
       )}
     </div>
