@@ -190,6 +190,24 @@ export default function TherapistCalendarView({
     }
   };
 
+  const handleNoShow = async (appointmentId) => {
+    if (!window.confirm('Mark this session as Client No-Show? (Session will be marked completed with no refund to client per policy)')) return;
+    try {
+      const res = await fetch(`/api/therapist/appointments/${appointmentId}/no-show`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendanceStatus: 'client_no_show' }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || 'Failed to record client no-show.');
+      }
+      await fetchCalendar();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   const todayKey = new Date().toLocaleDateString('en-CA');
 
   return (
@@ -519,6 +537,16 @@ export default function TherapistCalendarView({
               }`}>
                 {appt.status}
               </span>
+              {appt.calendarSyncStatus === 'synced' && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 flex items-center gap-1">
+                  <CheckCircle2 size={10} /> Google Cal
+                </span>
+              )}
+              {appt.attendanceStatus === 'client_no_show' && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700">
+                  Client No-Show
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mt-1">
@@ -573,7 +601,7 @@ export default function TherapistCalendarView({
                   rel="noreferrer"
                   className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 no-underline cursor-pointer inline-flex items-center gap-1"
                 >
-                  <Video size={13} /> Join Call
+                  <Video size={13} /> Join Google Meet
                 </a>
               )}
               <button
@@ -588,6 +616,13 @@ export default function TherapistCalendarView({
                 className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 text-xs text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer"
               >
                 Reschedule
+              </button>
+              <button
+                onClick={() => handleNoShow(appt.id)}
+                className="px-2.5 py-1.5 rounded-lg border border-amber-200 text-xs text-amber-700 hover:bg-amber-50 cursor-pointer"
+                title="Mark client absence (non-refundable)"
+              >
+                No-Show
               </button>
               <button
                 onClick={() => handleCancelSession(appt.id)}

@@ -1,4 +1,5 @@
 import { supabase } from '../db';
+import { EmailService } from '../email/emailService';
 
 export class TherapistPlatformService {
   /**
@@ -648,6 +649,34 @@ export class TherapistPlatformService {
       });
 
       if (!rpcError && rpcResult) {
+        // Dispath first-session operational coordination emails
+        try {
+          const { data: clientUser } = await supabase
+            .from('users')
+            .select('id, email, full_name')
+            .eq('id', match.user_id)
+            .maybeSingle();
+
+          const { data: therapistAccount } = await supabase
+            .from('therapist_accounts')
+            .select('id, full_name')
+            .eq('id', therapistAccountId)
+            .maybeSingle();
+
+          if (clientUser && therapistAccount) {
+            await EmailService.notifyTherapistAccepted({
+              matchId,
+              therapistId: therapistAccountId,
+              therapistName: therapistAccount.full_name || 'Therapist',
+              clientId: clientUser.id,
+              clientEmail: clientUser.email || 'client@ingresswithin.com',
+              clientName: clientUser.full_name,
+            });
+          }
+        } catch (emailErr) {
+          console.warn('[TherapistPlatformService] Email notification on accept failed gracefully:', emailErr);
+        }
+
         return {
           success: true,
           action: 'accept',
@@ -1568,6 +1597,11 @@ export class TherapistPlatformService {
         status,
         session_type,
         meeting_link,
+        google_calendar_event_id,
+        google_meet_url,
+        calendar_sync_status,
+        attendance_status,
+        refund_status,
         client_notes,
         cancelled_by,
         cancellation_reason,
@@ -1587,7 +1621,43 @@ export class TherapistPlatformService {
 
     query = query.order('scheduled_start', { ascending: true });
 
-    const { data, error } = await query;
+    let { data, error } = await query;
+    if (error && error.code === '42703') {
+      // Graceful fallback if migration 008 columns are not yet deployed in remote DB
+      let fallbackQuery = supabase
+        .from('therapist_clinical_appointments')
+        .select(`
+          id,
+          user_id,
+          relationship_id,
+          scheduled_start,
+          scheduled_end,
+          status,
+          session_type,
+          meeting_link,
+          client_notes,
+          cancelled_by,
+          cancellation_reason,
+          created_at,
+          updated_at,
+          users (
+            id,
+            name
+          )
+        `)
+        .eq('therapist_account_id', therapistAccountId);
+
+      if (filters.startDate) fallbackQuery = fallbackQuery.gte('scheduled_start', filters.startDate);
+      if (filters.endDate) fallbackQuery = fallbackQuery.lte('scheduled_end', filters.endDate);
+      if (filters.clientId) fallbackQuery = fallbackQuery.eq('user_id', filters.clientId);
+      if (filters.status) fallbackQuery = fallbackQuery.eq('status', filters.status);
+      fallbackQuery = fallbackQuery.order('scheduled_start', { ascending: true });
+
+      const fallbackRes = await fallbackQuery;
+      data = fallbackRes.data as any;
+      error = fallbackRes.error;
+    }
+
     if (error) {
       console.error('[TherapistPlatformService] getAppointments error:', error);
       return [];
@@ -1604,6 +1674,8 @@ export class TherapistPlatformService {
         appt.modality ||
         (appt.session_type === 'in_person' ? 'in_person' : appt.session_type === 'audio' ? 'phone' : 'telehealth');
 
+      const finalMeetingLink = appt.google_meet_url || appt.meeting_link;
+
       return {
         id: appt.id,
         startsAt: appt.scheduled_start,
@@ -1617,7 +1689,12 @@ export class TherapistPlatformService {
           displayName: clientName,
         },
         careStage: appt.care_stage || 'active_care',
-        meetingLink: appt.meeting_link,
+        meetingLink: finalMeetingLink,
+        googleMeetUrl: finalMeetingLink,
+        googleCalendarEventId: appt.google_calendar_event_id,
+        calendarSyncStatus: appt.calendar_sync_status || 'not_connected',
+        attendanceStatus: appt.attendance_status || 'scheduled',
+        refundStatus: appt.refund_status || 'none',
         clientNotes: appt.client_notes,
         cancelledBy: appt.cancelled_by,
         cancellationReason: appt.cancellation_reason,
@@ -2175,6 +2252,15 @@ export class TherapistPlatformService {
         payment_status: 'collected',
         collected_at: new Date().toISOString(),
       });
+    }
+
+    // 5. Update first_session_completed in care relationship
+    if (appt.user_id) {
+      await supabase
+        .from('therapy_care_relationships')
+        .update({ first_session_completed: true })
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('user_id', appt.user_id);
     }
 
     return updatedAppt;
