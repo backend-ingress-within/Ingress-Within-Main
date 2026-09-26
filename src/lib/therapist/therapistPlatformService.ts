@@ -1894,7 +1894,7 @@ export class TherapistPlatformService {
       throw err;
     }
 
-    const meetingLink = data.meetingLink || 'https://meet.ingresswithin.com/clinical/' + crypto.randomUUID().substring(0, 8);
+    const meetingLink = data.meetingLink || null;
 
     // 3. Try atomic RPC with transaction advisory locks
     try {

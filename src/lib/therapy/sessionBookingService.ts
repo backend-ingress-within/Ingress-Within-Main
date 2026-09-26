@@ -472,19 +472,24 @@ export class SessionBookingService {
       calendarEventResult.syncStatus = 'failed';
     }
 
-    // Fallback meeting link if Meet was not generated
-    const finalMeetUrl = calendarEventResult.meetUrl || `https://meet.google.com/iw-${newAppt.id.substring(0, 10)}`;
+    // Determine real Google Meet status - NEVER fabricate a URL
+    const meetUrl = calendarEventResult.meetUrl || null;
+    const meetStatus = meetUrl
+      ? 'created'
+      : calendarEventResult.syncStatus === 'not_connected'
+      ? 'not_connected'
+      : 'failed';
 
     // Update appointment with calendar & meet details
     await supabase
       .from('therapist_clinical_appointments')
       .update({
         google_calendar_event_id: calendarEventResult.eventId,
-        google_meet_url: finalMeetUrl,
+        google_meet_url: meetUrl,
         google_meet_conference_id: calendarEventResult.conferenceId,
-        google_meet_status: calendarEventResult.meetUrl ? 'created' : 'pending',
+        google_meet_status: meetStatus,
         calendar_sync_status: calendarEventResult.syncStatus,
-        meeting_link: finalMeetUrl,
+        meeting_link: meetUrl,
       })
       .eq('id', newAppt.id);
 
@@ -533,7 +538,7 @@ export class SessionBookingService {
         therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
         clientName: clientUser?.full_name || 'Valued Client',
         therapistName: therapistAccount?.full_name || 'Therapist',
-        googleMeetUrl: finalMeetUrl,
+        googleMeetUrl: meetUrl || undefined,
         clientId: clientUser?.id,
         therapistId: therapistAccount?.id,
       });
@@ -546,8 +551,9 @@ export class SessionBookingService {
       booking: updatedBooking,
       appointment: {
         ...newAppt,
-        meeting_link: finalMeetUrl,
-        google_meet_url: finalMeetUrl,
+        meeting_link: meetUrl,
+        google_meet_url: meetUrl,
+        google_meet_status: meetStatus,
         calendar_sync_status: calendarEventResult.syncStatus,
       },
     };

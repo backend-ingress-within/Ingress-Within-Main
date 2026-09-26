@@ -1,4 +1,5 @@
 import { GoogleAuthService } from './googleAuthService';
+import { supabase } from '../db';
 
 export interface CreateEventOptions {
   therapistAccountId: string;
@@ -6,8 +7,8 @@ export interface CreateEventOptions {
   appointmentId: string;
   summary: string;
   description: string;
-  startTime: string; // ISO
-  endTime: string;   // ISO
+  startTime: string; // ISO string
+  endTime: string;   // ISO string
   attendees: string[]; // Email addresses
 }
 
@@ -24,13 +25,32 @@ export class GoogleCalendarService {
    * Creates an event in the therapist's Google Calendar with an automatically generated Google Meet link.
    * Uses Google Calendar API conferenceData.createRequest with conferenceDataVersion=1.
    * 
-   * Strict boundary: This application does NOT host video calls. It strictly relies on Google Meet.
-   * If Google Calendar is not connected or fails, this returns gracefully without throwing,
-   * ensuring clinical appointments and payments are never rolled back.
+   * PRODUCTION INVARIANTS:
+   * 1. IDEMPOTENCY: Derived from appointmentId. If google_calendar_event_id already exists, returns existing.
+   * 2. NO FABRICATED MEET URLs: google_meet_url is ONLY populated if Google actually returned a valid video entrypoint.
+   * 3. FAILURE ISOLATION: Google Calendar unavailability or error never rolls back or throws out of clinical operations.
    */
   static async createEventWithMeet(options: CreateEventOptions): Promise<GoogleCalendarEventResult> {
     try {
-      // 1. Get access token for therapist
+      // 1. Idempotency Check: Verify if appointment already has an active calendar event
+      if (options.appointmentId) {
+        const { data: appt } = await supabase
+          .from('therapist_clinical_appointments')
+          .select('google_calendar_event_id, google_meet_url, google_meet_conference_id, calendar_sync_status')
+          .eq('id', options.appointmentId)
+          .maybeSingle();
+
+        if (appt?.google_calendar_event_id && appt.calendar_sync_status === 'synced') {
+          return {
+            eventId: appt.google_calendar_event_id,
+            meetUrl: appt.google_meet_url,
+            conferenceId: appt.google_meet_conference_id,
+            syncStatus: 'synced',
+          };
+        }
+      }
+
+      // 2. Get valid access token for therapist
       const accessToken = await GoogleAuthService.getValidAccessToken('therapist', options.therapistAccountId);
 
       if (!accessToken) {
@@ -42,8 +62,10 @@ export class GoogleCalendarService {
         };
       }
 
-      // 2. Prepare event payload with Google Meet conferenceData
-      const requestId = `ingress-meet-${options.appointmentId.substring(0, 18)}`;
+      // 3. Prepare deterministic conference request ID derived from appointment ID
+      const sanitizedApptId = options.appointmentId.replace(/[^a-zA-Z0-9]/g, '');
+      const requestId = `ingress_${sanitizedApptId.slice(0, 32)}`;
+
       const eventPayload = {
         summary: options.summary || 'Ingress Within Therapy Session',
         description: options.description || 'Confidential clinical therapy session scheduled via Ingress Within.',
@@ -60,7 +82,7 @@ export class GoogleCalendarService {
         },
       };
 
-      // 3. Google Calendar API events.insert with conferenceDataVersion=1
+      // 4. Google Calendar API events.insert with conferenceDataVersion=1
       const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1';
       const res = await fetch(url, {
         method: 'POST',
@@ -72,20 +94,20 @@ export class GoogleCalendarService {
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        console.warn(`[GoogleCalendarService] Failed to insert event: HTTP ${res.status} - ${errorText}`);
+        const status = res.status;
+        console.warn(`[GoogleCalendarService] Failed to insert event: HTTP ${status}`);
         return {
           eventId: null,
           meetUrl: null,
           conferenceId: null,
           syncStatus: 'failed',
-          error: `HTTP ${res.status}: ${errorText}`,
+          error: `HTTP_${status}`,
         };
       }
 
       const event = await res.json();
 
-      // 4. Extract Google Meet video link
+      // 5. Extract Google Meet video link — STRICT NO FABRICATION
       let meetUrl: string | null = null;
       let conferenceId: string | null = null;
 
@@ -108,19 +130,20 @@ export class GoogleCalendarService {
         syncStatus: 'synced',
       };
     } catch (err: any) {
-      console.error('[GoogleCalendarService] Exception creating event with Google Meet:', err);
+      console.error('[GoogleCalendarService] Safe failure during event creation:', err.message || 'unknown');
       return {
         eventId: null,
         meetUrl: null,
         conferenceId: null,
         syncStatus: 'failed',
-        error: err.message || 'Unknown calendar error',
+        error: err.code || 'CALENDAR_SERVICE_EXCEPTION',
       };
     }
   }
 
   /**
    * Reschedules an existing Google Calendar event.
+   * Preserves Google Meet conference and all other metadata. Only updates start/end timestamps.
    */
   static async updateEventTimes(
     therapistAccountId: string,
@@ -131,10 +154,10 @@ export class GoogleCalendarService {
     try {
       const accessToken = await GoogleAuthService.getValidAccessToken('therapist', therapistAccountId);
       if (!accessToken || !eventId) {
-        return { success: false, error: 'Not connected or invalid event' };
+        return { success: false, error: 'NOT_CONNECTED_OR_MISSING_EVENT' };
       }
 
-      const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?conferenceDataVersion=1`;
+      const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`;
       const res = await fetch(url, {
         method: 'PATCH',
         headers: {
@@ -148,20 +171,20 @@ export class GoogleCalendarService {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        console.warn(`[GoogleCalendarService] Failed to update event: ${errText}`);
-        return { success: false, error: errText };
+        console.warn(`[GoogleCalendarService] Failed to reschedule event: HTTP ${res.status}`);
+        return { success: false, error: `HTTP_${res.status}` };
       }
 
       return { success: true };
     } catch (err: any) {
-      console.error('[GoogleCalendarService] Exception updating event:', err);
-      return { success: false, error: err.message };
+      console.error('[GoogleCalendarService] Safe failure updating event times:', err.message || 'unknown');
+      return { success: false, error: err.code || 'UPDATE_EXCEPTION' };
     }
   }
 
   /**
-   * Deletes an event from Google Calendar (on cancellation).
+   * Deletes an event from Google Calendar on cancellation.
+   * Treats HTTP 404 (Not Found) as idempotent success (event already gone).
    */
   static async deleteEvent(
     therapistAccountId: string,
@@ -170,7 +193,7 @@ export class GoogleCalendarService {
     try {
       const accessToken = await GoogleAuthService.getValidAccessToken('therapist', therapistAccountId);
       if (!accessToken || !eventId) {
-        return { success: false, error: 'Not connected or invalid event' };
+        return { success: true }; // Nothing to delete
       }
 
       const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`;
@@ -180,20 +203,23 @@ export class GoogleCalendarService {
       });
 
       if (!res.ok && res.status !== 404) {
-        const errText = await res.text();
-        console.warn(`[GoogleCalendarService] Failed to delete event: ${errText}`);
-        return { success: false, error: errText };
+        console.warn(`[GoogleCalendarService] Failed to delete event: HTTP ${res.status}`);
+        return { success: false, error: `HTTP_${res.status}` };
       }
 
       return { success: true };
     } catch (err: any) {
-      console.error('[GoogleCalendarService] Exception deleting event:', err);
-      return { success: false, error: err.message };
+      console.error('[GoogleCalendarService] Safe failure deleting event:', err.message || 'unknown');
+      return { success: false, error: err.code || 'DELETE_EXCEPTION' };
     }
   }
 
   /**
-   * Queries Google Calendar FreeBusy API to inspect external commitments.
+   * Queries Google Calendar FreeBusy API to inspect availability.
+   * 
+   * STRICT PRIVACY BOUNDARY:
+   * Only returns an array of { start: string, end: string }.
+   * NEVER returns event titles, descriptions, attendees, organizer, location, or Google event IDs.
    */
   static async getBusySlots(
     therapistAccountId: string,
@@ -226,12 +252,14 @@ export class GoogleCalendarService {
 
       const data = await res.json();
       const primaryBusy = data.calendars?.primary?.busy || [];
+
+      // Sanitization: Exclusively map start and end. Strip all potential external metadata!
       return primaryBusy.map((b: any) => ({
-        start: b.start,
-        end: b.end,
+        start: String(b.start),
+        end: String(b.end),
       }));
-    } catch (err) {
-      console.warn('[GoogleCalendarService] Error fetching freebusy:', err);
+    } catch (err: any) {
+      console.warn('[GoogleCalendarService] FreeBusy query exception:', err.message || 'unknown');
       return [];
     }
   }

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       userId = userAuth.userId;
     }
 
-    const authUrl = GoogleAuthService.getAuthUrl({
+    const authUrl = await GoogleAuthService.getAuthUrl({
       accountType,
       userId,
       therapistAccountId,
