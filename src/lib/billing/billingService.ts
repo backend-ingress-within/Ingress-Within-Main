@@ -569,15 +569,31 @@ export class BillingService {
     const { userId, paymentId, subscriptionId, orderId, amount } = params;
 
     // 1. Idempotency check on invoice / paymentId
-    const { data: existingInvoice } = await supabase
+    const { data: existingInvoices } = await supabase
       .from('invoices')
-      .select('id')
+      .select('id, invoice_number')
       .eq('gateway_payment_id', paymentId)
-      .maybeSingle();
+      .limit(1);
 
-    if (existingInvoice) {
-      console.log(`[BillingService] Payment ${paymentId} already confirmed & invoiced.`);
-      return { success: true, alreadyProcessed: true };
+    if (existingInvoices && existingInvoices.length > 0) {
+      console.log(`[BillingService] Payment ${paymentId} already confirmed & invoiced (${existingInvoices[0].invoice_number}).`);
+      return { success: true, alreadyProcessed: true, invoiceNumber: existingInvoices[0].invoice_number };
+    }
+
+    // 1b. If subscriptionId is provided, also check if an invoice was already issued for this user within the last 24 hours
+    if (subscriptionId) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentSubInvoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('user_id', userId)
+        .gte('issued_at', oneDayAgo)
+        .limit(1);
+
+      if (recentSubInvoices && recentSubInvoices.length > 0) {
+        console.log(`[BillingService] User ${userId} already invoiced within last 24h for subscription (${recentSubInvoices[0].invoice_number}).`);
+        return { success: true, alreadyProcessed: true, invoiceNumber: recentSubInvoices[0].invoice_number };
+      }
     }
 
     const now = new Date();
@@ -655,6 +671,18 @@ export class BillingService {
     }
 
     // 5. Generate Sequential Real Invoice (INV-YYYY-XXXXX)
+    // Concurrency safety check right before insertion
+    const { data: preInsertCheck } = await supabase
+      .from('invoices')
+      .select('id, invoice_number')
+      .eq('gateway_payment_id', paymentId)
+      .limit(1);
+
+    if (preInsertCheck && preInsertCheck.length > 0) {
+      console.log(`[BillingService] Concurrency guard caught existing invoice for payment ${paymentId} (${preInsertCheck[0].invoice_number}).`);
+      return { success: true, alreadyProcessed: true, invoiceNumber: preInsertCheck[0].invoice_number };
+    }
+
     const year = now.getFullYear();
     const randomSeq = Math.floor(10000 + Math.random() * 90000);
     const invoiceNumber = `INV-${year}-${randomSeq}`;
@@ -816,17 +844,32 @@ export class BillingService {
         .limit(20);
 
       if (invs && invs.length > 0) {
-        invoices = invs.map((i) => ({
-          id: i.id,
-          invoice_number: i.invoice_number,
-          amount_subtotal: i.amount_subtotal,
-          amount_gst: i.amount_gst,
-          amount_total: i.amount_total,
-          status: i.status,
-          issued_at: i.issued_at,
-          gateway_payment_id: i.gateway_payment_id,
-          currency: i.currency || 'INR'
-        }));
+        const seenPaymentIds = new Set<string>();
+        const seenDayAmount = new Set<string>();
+        const uniqueInvoices: any[] = [];
+
+        for (const i of invs) {
+          if (i.gateway_payment_id) {
+            if (seenPaymentIds.has(i.gateway_payment_id)) continue;
+            seenPaymentIds.add(i.gateway_payment_id);
+          }
+          const dayKey = `${i.issued_at ? new Date(i.issued_at).toISOString().slice(0, 10) : ''}_${i.amount_total}`;
+          if (seenDayAmount.has(dayKey)) continue;
+          seenDayAmount.add(dayKey);
+
+          uniqueInvoices.push({
+            id: i.id,
+            invoice_number: i.invoice_number,
+            amount_subtotal: i.amount_subtotal,
+            amount_gst: i.amount_gst,
+            amount_total: i.amount_total,
+            status: i.status,
+            issued_at: i.issued_at,
+            gateway_payment_id: i.gateway_payment_id,
+            currency: i.currency || 'INR'
+          });
+        }
+        invoices = uniqueInvoices;
       }
     } catch (e) {}
 

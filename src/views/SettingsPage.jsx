@@ -957,7 +957,15 @@ export default function SettingsPage({ user, profile, onSignOut }) {
 
   // 4. Billing History Tab (Real dynamic invoices from database)
   const renderBilling = () => {
-    const invoices = billingData?.invoices || [];
+    // Client-side deduplication safeguard
+    const rawInvoices = billingData?.invoices || [];
+    const seen = new Set();
+    const invoices = rawInvoices.filter((inv) => {
+      const key = inv.gateway_payment_id || `${inv.issued_at ? new Date(inv.issued_at).toISOString().slice(0, 10) : ''}_${inv.amount_total}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     return (
       <div className="pad animate-fadeUp">
@@ -967,37 +975,54 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           All charges in reverse chronological order. GST inclusive. Processed via Razorpay.
         </p>
 
-        <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
+        <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5 shadow-xs">
           <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
             <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Charges</span>
+            {invoices.length > 0 && (
+              <span className="text-[10.5px] text-mid font-medium">
+                {invoices.length} {invoices.length === 1 ? 'charge' : 'charges'} recorded
+              </span>
+            )}
           </div>
 
           {isBillingLoading ? (
             <div className="p-8 text-center text-xs text-mid">Loading billing history…</div>
           ) : invoices.length > 0 ? (
-            invoices.map((inv) => (
-              <div key={inv.id || inv.invoice_number} className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4 last:border-b-0">
-                <div className="bill-l flex-1">
-                  <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">
-                    {new Date(inv.issued_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+            invoices.map((inv) => {
+              const issuedDate = inv.issued_at ? new Date(inv.issued_at) : new Date();
+              const monthYear = issuedDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+              const fullDate = issuedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+              const taxable = (inv.amount_subtotal / 100).toFixed(2);
+              const gst = (inv.amount_gst / 100).toFixed(2);
+              const total = (inv.amount_total / 100).toFixed(2);
+
+              return (
+                <div key={inv.id || inv.invoice_number} className="bill-row flex items-start justify-between p-5 border-b border-[#1E2A2E]/8 gap-4 last:border-b-0 hover:bg-[#1E2A2E]/1 transition-colors">
+                  <div className="bill-l flex-1">
+                    <div className="bill-month text-[10px] tracking-wider uppercase font-bold text-mid/60 mb-0.5">
+                      {monthYear}
+                    </div>
+                    <div className="bill-desc text-[13.5px] font-semibold text-primary">Ingress Within Self-Work (Monthly)</div>
+                    <div className="bill-detail text-[12px] text-mid mt-0.5">
+                      {fullDate} · Invoice {inv.invoice_number}
+                    </div>
+                    <div className="text-[11px] text-mid/70 mt-0.5">
+                      Taxable: ₹{taxable} + 18% GST: ₹{gst}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#8DBFB4]/15 text-[#1A5040] border border-[#8DBFB4]/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#1A5040]" />
+                        {inv.status || 'Paid'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bill-desc text-[13.5px] font-semibold text-primary">Ingress Within Self-Work (Monthly)</div>
-                  <div className="bill-detail text-[12px] text-mid mt-0.5">
-                    {new Date(inv.issued_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · Invoice {inv.invoice_number}
-                  </div>
-                  <div className="text-[11px] text-mid/70 mt-0.5">
-                    Taxable: ₹{(inv.amount_subtotal / 100).toFixed(2)} + 18% GST: ₹{(inv.amount_gst / 100).toFixed(2)}
-                  </div>
-                  <div className="bill-status bs-paid text-[12px] font-semibold text-[#1A5040] mt-1 capitalize">
-                    {inv.status}
+                  <div className="bill-r text-right">
+                    <div className="font-bold text-[14.5px] text-primary">₹{total}</div>
+                    <div className="text-[10px] text-mid/60 uppercase">GST Included</div>
                   </div>
                 </div>
-                <div className="bill-r text-right">
-                  <div className="font-bold text-[14.5px]">₹{(inv.amount_total / 100).toFixed(2)}</div>
-                  <div className="text-[10px] text-mid/60 uppercase">GST Included</div>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="p-8 text-center space-y-2">
               <p className="text-sm font-semibold text-primary">No invoices yet</p>
