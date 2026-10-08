@@ -20,6 +20,91 @@ import { DashboardService } from '../services/dashboardService';
 import SearchInput from '../components/search/SearchInput';
 import HighlightText from '../components/search/HighlightText';
 
+/** Collapsible section for lists of emotion words (e.g. New this cycle, Dropped words) */
+function CollapsibleWordSection({
+  title,
+  count,
+  badgeClassName,
+  accentDotBg,
+  accentBorderColor = 'border-[#1E2A2E]/10',
+  words,
+  renderWord,
+  isOpen,
+  onToggle,
+  previewLimit = 5
+}) {
+  if (!words || words.length === 0) return null;
+
+  return (
+    <div className={`bg-white border ${accentBorderColor} rounded-xl overflow-hidden shadow-xs transition-all`}>
+      {/* Header */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="p-3 sm:p-3.5 flex items-center justify-between cursor-pointer hover:bg-[#F8FAFA] transition-colors select-none"
+      >
+        <div className="flex-1 pr-3 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {accentDotBg && (
+              <span className={`w-2 h-2 rounded-full shrink-0 ${accentDotBg}`} />
+            )}
+            <span className="text-[11px] font-bold tracking-wider uppercase text-[#4A6A64]">
+              {title}
+            </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${badgeClassName}`}>
+              {count} {count === 1 ? 'word' : 'words'}
+            </span>
+          </div>
+
+          {/* Collapsed preview chips when closed */}
+          {!isOpen && (
+            <div className="flex gap-1.5 flex-wrap mt-1.5 items-center">
+              {words.slice(0, previewLimit).map((w, idx) => renderWord(w, idx, true))}
+              {words.length > previewLimit && (
+                <span className="text-[10px] text-mid/70 font-medium">
+                  +{words.length - previewLimit} more
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Downward toggle button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className="w-7 h-7 rounded-full flex items-center justify-center bg-mint-grey/60 hover:bg-mint-grey text-primary/80 transition-all shrink-0 ml-2 border-none cursor-pointer"
+          aria-label={isOpen ? `Collapse ${title}` : `Expand ${title}`}
+        >
+          <ChevronDown
+            size={14}
+            className={`text-[#4A6A64] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+
+      {/* Expanded Content */}
+      {isOpen && (
+        <div className="border-t border-[#1E2A2E]/5 p-3.5 bg-[#FAFBFB]">
+          <div className="flex gap-1.5 flex-wrap">
+            {words.map((w, idx) => renderWord(w, idx, false))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function VocabPage({ user, profile, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -35,6 +120,22 @@ export default function VocabPage({ user, profile, onSignOut }) {
   const [openCycles, setOpenCycles] = useState({ 0: true }); // Newest cycle open by default
   const [openResponses, setOpenResponses] = useState({});
   const [auditOpen, setAuditOpen] = useState(false);
+  const [expandedCycleSections, setExpandedCycleSections] = useState({});
+  const [overallClustersOpen, setOverallClustersOpen] = useState(false);
+
+  const toggleCycleSection = (cyNum, sectionKey) => {
+    setExpandedCycleSections(prev => {
+      const key = `${cyNum}-${sectionKey}`;
+      return {
+        ...prev,
+        [key]: !prev[key]
+      };
+    });
+  };
+
+  const isCycleSectionOpen = (cyNum, sectionKey) => {
+    return !!expandedCycleSections[`${cyNum}-${sectionKey}`];
+  };
 
   const toggleCycle = (num) => {
     setOpenCycles(prev => ({
@@ -411,49 +512,74 @@ export default function VocabPage({ user, profile, onSignOut }) {
                 </div>
 
                 {/* Word Clusters */}
-                <div className="mt-4.5 text-left">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-[10px] font-bold tracking-wider uppercase text-[#4A6A64]">
-                      Word clusters
+                <div className="mt-4.5 text-left border-t border-[#1E2A2E]/5 pt-3.5">
+                  <div 
+                    onClick={() => setOverallClustersOpen(!overallClustersOpen)}
+                    className="flex items-center justify-between mb-2.5 cursor-pointer select-none group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold tracking-wider uppercase text-[#4A6A64] group-hover:text-primary transition-colors">
+                        Word clusters
+                      </span>
+                      {stats?.clusters && stats.clusters.length > 0 && (
+                        <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-primary/5 text-mid border border-primary/10">
+                          {stats.clusters.length}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-[10.5px] text-[#8DBFB4] italic">
-                      Auto-updates weekly
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10.5px] text-[#8DBFB4] italic hidden sm:inline">
+                        Auto-updates weekly
+                      </div>
+                      <ChevronDown size={14} className={`text-[#4A6A64] transition-transform duration-200 ${overallClustersOpen ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
 
-                  {(!stats?.clusters || stats.clusters.length === 0) ? (
-                    <div className="text-xs text-[#4A6A64] italic bg-[#F5F8F8] rounded-lg p-3.5">
-                      No word clusters generated for this cycle yet.
+                  {!overallClustersOpen && stats?.clusters && stats.clusters.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap mb-1">
+                      {stats.clusters.map((cl, idx) => (
+                        <span key={idx} className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#E0A898]/12 text-[#8A3020] border border-[#E0A898]/25">
+                          {cl.cluster_name}
+                        </span>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {stats.clusters.map((cl, idx) => {
-                        const wordCount = stats.mostUsed?.find(w => w.normalized_word === cl.cluster_name)?.frequency;
-                        return (
-                          <div key={idx} className="bg-[#F5F8F8] rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E0A898]/15 text-[#8A3020] border border-[#E0A898]/30">
-                                {cl.cluster_name}
-                              </span>
-                              {wordCount != null && (
-                                <span className="text-xs text-[#8A3020] font-bold">×{wordCount}</span>
-                              )}
-                              <ArrowRight size={12} className="text-[#C8D8D4]" />
-                              <div className="flex gap-1.5 flex-wrap">
-                                {(cl.words || []).map((rw, rIdx) => (
-                                  <span key={rIdx} className="text-[11px] font-semibold px-2 py-1 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64] border border-[#1E2A2E]/10">
-                                    {rw}
-                                  </span>
-                                ))}
+                  )}
+
+                  {overallClustersOpen && (
+                    (!stats?.clusters || stats.clusters.length === 0) ? (
+                      <div className="text-xs text-[#4A6A64] italic bg-[#F5F8F8] rounded-lg p-3.5">
+                        No word clusters generated for this cycle yet.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3 mt-2">
+                        {stats.clusters.map((cl, idx) => {
+                          const wordCount = stats.mostUsed?.find(w => w.normalized_word === cl.cluster_name)?.frequency;
+                          return (
+                            <div key={idx} className="bg-[#F5F8F8] rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E0A898]/15 text-[#8A3020] border border-[#E0A898]/30">
+                                  {cl.cluster_name}
+                                </span>
+                                {wordCount != null && (
+                                  <span className="text-xs text-[#8A3020] font-bold">×{wordCount}</span>
+                                )}
+                                <ArrowRight size={12} className="text-[#C8D8D4]" />
+                                <div className="flex gap-1.5 flex-wrap">
+                                  {(cl.words || []).map((rw, rIdx) => (
+                                    <span key={rIdx} className="text-[11px] font-semibold px-2 py-1 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64] border border-[#1E2A2E]/10">
+                                      {rw}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
+                              <p className="text-xs text-[#4A6A64] italic leading-normal pl-2.5 border-l border-[#E0A898]">
+                                {cl.description}
+                              </p>
                             </div>
-                            <p className="text-xs text-[#4A6A64] italic leading-normal pl-2.5 border-l border-[#E0A898]">
-                              {cl.description}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -545,73 +671,142 @@ export default function VocabPage({ user, profile, onSignOut }) {
 
                           {/* New and Dropped Words */}
                           {((cy.new_words && cy.new_words.length > 0) || (cy.dropped_words && cy.dropped_words.length > 0)) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#1E2A2E]/5 pt-4">
+                            <div className="space-y-3 border-t border-[#1E2A2E]/5 pt-3.5">
                               {cy.new_words && cy.new_words.length > 0 && (
-                                <div>
-                                  <div className="text-[10px] font-bold tracking-wider uppercase text-[#4A6A64] mb-1.5">
-                                    New this cycle
-                                  </div>
-                                  <div className="flex gap-1.5 flex-wrap">
-                                    {cy.new_words.map((w, wIdx) => (
-                                      <span key={wIdx} className="text-[11px] font-semibold px-2 py-1 rounded-full bg-[#B8A8D4]/12 text-[#5A4A8A] border border-[#B8A8D4]/25">
-                                        {w}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
+                                <CollapsibleWordSection
+                                  title="New this cycle"
+                                  count={cy.new_words.length}
+                                  badgeClassName="bg-[#B8A8D4]/15 text-[#5A4A8A] border-[#B8A8D4]/30"
+                                  accentDotBg="bg-[#B8A8D4]"
+                                  accentBorderColor="border-[#B8A8D4]/25"
+                                  words={cy.new_words}
+                                  isOpen={isCycleSectionOpen(cy.number, 'new')}
+                                  onToggle={() => toggleCycleSection(cy.number, 'new')}
+                                  renderWord={(w, wIdx, isPreview) => (
+                                    <span
+                                      key={wIdx}
+                                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#B8A8D4]/12 text-[#5A4A8A] border border-[#B8A8D4]/25 ${
+                                        isPreview ? 'truncate max-w-[140px]' : 'hover:bg-[#B8A8D4]/20 transition-colors'
+                                      }`}
+                                    >
+                                      {w}
+                                    </span>
+                                  )}
+                                />
                               )}
+
                               {cy.dropped_words && cy.dropped_words.length > 0 && (
-                                <div>
-                                  <div className="text-[10px] font-bold tracking-wider uppercase text-[#4A6A64] mb-1.5">
-                                    Dropped from Cycle {cy.number - 1}
-                                  </div>
-                                  <div className="flex gap-1.5 flex-wrap">
-                                    {cy.dropped_words.map((w, wIdx) => (
-                                      <span key={wIdx} className="text-[11px] font-semibold px-2 py-1 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64]/60 border border-[#1E2A2E]/10 line-through opacity-60">
-                                        {w}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
+                                <CollapsibleWordSection
+                                  title={`Dropped from Cycle ${cy.number - 1}`}
+                                  count={cy.dropped_words.length}
+                                  badgeClassName="bg-primary/5 text-mid border-primary/10"
+                                  accentDotBg="bg-primary/30"
+                                  accentBorderColor="border-[#1E2A2E]/10"
+                                  words={cy.dropped_words}
+                                  isOpen={isCycleSectionOpen(cy.number, 'dropped')}
+                                  onToggle={() => toggleCycleSection(cy.number, 'dropped')}
+                                  renderWord={(w, wIdx, isPreview) => (
+                                    <span
+                                      key={wIdx}
+                                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64]/60 border border-[#1E2A2E]/10 line-through opacity-70 ${
+                                        isPreview ? 'truncate max-w-[140px]' : 'hover:opacity-90 transition-opacity'
+                                      }`}
+                                    >
+                                      {w}
+                                    </span>
+                                  )}
+                                />
                               )}
                             </div>
                           )}
 
                           {/* Cycle specific clusters */}
                           {cy.clusters && cy.clusters.length > 0 && (
-                            <div className="cycle-wc border-t border-[#1E2A2E]/5 pt-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="text-[10px] font-bold tracking-wider uppercase text-[#8DBFB4]">
-                                  Word clusters
-                                </div>
-                                {isCurrent && (
-                                  <div className="text-[10.5px] text-[#8DBFB4] italic">
-                                    Auto-updates weekly
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {cy.clusters.map((cl, cIdx) => (
-                                  <div key={cIdx} className="bg-white/50 border border-[#1E2A2E]/5 rounded-lg p-2.5">
-                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#E0A898]/12 text-[#8A3020] border border-[#E0A898]/25">
-                                        {cl.cluster_name}
+                            <div className="bg-white border border-[#1E2A2E]/10 rounded-xl overflow-hidden shadow-xs transition-all border-t mt-3">
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => toggleCycleSection(cy.number, 'clusters')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    toggleCycleSection(cy.number, 'clusters');
+                                  }
+                                }}
+                                className="p-3 sm:p-3.5 flex items-center justify-between cursor-pointer hover:bg-[#F8FAFA] transition-colors select-none"
+                              >
+                                <div className="flex-1 pr-3 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span className="w-2 h-2 rounded-full bg-[#8DBFB4] shrink-0" />
+                                    <span className="text-[11px] font-bold tracking-wider uppercase text-[#4A6A64]">
+                                      Word clusters
+                                    </span>
+                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#8DBFB4]/15 text-[#1A5040] border border-[#8DBFB4]/30 shrink-0">
+                                      {cy.clusters.length} {cy.clusters.length === 1 ? 'cluster' : 'clusters'}
+                                    </span>
+                                    {isCurrent && (
+                                      <span className="text-[10.5px] text-[#8DBFB4] italic hidden sm:inline">
+                                        Auto-updates weekly
                                       </span>
-                                      <ArrowRight size={10} className="text-[#C8D8D4]" />
-                                      <div className="flex gap-1 flex-wrap">
-                                        {(cl.words || []).map((rw, rwIdx) => (
-                                          <span key={rwIdx} className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64] border border-[#1E2A2E]/10">
-                                            {rw}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <p className="text-[11.5px] text-[#4A6A64] italic leading-normal pl-2 border-l border-[#E0A898]">
-                                      {cl.description}
-                                    </p>
+                                    )}
                                   </div>
-                                ))}
+
+                                  {!isCycleSectionOpen(cy.number, 'clusters') && (
+                                    <div className="flex gap-1.5 flex-wrap mt-1.5 items-center">
+                                      {cy.clusters.map((cl, cIdx) => (
+                                        <span
+                                          key={cIdx}
+                                          className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#E0A898]/12 text-[#8A3020] border border-[#E0A898]/25"
+                                        >
+                                          {cl.cluster_name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleCycleSection(cy.number, 'clusters');
+                                  }}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center bg-mint-grey/60 hover:bg-mint-grey text-primary/80 transition-all shrink-0 ml-2 border-none cursor-pointer"
+                                  aria-label={isCycleSectionOpen(cy.number, 'clusters') ? "Collapse word clusters" : "Expand word clusters"}
+                                >
+                                  <ChevronDown
+                                    size={14}
+                                    className={`text-[#4A6A64] transition-transform duration-200 ${isCycleSectionOpen(cy.number, 'clusters') ? 'rotate-180' : ''}`}
+                                  />
+                                </button>
                               </div>
+
+                              {isCycleSectionOpen(cy.number, 'clusters') && (
+                                <div className="border-t border-[#1E2A2E]/5 p-3.5 bg-[#FAFBFB] space-y-2.5">
+                                  {cy.clusters.map((cl, cIdx) => (
+                                    <div key={cIdx} className="bg-white/70 border border-[#1E2A2E]/5 rounded-lg p-3 space-y-1.5">
+                                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#E0A898]/12 text-[#8A3020] border border-[#E0A898]/25">
+                                          {cl.cluster_name}
+                                        </span>
+                                        <ArrowRight size={10} className="text-[#C8D8D4]" />
+                                        <div className="flex gap-1 flex-wrap">
+                                          {(cl.words || []).map((rw, rwIdx) => (
+                                            <span key={rwIdx} className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[#1E2A2E]/5 text-[#4A6A64] border border-[#1E2A2E]/10">
+                                              {rw}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      {cl.description && (
+                                        <p className="text-[11.5px] text-[#4A6A64] italic leading-normal pl-2 border-l border-[#E0A898]">
+                                          {cl.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
 
