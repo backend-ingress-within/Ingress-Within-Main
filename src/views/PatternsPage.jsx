@@ -205,6 +205,154 @@ function NewUserEmptyScreen() {
   );
 }
 
+/** Collapsible accordion for a pattern lifecycle category */
+function PatternCategoryAccordion({
+  title,
+  subtitle,
+  accentBg,
+  badgeClassName,
+  cardBorderHover,
+  cardTitleHover,
+  patterns,
+  isOpen,
+  onToggle,
+  onOpenPattern,
+  searchQuery,
+  defaultHistorical = 'moderate',
+  defaultActivity = 'moderate',
+  isQuiet = false
+}) {
+  if (!patterns || patterns.length === 0) return null;
+
+  return (
+    <div className="bg-white border border-[#1E2A2E]/10 rounded-xl overflow-hidden shadow-xs transition-all">
+      {/* Accordion Header */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="p-3.5 sm:p-4 flex items-center justify-between cursor-pointer hover:bg-[#F8FAFA] transition-colors select-none"
+      >
+        <div className="flex-1 pr-3 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${accentBg}`} />
+            <span className="text-[13px] font-bold text-primary">{title}</span>
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${badgeClassName}`}>
+              {patterns.length}
+            </span>
+            <span className="text-[11px] text-mid/70 hidden sm:inline">
+              {subtitle}
+            </span>
+          </div>
+
+          {/* Collapsed preview chips when closed */}
+          {!isOpen && (
+            <div className="flex gap-1.5 flex-wrap mt-1.5 items-center">
+              {patterns.slice(0, 4).map((p, pIdx) => (
+                <span
+                  key={p.id ? `${p.id}-chip` : `chip-${pIdx}`}
+                  className="text-[10.5px] font-medium px-2 py-0.5 rounded bg-mint-grey/60 text-[#4A6A64] border border-[#1E2A2E]/5 truncate max-w-[180px]"
+                >
+                  {p.name}
+                </span>
+              ))}
+              {patterns.length > 4 && (
+                <span className="text-[10px] text-mid/60 font-medium">
+                  +{patterns.length - 4} more
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Downward toggle button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className="w-8 h-8 rounded-full flex items-center justify-center bg-mint-grey/60 hover:bg-mint-grey text-primary/80 transition-all shrink-0 ml-2 border-none cursor-pointer"
+          aria-label={isOpen ? `Collapse ${title}` : `Expand ${title}`}
+        >
+          <ChevronDown
+            size={16}
+            className={`text-[#4A6A64] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+
+      {/* Expanded Content */}
+      {isOpen && (
+        <div className="border-t border-[#1E2A2E]/5 p-3.5 sm:p-4 bg-[#FAFBFB] space-y-3">
+          {patterns.map((p, idx) => {
+            const badge = getStatusBadge(p.status || p.lifecycleStatus);
+            return (
+              <div
+                key={p.id ? `${p.id}-${idx}` : `pat-${idx}`}
+                onClick={() => onOpenPattern(p.id)}
+                className={`bg-white border ${isQuiet ? 'border-[#1E2A2E]/8 opacity-90' : 'border-[#1E2A2E]/10'} rounded-xl p-4 cursor-pointer hover:shadow-md ${cardBorderHover} transition-all relative overflow-hidden pl-5 group`}
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accentBg}`} />
+                <div className="flex justify-between items-center mb-1.5">
+                  <h3 className={`text-[14px] font-bold ${isQuiet ? 'text-primary/85' : 'text-primary'} ${cardTitleHover} transition-colors`}>
+                    <HighlightText text={p.name} query={searchQuery} />
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
+                    {badge.text}
+                  </span>
+                </div>
+                <p className={`text-[12px] ${isQuiet ? 'text-mid' : 'text-[#4A6A64]'} leading-relaxed mb-3`}>
+                  <HighlightText text={p.body} query={searchQuery} />
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 text-[10px] text-mid/80 mb-2.5">
+                  <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
+                    Historical: {p.historicalStrength || defaultHistorical}
+                  </span>
+                  <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
+                    Activity: {p.currentActivity || defaultActivity}
+                  </span>
+                </div>
+
+                {/* Timeline preview */}
+                {p.timeline && p.timeline.length > 0 && (
+                  <div className="space-y-1 mb-2.5">
+                    <div className="text-[8.5px] tracking-wider uppercase text-[#8DBFB4] font-bold">
+                      Across {p.timeline.length} cycles
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {p.timeline.map((s, tIdx) => (
+                        <div key={tIdx} className="flex flex-col items-center">
+                          <div className={`w-3 h-3 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
+                          <span className="text-[8px] font-mono text-mid/60 mt-0.5">{tIdx + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-[10.5px] text-mid border-t border-[#1E2A2E]/5 pt-2.5 mt-2.5">
+                  <span>{p.meta}</span>
+                  <span className="font-semibold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                    See history <ArrowLeft size={11} className="rotate-180" />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PatternsPage({ user, profile, onSignOut }) {
   const [viewState, setViewState] = useState('list'); // 'list' | 'detail'
   const [overview, setOverview] = useState(null);
@@ -216,6 +364,36 @@ export default function PatternsPage({ user, profile, onSignOut }) {
   const [expandedCycles, setExpandedCycles] = useState({});
   const [listExpandedCycles, setListExpandedCycles] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSections, setExpandedSections] = useState({
+    new: false,
+    shifting: false,
+    present: false,
+    quiet: false,
+  });
+
+  const toggleSection = (sectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
+
+  const hasAnyOpen = Object.values(expandedSections).some(Boolean);
+
+  const toggleAllSections = () => {
+    const nextState = !hasAnyOpen;
+    setExpandedSections({
+      new: nextState,
+      shifting: nextState,
+      present: nextState,
+      quiet: nextState,
+    });
+  };
+
+  const isSectionOpen = (sectionKey, count) => {
+    if (searchQuery.trim() && count > 0) return true;
+    return !!expandedSections[sectionKey];
+  };
 
   const toggleListCycleCard = (cycleNumber) => {
     setListExpandedCycles(prev => ({
@@ -445,12 +623,6 @@ export default function PatternsPage({ user, profile, onSignOut }) {
     !quietPatternsAll.includes(p)
   );
 
-  // When searching, show all matches; when not searching, show 3 each
-  const newPatterns = query ? newPatternsAll : newPatternsAll.slice(0, 3);
-  const shiftingPatterns = query ? shiftingPatternsAll : shiftingPatternsAll.slice(0, 3);
-  const quietPatterns = query ? quietPatternsAll : quietPatternsAll.slice(0, 3);
-  const presentPatterns = query ? presentPatternsAll : presentPatternsAll.slice(0, 3);
-
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20 sm:pb-24">
       <DashboardNavbar activeTab="patterns" />
@@ -564,264 +736,95 @@ export default function PatternsPage({ user, profile, onSignOut }) {
               </div>
             )}
 
-            {/* Pattern Lists Grouped by Category: New, Shifting, Quiet, Present (3 each) */}
-            <div className="space-y-5">
-              {/* 1. NEW PATTERNS */}
-              {newPatterns.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-[9.5px] font-bold tracking-widest text-[#B8A8D4] uppercase flex items-center justify-between">
-                    <span>New patterns</span>
-                    <span className="text-[10px] font-normal text-mid/70">Recently observed ({newPatternsAll.length})</span>
+            {/* Collapsible Pattern Categories */}
+            {filteredPatterns.length > 0 && (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between pb-0.5">
+                  <div className="text-[10px] font-bold tracking-widest text-[#8DBFB4] uppercase">
+                    Observed themes ({filteredPatterns.length})
                   </div>
-                  {newPatterns.map((p, idx) => {
-                    const badge = getStatusBadge(p.status || p.lifecycleStatus);
-                    return (
-                      <div
-                        key={`${p.id || 'new'}-${idx}`}
-                        onClick={() => handleOpenPattern(p.id)}
-                        className="bg-white border border-[#B8A8D4]/20 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#B8A8D4]/35 transition-all relative overflow-hidden pl-5 group"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#B8A8D4]" />
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h3 className="text-[14px] font-bold text-primary group-hover:text-[#8A68B8] transition-colors">
-                            <HighlightText text={p.name} query={searchQuery} />
-                          </h3>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-[#4A6A64] leading-relaxed mb-3">
-                          <HighlightText text={p.body} query={searchQuery} />
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-mid/80 mb-2.5">
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Historical: {p.historicalStrength || 'emerging'}
-                          </span>
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Activity: {p.currentActivity || 'moderate'}
-                          </span>
-                        </div>
-
-                        {/* Timeline preview */}
-                        {p.timeline && p.timeline.length > 0 && (
-                          <div className="space-y-1 mb-2.5">
-                            <div className="text-[8.5px] tracking-wider uppercase text-[#8DBFB4] font-bold">Across {p.timeline.length} cycles</div>
-                            <div className="flex gap-2 flex-wrap">
-                              {p.timeline.map((s, idx) => (
-                                <div key={idx} className="flex flex-col items-center">
-                                  <div className={`w-3 h-3 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
-                                  <span className="text-[8px] font-mono text-mid/60 mt-0.5">{idx + 1}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center text-[10.5px] text-mid border-t border-[#1E2A2E]/5 pt-2.5 mt-2.5">
-                          <span>{p.meta}</span>
-                          <span className="font-semibold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            See history <ArrowLeft size={11} className="rotate-180" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={toggleAllSections}
+                    className="text-[11px] font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-none py-1 px-1.5"
+                  >
+                    <span>{hasAnyOpen ? 'Collapse all' : 'Expand all'}</span>
+                    <ChevronDown size={12} className={`transition-transform duration-200 ${hasAnyOpen ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
-              )}
 
-              {/* 2. SHIFTING PATTERNS */}
-              {shiftingPatterns.length > 0 && (
-                <div className="space-y-3 pt-1">
-                  <div className="text-[9.5px] font-bold tracking-widest text-[#8DBFB4] uppercase flex items-center justify-between">
-                    <span>Shifting patterns</span>
-                    <span className="text-[10px] font-normal text-mid/70">Changing in focus or intensity ({shiftingPatternsAll.length})</span>
-                  </div>
-                  {shiftingPatterns.map((p, idx) => {
-                    const badge = getStatusBadge(p.status || p.lifecycleStatus);
-                    return (
-                      <div
-                        key={`${p.id || 'shifting'}-${idx}`}
-                        onClick={() => handleOpenPattern(p.id)}
-                        className="bg-white border border-[#8DBFB4]/25 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#8DBFB4]/40 transition-all relative overflow-hidden pl-5 group"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#8DBFB4]" />
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h3 className="text-[14px] font-bold text-primary group-hover:text-[#2E7A70] transition-colors">
-                            <HighlightText text={p.name} query={searchQuery} />
-                          </h3>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-[#4A6A64] leading-relaxed mb-3">
-                          <HighlightText text={p.body} query={searchQuery} />
-                        </p>
+                <div className="space-y-2.5">
+                  {/* 1. NEW PATTERNS */}
+                  <PatternCategoryAccordion
+                    title="New patterns"
+                    subtitle="Recently observed"
+                    accentBg="bg-[#B8A8D4]"
+                    badgeClassName="bg-[#B8A8D4]/15 text-[#6D5299] border-[#B8A8D4]/30"
+                    cardBorderHover="hover:border-[#B8A8D4]/35"
+                    cardTitleHover="group-hover:text-[#8A68B8]"
+                    patterns={newPatternsAll}
+                    isOpen={isSectionOpen('new', newPatternsAll.length)}
+                    onToggle={() => toggleSection('new')}
+                    onOpenPattern={handleOpenPattern}
+                    searchQuery={searchQuery}
+                    defaultHistorical="emerging"
+                    defaultActivity="moderate"
+                  />
 
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-mid/80 mb-2.5">
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Historical: {p.historicalStrength || 'moderate'}
-                          </span>
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Activity: {p.currentActivity || 'moderate'}
-                          </span>
-                        </div>
+                  {/* 2. SHIFTING PATTERNS */}
+                  <PatternCategoryAccordion
+                    title="Shifting patterns"
+                    subtitle="Changing in focus or intensity"
+                    accentBg="bg-[#8DBFB4]"
+                    badgeClassName="bg-[#8DBFB4]/15 text-[#2E7A70] border-[#8DBFB4]/30"
+                    cardBorderHover="hover:border-[#8DBFB4]/40"
+                    cardTitleHover="group-hover:text-[#2E7A70]"
+                    patterns={shiftingPatternsAll}
+                    isOpen={isSectionOpen('shifting', shiftingPatternsAll.length)}
+                    onToggle={() => toggleSection('shifting')}
+                    onOpenPattern={handleOpenPattern}
+                    searchQuery={searchQuery}
+                    defaultHistorical="moderate"
+                    defaultActivity="moderate"
+                  />
 
-                        {/* Timeline preview */}
-                        {p.timeline && p.timeline.length > 0 && (
-                          <div className="space-y-1 mb-2.5">
-                            <div className="text-[8.5px] tracking-wider uppercase text-[#8DBFB4] font-bold">Across {p.timeline.length} cycles</div>
-                            <div className="flex gap-2 flex-wrap">
-                              {p.timeline.map((s, idx) => (
-                                <div key={idx} className="flex flex-col items-center">
-                                  <div className={`w-3 h-3 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
-                                  <span className="text-[8px] font-mono text-mid/60 mt-0.5">{idx + 1}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                  {/* 3. PRESENT PATTERNS */}
+                  <PatternCategoryAccordion
+                    title="Present patterns"
+                    subtitle="Sustained evidence"
+                    accentBg="bg-[#E0A898]"
+                    badgeClassName="bg-[#E0A898]/15 text-[#B85C47] border-[#E0A898]/30"
+                    cardBorderHover="hover:border-[#E0A898]/35"
+                    cardTitleHover="group-hover:text-[#E0A898]"
+                    patterns={presentPatternsAll}
+                    isOpen={isSectionOpen('present', presentPatternsAll.length)}
+                    onToggle={() => toggleSection('present')}
+                    onOpenPattern={handleOpenPattern}
+                    searchQuery={searchQuery}
+                    defaultHistorical="moderate"
+                    defaultActivity="high"
+                  />
 
-                        <div className="flex justify-between items-center text-[10.5px] text-mid border-t border-[#1E2A2E]/5 pt-2.5 mt-2.5">
-                          <span>{p.meta}</span>
-                          <span className="font-semibold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            See history <ArrowLeft size={11} className="rotate-180" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {/* 4. QUIET PATTERNS */}
+                  <PatternCategoryAccordion
+                    title="Quiet patterns"
+                    subtitle="Quieter recently"
+                    accentBg="bg-[#1E2A2E]/20"
+                    badgeClassName="bg-primary/5 text-mid border-primary/10"
+                    cardBorderHover="hover:border-[#1E2A2E]/15"
+                    cardTitleHover="group-hover:text-primary"
+                    patterns={quietPatternsAll}
+                    isOpen={isSectionOpen('quiet', quietPatternsAll.length)}
+                    onToggle={() => toggleSection('quiet')}
+                    onOpenPattern={handleOpenPattern}
+                    searchQuery={searchQuery}
+                    defaultHistorical="moderate"
+                    defaultActivity="Low (Quiet)"
+                    isQuiet={true}
+                  />
                 </div>
-              )}
-
-              {/* 3. QUIET PATTERNS */}
-              {quietPatterns.length > 0 && (
-                <div className="space-y-3 pt-1">
-                  <div className="text-[9.5px] font-bold tracking-widest text-mid uppercase flex items-center justify-between">
-                    <span>Quiet patterns</span>
-                    <span className="text-[10px] font-normal text-mid/70">Quieter recently ({quietPatternsAll.length})</span>
-                  </div>
-                  {quietPatterns.map((p, idx) => {
-                    const badge = getStatusBadge(p.status || p.lifecycleStatus);
-                    return (
-                      <div
-                        key={`${p.id || 'quiet'}-${idx}`}
-                        onClick={() => handleOpenPattern(p.id)}
-                        className="bg-white/80 border border-[#1E2A2E]/8 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#1E2A2E]/15 transition-all relative overflow-hidden pl-5 group opacity-90"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#1E2A2E]/15" />
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h3 className="text-[14px] font-bold text-primary/85 group-hover:text-primary transition-colors">
-                            <HighlightText text={p.name} query={searchQuery} />
-                          </h3>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-mid leading-relaxed mb-3">
-                          <HighlightText text={p.body} query={searchQuery} />
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-mid/70 mb-2.5">
-                          <span className="px-2 py-0.5 bg-mint-grey/60 rounded text-[9.5px] font-medium text-primary/80">
-                            Historical: {p.historicalStrength || 'moderate'}
-                          </span>
-                          <span className="px-2 py-0.5 bg-mint-grey/60 rounded text-[9.5px] font-medium text-primary/80">
-                            Activity: Low (Quiet)
-                          </span>
-                        </div>
-
-                        {/* Timeline preview */}
-                        {p.timeline && p.timeline.length > 0 && (
-                          <div className="space-y-1 mb-2.5">
-                            <div className="text-[8.5px] tracking-wider uppercase text-mid/60 font-bold">Across {p.timeline.length} cycles</div>
-                            <div className="flex gap-2 flex-wrap">
-                              {p.timeline.map((s, idx) => (
-                                <div key={idx} className="flex flex-col items-center">
-                                  <div className={`w-3 h-3 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
-                                  <span className="text-[8px] font-mono text-mid/60 mt-0.5">{idx + 1}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center text-[10.5px] text-mid/70 border-t border-[#1E2A2E]/5 pt-2.5 mt-2.5">
-                          <span>{p.meta}</span>
-                          <span className="font-semibold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            See history <ArrowLeft size={11} className="rotate-180" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* 4. PRESENT PATTERNS */}
-              {presentPatterns.length > 0 && (
-                <div className="space-y-3 pt-1">
-                  <div className="text-[9.5px] font-bold tracking-widest text-[#E0A898] uppercase flex items-center justify-between">
-                    <span>Present patterns</span>
-                    <span className="text-[10px] font-normal text-mid/70">Sustained evidence ({presentPatternsAll.length})</span>
-                  </div>
-                  {presentPatterns.map((p, idx) => {
-                    const badge = getStatusBadge(p.status || p.lifecycleStatus);
-                    return (
-                      <div
-                        key={`${p.id || 'present'}-${idx}`}
-                        onClick={() => handleOpenPattern(p.id)}
-                        className="bg-white border border-[#1E2A2E]/8 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#1E2A2E]/15 transition-all relative overflow-hidden pl-5 group"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#E0A898]" />
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h3 className="text-[14px] font-bold text-primary group-hover:text-[#E0A898] transition-colors">
-                            <HighlightText text={p.name} query={searchQuery} />
-                          </h3>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${badge.className}`}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-[#4A6A64] leading-relaxed mb-3">
-                          <HighlightText text={p.body} query={searchQuery} />
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-mid/80 mb-2.5">
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Historical: {p.historicalStrength || 'moderate'}
-                          </span>
-                          <span className="px-2 py-0.5 bg-mint-grey/70 rounded text-[9.5px] font-medium text-primary">
-                            Activity: {p.currentActivity || 'high'}
-                          </span>
-                        </div>
-
-                        {/* Timeline preview */}
-                        {p.timeline && p.timeline.length > 0 && (
-                          <div className="space-y-1 mb-2.5">
-                            <div className="text-[8.5px] tracking-wider uppercase text-[#8DBFB4] font-bold">Across {p.timeline.length} cycles</div>
-                            <div className="flex gap-2 flex-wrap">
-                              {p.timeline.map((s, idx) => (
-                                <div key={idx} className="flex flex-col items-center">
-                                  <div className={`w-3 h-3 rounded-full ${dotLabels[s] || dotLabels.absent}`} />
-                                  <span className="text-[8px] font-mono text-mid/60 mt-0.5">{idx + 1}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center text-[10.5px] text-mid border-t border-[#1E2A2E]/5 pt-2.5 mt-2.5">
-                          <span>{p.meta}</span>
-                          <span className="font-semibold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            See history <ArrowLeft size={11} className="rotate-180" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* BY CYCLE ACCORDIONS */}
             {overview?.snapshots && overview.snapshots.length > 0 && (
