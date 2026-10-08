@@ -6,14 +6,12 @@ import {
   Smile, 
   RotateCw, 
   Compass, 
-  Calendar,
-  Layers,
-  Sparkles,
-  FileText,
-  Clock,
-  ArrowRight,
-  X,
-  Search
+  Calendar, 
+  Layers, 
+  Sparkles, 
+  ArrowRight, 
+  X, 
+  Search 
 } from 'lucide-react';
 import DashboardNavbar from '../components/DashboardNavbar';
 import { DashboardService } from '../services/dashboardService';
@@ -109,8 +107,6 @@ export default function VocabPage({ user, profile, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [cycles, setCycles] = useState([]);
-  const [threadResponses, setThreadResponses] = useState([]);
-  const [openThreadsCount, setOpenThreadsCount] = useState(0);
   
   // UI Panels / Accordions Toggles
   const [awpOpen, setAwpOpen] = useState(false);
@@ -118,7 +114,6 @@ export default function VocabPage({ user, profile, onSignOut }) {
   const [awpTailOpen, setAwpTailOpen] = useState(false);
   const [ssScope, setSsScope] = useState('last');
   const [openCycles, setOpenCycles] = useState({ 0: true }); // Newest cycle open by default
-  const [openResponses, setOpenResponses] = useState({});
   const [auditOpen, setAuditOpen] = useState(false);
   const [expandedCycleSections, setExpandedCycleSections] = useState({});
   const [overallClustersOpen, setOverallClustersOpen] = useState(false);
@@ -144,13 +139,6 @@ export default function VocabPage({ user, profile, onSignOut }) {
     }));
   };
 
-  const toggleResponse = (idx) => {
-    setOpenResponses(prev => ({
-      ...prev,
-      [idx]: !prev[idx]
-    }));
-  };
-
   const loadVocabData = async () => {
     try {
       // 1. Fetch overview statistics
@@ -166,15 +154,6 @@ export default function VocabPage({ user, profile, onSignOut }) {
         if (currentCy?.number !== undefined) {
           setOpenCycles(prev => ({ ...prev, [currentCy.number]: true }));
         }
-      }
-
-      // 3. Fetch completed thread responses
-      try {
-        const trData = await DashboardService.fetchVocabThreadResponses();
-        setThreadResponses(trData.responses || []);
-        setOpenThreadsCount(trData.openThreadsCount || 0);
-      } catch (trErr) {
-        console.error('Failed to load thread responses for vocab:', trErr);
       }
     } catch (err) {
       console.error('Failed to load vocab page data:', err);
@@ -819,75 +798,6 @@ export default function VocabPage({ user, profile, onSignOut }) {
             </div>
           )}
 
-          {/* WHAT YOU WROTE WHEN ASKED DIRECTLY (Thread Responses) */}
-          {threadResponses.length > 0 && (
-            <div className="space-y-3 pt-2 text-left">
-              <div className="flex items-center justify-between">
-                <div className="text-[10px] font-bold tracking-widest text-[#8DBFB4] uppercase">What you wrote when asked directly</div>
-                <span className="text-[11px] font-bold text-[#4A6A64] bg-[#FAFBFB] border border-[#1E2A2E]/5 px-2.5 py-0.5 rounded-full">
-                  {threadResponses.length} {threadResponses.length === 1 ? 'response' : 'responses'}
-                </span>
-              </div>
-              <p className="text-xs text-[#4A6A64] leading-relaxed">
-                Your responses to open thread questions — raw emotional writing. They live here because they are purely about feeling, not about what happened.
-              </p>
-
-              <div className="space-y-3">
-                {threadResponses.map((resp, idx) => {
-                  const isRespOpen = !!openResponses[idx];
-                  return (
-                    <div 
-                      key={resp.id || idx} 
-                      className="bg-white border border-[#1E2A2E]/10 rounded-xl overflow-hidden shadow-xs hover:shadow-sm transition-all"
-                    >
-                      <div 
-                        onClick={() => toggleResponse(idx)}
-                        className="p-4 flex items-start gap-3 cursor-pointer"
-                      >
-                        <div className="w-[3px] bg-[#B8A8D4] rounded-full self-stretch min-h-[44px] shrink-0" />
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <div className="text-[9px] tracking-wider uppercase text-[#8DBFB4] font-bold">
-                            {resp.from}
-                          </div>
-                          <div className="text-[13px] text-primary italic font-serif leading-relaxed line-clamp-1">
-                            {resp.question}
-                          </div>
-                          <div className="text-[12px] text-[#4A6A64] truncate">
-                            {resp.preview}
-                          </div>
-                          <div className="text-[10.5px] text-[#8DBFB4] mt-1 font-medium">
-                            {resp.meta}
-                          </div>
-                        </div>
-                        <ChevronDown size={15} className={`text-[#C8D8D4] mt-1.5 transition-transform ${isRespOpen ? 'rotate-180' : ''}`} />
-                      </div>
-                      
-                      {isRespOpen && (
-                        <div className="border-t border-[#1E2A2E]/5 p-4.5 bg-[#FAFBFB] pl-8 space-y-3">
-                          <p className="text-[13px] text-primary leading-relaxed font-serif italic whitespace-pre-wrap">
-                            {resp.full}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[10.5px] text-[#4A6A64] font-medium">
-                            <FileText size={13} className="text-[#8DBFB4]" />
-                            <span>{resp.footer}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {openThreadsCount > 0 && (
-                <div className="bg-[#FAFBFB] border border-[#1E2A2E]/5 rounded-xl p-3.5 flex items-center gap-3">
-                  <Clock className="text-[#8DBFB4] shrink-0" size={15} />
-                  <div className="text-[11.5px] text-[#4A6A64] leading-relaxed">
-                    You have <strong>{openThreadsCount} open threads</strong> waiting. Responses will appear here once written.
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* DEVELOPER AUDIT TRACE LOG */}
           {(stats?.currentCycleWords && stats.currentCycleWords.length > 0) && (
