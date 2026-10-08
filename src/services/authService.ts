@@ -18,6 +18,7 @@ export interface EstablishSessionResult {
     full_name: string | null;
     account_status: string;
     onboarding_status: string;
+    onboarding_completed?: boolean;
     created_at: string;
     updated_at: string;
   };
@@ -345,6 +346,7 @@ export class AuthService {
         full_name: profileRecord?.full_name || userRecord.name || null,
         account_status: profileRecord?.account_status || 'active',
         onboarding_status: profileRecord?.onboarding_status || 'pending',
+        onboarding_completed: profileRecord?.onboarding_completed !== undefined ? profileRecord.onboarding_completed : true,
         created_at: profileRecord?.created_at || new Date().toISOString(),
         updated_at: profileRecord?.updated_at || new Date().toISOString()
       },

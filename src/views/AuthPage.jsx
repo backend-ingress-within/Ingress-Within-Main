@@ -12,7 +12,7 @@ const quotes = [
 export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onAuthSuccess }) {
   // If user is already authenticated, immediately route to destination without showing login form
   useEffect(() => {
-    if (user) {
+    if (user && view !== 'success') {
       const destination = (propProfile && !propProfile.onboarding_completed) ? '/onboarding' : '/dashboard';
       if (typeof window !== 'undefined') {
         if (window.navigateTo) {
@@ -22,11 +22,12 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
         }
       }
     }
-  }, [user, propProfile]);
+  }, [user, propProfile, view]);
 
   // Navigation views: 'entry', 'otp', 'success'
   const [view, setView] = useState('entry');
   const [profile, setProfile] = useState(propProfile || null);
+  const [authData, setAuthData] = useState(null);
   
   // Phone and OTP input values
   const [mobileNumber, setMobileNumber] = useState('');
@@ -182,9 +183,7 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
       
       // Success
       setProfile(data.profile || null);
-      if (onAuthSuccess) {
-        onAuthSuccess(data);
-      }
+      setAuthData(data);
       navigateToView('success');
     } catch (err) {
       setErrorMsg(err.message);
@@ -625,18 +624,21 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
                 {/* Continue CTA */}
                 <button 
                   onClick={() => {
-                    const destination = (profile && !profile.onboarding_completed) ? '/onboarding' : '/dashboard';
+                    const resolvedAuth = authData || { user, profile };
+                    if (onAuthSuccess && resolvedAuth?.user) {
+                      onAuthSuccess(resolvedAuth);
+                    }
                     if (typeof window !== 'undefined') {
                       if (typeof window.navigateTo === 'function') {
-                        window.navigateTo(destination);
+                        window.navigateTo('/dashboard');
                       } else {
-                        window.location.href = destination;
+                        window.location.href = '/dashboard';
                       }
                     }
                   }}
                   className="w-full py-4 bg-primary hover:bg-[#2A3A3E] text-mint-grey border-none rounded-md font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs"
                 >
-                  {profile && !profile.onboarding_completed ? "Continue to onboarding →" : "Continue to dashboard →"}
+                  Continue to dashboard →
                 </button>
               </motion.div>
             )}

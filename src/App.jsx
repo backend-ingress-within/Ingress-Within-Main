@@ -297,11 +297,11 @@ export default function App({ initialRoute = 'home' }) {
           onboarding_completed: profile.onboarding_completed
         });
         if (!profile.onboarding_completed) {
-          if (!path.startsWith('/onboarding')) {
+          if (!path.startsWith('/onboarding') && !path.startsWith('/dashboard')) {
             console.log('[App.jsx] Redirect Engine: onboarding_completed is false. Redirecting to /onboarding. Reason: ONBOARDING_INCOMPLETE');
             window.navigateTo('/onboarding');
           } else {
-            console.log('[App.jsx] Redirect Engine: User is on onboarding flow:', path);
+            console.log('[App.jsx] Redirect Engine: User is on allowed protected page:', path);
           }
         } else {
           // Onboarding complete: prevent getting stuck on onboarding pages
@@ -321,27 +321,7 @@ export default function App({ initialRoute = 'home' }) {
       }
     } else if (isUserAuthRoute(path, currentRoute) && user) {
       console.log('[App.jsx] Redirect Engine: Authenticated user attempting to access auth/login/signup. Redirecting forward.');
-      if (profile && !profile.onboarding_completed) {
-        if (!profile.consent_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/consent. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/consent');
-        } else if (!profile.profile_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/profile. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/profile');
-        } else if (!profile.orientation_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/welcome. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/welcome');
-        } else if (!profile.assessment_completed) {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding/assessment. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding/assessment');
-        } else {
-          console.log('[App.jsx] Redirect Engine: Redirecting to /onboarding. Reason: ONBOARDING_INCOMPLETE');
-          window.navigateTo('/onboarding');
-        }
-      } else {
-        console.log('[App.jsx] Redirect Engine: Redirecting to /dashboard. Reason: ONBOARDING_ALREADY_COMPLETE');
-        window.navigateTo('/dashboard');
-      }
+      window.navigateTo('/dashboard');
     } else {
       console.log('[App.jsx] Redirect Engine: Public route or unauthenticated user on auth path. No redirect needed.');
     }
