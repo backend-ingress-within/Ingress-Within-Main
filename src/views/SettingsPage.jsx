@@ -11,7 +11,10 @@ import {
   FileText,
   HelpCircle,
   Menu,
-  X
+  X,
+  Download,
+  Check,
+  Loader2
 } from 'lucide-react';
 import { DashboardService } from '../services/dashboardService';
 
@@ -53,6 +56,11 @@ export default function SettingsPage({ user, profile, onSignOut }) {
   const [emailError, setEmailError] = useState('');
 
   const [dlRequested, setDlRequested] = useState(false);
+  const [dlRequestedAt, setDlRequestedAt] = useState(null);
+  const [isRequestingDl, setIsRequestingDl] = useState(false);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [exportStats, setExportStats] = useState(null);
 
   // Notifications preferences states
   const [dailyReminder, setDailyReminder] = useState(true);
@@ -113,6 +121,29 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     }
     return () => clearTimeout(deleteTimerRef.current);
   }, [deleteCooldown]);
+
+  // Load persistent export status & counts on mount
+  useEffect(() => {
+    const checkExportStatus = async () => {
+      try {
+        const res = await fetch('/api/user/export-data/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.requested) {
+            setDlRequested(true);
+            setDlRequestedAt(data.lastRequestedAt);
+          }
+          setExportStats({
+            entriesCount: data.entriesCount || 0,
+            reportsCount: data.reportsCount || 0
+          });
+        }
+      } catch (err) {
+        console.warn('Could not load data export status:', err);
+      }
+    };
+    checkExportStatus();
+  }, []);
 
   // Utility to trigger visual toast
   const triggerToast = (msg) => {
@@ -391,10 +422,71 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     }
   };
 
-  // Data Download Request
-  const handleRequestDownload = () => {
-    setDlRequested(true);
-    triggerToast('Download link will be sent within 7 days.');
+  // Data Download Request (Logs request to audit logs & shows where it went and how data will be shared)
+  const handleRequestDownload = async () => {
+    setIsRequestingDl(true);
+    try {
+      const res = await fetch('/api/user/export-data/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactInfo: phoneDisplay || emailDisplay })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDlRequested(true);
+        setDlRequestedAt(data.requestedAt || new Date().toISOString());
+        triggerToast('Request logged. A backup link will arrive within 7 days. You can also download directly.');
+      } else {
+        triggerToast(data.error?.message || 'Failed to submit request.');
+      }
+    } catch (err) {
+      triggerToast('Network error while requesting download link.');
+    } finally {
+      setIsRequestingDl(false);
+    }
+  };
+
+  // Direct Data Archive Download (.zip containing separate docs for all entries, reflections, reports, etc.)
+  const handleDirectDownload = async () => {
+    if (isDownloadingZip) return;
+    setIsDownloadingZip(true);
+    setDownloadSuccess(false);
+    triggerToast('Compiling documents and packaging your archive...');
+    try {
+      const res = await fetch('/api/user/export-data');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || 'Failed to generate data export.');
+      }
+      
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('content-disposition');
+      let filename = 'ingress_within_data_export.zip';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setDownloadSuccess(true);
+      triggerToast('All data downloaded with separate documents for each entry & report!');
+      setTimeout(() => setDownloadSuccess(false), 5000);
+    } catch (err) {
+      console.error('Download error:', err);
+      triggerToast(err.message || 'Error downloading data archive.');
+    } finally {
+      setIsDownloadingZip(false);
+    }
   };
 
   // Delete Flow Handlers
@@ -672,21 +764,110 @@ export default function SettingsPage({ user, profile, onSignOut }) {
 
       <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl mb-5 overflow-hidden">
         <div className="card-hd px-5 py-3 border-b border-[#1E2A2E]/8 flex items-center justify-between">
-          <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Data</span>
+          <span className="card-lbl text-[10px] tracking-widest uppercase font-bold text-mid">Data Sovereignty & Export</span>
+          {dlRequested && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#8DBFB4]/15 text-[#1A5040]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1A5040]" />
+              Request Registered
+            </span>
+          )}
         </div>
-        <div className="row flex justify-between items-center px-5 py-4 gap-4">
-          <div className="row-l flex-1 min-w-0">
-            <div className="row-lbl font-semibold text-[13.5px]">Download my data</div>
-            <div className="row-sub text-mid text-[11.5px] mt-0.5 leading-relaxed">
-              Your entries, reflections and reports. Sent to your phone number within 7 days.
+
+        {/* Primary Download Row */}
+        <div className="p-5 border-b border-[#1E2A2E]/8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="row-lbl font-semibold text-[14px] text-primary flex items-center gap-2">
+                Download my complete data
+                {exportStats && exportStats.entriesCount > 0 && (
+                  <span className="text-[11px] font-medium text-mid/70 bg-[#1E2A2E]/5 px-2 py-0.5 rounded">
+                    {exportStats.entriesCount} entries · {exportStats.reportsCount} reports
+                  </span>
+                )}
+              </div>
+              <div className="row-sub text-mid text-[12px] mt-1 leading-relaxed">
+                Download an immediate <strong>.zip package</strong> containing <strong>separate formatted documents (.md) for every single journal entry</strong>, daily reflections, weekly synthesis reports, and personal emotional vocabulary.
+              </div>
+            </div>
+
+            <button 
+              className={`btn px-5 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shrink-0 transition-all cursor-pointer ${
+                downloadSuccess 
+                  ? 'bg-[#1A5040] text-white' 
+                  : 'bg-primary text-mint-grey hover:bg-[#2A3A3E]'
+              }`}
+              onClick={handleDirectDownload}
+              disabled={isDownloadingZip}
+            >
+              {isDownloadingZip ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Packaging documents...</span>
+                </>
+              ) : downloadSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Downloaded!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download all data (.zip)</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Included Documents Breakdown */}
+          <div className="mt-4 pt-4 border-t border-[#1E2A2E]/6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11.5px] text-mid">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8DBFB4]" />
+              <span><strong>Individual documents:</strong> Separate .md file for each entry</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8DBFB4]" />
+              <span><strong>Weekly reports:</strong> Dedicated synthesis doc per week</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8DBFB4]" />
+              <span><strong>Emotional vocabulary:</strong> Full dictionary & patterns</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8DBFB4]" />
+              <span><strong>Portability:</strong> CSV spreadsheet & structured JSON</span>
             </div>
           </div>
+        </div>
+
+        {/* Where Request Went & Delivery Channel Information */}
+        <div className="px-5 py-4 bg-[#8DBFB4]/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-semibold text-primary">
+              Where did my request go & how is it delivered?
+            </div>
+            <div className="text-[11.5px] text-mid/80 mt-1 leading-relaxed">
+              {dlRequested ? (
+                <>
+                  Your request is officially recorded in the <strong>Audit Log</strong> for account <strong className="text-primary">{phoneDisplay}</strong>{dlRequestedAt ? ` on ${new Date(dlRequestedAt).toLocaleDateString()}` : ''}. In addition to the instant download above, an encrypted backup link will be dispatched via SMS/Email within 7 days.
+                </>
+              ) : (
+                <>
+                  You can download your entire archive directly above at any time. You can also request an encrypted delivery link dispatched to your registered phone (<strong className="text-primary">{phoneDisplay}</strong>) within 7 days.
+                </>
+              )}
+            </div>
+          </div>
+
           <button 
             className="btn btn-ol px-4 py-2 border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5 shrink-0" 
             onClick={handleRequestDownload}
-            disabled={dlRequested}
+            disabled={isRequestingDl}
           >
-            {dlRequested ? 'Requested' : 'Request link'}
+            {isRequestingDl 
+              ? 'Logging request...' 
+              : dlRequested 
+                ? 'Request logged ✓' 
+                : 'Send link via SMS'}
           </button>
         </div>
       </div>
@@ -1297,12 +1478,43 @@ export default function SettingsPage({ user, profile, onSignOut }) {
                 <p>If the link doesn't arrive, contact us at <strong className="text-primary font-bold">hello@ingresswithin.com</strong>.</p>
               </div>
               <div className="flex flex-col gap-2.5">
-                <button className="btn btn-ol w-full py-3 border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5" id="dl-btn" onClick={handleRequestDownload} disabled={dlRequested}>
-                  {dlRequested ? 'Download link requested' : 'Send me a download link'}
+                <button 
+                  className="btn btn-ol w-full py-3 border border-[#1E2A2E]/15 rounded-lg text-xs font-semibold hover:bg-black/5 flex items-center justify-center gap-2" 
+                  onClick={handleDirectDownload} 
+                  disabled={isDownloadingZip}
+                >
+                  {isDownloadingZip ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Downloading data documents...</span>
+                    </>
+                  ) : downloadSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Archive Downloaded (.zip)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download my data backup now (.zip)</span>
+                    </>
+                  )}
+                </button>
+                <button 
+                  className="btn btn-ol w-full py-2.5 border border-[#1E2A2E]/10 rounded-lg text-xs font-medium text-mid hover:bg-black/5" 
+                  id="dl-btn" 
+                  onClick={handleRequestDownload} 
+                  disabled={dlRequested || isRequestingDl}
+                >
+                  {isRequestingDl 
+                    ? 'Logging request...' 
+                    : dlRequested 
+                      ? 'Download link requested ✓' 
+                      : 'Request backup link via SMS (within 7 days)'}
                 </button>
                 {dlRequested && (
                   <p className="fhint text-center text-xs text-[#1A5040] font-semibold" id="dl-conf">
-                    Download link requested. We'll send it to {phoneDisplay} within 7 days.
+                    Request recorded in audit log. Link will arrive at {phoneDisplay} within 7 days.
                   </p>
                 )}
                 <button className="btn btn-red-ol w-full py-3 border border-[#E0A898]/40 text-[#8A3020] hover:bg-[#E0A898]/7 rounded-lg text-xs font-semibold" onClick={() => handleGoToDeleteStep(2)}>
