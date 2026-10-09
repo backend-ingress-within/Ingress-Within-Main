@@ -1216,26 +1216,35 @@ export default function SessionFlowPage({ user, profile, onSignOut }) {
                     <span className="text-[9px] tracking-wider uppercase text-[#8DBFB4] font-bold block">Confidential Support Resources</span>
                     
                     <div className="grid gap-2.5">
-                      <a href="tel:9152987821" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
+                      <a href="tel:+919152987821" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
                         <div>
-                          <div className="font-semibold text-xs text-primary">iCall (India)</div>
-                          <div className="text-[10px] text-mid">Counselling Helpline · Mon–Sat · 8am–10pm</div>
+                          <div className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                            <span>iCall (India)</span>
+                            <span className="font-mono text-[10px] text-primary/80 font-normal bg-primary/5 px-1.5 py-0.5 rounded">+91 91529 87821</span>
+                          </div>
+                          <div className="text-[10px] text-mid mt-0.5">Counselling Helpline · Mon–Sat · 8am–10pm</div>
                         </div>
                         <span className="px-2 py-0.5 bg-primary/5 text-primary text-[9px] uppercase font-bold rounded-full">Call</span>
                       </a>
 
-                      <a href="tel:18602662345" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
+                      <a href="tel:+919999666555" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
                         <div>
-                          <div className="font-semibold text-xs text-primary">Vandrevala Foundation</div>
-                          <div className="text-[10px] text-mid">Mental health support · 24/7 · Free & Confidential</div>
+                          <div className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                            <span>Vandrevala Foundation</span>
+                            <span className="font-mono text-[10px] text-[#1A5040] font-normal bg-[#8DBFB4]/15 px-1.5 py-0.5 rounded">+91 9999 666 555</span>
+                          </div>
+                          <div className="text-[10px] text-mid mt-0.5">Mental health support · 24/7 · Free &amp; Confidential</div>
                         </div>
                         <span className="px-2 py-0.5 bg-[#8DBFB4]/15 text-[#1A5040] text-[9px] uppercase font-bold rounded-full">24 / 7</span>
                       </a>
 
                       <a href="https://wa.me/919152987821" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
                         <div>
-                          <div className="font-semibold text-xs text-primary">iCall — WhatsApp Text Line</div>
-                          <div className="text-[10px] text-mid">Text support if calling feels like too much</div>
+                          <div className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                            <span>iCall — WhatsApp Text Line</span>
+                            <span className="font-mono text-[10px] text-[#5A4A8A] font-normal bg-[#B8A8D4]/15 px-1.5 py-0.5 rounded">+91 91529 87821</span>
+                          </div>
+                          <div className="text-[10px] text-mid mt-0.5">Text support if calling feels like too much</div>
                         </div>
                         <span className="px-2 py-0.5 bg-[#B8A8D4]/15 text-[#5A4A8A] text-[9px] uppercase font-bold rounded-full">WhatsApp</span>
                       </a>
@@ -1337,18 +1346,24 @@ export default function SessionFlowPage({ user, profile, onSignOut }) {
                     <span className="text-[9px] tracking-wider uppercase text-[#8DBFB4] font-bold block">Confidential Support Resources</span>
                     
                     <div className="grid gap-2.5">
-                      <a href="tel:9152987821" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
+                      <a href="tel:+919152987821" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
                         <div>
-                          <div className="font-semibold text-xs text-primary">iCall (India)</div>
-                          <div className="text-[10px] text-mid">Counselling Helpline · Mon–Sat · 8am–10pm</div>
+                          <div className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                            <span>iCall (India)</span>
+                            <span className="font-mono text-[10px] text-primary/80 font-normal bg-primary/5 px-1.5 py-0.5 rounded">+91 91529 87821</span>
+                          </div>
+                          <div className="text-[10px] text-mid mt-0.5">Counselling Helpline · Mon–Sat · 8am–10pm</div>
                         </div>
                         <span className="px-2 py-0.5 bg-primary/5 text-primary text-[9px] uppercase font-bold rounded-full">Call</span>
                       </a>
 
-                      <a href="tel:18602662345" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
+                      <a href="tel:+919999666555" className="flex items-center justify-between p-3.5 bg-mint-grey rounded-xl border border-transparent hover:border-[#8DBFB4]/25 transition-all text-left decoration-none">
                         <div>
-                          <div className="font-semibold text-xs text-primary">Vandrevala Foundation</div>
-                          <div className="text-[10px] text-mid">Mental health support · 24/7 · Free & Confidential</div>
+                          <div className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                            <span>Vandrevala Foundation</span>
+                            <span className="font-mono text-[10px] text-[#1A5040] font-normal bg-[#8DBFB4]/15 px-1.5 py-0.5 rounded">+91 9999 666 555</span>
+                          </div>
+                          <div className="text-[10px] text-mid mt-0.5">Mental health support · 24/7 · Free &amp; Confidential</div>
                         </div>
                         <span className="px-2 py-0.5 bg-[#8DBFB4]/15 text-[#1A5040] text-[9px] uppercase font-bold rounded-full">24 / 7</span>
                       </a>

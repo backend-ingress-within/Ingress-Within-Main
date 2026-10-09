@@ -589,17 +589,20 @@ export default function GuidedWritePage({ journeyConfig = STANDARD_GUIDED_JOURNE
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 pt-1">
-                      <a href="tel:9152987821" className="flex flex-col items-center justify-center p-2.5 bg-accent/5 border border-accent/20 rounded-xl text-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      <a href="tel:+919152987821" className="flex flex-col items-center justify-center p-2.5 bg-accent/5 border border-accent/20 rounded-xl text-center">
                         <div className="font-semibold text-[11px] text-primary">iCall</div>
+                        <div className="font-mono text-[9.5px] text-primary/80 mt-0.5">+91 91529 87821</div>
                         <span className="text-[9px] uppercase font-bold text-accent mt-1">Call</span>
                       </a>
-                      <a href="tel:18602662345" className="flex flex-col items-center justify-center p-2.5 bg-[#8DBFB4]/10 border border-[#8DBFB4]/25 rounded-xl text-center">
+                      <a href="tel:+919999666555" className="flex flex-col items-center justify-center p-2.5 bg-[#8DBFB4]/10 border border-[#8DBFB4]/25 rounded-xl text-center">
                         <div className="font-semibold text-[11px] text-primary">Vandrevala</div>
+                        <div className="font-mono text-[9.5px] text-[#1A5040] mt-0.5">+91 9999 666 555</div>
                         <span className="text-[9px] uppercase font-bold text-[#1A5040] mt-1">24/7</span>
                       </a>
                       <a href="https://wa.me/919152987821" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center p-2.5 bg-[#B8A8D4]/10 border border-[#B8A8D4]/25 rounded-xl text-center">
                         <div className="font-semibold text-[11px] text-primary">WhatsApp</div>
+                        <div className="font-mono text-[9.5px] text-[#5A4A8A] mt-0.5">+91 91529 87821</div>
                         <span className="text-[9px] uppercase font-bold text-[#5A4A8A] mt-1">Text</span>
                       </a>
                     </div>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft, Phone, MessageSquare, Send } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Phone, MessageSquare, Send, Copy, Check } from 'lucide-react';
 import DashboardNavbar from '../components/DashboardNavbar';
 
 const helplines = [
@@ -7,30 +7,35 @@ const helplines = [
     name: 'iCall',
     detail: 'Psychological counselling helpline\nMon–Sat · 8am–10pm IST',
     badge: 'Call',
+    phoneNumber: '+91 91529 87821',
     iconClass: 'bg-[#8DBFB4]/15 text-[#1A5040]',
-    actionLink: 'tel:9152987821',
+    actionLink: 'tel:+919152987821',
     isExternal: false
   },
   {
     name: 'Vandrevala Foundation',
     detail: 'Mental health support · 24/7\nFree · Confidential',
     badge: '24 / 7',
+    phoneNumber: '+91 9999 666 555',
+    altNumber: '1860-2662-345',
     iconClass: 'bg-[#8DBFB4]/15 text-[#1A5040]',
-    actionLink: 'tel:18602662345',
+    actionLink: 'tel:+919999666555',
     isExternal: false
   },
   {
     name: 'NIMHANS Helpline',
     detail: 'National mental health helpline\nAvailable across India',
     badge: 'Call',
+    phoneNumber: '080-46110007',
     iconClass: 'bg-[#8DBFB4]/15 text-[#1A5040]',
-    actionLink: 'tel:080-46110007',
+    actionLink: 'tel:08046110007',
     isExternal: false
   },
   {
     name: 'iCall — WhatsApp',
     detail: 'Text support if calling feels too much\nMon–Sat · 8am–10pm IST',
     badge: 'WhatsApp',
+    phoneNumber: '+91 91529 87821',
     iconClass: 'bg-[#B8A8D4]/15 text-[#5A4A8A]',
     actionLink: 'https://wa.me/919152987821',
     isExternal: true
@@ -38,6 +43,16 @@ const helplines = [
 ];
 
 export default function SupportPage() {
+  const [copiedNumber, setCopiedNumber] = useState(null);
+
+  const handleCopyNumber = (num) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(num);
+      setCopiedNumber(num);
+      setTimeout(() => setCopiedNumber(null), 2500);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20">
       <DashboardNavbar activeTab="support" />
@@ -70,35 +85,83 @@ export default function SupportPage() {
               {helplines.map((h, idx) => (
                 <div 
                   key={idx}
-                  className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 flex items-center justify-between gap-4 shadow-xs"
+                  className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 shadow-xs transition-all hover:border-primary/20"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${h.iconClass}`}>
-                      {h.badge === 'WhatsApp' ? <MessageSquare size={18} /> : <Phone size={18} />}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${h.iconClass} mt-0.5`}>
+                        {h.badge === 'WhatsApp' ? <MessageSquare size={18} /> : <Phone size={18} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-[14px] sm:text-[15px] font-bold text-primary">{h.name}</h3>
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/15 text-primary border border-secondary/30">
+                            {h.badge}
+                          </span>
+                        </div>
+                        <p className="text-[12px] text-mid leading-relaxed whitespace-pre-line mt-1 font-light">
+                          {h.detail}
+                        </p>
+
+                        {/* Directly visible phone number with copy option for desktop and mobile */}
+                        <div className="mt-3 pt-2.5 border-t border-primary/8 flex flex-wrap items-center gap-2">
+                          <a 
+                            href={h.actionLink}
+                            target={h.isExternal ? '_blank' : '_self'}
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 font-mono text-[13px] font-bold text-primary hover:text-accent transition-colors bg-primary/[0.04] hover:bg-primary/[0.08] px-2.5 py-1 rounded-lg border border-primary/10"
+                            title={`Click to ${h.badge === 'WhatsApp' ? 'open WhatsApp chat' : 'call'}`}
+                          >
+                            {h.badge === 'WhatsApp' ? <MessageSquare size={13} className="text-[#5A4A8A]" /> : <Phone size={13} className="text-[#1A5040]" />}
+                            <span>{h.phoneNumber}</span>
+                          </a>
+
+                          {h.altNumber && (
+                            <a 
+                              href={`tel:${h.altNumber.replace(/[^0-9]/g, '')}`}
+                              className="inline-flex items-center gap-1 font-mono text-[11px] font-medium text-mid/80 hover:text-primary transition-colors bg-primary/[0.03] px-2 py-1 rounded-lg border border-primary/5"
+                              title={`Toll-free landline: ${h.altNumber}`}
+                            >
+                              <span>or {h.altNumber}</span>
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleCopyNumber(h.phoneNumber)}
+                            className="inline-flex items-center gap-1 text-[11px] text-mid hover:text-primary transition-colors px-2 py-1 rounded-lg border border-primary/10 bg-white hover:bg-primary/5 cursor-pointer shadow-2xs"
+                            title="Copy number to dial from your phone"
+                          >
+                            {copiedNumber === h.phoneNumber ? (
+                              <>
+                                <Check size={12} className="text-emerald-600" />
+                                <span className="text-emerald-700 font-semibold">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={12} className="text-mid/70" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-[14px] font-bold text-primary">{h.name}</h3>
-                      <p className="text-[12px] text-mid leading-relaxed whitespace-pre-line mt-0.5 font-light">
-                        {h.detail}
-                      </p>
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-secondary/15 text-primary border border-secondary/30 mt-2">
-                        {h.badge}
-                      </span>
-                    </div>
+                    
+                    <a 
+                      href={h.actionLink}
+                      target={h.isExternal ? '_blank' : '_self'}
+                      rel="noreferrer"
+                      title={h.badge === 'WhatsApp' ? `Message on WhatsApp: ${h.phoneNumber}` : `Call ${h.phoneNumber}`}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-xs mt-0.5 ${
+                        h.badge === 'WhatsApp' 
+                          ? 'bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25' 
+                          : 'bg-accent text-white hover:bg-[#654652]'
+                      }`}
+                    >
+                      {h.badge === 'WhatsApp' ? <Send size={16} /> : <Phone size={16} />}
+                    </a>
                   </div>
-                  
-                  <a 
-                    href={h.actionLink}
-                    target={h.isExternal ? '_blank' : '_self'}
-                    rel="noreferrer"
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-xs ${
-                      h.badge === 'WhatsApp' 
-                        ? 'bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25' 
-                        : 'bg-accent text-white hover:bg-[#654652]'
-                    }`}
-                  >
-                    {h.badge === 'WhatsApp' ? <Send size={16} /> : <Phone size={16} />}
-                  </a>
                 </div>
               ))}
             </div>

@@ -298,20 +298,22 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                   <a 
-                    href="tel:9152987821" 
+                    href="tel:+919152987821" 
                     className="flex flex-col items-center justify-center p-2.5 bg-accent/5 hover:bg-accent/15 border border-accent/20 rounded-xl transition-all text-center group"
                   >
                     <div className="font-semibold text-[11px] text-primary group-hover:text-accent">iCall</div>
+                    <div className="font-mono text-[9.5px] text-primary/80 mt-0.5">+91 91529 87821</div>
                     <span className="text-[9px] uppercase font-bold text-accent mt-1">Call</span>
                   </a>
 
                   <a 
-                    href="tel:18602662345" 
+                    href="tel:+919999666555" 
                     className="flex flex-col items-center justify-center p-2.5 bg-secondary/10 hover:bg-secondary/20 border border-secondary/25 rounded-xl transition-all text-center group"
                   >
                     <div className="font-semibold text-[11px] text-primary group-hover:text-secondary">Vandrevala</div>
+                    <div className="font-mono text-[9.5px] text-secondary font-medium mt-0.5">+91 9999 666 555</div>
                     <span className="text-[9px] uppercase font-bold text-secondary mt-1">24/7</span>
                   </a>
 
@@ -322,6 +324,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
                     className="flex flex-col items-center justify-center p-2.5 bg-accent/10 hover:bg-accent/20 border border-accent/25 rounded-xl transition-all text-center group"
                   >
                     <div className="font-semibold text-[11px] text-primary group-hover:text-accent">WhatsApp</div>
+                    <div className="font-mono text-[9.5px] text-accent font-medium mt-0.5">+91 91529 87821</div>
                     <span className="text-[9px] uppercase font-bold text-accent mt-1">Text</span>
                   </a>
                 </div>
