@@ -16,6 +16,7 @@ const AboutPage = lazy(() => import('./views/AboutPage'));
 const PricingPage = lazy(() => import('./views/PricingPage'));
 const FaqPage = lazy(() => import('./views/FaqPage'));
 const ContactPage = lazy(() => import('./views/ContactPage'));
+const FeedbackPage = lazy(() => import('./views/FeedbackPage'));
 const AuthPage = lazy(() => import('./views/AuthPage'));
 const TherapistAuthPage = lazy(() => import('./views/TherapistAuthPage'));
 const TherapistPlatformView = lazy(() => import('./views/therapist/TherapistPlatformView'));
@@ -405,6 +406,9 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/faq' || path === '/faq/') {
         setCurrentRoute('faq');
         window.scrollTo(0, 0);
+      } else if (path === '/feedback' || path === '/feedback/') {
+        setCurrentRoute('feedback');
+        window.scrollTo(0, 0);
       } else if (path === '/guided-journaling' || path === '/guided-journaling/') {
         setCurrentRoute('guided-journaling');
         window.scrollTo(0, 0);
@@ -701,6 +705,8 @@ export default function App({ initialRoute = 'home' }) {
         return <HowToStartJournalingPage onOpenPolicy={handleOpenPolicy} />;
       case 'how-to-practice-self-reflection':
         return <HowToPracticeSelfReflectionPage onOpenPolicy={handleOpenPolicy} />;
+      case 'feedback':
+        return <FeedbackPage user={user} profile={profile} onOpenPolicy={handleOpenPolicy} />;
       case 'auth':
       case 'login':
       case 'signup':
@@ -742,6 +748,7 @@ export default function App({ initialRoute = 'home' }) {
       case 'admin/health':
       case 'admin/webhooks':
       case 'admin/emails':
+      case 'admin/feedback':
       case 'admin/audit-logs':
       case 'admin/security':
         return <AdminPlatformView />;

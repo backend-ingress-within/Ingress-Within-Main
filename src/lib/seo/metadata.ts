@@ -73,6 +73,9 @@ export function generatePageMetadata({ slug }: RouteMetadataOptions = {}) {
   } else if (normalizedPath === 'therapist' || normalizedPath === 'therapist/auth' || normalizedPath === 'therapist/login') {
     routeKey = 'therapistAuth';
     isKnownPublicRoute = true;
+  } else if (normalizedPath === 'feedback') {
+    routeKey = 'feedback';
+    isKnownPublicRoute = true;
   }
 
   const intent = ROUTE_INTENT_MAP[routeKey] || ROUTE_INTENT_MAP.home;

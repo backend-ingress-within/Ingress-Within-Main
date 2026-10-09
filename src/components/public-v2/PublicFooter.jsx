@@ -1,3 +1,5 @@
+import { SUPPORT_CONFIG } from '../../config/supportConfig';
+
 /**
  * Editorial Dark Ink Footer matching source HTML content.
  */
@@ -129,6 +131,11 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
                 </a>
               </li>
               <li>
+                <a href="/feedback" className="hover:text-white transition-colors">
+                  Feedback &amp; Bug Reports
+                </a>
+              </li>
+              <li>
                 <a href="/crisis" onClick={(e) => handleNav('crisis', e)} className="hover:text-[#E0A898] transition-colors font-medium">
                   In Crisis Right Now?
                 </a>
@@ -198,6 +205,25 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
             </ul>
           </div>
 
+        </div>
+
+        {/* Support & Issue Reporting Contact Callout */}
+        <div className="my-8 p-4 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-[#BFCAD7]">
+          <div>
+            <span className="text-white font-medium">Found a bug or having an issue?</span>{' '}
+            Report it through our{' '}
+            <a href={SUPPORT_CONFIG.feedbackUrl} className="text-[#8DBFB4] underline underline-offset-2 hover:text-white transition-colors font-medium">feedback form</a>{' '}
+            or email{' '}
+            <a href={`mailto:${SUPPORT_CONFIG.supportEmail}`} className="text-[#8DBFB4] underline underline-offset-2 hover:text-white transition-colors font-medium">{SUPPORT_CONFIG.supportEmail}</a>.{' '}
+            You can also contact us at{' '}
+            <a href={`tel:${SUPPORT_CONFIG.temporaryContactNumberRaw}`} className="text-[#8DBFB4] underline underline-offset-2 hover:text-white transition-colors font-medium">{SUPPORT_CONFIG.temporaryContactNumber}</a>.
+          </div>
+          <a
+            href={SUPPORT_CONFIG.feedbackUrl}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8DBFB4]/15 border border-[#8DBFB4]/30 text-[#8DBFB4] hover:bg-[#8DBFB4]/25 transition-all text-xs font-medium whitespace-nowrap"
+          >
+            Report an Issue &rarr;
+          </a>
         </div>
 
         {/* Disclaimer & Copyright */}

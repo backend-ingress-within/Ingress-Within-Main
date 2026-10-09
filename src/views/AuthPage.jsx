@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { SUPPORT_CONFIG } from '../config/supportConfig';
 
 const quotes = [
   "The things you avoid naming shape you anyway.",
@@ -646,8 +647,34 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
           </AnimatePresence>
         </div>
 
-        {/* Empty bottom area for large whitespace spacing */}
-        <div className="h-6" />
+        {/* Support & Issue Reporting Callout Banner */}
+        <div className="w-full max-w-[380px] mt-8 pt-5 border-t border-primary/10 text-center">
+          <p className="font-sans text-[12px] text-mid/85 leading-relaxed">
+            Found a bug or having an issue? Report it through our{' '}
+            <a 
+              href={SUPPORT_CONFIG.feedbackUrl} 
+              className="text-primary font-medium underline underline-offset-2 hover:text-accent transition-colors"
+            >
+              feedback form
+            </a>{' '}
+            or email{' '}
+            <a 
+              href={`mailto:${SUPPORT_CONFIG.supportEmail}`} 
+              className="text-primary font-medium underline underline-offset-2 hover:text-accent transition-colors"
+            >
+              {SUPPORT_CONFIG.supportEmail}
+            </a>.
+          </p>
+          <p className="font-sans text-[12px] text-mid/85 mt-1">
+            You can also contact us at{' '}
+            <a 
+              href={`tel:${SUPPORT_CONFIG.temporaryContactNumberRaw}`} 
+              className="text-primary font-medium underline underline-offset-2 hover:text-accent transition-colors"
+            >
+              {SUPPORT_CONFIG.temporaryContactNumber}
+            </a>.
+          </p>
+        </div>
 
       </div>
 

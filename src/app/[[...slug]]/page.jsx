@@ -4,6 +4,7 @@ import AppClient from './AppClient';
 
 const KNOWN_PUBLIC_ROUTES = new Set([
   '',
+  'feedback',
   'login',
   'signup',
   'auth',
@@ -133,6 +134,7 @@ export async function generateMetadata({ params }) {
 export function generateStaticParams() {
   return [
     { slug: [] },
+    { slug: ['feedback'] },
     { slug: ['auth'] },
     { slug: ['login'] },
     { slug: ['signup'] },
@@ -165,6 +167,8 @@ export function generateStaticParams() {
     { slug: ['admin', 'api-usage'] },
     { slug: ['admin', 'health'] },
     { slug: ['admin', 'webhooks'] },
+    { slug: ['admin', 'emails'] },
+    { slug: ['admin', 'feedback'] },
     { slug: ['admin', 'audit-logs'] },
     { slug: ['admin', 'security'] },
     { slug: ['what-it-is'] },

@@ -168,6 +168,11 @@ export const ROUTE_INTENT_MAP: Record<string, { title: string; description: stri
     title: 'Therapist Portal — Clinical Practitioner Access | Ingress Within',
     description: 'Secure, dedicated portal for clinical practitioners and therapists at Ingress Within.',
     clusterId: 'psychologyInformed'
+  },
+  feedback: {
+    title: 'Feedback & Bug Reports | Ingress Within',
+    description: 'Share your feedback, report technical issues or request features to help improve Ingress Within.',
+    clusterId: 'guidedJournaling'
   }
 };
 

@@ -1,4 +1,6 @@
 
+import { SUPPORT_CONFIG } from '../config/supportConfig';
+
 export default function Footer({ onOpenPolicy }) {
   const getCopyrightYear = () => {
     return new Date().getFullYear();
@@ -95,6 +97,7 @@ export default function Footer({ onOpenPolicy }) {
             <li><a href="/ai-data" className="font-sans text-[13.5px] font-light text-white/65 hover:text-white transition-colors no-underline">AI &amp; Data</a></li>
             <li><a href="/contact" className="font-sans text-[13.5px] font-light text-white/65 hover:text-white transition-colors no-underline">Contact us</a></li>
             <li><a href="/faq" className="font-sans text-[13.5px] font-light text-white/65 hover:text-white transition-colors no-underline">FAQ</a></li>
+            <li><a href="/feedback" className="font-sans text-[13.5px] font-light text-accent hover:text-white transition-colors no-underline">Feedback &amp; Bug Reports</a></li>
           </ul>
         </div>
 
@@ -113,6 +116,25 @@ export default function Footer({ onOpenPolicy }) {
         </div>
       </div>
 
+      {/* Support & Issue Reporting Contact Callout */}
+      <div className="max-w-[1060px] mx-auto mb-8 p-4 rounded-xl bg-white/[0.04] border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-white/70">
+        <div>
+          <span className="text-white font-medium">Found a bug or having an issue?</span>{' '}
+          Report it through our{' '}
+          <a href={SUPPORT_CONFIG.feedbackUrl} className="text-accent underline underline-offset-2 hover:text-white transition-colors font-medium">feedback form</a>{' '}
+          or email{' '}
+          <a href={`mailto:${SUPPORT_CONFIG.supportEmail}`} className="text-accent underline underline-offset-2 hover:text-white transition-colors font-medium">{SUPPORT_CONFIG.supportEmail}</a>.{' '}
+          You can also contact us at{' '}
+          <a href={`tel:${SUPPORT_CONFIG.temporaryContactNumberRaw}`} className="text-accent underline underline-offset-2 hover:text-white transition-colors font-medium">{SUPPORT_CONFIG.temporaryContactNumber}</a>.
+        </div>
+        <a
+          href={SUPPORT_CONFIG.feedbackUrl}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/30 text-accent hover:bg-accent/25 transition-all text-xs font-medium whitespace-nowrap"
+        >
+          Report an Issue &rarr;
+        </a>
+      </div>
+
       {/* Bottom Bar */}
       <div className="max-w-[1060px] mx-auto border-t border-white/7 pt-7 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="footer-copy font-sans text-xs font-light text-white/50">
@@ -122,6 +144,7 @@ export default function Footer({ onOpenPolicy }) {
           <a href="/" onClick={(e) => handlePolicyClick(e, 'privacy')} className="font-sans text-xs font-light text-white/50 hover:text-white/75 no-underline transition-colors">Privacy policy</a>
           <a href="/" onClick={(e) => handlePolicyClick(e, 'terms')} className="font-sans text-xs font-light text-white/50 hover:text-white/75 no-underline transition-colors">Terms</a>
           <a href="/contact" className="font-sans text-xs font-light text-white/50 hover:text-white/75 no-underline transition-colors">Contact</a>
+          <a href="/feedback" className="font-sans text-xs font-light text-accent hover:text-white no-underline transition-colors">Feedback &amp; Bug Reports</a>
         </div>
       </div>
     </footer>

@@ -46,6 +46,7 @@ import {
   CheckSquare,
   Sparkles,
   TrendingUp,
+  MessageSquare,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
@@ -98,6 +99,18 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
   const [smokeTestLoading, setSmokeTestLoading] = useState(false);
   const [smokeTestResult, setSmokeTestResult] = useState(null);
 
+  // Feedback & Bug Reports States
+  const [feedbackData, setFeedbackData] = useState({ feedback: [], pagination: {}, counts: {} });
+  const [feedbackStatusFilter, setFeedbackStatusFilter] = useState('all');
+  const [feedbackTypeFilter, setFeedbackTypeFilter] = useState('all');
+  const [feedbackPriorityFilter, setFeedbackPriorityFilter] = useState('all');
+  const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState('all');
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [feedbackEditStatus, setFeedbackEditStatus] = useState('');
+  const [feedbackEditPriority, setFeedbackEditPriority] = useState('');
+  const [feedbackEditNotes, setFeedbackEditNotes] = useState('');
+  const [isUpdatingFeedback, setIsUpdatingFeedback] = useState(false);
+
   const showToast = (msg, isError = false) => {
     setToastMessage({ text: msg, isError });
     setTimeout(() => setToastMessage(null), 4000);
@@ -131,6 +144,41 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     }
   };
 
+  const handleOpenFeedbackModal = (item) => {
+    setSelectedFeedback(item);
+    setFeedbackEditStatus(item.status || 'new');
+    setFeedbackEditPriority(item.priority || 'normal');
+    setFeedbackEditNotes(item.admin_notes || '');
+  };
+
+  const handleUpdateFeedback = async () => {
+    if (!selectedFeedback) return;
+    setIsUpdatingFeedback(true);
+    try {
+      const res = await fetch(`/api/admin/feedback/${selectedFeedback.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: feedbackEditStatus,
+          priority: feedbackEditPriority,
+          adminNotes: feedbackEditNotes,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Feedback record updated successfully');
+        setSelectedFeedback(data.feedback);
+        fetchTabData();
+      } else {
+        showToast(data.error?.message || 'Failed to update feedback', true);
+      }
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      setIsUpdatingFeedback(false);
+    }
+  };
+
 
   // Helper to format paise to INR
   const formatInr = (paise) => {
@@ -156,6 +204,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     { id: 'health', label: 'System Health', icon: HeartPulse },
     { id: 'webhooks', label: 'Webhook Monitor', icon: Webhook },
     { id: 'emails', label: 'Email Deliveries', icon: Mail },
+    { id: 'feedback', label: 'Feedback & Bug Reports', icon: MessageSquare, badge: feedbackData?.counts?.new || undefined },
     { id: 'audit-logs', label: 'Audit Trail', icon: FileSpreadsheet },
     { id: 'security', label: 'Admin Security', icon: Lock },
   ];
@@ -248,6 +297,29 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
         const res = await fetch(`/api/admin/emails?${queryParams.toString()}`);
         const data = await res.json();
         if (data.success) setEmailsData(data);
+      } else if (activeTab === 'feedback') {
+        const queryParams = new URLSearchParams({
+          page: String(currentPage),
+          limit: '20',
+        });
+        if (feedbackStatusFilter && feedbackStatusFilter !== 'all') {
+          queryParams.set('status', feedbackStatusFilter);
+        }
+        if (feedbackTypeFilter && feedbackTypeFilter !== 'all') {
+          queryParams.set('type', feedbackTypeFilter);
+        }
+        if (feedbackPriorityFilter && feedbackPriorityFilter !== 'all') {
+          queryParams.set('priority', feedbackPriorityFilter);
+        }
+        if (feedbackCategoryFilter && feedbackCategoryFilter !== 'all') {
+          queryParams.set('category', feedbackCategoryFilter);
+        }
+        if (searchQuery) {
+          queryParams.set('search', searchQuery);
+        }
+        const res = await fetch(`/api/admin/feedback?${queryParams.toString()}`);
+        const data = await res.json();
+        if (data.success) setFeedbackData(data);
       } else if (activeTab === 'audit-logs') {
         const res = await fetch(`/api/admin/audit-logs?page=${currentPage}&limit=30`);
         const data = await res.json();
@@ -266,7 +338,17 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
 
   useEffect(() => {
     fetchTabData();
-  }, [activeTab, overviewRange, currentPage, applicationStatusFilter]);
+  }, [
+    activeTab,
+    overviewRange,
+    currentPage,
+    applicationStatusFilter,
+    emailStatusFilter,
+    feedbackStatusFilter,
+    feedbackTypeFilter,
+    feedbackPriorityFilter,
+    feedbackCategoryFilter,
+  ]);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -2815,6 +2897,499 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                           </>
                         )}
                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: FEEDBACK & BUG REPORTS */}
+          {/* ========================================================================= */}
+          {activeTab === 'feedback' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold text-[#132A24]">
+                    Feedback &amp; Bug Reports
+                  </h2>
+                  <p className="text-xs text-[#132A24]/60 mt-1">
+                    User-submitted feedback, defect telemetry, and issue tracking triage center.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchTabData}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#132A24]/15 hover:bg-[#132A24]/5 text-xs text-[#132A24] font-medium transition-colors cursor-pointer self-start sm:self-auto shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+                <div className="bg-white border border-[#132A24]/10 rounded-2xl p-4 shadow-xs">
+                  <div className="text-[11px] font-semibold text-[#132A24]/60 uppercase tracking-wider">
+                    Total
+                  </div>
+                  <div className="text-2xl font-bold text-[#132A24] mt-1">
+                    {feedbackData.counts?.total ?? feedbackData.feedback?.length ?? 0}
+                  </div>
+                </div>
+                <div className="bg-white border border-blue-200/60 rounded-2xl p-4 shadow-xs bg-blue-50/20">
+                  <div className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">
+                    New Unread
+                  </div>
+                  <div className="text-2xl font-bold text-blue-700 mt-1">
+                    {feedbackData.counts?.new ?? 0}
+                  </div>
+                </div>
+                <div className="bg-white border border-purple-200/60 rounded-2xl p-4 shadow-xs bg-purple-50/20">
+                  <div className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">
+                    In Review
+                  </div>
+                  <div className="text-2xl font-bold text-purple-700 mt-1">
+                    {feedbackData.counts?.in_review ?? 0}
+                  </div>
+                </div>
+                <div className="bg-white border border-amber-200/60 rounded-2xl p-4 shadow-xs bg-amber-50/20">
+                  <div className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                    In Progress
+                  </div>
+                  <div className="text-2xl font-bold text-amber-700 mt-1">
+                    {feedbackData.counts?.in_progress ?? 0}
+                  </div>
+                </div>
+                <div className="bg-white border border-emerald-200/60 rounded-2xl p-4 shadow-xs bg-emerald-50/20 col-span-2 sm:col-span-1">
+                  <div className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">
+                    Resolved / Closed
+                  </div>
+                  <div className="text-2xl font-bold text-emerald-700 mt-1">
+                    {(feedbackData.counts?.resolved ?? 0) + (feedbackData.counts?.closed ?? 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters & Search Bar */}
+              <div className="bg-white border border-[#132A24]/10 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#132A24]/40" />
+                  <input
+                    type="text"
+                    placeholder="Search by reference code, subject, description, or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchTabData()}
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#132A24]/15 focus:outline-none focus:ring-1 focus:ring-[#4E7A66] bg-transparent text-[#132A24]"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={feedbackStatusFilter}
+                    onChange={(e) => {
+                      setFeedbackStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs rounded-xl border border-[#132A24]/15 px-3 py-2 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="in_review">In Review</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+
+                  <select
+                    value={feedbackTypeFilter}
+                    onChange={(e) => {
+                      setFeedbackTypeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs rounded-xl border border-[#132A24]/15 px-3 py-2 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="feedback">Feedback</option>
+                    <option value="bug_report">Bug Report</option>
+                    <option value="issue">Issue</option>
+                  </select>
+
+                  <select
+                    value={feedbackPriorityFilter}
+                    onChange={(e) => {
+                      setFeedbackPriorityFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs rounded-xl border border-[#132A24]/15 px-3 py-2 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                  >
+                    <option value="all">All Priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                  </select>
+
+                  <select
+                    value={feedbackCategoryFilter}
+                    onChange={(e) => {
+                      setFeedbackCategoryFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs rounded-xl border border-[#132A24]/15 px-3 py-2 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Technical Issue">Technical Issue</option>
+                    <option value="UI/UX">UI/UX</option>
+                    <option value="General Feedback">General Feedback</option>
+                    <option value="Feature Request">Feature Request</option>
+                    <option value="Performance">Performance</option>
+                    <option value="Accessibility">Accessibility</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Submissions Table */}
+              <div className="bg-white border border-[#132A24]/10 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#132A24]/[0.02] border-b border-[#132A24]/10 text-[#132A24]/60 font-semibold uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="py-3.5 px-4">Ref Code</th>
+                        <th className="py-3.5 px-4">Type</th>
+                        <th className="py-3.5 px-4">Subject &amp; Details</th>
+                        <th className="py-3.5 px-4">Reporter</th>
+                        <th className="py-3.5 px-4">Priority</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Submitted</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#132A24]/5 text-[#132A24]">
+                      {isLoading && (!feedbackData.feedback || feedbackData.feedback.length === 0) ? (
+                        <tr>
+                          <td colSpan="8" className="py-12 text-center text-[#132A24]/50">
+                            <div className="inline-flex items-center gap-2">
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              Loading feedback submissions...
+                            </div>
+                          </td>
+                        </tr>
+                      ) : !feedbackData.feedback || feedbackData.feedback.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="py-12 text-center text-[#132A24]/40 italic">
+                            No feedback or bug reports match the selected criteria.
+                          </td>
+                        </tr>
+                      ) : (
+                        feedbackData.feedback.map((item) => {
+                          const typeBadgeClass =
+                            item.submission_type === 'bug_report'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : item.submission_type === 'issue'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                          const priorityBadgeClass =
+                            item.priority === 'critical'
+                              ? 'bg-rose-100 text-rose-800 font-bold border-rose-300'
+                              : item.priority === 'high'
+                              ? 'bg-orange-100 text-orange-800 font-semibold border-orange-300'
+                              : item.priority === 'normal'
+                              ? 'bg-slate-100 text-slate-700 border-slate-200'
+                              : 'bg-slate-50 text-slate-500 border-slate-200';
+
+                          const statusBadgeClass =
+                            item.status === 'new'
+                              ? 'bg-blue-50 text-blue-700 font-bold border-blue-200'
+                              : item.status === 'in_review'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : item.status === 'in_progress'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : item.status === 'resolved'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200';
+
+                          return (
+                            <tr key={item.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
+                              <td className="py-3.5 px-4 font-mono font-semibold text-[#132A24]">
+                                {item.reference_code}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border ${typeBadgeClass}`}>
+                                  {item.submission_type.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 max-w-xs">
+                                <div className="font-semibold text-[#132A24] truncate" title={item.subject}>
+                                  {item.subject}
+                                </div>
+                                <div className="text-[11px] text-[#132A24]/60 truncate" title={item.description}>
+                                  {item.category && (
+                                    <span className="font-medium text-[#4E7A66] mr-1.5">
+                                      [{item.category}]
+                                    </span>
+                                  )}
+                                  {item.description}
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                {item.contact_email ? (
+                                  <div className="font-mono text-[11px] text-[#132A24]/80">
+                                    {item.contact_email}
+                                  </div>
+                                ) : (
+                                  <span className="text-[#132A24]/40 italic text-[11px]">Anonymous</span>
+                                )}
+                                {item.user_id && (
+                                  <div className="text-[10px] text-[#4E7A66] font-medium">
+                                    ✓ Registered User
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] uppercase border ${priorityBadgeClass}`}>
+                                  {item.priority}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] uppercase border ${statusBadgeClass}`}>
+                                  {item.status.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap text-[#132A24]/60 font-mono text-[11px]">
+                                {new Date(item.created_at).toLocaleDateString()}{' '}
+                                <span className="text-[10px] text-[#132A24]/40">
+                                  {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => handleOpenFeedbackModal(item)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#4E7A66]/10 hover:bg-[#4E7A66]/20 text-[#4E7A66] font-semibold text-xs transition-colors cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  Triage
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {feedbackData.pagination?.totalPages > 1 && (
+                  <div className="p-4 border-t border-[#132A24]/10 flex items-center justify-between text-xs text-[#132A24]/60">
+                    <div>
+                      Page {feedbackData.pagination.page} of {feedbackData.pagination.totalPages} ({feedbackData.pagination.total} records)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={feedbackData.pagination.page <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 hover:bg-[#132A24]/5 disabled:opacity-40 cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        disabled={feedbackData.pagination.page >= feedbackData.pagination.totalPages}
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 hover:bg-[#132A24]/5 disabled:opacity-40 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Triage & Detail Modal */}
+              {selectedFeedback && (
+                <div className="fixed inset-0 z-50 bg-[#132A24]/50 backdrop-blur-xs flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[#132A24]/10 shadow-2xl p-6 space-y-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#132A24]/10">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-lg font-bold text-[#132A24]">
+                            {selectedFeedback.reference_code}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-[#4E7A66]/10 text-[#4E7A66] border border-[#4E7A66]/20">
+                            {selectedFeedback.submission_type}
+                          </span>
+                        </div>
+                        <h3 className="font-serif text-xl font-bold text-[#132A24] mt-1">
+                          {selectedFeedback.subject}
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setSelectedFeedback(null)}
+                        className="p-1.5 rounded-lg hover:bg-[#132A24]/5 text-[#132A24]/60 hover:text-[#132A24] transition-colors cursor-pointer"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Metadata Strip */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#132A24]/[0.02] p-3.5 rounded-xl text-xs">
+                      <div>
+                        <div className="text-[10px] text-[#132A24]/50 uppercase font-semibold">Category</div>
+                        <div className="font-medium text-[#132A24]">{selectedFeedback.category || 'None'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[#132A24]/50 uppercase font-semibold">Contact Email</div>
+                        <div className="font-mono text-[11px] text-[#132A24]">
+                          {selectedFeedback.contact_email || 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[#132A24]/50 uppercase font-semibold">Occurred On</div>
+                        <div className="font-mono text-[11px] text-[#132A24] truncate" title={selectedFeedback.page_url}>
+                          {selectedFeedback.page_url || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[#132A24]/50 uppercase font-semibold">User Link</div>
+                        <div className="text-[11px] text-[#132A24]">
+                          {selectedFeedback.user_id ? (
+                            <span className="text-[#4E7A66] font-medium">✓ Verified User</span>
+                          ) : (
+                            <span className="text-[#132A24]/40">Anonymous</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-1.5">
+                      <div className="text-xs font-semibold text-[#132A24]/70 uppercase tracking-wider">
+                        Description / Feedback
+                      </div>
+                      <div className="p-4 rounded-xl bg-[#132A24]/[0.02] border border-[#132A24]/10 text-xs text-[#132A24] leading-relaxed whitespace-pre-wrap font-sans">
+                        {selectedFeedback.description}
+                      </div>
+                    </div>
+
+                    {/* Conditional Bug Diagnostics */}
+                    {(selectedFeedback.submission_type === 'bug_report' || selectedFeedback.submission_type === 'issue') && (
+                      <div className="space-y-3 pt-2 border-t border-[#132A24]/10">
+                        <div className="text-xs font-semibold text-[#132A24]/70 uppercase tracking-wider">
+                          Bug Diagnostics
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          {selectedFeedback.expected_behavior && (
+                            <div className="p-3 rounded-xl bg-blue-50/30 border border-blue-200/50 space-y-1">
+                              <div className="text-[10px] font-semibold text-blue-700 uppercase">What was expected</div>
+                              <div className="text-[#132A24]">{selectedFeedback.expected_behavior}</div>
+                            </div>
+                          )}
+                          {selectedFeedback.actual_behavior && (
+                            <div className="p-3 rounded-xl bg-rose-50/30 border border-rose-200/50 space-y-1">
+                              <div className="text-[10px] font-semibold text-rose-700 uppercase">What happened</div>
+                              <div className="text-[#132A24]">{selectedFeedback.actual_behavior}</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {selectedFeedback.steps_to_reproduce && (
+                          <div className="space-y-1">
+                            <div className="text-[10px] font-semibold text-[#132A24]/50 uppercase">Reproduction Steps</div>
+                            <div className="p-3 rounded-xl bg-[#132A24]/[0.02] border border-[#132A24]/10 text-xs font-mono text-[#132A24] whitespace-pre-wrap">
+                              {selectedFeedback.steps_to_reproduce}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Administrative Triage Controls */}
+                    <div className="space-y-4 pt-4 border-t border-[#132A24]/10 bg-amber-50/30 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                      <div className="text-xs font-bold text-[#132A24] uppercase tracking-wider flex items-center gap-1.5">
+                        <Shield className="w-4 h-4 text-[#4E7A66]" />
+                        Admin Triage &amp; Management
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-[#132A24]/70 mb-1">
+                            Status
+                          </label>
+                          <select
+                            value={feedbackEditStatus}
+                            onChange={(e) => setFeedbackEditStatus(e.target.value)}
+                            className="w-full text-xs rounded-xl border border-[#132A24]/20 p-2.5 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                          >
+                            <option value="new">New (Unreviewed)</option>
+                            <option value="in_review">In Review</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-[#132A24]/70 mb-1">
+                            Priority
+                          </label>
+                          <select
+                            value={feedbackEditPriority}
+                            onChange={(e) => setFeedbackEditPriority(e.target.value)}
+                            className="w-full text-xs rounded-xl border border-[#132A24]/20 p-2.5 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                          >
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#132A24]/70 mb-1">
+                          Internal Admin Notes
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={feedbackEditNotes}
+                          onChange={(e) => setFeedbackEditNotes(e.target.value)}
+                          placeholder="Add internal notes on resolution, diagnosis, Jira/issue tickets, or team actions..."
+                          className="w-full text-xs rounded-xl border border-[#132A24]/20 p-3 bg-white text-[#132A24] focus:outline-none focus:ring-1 focus:ring-[#4E7A66]"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFeedback(null)}
+                          className="px-4 py-2 rounded-xl border border-[#132A24]/15 hover:bg-[#132A24]/5 text-xs text-[#132A24] font-medium transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isUpdatingFeedback}
+                          onClick={handleUpdateFeedback}
+                          className="px-5 py-2 rounded-xl bg-[#4E7A66] hover:bg-[#3D6353] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          {isUpdatingFeedback ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              Saving Changes...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              Save Triage Updates
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

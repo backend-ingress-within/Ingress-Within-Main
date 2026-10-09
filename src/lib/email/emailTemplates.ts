@@ -461,5 +461,113 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       text: `Hello ${therapistName},\n\nWe have completed the clinical review of your Ingress Within therapist application.\n\nYour application was not approved at this time.\n\nFeedback / Reason:\n${rejectionReason}\n\nIf your application can be updated and resubmitted, you can review the requested modifications and resubmit here:\n${reviewUrl}\n\nRespectfully,\nThe Ingress Within Clinical Review Team\ncontactus@ingresswithin.com`,
     };
   },
+  feedback_team_notification: (data) => {
+    const refCode = data.referenceCode || 'FB-UNKNOWN';
+    const type = (data.submissionType || 'feedback').toUpperCase().replace('_', ' ');
+    const category = data.category || 'General';
+    const subject = data.subject || 'Feedback submission';
+    const description = data.description || '';
+    const contactEmail = data.contactEmail || 'Not provided (Anonymous / Signed-in)';
+    const pageUrl = data.pageUrl || 'Not specified';
+    const adminUrl = data.adminUrl || `https://ingresswithin.com/admin?tab=feedback&ref=${refCode}`;
+    const timestamp = data.createdAt ? formatDate(data.createdAt) : formatDate(new Date().toISOString());
+
+    return {
+      subject: `[${type}] ${subject} (${refCode})`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 620px; margin: 0 auto; padding: 28px 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <div style="border-bottom: 2px solid #132A24; padding-bottom: 12px; margin-bottom: 20px;">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #4E7A66;">Ingress Within — User Submission</span>
+            <h2 style="color: #132A24; margin: 6px 0 0 0; font-size: 20px;">${type}: ${subject}</h2>
+          </div>
+          
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 140px;"><strong>Reference Code:</strong></td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: 600;">${refCode}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Category:</strong></td>
+              <td style="padding: 6px 0; color: #0f172a;">${category}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Contact Email:</strong></td>
+              <td style="padding: 6px 0; color: #0f172a;">${contactEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Page / Feature:</strong></td>
+              <td style="padding: 6px 0; color: #0f172a;">${pageUrl}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Timestamp:</strong></td>
+              <td style="padding: 6px 0; color: #0f172a;">${timestamp}</td>
+            </tr>
+          </table>
+
+          <div style="background: #f8fafc; border-left: 4px solid #4E7A66; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+            <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #4E7A66;">Description</p>
+            <p style="margin: 0; font-size: 14px; color: #334155; white-space: pre-wrap;">${description}</p>
+          </div>
+
+          ${data.stepsToReproduce || data.expectedBehavior || data.actualBehavior ? `
+          <div style="background: #fff7ed; border-left: 4px solid #ea580c; padding: 16px; border-radius: 6px; margin-bottom: 20px; font-size: 13px;">
+            <p style="margin: 0 0 8px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9a3412;">Diagnostic Bug Details</p>
+            ${data.stepsToReproduce ? `<p style="margin: 0 0 6px 0;"><strong>Steps to Reproduce:</strong><br/><span style="white-space: pre-wrap; color: #431407;">${data.stepsToReproduce}</span></p>` : ''}
+            ${data.expectedBehavior ? `<p style="margin: 0 0 6px 0;"><strong>Expected:</strong> ${data.expectedBehavior}</p>` : ''}
+            ${data.actualBehavior ? `<p style="margin: 0;"><strong>Actual:</strong> ${data.actualBehavior}</p>` : ''}
+          </div>
+          ` : ''}
+
+          <div style="text-align: center; margin: 24px 0 12px;">
+            <a href="${adminUrl}" style="background: #132A24; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-block;">
+              View in Admin Command Center →
+            </a>
+          </div>
+
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+            Ingress Within Operational Notification System · contactus@ingresswithin.com
+          </p>
+        </div>
+      `,
+      text: `[${type}] ${subject} (${refCode})\n\nCategory: ${category}\nContact: ${contactEmail}\nPage: ${pageUrl}\nDate: ${timestamp}\n\nDescription:\n${description}\n\n${data.stepsToReproduce ? `Steps to reproduce:\n${data.stepsToReproduce}\n` : ''}${data.expectedBehavior ? `Expected: ${data.expectedBehavior}\n` : ''}${data.actualBehavior ? `Actual: ${data.actualBehavior}\n` : ''}\n\nView in Admin:\n${adminUrl}`,
+    };
+  },
+  feedback_user_acknowledgement: (data) => {
+    const refCode = data.referenceCode || 'FB-UNKNOWN';
+    const subject = data.subject || 'Your submission';
+    const type = (data.submissionType || 'feedback').toLowerCase();
+    const typeLabel = type === 'bug_report' ? 'bug report' : type === 'issue' ? 'technical report' : 'feedback';
+
+    return {
+      subject: `We received your ${typeLabel} [${refCode}] — Ingress Within`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 580px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <div style="margin-bottom: 24px;">
+            <h2 style="color: #132A24; margin: 0 0 10px 0; font-size: 20px;">Thank you for reaching out</h2>
+            <p style="font-size: 14px; color: #475569; margin: 0;">
+              We have received your ${typeLabel} regarding <strong>"${subject}"</strong>. Every piece of input is read directly by our team to help improve Ingress Within.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+            <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Your Reference Number</p>
+            <p style="margin: 0; font-size: 18px; font-family: monospace; font-weight: 700; color: #132A24; letter-spacing: 0.05em;">${refCode}</p>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">Please save this reference code if you need to follow up with us.</p>
+          </div>
+
+          <p style="font-size: 13.5px; color: #475569; line-height: 1.6;">
+            If you need further assistance or want to provide additional details, you can reply directly to this email or contact us at <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66; text-decoration: none; font-weight: 600;">contactus@ingresswithin.com</a>.
+          </p>
+
+          <p style="font-size: 14px; color: #64748b; margin-top: 28px;">With appreciation,<br /><strong>The Ingress Within Team</strong></p>
+          
+          <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center;">
+            Ingress Within · Non-clinical structured psychological reflection · <a href="https://ingresswithin.com" style="color: #94a3b8;">ingresswithin.com</a>
+          </div>
+        </div>
+      `,
+      text: `Hello,\n\nThank you for reaching out to Ingress Within.\n\nWe have received your ${typeLabel} regarding "${subject}".\n\nYour Reference Code: ${refCode}\nPlease keep this reference code for your records.\n\nIf you have any questions or additional details, you can contact us at contactus@ingresswithin.com or +91 89556 05569.\n\nWith appreciation,\nThe Ingress Within Team`,
+    };
+  },
 };
 
