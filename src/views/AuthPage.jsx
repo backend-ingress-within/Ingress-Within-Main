@@ -10,6 +10,11 @@ const quotes = [
 ];
 
 export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onAuthSuccess }) {
+  // Navigation views: 'entry', 'otp', 'success'
+  const [view, setView] = useState('entry');
+  const [profile, setProfile] = useState(propProfile || null);
+  const [authData, setAuthData] = useState(null);
+
   // If user is already authenticated, immediately route to destination without showing login form
   useEffect(() => {
     if (user && view !== 'success') {
@@ -23,11 +28,6 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
       }
     }
   }, [user, propProfile, view]);
-
-  // Navigation views: 'entry', 'otp', 'success'
-  const [view, setView] = useState('entry');
-  const [profile, setProfile] = useState(propProfile || null);
-  const [authData, setAuthData] = useState(null);
   
   // Phone and OTP input values
   const [mobileNumber, setMobileNumber] = useState('');
