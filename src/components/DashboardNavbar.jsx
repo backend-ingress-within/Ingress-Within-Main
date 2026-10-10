@@ -160,16 +160,12 @@ export default function DashboardNavbar({ activeTab }) {
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-2.5 lg:px-3 py-1.5 rounded-full bg-white/80 hover:bg-white border border-primary/10 hover:border-accent/40 text-mid/70 hover:text-primary transition-all text-xs cursor-pointer shadow-2xs group"
-              title="Search self-help resources (⌘K / Ctrl+K)"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 hover:bg-white border border-primary/10 hover:border-accent/40 text-mid/70 hover:text-primary transition-all text-xs cursor-pointer shadow-2xs group"
+              title="Search self-help resources"
               aria-label="Search self-help resources"
             >
               <Search size={13} className="text-mid/70 group-hover:text-accent transition-colors shrink-0" />
-              <span className="font-normal text-[11.5px] text-mid/80 hidden xl:inline">Search resources...</span>
-              <span className="font-normal text-[11.5px] text-mid/80 xl:hidden">Search</span>
-              <kbd className="text-[10px] font-mono bg-primary/5 border border-primary/10 px-1.5 py-0.2 rounded text-mid/60 ml-0.5">
-                ⌘K
-              </kbd>
+              <span className="font-normal text-[11.5px] text-mid/80">Search resources...</span>
             </button>
 
             {/* Global Search Trigger (Mobile icon) */}
