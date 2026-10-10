@@ -57,7 +57,7 @@ function BackfillProcessingScreen() {
   const dots = '.'.repeat(dotCount);
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-28 sm:pb-24">
       <DashboardNavbar activeTab="patterns" />
       <main className="max-w-[680px] mx-auto px-6 pt-6 space-y-4">
         <button
@@ -121,7 +121,7 @@ function NewUserEmptyScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20 sm:pb-24">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-28 sm:pb-24">
       <DashboardNavbar activeTab="patterns" />
       <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-6">
         <button
@@ -528,7 +528,7 @@ export default function PatternsPage({ user, profile, onSignOut }) {
   // --- Loading skeleton ---
   if (loading) {
     return (
-      <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20">
+      <div className="min-h-screen bg-mint-grey text-primary font-sans pb-28 sm:pb-24">
         <DashboardNavbar activeTab="patterns" />
         <main className="max-w-[680px] mx-auto px-6 pt-6 space-y-6">
           <div className="animate-pulse space-y-4">

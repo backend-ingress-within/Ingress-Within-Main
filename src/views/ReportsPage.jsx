@@ -2201,7 +2201,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
       `}} />
       <DashboardNavbar activeTab="reports" />
 
-      <main className={`${viewState === 'list' ? 'max-w-[680px]' : 'max-w-[900px]'} mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 sm:pb-24 transition-all duration-300`}>
+      <main className={`${viewState === 'list' ? 'max-w-[680px]' : 'max-w-[900px]'} mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-28 sm:pb-24 transition-all duration-300`}>
         {loading && (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
             <Loader2 className="animate-spin text-secondary" size={32} />

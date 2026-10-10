@@ -223,8 +223,8 @@ export default function VocabPage({ user, profile, onSignOut }) {
   const activeShiftSignals = stats?.shiftSignals?.[ssScope] || [];
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-20 sm:pb-24 relative">
-      <DashboardNavbar activeTab="home" />
+    <div className="min-h-screen bg-mint-grey text-primary font-sans pb-28 sm:pb-24 relative">
+      <DashboardNavbar activeTab="vocab" />
 
       <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
         <div className="space-y-6 sm:space-y-8">

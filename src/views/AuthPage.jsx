@@ -513,7 +513,7 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
                   className="space-y-6"
                 >
                   {/* Visual OTP Input digits row */}
-                  <div className="flex justify-between gap-2.5">
+                  <div className="flex justify-between gap-1.5 sm:gap-2.5">
                     {otpDigits.map((digit, idx) => (
                       <input 
                         key={idx}
@@ -527,7 +527,7 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                         onPaste={handleOtpPaste}
                         disabled={isSubmitting}
-                        className="w-11 h-14 bg-white-paper border border-primary/10 rounded-md text-center font-sans text-xl font-light text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all shadow-xs disabled:opacity-50"
+                        className="w-9.5 sm:w-11 h-12 sm:h-14 bg-white-paper border border-primary/10 rounded-md text-center font-sans text-lg sm:text-xl font-light text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all shadow-xs disabled:opacity-50"
                       />
                     ))}
                   </div>

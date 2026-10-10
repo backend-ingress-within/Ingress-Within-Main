@@ -114,10 +114,10 @@ export default function ThreadDetailPage({ threadId, onSignOut }) {
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
       {/* Top Navbar */}
-      <DashboardNavbar activeTab="dashboard" />
+      <DashboardNavbar activeTab="threads" />
 
       {/* Main Container */}
-      <main className="max-w-[720px] w-full mx-auto px-6 pt-6 pb-20 space-y-6 flex-1 flex flex-col">
+      <main className="max-w-[720px] w-full mx-auto px-6 pt-6 pb-28 sm:pb-24 space-y-6 flex-1 flex flex-col">
         
         {/* Back Link */}
         <button 

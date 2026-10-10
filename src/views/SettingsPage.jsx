@@ -812,11 +812,11 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               <div className="otp-note text-xs text-mid mb-2.5">
                 Confirm your new number — code sent to +91 <span className="font-semibold text-primary" id="otp-dest">{phoneInput.slice(0,5)} {phoneInput.slice(5)}</span>
               </div>
-              <div className="otp-boxes flex gap-2 mb-2.5">
+              <div className="otp-boxes flex gap-1.5 sm:gap-2 mb-2.5">
                 {[0, 1, 2, 3, 4, 5].map((idx) => (
                   <input 
                     key={idx}
-                    className={`otp-box w-10 h-12 border border-[#1E2A2E]/15 rounded-lg text-center font-serif text-lg font-semibold bg-white outline-none focus:border-[#8DBFB4] ${phoneOtp[idx] ? 'ok border-[#8DBFB4] bg-[#8DBFB4]/5' : ''}`} 
+                    className={`otp-box w-8 sm:w-10 h-11 sm:h-12 border border-[#1E2A2E]/15 rounded-lg text-center font-serif text-base sm:text-lg font-semibold bg-white outline-none focus:border-[#8DBFB4] ${phoneOtp[idx] ? 'ok border-[#8DBFB4] bg-[#8DBFB4]/5' : ''}`} 
                     maxLength={1} 
                     inputMode="numeric"
                     value={phoneOtp[idx]}
@@ -2019,11 +2019,11 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               )}
 
               <div className="otp-area pt-2">
-                <div className="otp-boxes flex gap-2 mb-4 justify-start">
+                <div className="otp-boxes flex gap-1.5 sm:gap-2 mb-4 justify-start">
                   {[0, 1, 2, 3, 4, 5].map((idx) => (
                     <input 
                       key={idx}
-                      className={`otp-box w-10 h-12 border border-[#1E2A2E]/15 rounded-lg text-center font-serif text-lg font-semibold bg-white outline-none focus:border-[#E0A898] ${deleteOtp[idx] ? 'ok border-[#8A3020]/30 bg-red-50/20' : ''}`} 
+                      className={`otp-box w-8 sm:w-10 h-11 sm:h-12 border border-[#1E2A2E]/15 rounded-lg text-center font-serif text-base sm:text-lg font-semibold bg-white outline-none focus:border-[#E0A898] ${deleteOtp[idx] ? 'ok border-[#8A3020]/30 bg-red-50/20' : ''}`} 
                       maxLength={1} 
                       inputMode="numeric"
                       value={deleteOtp[idx]}

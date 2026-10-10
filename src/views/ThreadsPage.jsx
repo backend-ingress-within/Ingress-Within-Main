@@ -166,10 +166,10 @@ export default function ThreadsPage({ user, profile, onSignOut }) {
   return (
     <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
       {/* Navigation Navbar */}
-      <DashboardNavbar activeTab="dashboard" />
+      <DashboardNavbar activeTab="threads" />
 
       {/* Main Container */}
-      <main className="max-w-[1040px] w-full mx-auto px-4 sm:px-6 pt-6 pb-20 space-y-6 flex-1 flex flex-col">
+      <main className="max-w-[1040px] w-full mx-auto px-4 sm:px-6 pt-6 pb-28 sm:pb-24 space-y-6 flex-1 flex flex-col">
         
         {/* Back navigation link */}
         <button 

@@ -461,7 +461,7 @@ export default function DashboardPage({ user, profile, onSignOut }) {
   const yesterdayPreview = yesterdayEntry.length > 80 ? yesterdayEntry.substring(0, 80) + '...' : yesterdayEntry;
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20 sm:pb-24">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-28 sm:pb-24">
       {/* Meditative Top Navbar */}
       <DashboardNavbar activeTab="home" />
 
@@ -554,8 +554,8 @@ export default function DashboardPage({ user, profile, onSignOut }) {
 
         {/* Current Cycle Card */}
         {cycleInfo && (
-          <div className="bg-white border border-primary/10 rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between text-left shadow-xs gap-5">
-            <div className="flex items-center gap-5">
+          <div className="bg-white border border-primary/10 rounded-xl p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between text-left shadow-xs gap-4 sm:gap-5 w-full">
+            <div className="flex items-center gap-4 sm:gap-5">
               {/* Progress Ring */}
               <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
                 <svg className="w-full h-full transform -rotate-90">

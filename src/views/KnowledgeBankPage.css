@@ -60,6 +60,12 @@
   position:sticky;
   top:52px;
   z-index:10;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.kb-app .tab-bar::-webkit-scrollbar {
+  display:none;
 }
 .kb-app .tab-btn{
   background:none;border:none;

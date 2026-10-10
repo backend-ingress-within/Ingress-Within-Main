@@ -926,7 +926,7 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                               key={rating}
                               type="button"
                               onClick={() => handleRatingSelect(rating)}
-                              className={`w-12 h-12 rounded-full flex items-center justify-center font-sans text-sm font-semibold transition-all duration-200 border cursor-pointer ${
+                              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-sans text-xs sm:text-sm font-semibold transition-all duration-200 border cursor-pointer ${
                                 isSelected
                                   ? 'bg-accent text-white border-accent shadow-xs scale-105'
                                   : 'bg-white-paper text-primary border-primary/10 hover:border-accent/40 hover:bg-warm-paper'

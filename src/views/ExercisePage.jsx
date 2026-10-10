@@ -362,8 +362,8 @@ export default function ExercisePage({ user, profile, onSignOut }) {
   const lockedCount = instances.filter(i => i.status === 'locked').length;
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] font-sans pb-16">
-      <DashboardNavbar user={user} profile={profile} onSignOut={onSignOut} />
+    <div className="min-h-screen bg-[#FAF9F6] font-sans pb-28 sm:pb-24">
+      <DashboardNavbar user={user} profile={profile} onSignOut={onSignOut} activeTab="exercise" />
 
       {/* Render Active Exercise Flow Modal if Active */}
       {activeExerciseInstanceId && (() => {

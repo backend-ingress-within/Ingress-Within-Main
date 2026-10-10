@@ -174,7 +174,7 @@ export default function InterventionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between pb-20 sm:pb-24">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between pb-28 sm:pb-24">
       <div>
         <DashboardNavbar activeTab="interventions" />
 

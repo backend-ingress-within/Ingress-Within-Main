@@ -217,7 +217,7 @@ export default function EntryDetailPage({ entryId, onSignOut }) {
     <div className="min-h-screen bg-mint-grey text-primary font-sans flex flex-col justify-between">
       <DashboardNavbar activeTab="home" />
 
-      <main className="max-w-[1140px] w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 sm:pb-24 space-y-6 flex-1">
+      <main className="max-w-[1140px] w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-28 sm:pb-24 space-y-6 flex-1">
         
         {/* Navigation & Header */}
         <div className="space-y-4">

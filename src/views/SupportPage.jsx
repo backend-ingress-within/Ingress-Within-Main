@@ -54,7 +54,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-20">
+    <div className="min-h-screen bg-mint-grey text-primary font-sans relative pb-28 sm:pb-24">
       <DashboardNavbar activeTab="support" />
 
       <main className="max-w-[580px] mx-auto px-6 pt-8">

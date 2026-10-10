@@ -719,7 +719,7 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#ECEFF0] text-[#1E2A2E] font-sans pb-20">
+      <div className="min-h-screen bg-[#ECEFF0] text-[#1E2A2E] font-sans pb-28 sm:pb-24">
         <DashboardNavbar activeTab="knowledge" />
         <main className="max-w-[680px] mx-auto px-6 pt-32 flex flex-col items-center justify-center gap-4">
           <div className="trail-spinner"></div>
@@ -730,7 +730,7 @@ export default function KnowledgeBankPage({ user, profile: initialProfile, onSig
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6f5] text-[#1E2A2E] font-sans pb-20">
+    <div className="min-h-screen bg-[#f4f6f5] text-[#1E2A2E] font-sans pb-28 sm:pb-24">
       <DashboardNavbar activeTab="knowledge" />
 
       <div className="kb-app">

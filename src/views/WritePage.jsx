@@ -366,7 +366,7 @@ function WritePage({ user, profile, onSignOut }) {
   }
 
   return (
-    <div className="min-h-screen bg-white text-primary font-sans relative flex flex-col">
+    <div className="min-h-screen bg-white text-primary font-sans relative flex flex-col pb-14 md:pb-0">
       {screenState !== 'reading' && screenState !== 'locked' && <DashboardNavbar activeTab="write" />}
 
       {screenState === 'main' && (
@@ -517,7 +517,7 @@ function WritePage({ user, profile, onSignOut }) {
           </div>
 
           {/* Bottom Toolbar */}
-          <div className="border-t border-primary/10 bg-white-paper px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shrink-0 sticky bottom-0 z-40 relative">
+          <div className="border-t border-primary/10 bg-white-paper px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between shrink-0 sticky bottom-[48px] md:bottom-0 z-40 relative shadow-2xs">
             <div className="flex items-center gap-5">
               <span className="text-[12px] text-secondary font-medium">
                 Cycle {data?.cycleInfo?.cycleNumber || 2} · Day {data?.cycleInfo?.currentDay || 20}
@@ -603,7 +603,7 @@ function WritePage({ user, profile, onSignOut }) {
 
       {/* Reflection feedback screen */}
       {screenState === 'reflection' && (
-        <div className="flex-1 bg-white overflow-y-auto page-fade-enter-active">
+        <div className="flex-1 bg-white overflow-y-auto page-fade-enter-active pb-28 sm:pb-12">
           <div className="max-w-[580px] mx-auto px-6 py-12 flex flex-col space-y-7">
             <div className="text-[11px] tracking-wider uppercase text-[#8DBFB4] font-semibold">
               {getFormattedDate()}
