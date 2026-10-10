@@ -14,9 +14,18 @@ import {
   X,
   Download,
   Check,
-  Loader2
+  Loader2,
+  MessageSquare,
+  Send,
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  AlertCircle,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { DashboardService } from '../services/dashboardService';
+import { SUPPORT_CONFIG } from '../config/supportConfig';
 
 export default function SettingsPage({ user, profile, onSignOut }) {
   // Navigation & UI States
@@ -84,6 +93,23 @@ export default function SettingsPage({ user, profile, onSignOut }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCooldown, setDeleteCooldown] = useState(0);
 
+  // Feedback & Bug Reporting States
+  const [fbType, setFbType] = useState('feedback'); // 'feedback' | 'bug_report' | 'issue'
+  const [fbSubject, setFbSubject] = useState('');
+  const [fbDescription, setFbDescription] = useState('');
+  const [fbCategory, setFbCategory] = useState(SUPPORT_CONFIG.categories[0]);
+  const [fbContactEmail, setFbContactEmail] = useState(emailDisplay || '');
+  const [fbSteps, setFbSteps] = useState('');
+  const [fbExpected, setFbExpected] = useState('');
+  const [fbActual, setFbActual] = useState('');
+  const [fbHoneypot, setFbHoneypot] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [fbSuccessData, setFbSuccessData] = useState(null); // { referenceCode: string }
+  const [fbError, setFbError] = useState('');
+  const [copiedFbRef, setCopiedFbRef] = useState(false);
+  const [copiedSupportPhone, setCopiedSupportPhone] = useState(false);
+  const [copiedSupportEmail, setCopiedSupportEmail] = useState(false);
+
   // Refs for auto-focusing
   const nameInputRef = useRef(null);
   const phoneInputRef = useRef(null);
@@ -93,6 +119,18 @@ export default function SettingsPage({ user, profile, onSignOut }) {
   const toastTimerRef = useRef(null);
   const phoneTimerRef = useRef(null);
   const deleteTimerRef = useRef(null);
+
+  // Sync tab from URL query if provided (e.g. /settings?tab=feedback)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      const validTabs = ['profile', 'notifications', 'subscription', 'billing', 'payment', 'how', 'ai', 'privacy', 'feedback', 'delete'];
+      if (tabParam && validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
 
   // Dynamically load Instrument Sans and Lora Google Fonts on mount
   useEffect(() => {
@@ -601,6 +639,86 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     // Scroll content panel to top
     const panel = document.getElementById('content-panel');
     if (panel) panel.scrollTop = 0;
+  };
+
+  // Feedback Form Handlers
+  const handleSubmitFeedback = async (e) => {
+    if (e) e.preventDefault();
+    if (!fbSubject.trim()) {
+      setFbError('Please provide a brief subject for your feedback.');
+      return;
+    }
+    if (!fbDescription.trim()) {
+      setFbError('Please provide details or a description of your feedback or issue.');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    setFbError('');
+
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submission_type: fbType,
+          subject: fbSubject.trim(),
+          description: fbDescription.trim(),
+          category: fbCategory,
+          contact_email: fbContactEmail.trim() || undefined,
+          page_url: typeof window !== 'undefined' ? window.location.pathname : '/settings',
+          steps_to_reproduce: fbSteps.trim() || undefined,
+          expected_behavior: fbExpected.trim() || undefined,
+          actual_behavior: fbActual.trim() || undefined,
+          bot_trap: fbHoneypot || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setFbError(data.error?.message || 'Failed to submit feedback. Please try again.');
+        return;
+      }
+
+      setFbSuccessData({ referenceCode: data.reference_code });
+      triggerToast(`Feedback registered: ${data.reference_code}`);
+    } catch (err) {
+      setFbError('A network error occurred while submitting feedback. Please try again.');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleResetFeedbackForm = () => {
+    setFbSuccessData(null);
+    setFbSubject('');
+    setFbDescription('');
+    setFbSteps('');
+    setFbExpected('');
+    setFbActual('');
+    setFbError('');
+  };
+
+  const handleCopyFbRef = () => {
+    if (!fbSuccessData?.referenceCode) return;
+    navigator.clipboard?.writeText(fbSuccessData.referenceCode);
+    setCopiedFbRef(true);
+    triggerToast('Reference ID copied to clipboard');
+    setTimeout(() => setCopiedFbRef(false), 2200);
+  };
+
+  const handleCopySupportPhone = () => {
+    navigator.clipboard?.writeText(SUPPORT_CONFIG.temporaryContactNumberRaw);
+    setCopiedSupportPhone(true);
+    triggerToast('Phone number copied to clipboard');
+    setTimeout(() => setCopiedSupportPhone(false), 2200);
+  };
+
+  const handleCopySupportEmail = () => {
+    navigator.clipboard?.writeText(SUPPORT_CONFIG.supportEmail);
+    setCopiedSupportEmail(true);
+    triggerToast('Support email copied to clipboard');
+    setTimeout(() => setCopiedSupportEmail(false), 2200);
   };
 
   // RENDER SECTIONS
@@ -1374,55 +1492,97 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     <div className="pad animate-fadeUp">
       <p className="pg-ey">About</p>
       <h1 className="pg-h font-serif text-3xl font-normal">Your data &amp; AI</h1>
-      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[480px]">
-        Three hard promises — and the full detail of what happens to your writing.
+      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[500px]">
+        Three hard commitments — and complete transparency into how your writing is protected and processed.
       </p>
 
-      {/* Promise cards */}
-      <div className="card bg-[#1E2A2E] border-none rounded-xl overflow-hidden mb-5">
-        <div style={{ padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          <div style={{ display: 'flex', gap: '14px', paddingBottom: '16px', borderBottom: '1px solid rgba(141,191,180,0.1)' }}>
-            <div style={{ fontFamily: 'var(--ff)', fontSize: '20px', fontWeight: '600', color: 'var(--terra)', width: '28px', flexShrink: 0 }}>01</div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--body-dk)', marginBottom: '3px' }}>No human ever reads your entries</div>
-              <div style={{ fontSize: '12px', color: 'rgba(168, 212, 206, 0.48)', lineHeight: '1.6' }}>Not us, not support staff, not anyone. Processing is entirely automated.</div>
+      {/* Promise cards - Modern light theme with high contrast */}
+      <div className="card bg-white border border-[#1E2A2E]/8 rounded-2xl shadow-xs overflow-hidden mb-6 divide-y divide-[#1E2A2E]/8">
+        <div className="p-5 sm:p-6 flex gap-4 items-start">
+          <div className="font-serif text-2xl font-bold text-[#8A3020] w-8 shrink-0 leading-none pt-0.5">01</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold text-primary mb-1">No human ever reads your entries</div>
+            <div className="text-[13px] text-mid leading-relaxed">
+              Not us, not support staff, not anyone. Processing and reflection generation are entirely automated.
+            </div>
+            <div className="mt-2.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#8A3020]/10 text-[#8A3020]">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Zero human review
+              </span>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', gap: '14px', paddingBottom: '16px', borderBottom: '1px solid rgba(141,191,180,0.1)' }}>
-            <div style={{ fontFamily: 'var(--ff)', fontSize: '20px', fontWeight: '600', color: 'var(--terra)', width: '28px', flexShrink: 0 }}>02</div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--body-dk)', marginBottom: '3px' }}>We never sell your data</div>
-              <div style={{ fontSize: '12px', color: 'rgba(168, 212, 206, 0.48)', lineHeight: '1.6' }}>We do not run ads, monetize user profiles, or license data to third parties.</div>
+        <div className="p-5 sm:p-6 flex gap-4 items-start">
+          <div className="font-serif text-2xl font-bold text-[#1A5040] w-8 shrink-0 leading-none pt-0.5">02</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold text-primary mb-1">We never sell your data or train AI on it</div>
+            <div className="text-[13px] text-mid leading-relaxed">
+              We do not run ads, monetize user profiles, or license data to third parties. Our commercial agreement explicitly prohibits using your entries to train AI models.
+            </div>
+            <div className="mt-2.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#1A5040]/10 text-[#1A5040]">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Zero model training
+              </span>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', gap: '14px' }}>
-            <div style={{ fontFamily: 'var(--ff)', fontSize: '20px', fontWeight: '600', color: 'var(--terra)', width: '28px', flexShrink: 0 }}>03</div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--body-dk)', marginBottom: '3px' }}>You can delete everything instantly</div>
-              <div style={{ fontSize: '12px', color: 'rgba(168, 212, 206, 0.48)', lineHeight: '1.6' }}>Deleting your account wipes all records permanently. No trace remains.</div>
+        <div className="p-5 sm:p-6 flex gap-4 items-start">
+          <div className="font-serif text-2xl font-bold text-[#5A4A8A] w-8 shrink-0 leading-none pt-0.5">03</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold text-primary mb-1">You can delete everything instantly</div>
+            <div className="text-[13px] text-mid leading-relaxed">
+              Deleting your account permanently wipes all records, entries, and generated reflections from our database. No trace remains.
+            </div>
+            <div className="mt-2.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#5A4A8A]/10 text-[#5A4A8A]">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Permanent deletion
+              </span>
             </div>
           </div>
-
         </div>
       </div>
 
-      <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden mb-5">
-        <div className="how-blk p-5 border-b border-[#1E2A2E]/8">
+      {/* Deep-dive Q&A Cards */}
+      <div className="card bg-white border border-[#1E2A2E]/8 rounded-2xl shadow-xs overflow-hidden mb-6">
+        <div className="how-blk p-5 sm:p-6 border-b border-[#1E2A2E]/8">
           <div className="how-ttl font-serif text-lg text-primary mb-2">Where is my data stored?</div>
           <div className="how-body text-mid text-[13.5px] leading-relaxed">
-            All database tables and application servers are hosted securely within Supabase's isolated cloud infrastructure in Mumbai, India. We do not export your journal data outside this secure perimeter.
+            All database tables and application servers are hosted securely within Supabase's isolated cloud infrastructure in Mumbai, India. We do not export your journal data outside this secure perimeter, and all entries are encrypted at rest and in transit.
           </div>
         </div>
-        <div className="how-blk p-5 border-b-0">
+        <div className="how-blk p-5 sm:p-6 border-b-0">
           <div className="how-ttl font-serif text-lg text-primary mb-2">How is my writing processed by the LLM?</div>
-          <div className="how-body text-mid text-[13.5px] leading-relaxed space-y-2">
-            <p>We use Claude (Anthropic) to generate reflections and reports. When an entry is sent, it goes via Anthropic's private commercial API.</p>
-            <p>Our agreement ensures that **none of your entries or data are used to train Anthropic's models**. Your data is deleted from Anthropic's systems within 30 days of processing.</p>
+          <div className="how-body text-mid text-[13.5px] leading-relaxed space-y-2.5">
+            <p>
+              We use Claude (Anthropic) to generate reflections and reports. When an entry is sent, it goes via Anthropic's private commercial API.
+            </p>
+            <p>
+              Personal details (name, phone number, email) are stripped before sending. The model receives only your text and a session identifier. Our agreement ensures that <strong>none of your entries or data are used to train Anthropic's models</strong>, and processed inputs are deleted from provider logs within 30 days.
+            </p>
           </div>
         </div>
+      </div>
+
+      {/* Architecture Link Card */}
+      <div className="card bg-[#F0F3F2] border border-[#1E2A2E]/8 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="font-medium text-[14px] text-primary mb-1">Full Technical Privacy Architecture</div>
+          <div className="text-[12.5px] text-mid">
+            Read our step-by-step pipeline diagram and detailed security questions.
+          </div>
+        </div>
+        <a 
+          href="/ai-data" 
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-white/80 border border-[#1E2A2E]/10 rounded-xl text-primary text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer"
+        >
+          <span>View AI &amp; Data Page</span>
+          <ExternalLink className="w-3.5 h-3.5 text-mid" />
+        </a>
       </div>
     </div>
   );
@@ -1454,7 +1614,315 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     </div>
   );
 
-  // 9. Delete Account Tab
+  // 9. Feedback & Bug Reports Tab
+  const renderFeedback = () => (
+    <div className="pad animate-fadeUp">
+      <p className="pg-ey">Support</p>
+      <h1 className="pg-h font-serif text-3xl font-normal">Feedback &amp; Bug Reports</h1>
+      <p className="pg-sub text-[13.5px] text-mid mb-8 max-w-[500px]">
+        Help us improve Ingress Within. Report an issue, request a feature, or tell us how your experience felt.
+      </p>
+
+      {/* Support Helpline & Direct Contact Card */}
+      <div className="card bg-[#F0F3F2] border border-[#1E2A2E]/8 rounded-2xl p-5 sm:p-6 mb-6">
+        <div className="flex items-start gap-3.5 mb-3.5">
+          <div className="w-8 h-8 rounded-full bg-[#1E2A2E] text-white flex items-center justify-center shrink-0 mt-0.5">
+            <Info className="w-4 h-4 text-[#8DBFB4]" />
+          </div>
+          <div>
+            <h3 className="font-serif text-base font-medium text-primary">Need direct assistance?</h3>
+            <p className="text-[12.5px] text-mid leading-relaxed mt-0.5">
+              Found a bug or having an issue? Report it through this form or reach our team directly.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#1E2A2E]/8">
+          {/* Email contact */}
+          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-[#1E2A2E]/6">
+            <div className="min-w-0 pr-2">
+              <span className="text-[10px] uppercase font-bold text-mid/70 block">Support Email</span>
+              <a 
+                href={`mailto:${SUPPORT_CONFIG.supportEmail}`} 
+                className="text-[12.5px] font-medium text-primary hover:text-[#8A3020] truncate block"
+              >
+                {SUPPORT_CONFIG.supportEmail}
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopySupportEmail}
+              className="p-1.5 hover:bg-[#1E2A2E]/5 rounded-lg text-mid transition-colors cursor-pointer"
+              title="Copy support email"
+            >
+              {copiedSupportEmail ? <Check className="w-3.5 h-3.5 text-[#1A5040]" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Phone contact */}
+          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-[#1E2A2E]/6">
+            <div className="min-w-0 pr-2">
+              <span className="text-[10px] uppercase font-bold text-mid/70 block">Helpline (Temporary)</span>
+              <a 
+                href={`tel:${SUPPORT_CONFIG.temporaryContactNumberRaw}`} 
+                className="text-[12.5px] font-medium text-primary hover:text-[#8A3020] truncate block"
+              >
+                {SUPPORT_CONFIG.temporaryContactNumber}
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopySupportPhone}
+              className="p-1.5 hover:bg-[#1E2A2E]/5 rounded-lg text-mid transition-colors cursor-pointer"
+              title="Copy phone number"
+            >
+              {copiedSupportPhone ? <Check className="w-3.5 h-3.5 text-[#1A5040]" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Success Confirmation State */}
+      {fbSuccessData ? (
+        <div className="card bg-white border border-[#1E2A2E]/8 rounded-2xl p-6 sm:p-8 text-center shadow-xs animate-fadeUp">
+          <div className="w-12 h-12 rounded-full bg-[#1A5040]/10 text-[#1A5040] flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <h2 className="font-serif text-2xl text-primary font-normal mb-2">Thank you for your report</h2>
+          <p className="text-[13.5px] text-mid max-w-[420px] mx-auto mb-6 leading-relaxed">
+            Your submission has been safely logged in our system. Our engineering team has been notified.
+          </p>
+
+          <div className="bg-[#F0F3F2] border border-[#1E2A2E]/8 rounded-xl p-4 max-w-[360px] mx-auto mb-6 flex items-center justify-between">
+            <div className="text-left">
+              <span className="text-[10px] uppercase font-bold text-mid/70 block">Reference ID</span>
+              <span className="font-mono text-sm font-semibold text-primary">{fbSuccessData.referenceCode}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyFbRef}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#1E2A2E]/8 text-xs font-medium text-primary hover:bg-[#1E2A2E]/5 transition-colors cursor-pointer shadow-2xs"
+            >
+              {copiedFbRef ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#1A5040]" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleResetFeedbackForm}
+            className="btn btn-primary py-2.5 px-6 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            Submit Another Note
+          </button>
+        </div>
+      ) : (
+        /* Feedback Submission Form */
+        <form onSubmit={handleSubmitFeedback} className="card bg-white border border-[#1E2A2E]/8 rounded-2xl p-5 sm:p-7 shadow-xs">
+          
+          {/* Error Banner */}
+          {fbError && (
+            <div className="mb-5 p-3.5 bg-[#8A3020]/10 border border-[#8A3020]/20 rounded-xl flex items-start gap-3 text-[#8A3020] text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{fbError}</span>
+            </div>
+          )}
+
+          {/* Submission Type Switcher */}
+          <div className="mb-5">
+            <label className="block text-[11px] font-semibold text-primary uppercase tracking-wider mb-2">
+              Submission Type <span className="text-[#8A3020]">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'feedback', label: 'Feedback' },
+                { id: 'bug_report', label: 'Bug Report' },
+                { id: 'issue', label: 'Tech Issue' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setFbType(t.id)}
+                  className={`py-2 px-3 rounded-xl text-xs font-medium transition-all text-center cursor-pointer border ${
+                    fbType === t.id
+                      ? 'bg-[#1E2A2E] text-white border-[#1E2A2E] shadow-2xs'
+                      : 'bg-[#F0F3F2]/60 text-mid border-transparent hover:border-[#1E2A2E]/10 hover:bg-[#F0F3F2]'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Dropdown */}
+          <div className="mb-5">
+            <label className="block text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
+              Category
+            </label>
+            <select
+              value={fbCategory}
+              onChange={(e) => setFbCategory(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white border border-[#1E2A2E]/15 rounded-xl text-xs font-sans text-primary focus:outline-none focus:border-[#1E2A2E] transition-colors"
+            >
+              {SUPPORT_CONFIG.categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Subject Field */}
+          <div className="mb-5">
+            <label className="block text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
+              Subject <span className="text-[#8A3020]">*</span>
+            </label>
+            <input
+              type="text"
+              value={fbSubject}
+              onChange={(e) => setFbSubject(e.target.value)}
+              placeholder={fbType === 'bug_report' ? 'e.g. Export data download failed on mobile' : 'e.g. Suggestion for reflection summary view'}
+              maxLength={200}
+              required
+              className="w-full px-3.5 py-2.5 bg-white border border-[#1E2A2E]/15 rounded-xl text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E] transition-colors"
+            />
+          </div>
+
+          {/* Description Field */}
+          <div className="mb-5">
+            <label className="block text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
+              Description <span className="text-[#8A3020]">*</span>
+            </label>
+            <textarea
+              value={fbDescription}
+              onChange={(e) => setFbDescription(e.target.value)}
+              rows={4}
+              placeholder={
+                fbType === 'bug_report'
+                  ? 'Please describe the bug, what page it happened on, and any details that can help us fix it...'
+                  : 'Please share your thoughts, ideas, or feedback...'
+              }
+              maxLength={4000}
+              required
+              className="w-full px-3.5 py-2.5 bg-white border border-[#1E2A2E]/15 rounded-xl text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E] transition-colors resize-y leading-relaxed"
+            />
+          </div>
+
+          {/* Conditional Diagnostics for Bug Reports / Issues */}
+          {(fbType === 'bug_report' || fbType === 'issue') && (
+            <div className="mb-5 p-4 bg-[#F0F3F2]/50 border border-[#1E2A2E]/8 rounded-xl space-y-4">
+              <div className="text-[11px] font-bold text-primary uppercase tracking-wider">
+                Bug Diagnostics <span className="text-mid/60 font-normal">(Optional context)</span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-mid mb-1">
+                  Steps to reproduce
+                </label>
+                <textarea
+                  value={fbSteps}
+                  onChange={(e) => setFbSteps(e.target.value)}
+                  rows={2}
+                  placeholder="1. Go to Settings &#10;2. Click Download Data &#10;3. Click Confirm"
+                  className="w-full px-3 py-2 bg-white border border-[#1E2A2E]/12 rounded-lg text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-mid mb-1">
+                    What happened?
+                  </label>
+                  <input
+                    type="text"
+                    value={fbActual}
+                    onChange={(e) => setFbActual(e.target.value)}
+                    placeholder="e.g. Error toast appeared"
+                    className="w-full px-3 py-2 bg-white border border-[#1E2A2E]/12 rounded-lg text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-mid mb-1">
+                    What did you expect?
+                  </label>
+                  <input
+                    type="text"
+                    value={fbExpected}
+                    onChange={(e) => setFbExpected(e.target.value)}
+                    placeholder="e.g. Download should start"
+                    className="w-full px-3 py-2 bg-white border border-[#1E2A2E]/12 rounded-lg text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Email Field */}
+          <div className="mb-6">
+            <label className="block text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
+              Contact Email <span className="text-mid/60 font-normal">(For status updates &amp; reference copy)</span>
+            </label>
+            <input
+              type="email"
+              value={fbContactEmail}
+              onChange={(e) => setFbContactEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-3.5 py-2.5 bg-white border border-[#1E2A2E]/15 rounded-xl text-xs font-sans text-primary placeholder:text-mid/40 focus:outline-none focus:border-[#1E2A2E] transition-colors"
+            />
+          </div>
+
+          {/* Hidden Honeypot Bot Trap */}
+          <input
+            type="text"
+            name="bot_trap"
+            value={fbHoneypot}
+            onChange={(e) => setFbHoneypot(e.target.value)}
+            style={{ display: 'none' }}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+
+          {/* Submit Button */}
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-[11px] text-mid/70">
+              Never share passwords or sensitive credentials.
+            </p>
+            <button
+              type="submit"
+              disabled={isSubmittingFeedback}
+              className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl bg-[#1E2A2E] text-white hover:bg-[#283D38] text-xs font-semibold shadow-xs disabled:opacity-50 transition-all cursor-pointer"
+            >
+              {isSubmittingFeedback ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Submitting…</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Submit {fbType === 'bug_report' ? 'Bug Report' : fbType === 'issue' ? 'Issue' : 'Feedback'}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+        </form>
+      )}
+
+    </div>
+  );
+
+  // 10. Delete Account Tab
   const renderDeleteAccount = () => (
     <div className="pad animate-fadeUp">
       <p className="pg-ey">Session</p>
@@ -1800,6 +2268,14 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           
           <div className="h-[1px] bg-[#1E2A2E]/8 my-2 mx-3" />
           
+          <span className="sb-group-label text-[10px] tracking-wider uppercase font-bold text-[#4A6A64]/38 px-[18px] py-3.5 pb-1 block">Support</span>
+          <button className={`sb-btn w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium border-l-[3px] border-transparent transition-colors hover:text-primary hover:bg-[#1E2A2E]/3 cursor-pointer flex items-center justify-between ${activeTab === 'feedback' ? 'on' : 'text-[#4A6A64]'}`} onClick={() => handleTabSwitch('feedback')}>
+            <span>Feedback &amp; bugs</span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#8DBFB4]/20 text-[#1A5040]">New</span>
+          </button>
+
+          <div className="h-[1px] bg-[#1E2A2E]/8 my-2 mx-3" />
+          
           <span className="sb-group-label text-[10px] tracking-wider uppercase font-bold text-[#4A6A64]/38 px-[18px] py-3.5 pb-1 block">Session</span>
           <button className="sb-btn w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium transition-colors hover:text-primary hover:bg-[#1E2A2E]/3 text-[#4A6A64] cursor-pointer" onClick={() => handleTabSwitch('logout')}>Log out</button>
           <button className={`sb-btn danger w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium border-l-[3px] border-transparent transition-colors hover:bg-[#E0A898]/7 cursor-pointer ${activeTab === 'delete' ? 'on text-[#8A3020] border-l-[#E0A898]' : 'text-[#8A3020]'}`} onClick={() => handleTabSwitch('delete')}>Delete account</button>
@@ -1815,6 +2291,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           {activeTab === 'how' && renderHowItWorks()}
           {activeTab === 'ai' && renderYourDataAndAi()}
           {activeTab === 'privacy' && renderPrivacyPolicy()}
+          {activeTab === 'feedback' && renderFeedback()}
           {activeTab === 'delete' && renderDeleteAccount()}
         </div>
 
