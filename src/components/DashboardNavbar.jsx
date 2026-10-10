@@ -70,9 +70,9 @@ export default function DashboardNavbar({ activeTab }) {
     }
   };
 
-  // Determine if current active tab is part of the "More" extended destinations
+  // Determine if current active tab is part of the "More" extended destinations (for mobile bottom nav)
   const isMoreActive = Boolean(
-    activeTab && !['home', 'dashboard', 'write', 'reports'].includes(activeTab)
+    activeTab && !['home', 'dashboard', 'write', 'interventions', 'reports', 'patterns', 'knowledge'].includes(activeTab)
   );
 
   const getTabClass = (tab) => {
@@ -105,7 +105,7 @@ export default function DashboardNavbar({ activeTab }) {
             </span>
           </div>
           
-          {/* Desktop Primary Navigation (Home, Write, Reports, and More) */}
+          {/* Desktop Primary Navigation: All primary tools visible on large screens */}
           <nav 
             aria-label="Desktop primary navigation"
             className="hidden md:flex items-center gap-5 lg:gap-6 shrink-0"
@@ -125,27 +125,32 @@ export default function DashboardNavbar({ activeTab }) {
               Write
             </button>
             <button 
+              className={getTabClass('interventions')} 
+              onClick={() => handleNavigate('/interventions')}
+              aria-current={activeTab === 'interventions' ? 'page' : undefined}
+            >
+              Practice
+            </button>
+            <button 
               className={getTabClass('reports')} 
               onClick={() => handleNavigate('/reports')}
               aria-current={activeTab === 'reports' ? 'page' : undefined}
             >
               Reports
             </button>
-
-            {/* Desktop More Menu Trigger Button */}
-            <button
-              type="button"
-              onClick={() => setIsMoreOpen((prev) => !prev)}
-              className={`flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider pb-0.5 border-b-2 transition-all cursor-pointer ${
-                isMoreActive || isMoreOpen
-                  ? 'text-accent border-accent font-semibold' 
-                  : 'text-mid hover:text-primary border-transparent hover:border-accent/30 font-medium'
-              }`}
-              aria-expanded={isMoreOpen}
-              aria-label="More navigation and features"
+            <button 
+              className={getTabClass('patterns')} 
+              onClick={() => handleNavigate('/patterns')}
+              aria-current={activeTab === 'patterns' ? 'page' : undefined}
             >
-              <span>More</span>
-              <ChevronDown size={13} className={`transition-transform duration-200 ${isMoreOpen ? 'rotate-180' : ''}`} />
+              Patterns
+            </button>
+            <button 
+              className={getTabClass('knowledge')} 
+              onClick={() => handleNavigate('/knowledge')}
+              aria-current={activeTab === 'knowledge' ? 'page' : undefined}
+            >
+              Knowledge
             </button>
           </nav>
 
