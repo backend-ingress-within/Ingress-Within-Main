@@ -25,6 +25,11 @@ import {
   Radio,
   Eye,
   Filter,
+  Smartphone,
+  Monitor,
+  Compass,
+  FileText,
+  ArrowRight,
 } from 'lucide-react';
 
 export type AnalyticsTab =
@@ -126,13 +131,14 @@ export default function AnalyticsDashboardView() {
     fetchTabMetrics(activeSubTab, timeRange, customStart, customEnd);
   }, [activeSubTab, timeRange, fetchTabMetrics]);
 
-  // Periodic heartbeat / live traffic refresh every 30 seconds
+  // Periodic heartbeat / live traffic refresh (every 10s on traffic tab, 30s on overview)
   useEffect(() => {
+    const refreshIntervalMs = activeSubTab === 'traffic' ? 10000 : 30000;
     const timer = setInterval(() => {
       if (activeSubTab === 'overview' || activeSubTab === 'traffic') {
         fetchTabMetrics(activeSubTab, timeRange, customStart, customEnd);
       }
-    }, 30000);
+    }, refreshIntervalMs);
     return () => clearInterval(timer);
   }, [activeSubTab, timeRange, customStart, customEnd, fetchTabMetrics]);
 
@@ -926,76 +932,263 @@ function GrowthSubTab({ data, isLoading }: { data: any; isLoading: boolean }) {
 }
 
 // ============================================================================
-// 6. WEBSITE TRAFFIC SUBTAB
+// 6. WEBSITE TRAFFIC SUBTAB (ENHANCED LIVE USERS & TOP PAGES ANALYSIS)
 // ============================================================================
 function TrafficSubTab({ data, isLoading }: { data: any; isLoading: boolean }) {
   if (isLoading && !data) return <LoadingState message="Aggregating website traffic and real-time live visitors..." />;
   if (!data) return <EmptyDataState message="Not enough historical traffic data." />;
 
-  const { liveStatus, minute60Activity, hourlyTraffic, topRoutes, topEndpoints } = data;
+  const { liveStatus, minute60Activity, hourlyTraffic, topPages, topRoutes, topEndpoints } = data;
+  const liveRoutes = liveStatus?.liveByRoute || [];
+  const activeSessions = liveStatus?.activeSessions || [];
 
   return (
     <div className="space-y-6">
-      {/* Live Visitors Status */}
-      <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-            <span className="text-xs uppercase font-semibold text-emerald-800">5-Minute Sliding Window TTL</span>
+      {/* Real-Time Live Status Hero Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-[#132A24] to-[#1C3E35] text-white p-6 rounded-2xl shadow-sm border border-emerald-800/40 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs uppercase font-bold tracking-widest text-emerald-300">
+                Live Real-Time Activity (5-Min Sliding TTL)
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                Auto-refreshes every 10s
+              </span>
+            </div>
+
+            <div className="text-4xl sm:text-5xl font-serif font-normal text-white mt-2 flex items-baseline gap-3">
+              <span>{liveStatus?.totalLive ?? 0}</span>
+              <span className="text-lg font-sans font-medium text-emerald-200/90">Users Active Right Now</span>
+            </div>
+            <p className="text-xs text-emerald-100/70 mt-1 max-w-xl">
+              Real-time connected users across client apps, therapist portals, and public marketing pages. Privacy-safe: zero personal payload or session intrusion.
+            </p>
           </div>
-          <div className="text-3xl font-serif text-[#132A24] font-medium mt-1">
-            {liveStatus?.totalLive ?? 0} Concurrent Visitors
+
+          {/* Live Role Breakdown Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+            <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 text-center">
+              <span className="text-[10px] uppercase font-semibold text-emerald-300 block">Clients</span>
+              <span className="text-xl font-serif font-bold text-white mt-0.5 block">{liveStatus?.clients ?? 0}</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 text-center">
+              <span className="text-[10px] uppercase font-semibold text-emerald-300 block">Therapists</span>
+              <span className="text-xl font-serif font-bold text-white mt-0.5 block">{liveStatus?.therapists ?? 0}</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 text-center">
+              <span className="text-[10px] uppercase font-semibold text-emerald-300 block">Admins</span>
+              <span className="text-xl font-serif font-bold text-white mt-0.5 block">{liveStatus?.admins ?? 0}</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 text-center">
+              <span className="text-[10px] uppercase font-semibold text-emerald-300 block">Guests</span>
+              <span className="text-xl font-serif font-bold text-white mt-0.5 block">{liveStatus?.guests ?? 0}</span>
+            </div>
           </div>
-          <p className="text-xs text-stone-500 mt-0.5">Privacy-safe: no clinical data or payload logging.</p>
         </div>
 
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-3 py-1.5 bg-stone-100 rounded-lg text-stone-700">Clients: <strong>{liveStatus?.clients ?? 0}</strong></span>
-          <span className="px-3 py-1.5 bg-stone-100 rounded-lg text-stone-700">Therapists: <strong>{liveStatus?.therapists ?? 0}</strong></span>
-          <span className="px-3 py-1.5 bg-stone-100 rounded-lg text-stone-700">Admins: <strong>{liveStatus?.admins ?? 0}</strong></span>
-          <span className="px-3 py-1.5 bg-stone-100 rounded-lg text-stone-700">Guests: <strong>{liveStatus?.guests ?? 0}</strong></span>
-        </div>
+        {/* Live Active Pages Strip (Where users are right now) */}
+        {liveRoutes.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-emerald-300/80 font-medium mr-1 flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5" /> Pages active right now:
+            </span>
+            {liveRoutes.map((lr: any, idx: number) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-white text-xs border border-emerald-400/20 font-mono"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span className="font-semibold">{lr.route}</span>
+                <span className="bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-sans font-bold text-emerald-100">
+                  {lr.activeUsers} {lr.activeUsers === 1 ? 'user' : 'users'}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 60-Minute Real-Time Activity Graph */}
       <div className="bg-white p-6 rounded-2xl border border-stone-200/80 shadow-xs">
-        <h3 className="text-base font-serif text-[#132A24] font-medium mb-1">60-Minute Live Activity</h3>
-        <p className="text-xs text-stone-500 mb-6">Real-time minute-by-minute activity telemetry.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 className="text-base font-serif text-[#132A24] font-medium">60-Minute Live Activity Wave</h3>
+            <p className="text-xs text-stone-500">Real-time minute-by-minute activity telemetry stream.</p>
+          </div>
+          <span className="text-xs text-stone-500 font-mono bg-stone-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+            1-minute sliding buckets
+          </span>
+        </div>
 
         {minute60Activity && minute60Activity.length > 0 ? (
-          <div className="h-32 flex items-end gap-1 pt-4 pb-2 border-b border-stone-200 overflow-x-auto">
-            {minute60Activity.map((pt: any, idx: number) => {
-              const max = Math.max(...minute60Activity.map((p: any) => p.count), 1);
-              const heightPercent = Math.max((pt.count / max) * 100, 4);
-              return (
-                <div key={idx} className="flex-1 min-w-[8px] flex flex-col items-center group relative">
-                  <div
-                    style={{ height: `${heightPercent}%` }}
-                    className="w-full bg-[#2D5A46] group-hover:bg-emerald-700 rounded-t-sm transition-all"
-                    title={`${pt.minute}: ${pt.count} events`}
-                  ></div>
-                </div>
-              );
-            })}
+          <div className="space-y-2">
+            <div className="h-32 flex items-end gap-1 pt-4 pb-2 border-b border-stone-200 overflow-x-auto">
+              {minute60Activity.map((pt: any, idx: number) => {
+                const max = Math.max(...minute60Activity.map((p: any) => p.count), 1);
+                const heightPercent = Math.max((pt.count / max) * 100, 4);
+                return (
+                  <div key={idx} className="flex-1 min-w-[8px] flex flex-col items-center group relative">
+                    <div className="absolute -top-7 hidden group-hover:flex bg-[#132A24] text-white text-[9px] py-0.5 px-1.5 rounded whitespace-nowrap shadow-md z-10">
+                      {pt.minute}: {pt.count} events
+                    </div>
+                    <div
+                      style={{ height: `${heightPercent}%` }}
+                      className="w-full bg-[#2D5A46] group-hover:bg-emerald-600 rounded-t-sm transition-all"
+                      title={`${pt.minute}: ${pt.count} events`}
+                    ></div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-[10px] text-stone-400 font-mono">
+              <span>60 mins ago</span>
+              <span>30 mins ago</span>
+              <span>Just now</span>
+            </div>
           </div>
         ) : (
           <EmptyDataState message="Not enough recent activity in the last 60 minutes." />
         )}
       </div>
 
-      {/* Top Routes & Endpoints */}
+      {/* TOP VISITED PAGES — DETAILED ANALYSIS TABLE */}
+      <div className="bg-white p-6 rounded-2xl border border-stone-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-serif text-[#132A24] font-medium">Most Visited Website Pages</h3>
+              <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
+                Detailed Breakdown
+              </span>
+            </div>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Ranked list of public landing pages, client tools, and clinical dashboards visited most by users.
+            </p>
+          </div>
+          <div className="text-xs text-stone-600 bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-200">
+            Total Page Views Tracked: <strong className="text-emerald-800 font-bold">{data.trafficSummary?.totalPageViews ?? (topPages?.reduce((acc: number, p: any) => acc + (p.views || 0), 0) || 0)}</strong>
+          </div>
+        </div>
+
+        {topPages && topPages.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-stone-200 text-stone-500 uppercase tracking-wider text-[10px] bg-stone-50/70">
+                  <th className="py-2.5 px-3 font-semibold">Rank</th>
+                  <th className="py-2.5 px-3 font-semibold">Page Route & Purpose</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Total Visits</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Traffic Share</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Currently Live</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Unique Visitors</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {topPages.map((pageItem: any, idx: number) => {
+                  // Find if currently users are active on this page
+                  const liveMatch = liveRoutes.find((lr: any) => lr.route === pageItem.page);
+                  const activeLiveCount = liveMatch?.activeUsers || 0;
+
+                  // Friendly title helper
+                  const getPageTitle = (p: string) => {
+                    if (p === '/') return 'Landing Page & Homepage';
+                    if (p === '/dashboard') return 'Client Self-Reflection Dashboard';
+                    if (p === '/write' || p.startsWith('/write')) return 'Journal Writing & Editor';
+                    if (p === '/reports') return 'Weekly & Monthly Reports';
+                    if (p === '/patterns') return 'Cognitive & Emotional Patterns';
+                    if (p === '/interventions') return 'Psychology Exercises & Interventions';
+                    if (p === '/knowledge') return 'Psychoeducation Knowledge Bank';
+                    if (p === '/vocab') return 'Emotional Granularity & Vocabulary';
+                    if (p === '/threads') return 'Reflection Inquiry Threads';
+                    if (p === '/exercise') return 'Guided Therapeutic Workouts';
+                    if (p === '/settings') return 'User Profile & Settings';
+                    if (p === '/support') return 'Crisis Support & Helplines';
+                    if (p === '/auth') return 'Sign In / Verification Gateway';
+                    if (p === '/onboarding') return 'New User Clinical Onboarding';
+                    if (p.startsWith('/therapist')) return 'Therapist Clinical Portal';
+                    if (p.startsWith('/admin')) return 'Admin Platform Command Center';
+                    return 'Application View';
+                  };
+
+                  return (
+                    <tr key={idx} className="hover:bg-stone-50/80 transition-colors">
+                      <td className="py-3 px-3 font-mono text-stone-400 font-semibold">
+                        #{idx + 1}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-semibold text-stone-800 font-mono text-[11.5px] flex items-center gap-2">
+                          <span>{pageItem.page}</span>
+                          {idx === 0 && (
+                            <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-sans font-bold">
+                              TOP 1
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-stone-500 font-sans mt-0.5">
+                          {getPageTitle(pageItem.page)}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <span className="font-bold text-stone-800 text-[13px]">{pageItem.views.toLocaleString()}</span>
+                        <span className="text-[10px] text-stone-400 block">views</span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-16 bg-stone-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-emerald-600 h-1.5 rounded-full"
+                              style={{ width: `${Math.min(100, Math.max(pageItem.sharePercent, 5))}%` }}
+                            ></div>
+                          </div>
+                          <span className="font-semibold text-stone-700 w-9 text-right font-mono">
+                            {pageItem.sharePercent}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        {activeLiveCount > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            {activeLiveCount} live
+                          </span>
+                        ) : (
+                          <span className="text-stone-300 font-mono text-[11px]">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right font-medium text-stone-600">
+                        {pageItem.uniqueVisitors || 1}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyDataState message="No web page views recorded yet for this timeframe." />
+        )}
+      </div>
+
+      {/* Normalized Routes & Endpoints Split */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Top Normalized Routes */}
         <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
-          <h3 className="text-base font-serif text-[#132A24] font-medium mb-1">Top Visited Routes</h3>
-          <p className="text-xs text-stone-500 mb-4">Normalized URL templates (IDs sanitized to [id]).</p>
+          <h3 className="text-base font-serif text-[#132A24] font-medium mb-1">All Traversed Routes</h3>
+          <p className="text-xs text-stone-500 mb-4">Normalized templates (IDs sanitized to [id]).</p>
 
           <div className="space-y-2 text-xs">
             {topRoutes && topRoutes.length > 0 ? (
-              topRoutes.slice(0, 8).map((r: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-stone-50">
+              topRoutes.slice(0, 10).map((r: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-stone-50 hover:bg-stone-100 transition-colors">
                   <span className="font-mono text-stone-800 truncate max-w-[240px]">{r.route}</span>
-                  <span className="font-semibold text-emerald-800">{r.count} hits</span>
+                  <span className="font-semibold text-emerald-800 font-mono">{r.views} hits</span>
                 </div>
               ))
             ) : (
@@ -1004,17 +1197,17 @@ function TrafficSubTab({ data, isLoading }: { data: any; isLoading: boolean }) {
           </div>
         </div>
 
-        {/* Top Endpoints */}
+        {/* Top API Endpoints */}
         <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
           <h3 className="text-base font-serif text-[#132A24] font-medium mb-1">Top API Endpoints</h3>
           <p className="text-xs text-stone-500 mb-4">Highest volume backend service endpoints.</p>
 
           <div className="space-y-2 text-xs">
             {topEndpoints && topEndpoints.length > 0 ? (
-              topEndpoints.slice(0, 8).map((ep: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-stone-50">
+              topEndpoints.slice(0, 10).map((ep: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-stone-50 hover:bg-stone-100 transition-colors">
                   <span className="font-mono text-stone-800 truncate max-w-[240px]">{ep.endpoint}</span>
-                  <span className="font-semibold text-stone-700">{ep.count} reqs</span>
+                  <span className="font-semibold text-stone-700 font-mono">{ep.requests} reqs</span>
                 </div>
               ))
             ) : (

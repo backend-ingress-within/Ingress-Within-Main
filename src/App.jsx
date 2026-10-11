@@ -328,11 +328,12 @@ export default function App({ initialRoute = 'home' }) {
     }
   }, [authChecked, isLoading, user, profile, currentRoute, authError]);
 
-  // Privacy-safe client activity heartbeat (throttled; captures active users in real-time)
+  // Privacy-safe client activity heartbeat (throttled; captures active users and visited page in real-time)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const sendHeartbeat = () => {
       try {
+        const isMobile = window.innerWidth < 768;
         fetch('/api/telemetry/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -340,6 +341,7 @@ export default function App({ initialRoute = 'home' }) {
             userId: user?.id || null,
             role: user ? (user.role || (user.is_admin ? 'admin' : 'client')) : 'guest',
             route: window.location.pathname || '/',
+            device: isMobile ? 'mobile' : 'desktop',
           }),
         }).catch(() => {});
       } catch {
@@ -348,7 +350,7 @@ export default function App({ initialRoute = 'home' }) {
     };
 
     sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 120000); // every 2 minutes
+    const interval = setInterval(sendHeartbeat, 45000); // refresh heartbeat every 45s
     return () => clearInterval(interval);
   }, [currentRoute, user?.id]);
 

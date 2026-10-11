@@ -20,6 +20,8 @@ export interface LiveUserRecord {
   userId: string;
   role: 'client' | 'therapist' | 'admin' | 'guest';
   lastSeenAt: number; // Date.now() timestamp
+  route?: string;
+  device?: string;
 }
 
 export class AdminAnalyticsService {
@@ -39,15 +41,19 @@ export class AdminAnalyticsService {
     userId?: string | null;
     role?: 'client' | 'therapist' | 'admin' | 'guest';
     route?: string;
+    device?: string;
   }) {
     const now = Date.now();
     const id = params.userId || `anon_${Math.random().toString(36).substring(2, 9)}`;
     const role = params.role || (params.userId ? 'client' : 'guest');
+    const normalizedRoute = params.route ? ApiUsageService.normalizeRoute(params.route) : '/';
 
     this.liveUsersMap.set(id, {
       userId: id,
       role,
       lastSeenAt: now,
+      route: normalizedRoute,
+      device: params.device || 'desktop',
     });
 
     // Optional: Log lightweight web telemetry event into api_usage_events for traffic analysis
@@ -55,13 +61,13 @@ export class AdminAnalyticsService {
       ApiUsageService.recordEvent({
         provider: 'internal',
         service: 'web_telemetry',
-        endpoint: ApiUsageService.normalizeRoute(params.route),
-        route: ApiUsageService.normalizeRoute(params.route),
+        endpoint: normalizedRoute,
+        route: normalizedRoute,
         method: 'GET',
         statusCode: 200,
         success: true,
         actorType: role === 'guest' ? 'anonymous' : role,
-        metadata: { isHeartbeat: true },
+        metadata: { isHeartbeat: true, device: params.device },
       });
     }
   }
@@ -75,13 +81,18 @@ export class AdminAnalyticsService {
     therapists: number;
     admins: number;
     guests: number;
+    liveByRoute: Array<{ route: string; activeUsers: number }>;
+    activeSessions: Array<{ id: string; role: string; route: string; secondsAgo: number }>;
   } {
     const cutoff = Date.now() - this.LIVE_TTL_MS;
     let clients = 0;
     let therapists = 0;
     let admins = 0;
     let guests = 0;
+    const routeCounts: Record<string, number> = {};
+    const activeSessions: Array<{ id: string; role: string; route: string; secondsAgo: number }> = [];
 
+    const now = Date.now();
     for (const [id, user] of this.liveUsersMap.entries()) {
       if (user.lastSeenAt < cutoff) {
         this.liveUsersMap.delete(id);
@@ -90,16 +101,34 @@ export class AdminAnalyticsService {
         else if (user.role === 'therapist') therapists++;
         else if (user.role === 'admin') admins++;
         else guests++;
+
+        const r = user.route || '/';
+        routeCounts[r] = (routeCounts[r] || 0) + 1;
+
+        // Anonymized/safe session snippet
+        const displayId = id.startsWith('anon_') ? id : `${id.slice(0, 8)}...`;
+        activeSessions.push({
+          id: displayId,
+          role: user.role,
+          route: r,
+          secondsAgo: Math.max(0, Math.round((now - user.lastSeenAt) / 1000)),
+        });
       }
     }
 
     const totalLive = clients + therapists + admins + guests;
+    const liveByRoute = Object.entries(routeCounts)
+      .map(([route, activeUsers]) => ({ route, activeUsers }))
+      .sort((a, b) => b.activeUsers - a.activeUsers);
+
     return {
       totalLive,
       clients,
       therapists,
       admins,
       guests,
+      liveByRoute,
+      activeSessions: activeSessions.slice(0, 10),
     };
   }
 
@@ -1116,6 +1145,40 @@ export class AdminAnalyticsService {
         });
       }
 
+      // Total Page Views & Dedicated Top Pages Breakdown
+      let totalPageViews = 0;
+      const pagesMap: Record<string, { views: number; uniqueActors: Set<string>; avgLatencyMs: number; lastVisited: string }> = {};
+
+      allEvents.forEach((ev: any) => {
+        const rawRoute = ev.route || ev.endpoint || '/';
+        // Classify if page route (not purely internal API)
+        const isApi = rawRoute.startsWith('/api/');
+        if (!isApi) {
+          totalPageViews++;
+          if (!pagesMap[rawRoute]) {
+            pagesMap[rawRoute] = { views: 0, uniqueActors: new Set(), avgLatencyMs: 0, lastVisited: ev.created_at };
+          }
+          pagesMap[rawRoute].views++;
+          if (ev.actor_type) pagesMap[rawRoute].uniqueActors.add(ev.actor_type);
+          if (ev.created_at > pagesMap[rawRoute].lastVisited) {
+            pagesMap[rawRoute].lastVisited = ev.created_at;
+          }
+        }
+      });
+
+      const topPages = Object.entries(pagesMap)
+        .sort((a, b) => b[1].views - a[1].views)
+        .map(([page, info]) => {
+          const sharePercent = totalPageViews > 0 ? Math.round((info.views / totalPageViews) * 100) : 0;
+          return {
+            page,
+            views: info.views,
+            uniqueVisitors: info.uniqueActors.size,
+            sharePercent,
+            lastVisited: info.lastVisited,
+          };
+        });
+
       return {
         timeframe: {
           range: boundary.range,
@@ -1126,6 +1189,7 @@ export class AdminAnalyticsService {
         liveStatus: live,
         trafficSummary: {
           totalRequests: totalEvents || allEvents.length,
+          totalPageViews,
           successfulRequests: successes,
           errors4xx: failures4xx,
           errors5xx: failures5xx,
@@ -1142,6 +1206,7 @@ export class AdminAnalyticsService {
         })),
         last60Minutes,
         minute60Activity: last60Minutes.map((m) => ({ minute: m.minute, count: m.requests })),
+        topPages,
         topRoutes,
         topEndpoints,
       };

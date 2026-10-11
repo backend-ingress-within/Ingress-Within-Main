@@ -19,10 +19,13 @@ export async function POST(request: NextRequest) {
       // Unauthenticated / guest session
     }
 
+    const device = body.device || (request.headers.get('user-agent')?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop');
+
     AdminAnalyticsService.recordHeartbeat({
       userId,
       role: role as any,
       route,
+      device,
     });
 
     return NextResponse.json({
