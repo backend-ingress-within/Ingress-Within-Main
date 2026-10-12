@@ -171,7 +171,7 @@ export default function TherapyBookingFlow({
         amount: orderData.amountPaise,
         currency: orderData.currency || 'INR',
         name: 'Ingress Within',
-        description: `Therapy Session with ${selectedTherapist?.name || selectedTherapist?.full_name || 'Clinician'}`,
+        description: `Therapy Session with ${selectedTherapist?.displayName || selectedTherapist?.name || selectedTherapist?.full_name || 'Clinician'}`,
         theme: { color: '#064e3b' },
         handler: async function (response) {
           await verifyPayment(response, orderData.bookingId);
@@ -336,41 +336,62 @@ export default function TherapyBookingFlow({
                 </div>
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                  {therapists.map((t) => (
-                    <div
-                      key={t.id}
-                      onClick={() => setSelectedTherapist(t)}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                        selectedTherapist?.id === t.id
-                          ? 'border-emerald-700 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-700'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-emerald-800 text-emerald-100 flex items-center justify-center font-serif text-sm">
-                            {(t.name || t.full_name || 'Dr').charAt(0)}
+                  {therapists.map((t) => {
+                    const clinicianName = t.displayName || t.name || t.full_name || 'Licensed Clinician';
+                    const initials = clinicianName
+                      .replace(/^Dr\.?\s*/i, '')
+                      .trim()
+                      .charAt(0) || 'C';
+                    const credentialsText = t.title || t.qualification || t.credentials || 'Licensed Therapist';
+                    const feeText = t.fee || t.per_session_fee || 1500;
+                    const locationText = [t.city, t.state].filter(Boolean).join(', ');
+
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => setSelectedTherapist(t)}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                          selectedTherapist?.id === t.id
+                            ? 'border-emerald-700 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-700'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-800 text-emerald-100 flex items-center justify-center font-serif text-sm font-semibold shrink-0">
+                              {initials}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-900">
+                                {clinicianName}
+                              </h4>
+                              <p className="text-[11px] text-gray-500">
+                                {credentialsText} &bull; ₹{feeText}/session
+                                {locationText ? ` &bull; ${locationText}` : ''}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-900">
-                              {t.name || t.full_name}
-                            </h4>
-                            <p className="text-[11px] text-gray-500">
-                              {t.credentials || 'Licensed Therapist'} &bull; ₹{t.fee || t.per_session_fee || 1500}/session
-                            </p>
-                          </div>
+                          {selectedTherapist?.id === t.id && (
+                            <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
+                          )}
                         </div>
-                        {selectedTherapist?.id === t.id && (
-                          <CheckCircle2 size={18} className="text-emerald-700" />
+                        {t.bio && t.bio !== 'Test' && (
+                          <p className="text-xs text-gray-600 mt-2 line-clamp-2 leading-relaxed">
+                            {t.bio}
+                          </p>
+                        )}
+                        {Array.isArray(t.specializations) && t.specializations.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {t.specializations.slice(0, 3).map((spec, i) => (
+                              <span key={i} className="text-[10px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md font-medium border border-emerald-100">
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {t.bio && (
-                        <p className="text-xs text-gray-600 mt-2 line-clamp-2 leading-relaxed">
-                          {t.bio}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -390,21 +411,25 @@ export default function TherapyBookingFlow({
           {/* STEP 2: Real-time Slot Selection */}
           {step === 2 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <h3 className="text-base font-semibold text-gray-900">Choose Date & Time Slot</h3>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Showing real-time availability synced with{' '}
-                    <strong>{selectedTherapist?.name || selectedTherapist?.full_name || 'Clinician'}</strong>’s Google Calendar.
+                    <strong>{selectedTherapist?.displayName || selectedTherapist?.name || selectedTherapist?.full_name || 'Clinician'}</strong>’s Google Calendar.
                   </p>
                 </div>
-                {!initialTherapist && (
+                {!initialTherapist ? (
                   <button
                     onClick={() => setStep(1)}
-                    className="text-xs text-emerald-800 hover:underline font-medium"
+                    className="text-xs text-emerald-800 hover:underline font-medium shrink-0"
                   >
                     Change Clinician
                   </button>
+                ) : (
+                  <span className="text-[11px] text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full font-medium shrink-0 border border-emerald-200">
+                    Designated Clinician
+                  </span>
                 )}
               </div>
 
@@ -479,7 +504,13 @@ export default function TherapyBookingFlow({
               <div className="flex justify-between items-center pt-2">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={() => {
+                    if (initialTherapist) {
+                      onClose();
+                    } else {
+                      setStep(1);
+                    }
+                  }}
                   className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl"
                 >
                   &larr; Back
@@ -511,7 +542,7 @@ export default function TherapyBookingFlow({
                 <div className="flex justify-between pb-2 border-b border-gray-200">
                   <span className="text-gray-500">Clinician</span>
                   <strong className="text-gray-900">
-                    {selectedTherapist?.name || selectedTherapist?.full_name}
+                    {selectedTherapist?.displayName || selectedTherapist?.name || selectedTherapist?.full_name || 'Licensed Clinician'}
                   </strong>
                 </div>
                 <div className="flex justify-between pb-2 border-b border-gray-200">
@@ -643,7 +674,7 @@ export default function TherapyBookingFlow({
                 <div className="flex justify-between">
                   <span className="text-gray-500">Clinician</span>
                   <span className="font-semibold text-gray-900">
-                    {selectedTherapist?.name || selectedTherapist?.full_name}
+                    {selectedTherapist?.displayName || selectedTherapist?.name || selectedTherapist?.full_name || 'Licensed Clinician'}
                   </span>
                 </div>
                 <div className="flex justify-between">

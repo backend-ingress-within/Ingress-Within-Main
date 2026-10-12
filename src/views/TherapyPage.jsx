@@ -2414,39 +2414,48 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             <span style={{ color: '#9fb0c2', fontSize: 13 }}>Therapy</span>
           </div>
 
-          {activeConnection && (
-            <div
-              className="iw-card"
-              style={{
-                marginBottom: 24,
-                padding: '16px 20px',
-                borderRadius: 12,
-                backgroundColor: '#ecfdf5',
-                border: '1.5px solid #10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 16,
-              }}
-            >
-              <div>
-                <strong style={{ color: '#064e3b', display: 'block', fontSize: 15 }}>
-                  Active Clinical Care Relationship
-                </strong>
-                <span style={{ color: '#047857', fontSize: 13 }}>
-                  You are currently connected with {activeConnection?.therapist?.name || 'your designated therapist'}.
-                </span>
-              </div>
-              <button
-                type="button"
-                className="iw-primary"
-                style={{ backgroundColor: '#064e3b', fontSize: 13, padding: '8px 16px', margin: 0 }}
-                onClick={() => handleStartBooking(activeConnection?.therapist)}
+          {activeConnection && (() => {
+            const connectedClinician = activeConnection?.therapist || activeConnection?.connection?.therapist;
+            const clinicianFullName = connectedClinician?.displayName || connectedClinician?.name || connectedClinician?.full_name || '';
+            const clinicianTitle = connectedClinician?.title || connectedClinician?.credentials || 'Designated Clinician';
+            const displayLabel = clinicianFullName ? `${clinicianFullName} (${clinicianTitle})` : 'your designated therapist';
+            const buttonName = clinicianFullName ? clinicianFullName.replace(/^Dr\.?\s*/i, '').trim().split(' ')[0] : 'Clinician';
+
+            return (
+              <div
+                className="iw-card"
+                style={{
+                  marginBottom: 24,
+                  padding: '16px 20px',
+                  borderRadius: 12,
+                  backgroundColor: '#ecfdf5',
+                  border: '1.5px solid #10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}
               >
-                Book with {activeConnection?.therapist?.name ? activeConnection.therapist.name.split(' ')[0] : 'Clinician'}
-              </button>
-            </div>
-          )}
+                <div>
+                  <strong style={{ color: '#064e3b', display: 'block', fontSize: 15 }}>
+                    Active Clinical Care Relationship
+                  </strong>
+                  <span style={{ color: '#047857', fontSize: 13 }}>
+                    You are currently connected with {displayLabel}.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="iw-primary"
+                  style={{ backgroundColor: '#064e3b', fontSize: 13, padding: '8px 18px', margin: 0 }}
+                  onClick={() => handleStartBooking(connectedClinician)}
+                >
+                  Book with {buttonName}
+                </button>
+              </div>
+            );
+          })()}
 
           <div className="iw-k">Support, at your pace</div>
           <h1>Let’s find the right way in.</h1>

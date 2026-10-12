@@ -504,7 +504,10 @@ export async function getTherapyMatches(
 export interface PublicTherapistProfile {
   id: string;
   displayName: string;
+  name?: string;
+  full_name?: string;
   title: string;
+  credentials?: string;
   bio: string;
   qualification: string;
   experienceYears: number;
@@ -515,6 +518,7 @@ export interface PublicTherapistProfile {
   city: string | null;
   state: string | null;
   fee: number;
+  per_session_fee?: number;
   availability: string;
   gender: string;
 }
@@ -587,7 +591,10 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
     eligible.push({
       id: acc.id,
       displayName: profile.full_name,
+      name: profile.full_name,
+      full_name: profile.full_name,
       title: profile.title || 'Consultant Psychologist',
+      credentials: profile.qualification || profile.title || 'Consultant Psychologist',
       bio: profile.bio || '',
       qualification: profile.qualification || '',
       experienceYears: profile.experience_years || 0,
@@ -598,6 +605,7 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
       city: profile.city || null,
       state: profile.state || null,
       fee: acc.per_session_fee ? Number(acc.per_session_fee) : 1500,
+      per_session_fee: acc.per_session_fee ? Number(acc.per_session_fee) : 1500,
       availability: availabilityText,
       gender: (profile as any).gender || 'Not specified',
     });
@@ -749,12 +757,19 @@ export async function getClientConnectedTherapist(userId: string) {
     therapist: {
       id: relationship.therapist_account_id,
       displayName: profile?.full_name || 'Assigned Therapist',
+      name: profile?.full_name || 'Assigned Therapist',
+      full_name: profile?.full_name || 'Assigned Therapist',
       title: profile?.title || 'Consultant Psychologist',
+      credentials: profile?.qualification || profile?.title || 'Consultant Psychologist',
       qualification: profile?.qualification || '',
       specializations: profile?.specializations || [],
       sessionFormats: profile?.session_formats || ['telehealth'],
       profileImageUrl: profile?.profile_image_url || null,
       city: profile?.city || null,
+      state: profile?.state || null,
+      bio: profile?.bio || '',
+      fee: account?.per_session_fee ? Number(account.per_session_fee) : 1500,
+      per_session_fee: account?.per_session_fee ? Number(account.per_session_fee) : 1500,
     },
   };
 }

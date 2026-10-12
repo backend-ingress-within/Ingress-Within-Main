@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       success: true,
       connected: Boolean(connectedTherapist),
       connection: connectedTherapist,
+      therapist: connectedTherapist?.therapist || null,
     });
   } catch (error: any) {
     console.error('[Therapy Connection GET] Error:', error);
