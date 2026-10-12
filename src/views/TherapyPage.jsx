@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
+import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
 
 /*
  * Ingress Within — Therapy intake
@@ -953,6 +954,61 @@ function Guided({ exit, onBookSession, user, profile }) {
       isMounted = false;
     };
   }, []);
+
+  const [matchOutcome, setMatchOutcome] = useState(null);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+
+  useEffect(() => {
+    if (step === 16 && !matchOutcome && !loadingMatches) {
+      setLoadingMatches(true);
+      fetch('/api/intake/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          safety: {
+            response: safety.answer || 'No',
+            answer: safety.answer || 'No',
+            planOrMeans: safety.plan || null,
+            plan: safety.plan || null,
+            recency: safety.recency || null,
+            priorAttempt: safety.attempt || null,
+            attempt: safety.attempt || null,
+            physicalSafetyRisk: safety.physical || null,
+            physical: safety.physical || null,
+            psychCareOrHospitalization: safety.psych || null,
+            psych: safety.psych || null,
+          },
+          answers: {
+            ...d,
+            concerns: d.concerns,
+            severity: d.concernSeverity,
+            city: d.city,
+            budget: d.budget,
+            therapistgender: d.therapistGender,
+            stylestructure: d.styleStructure,
+            stylepace: d.stylePace,
+            stylelead: d.styleLead,
+            termapproach: d.termApproach,
+            bodysignal: d.bodySignal,
+            clienttype: 'Adults',
+          },
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setMatchOutcome(data);
+          if (data?.matches?.length > 0 && !selectedTherapist) {
+            setSelectedTherapist(data.matches[0].therapist);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to compute matches via /api/intake/match:', err);
+        })
+        .finally(() => {
+          setLoadingMatches(false);
+        });
+    }
+  }, [step, matchOutcome, loadingMatches, safety, d, selectedTherapist]);
 
   const normalizedTherapists = useMemo(() => {
     return eligibleTherapists.map((t) => {
@@ -1974,63 +2030,37 @@ function Guided({ exit, onBookSession, user, profile }) {
         )}
 
         {step === 16 && (
-          <>
-            <div className="iw-k">Therapist matching</div>
-            <h2>A few therapists who could be a good fit</h2>
-            <p>Licensed, verified practitioners actively available for consultation based on your intake responses.</p>
-            {loadingTherapists ? (
-              <div className="iw-note" style={{ textAlign: 'center', padding: '24px 0' }}>
-                Finding verified active therapists...
+          <div className="py-1">
+            {loadingMatches ? (
+              <div className="iw-note" style={{ textAlign: 'center', padding: '36px 0' }}>
+                Analyzing your intake and computing clinical matches...
               </div>
-            ) : triageTier !== 'standard' ? (
-              <div className="iw-safety iw-danger">
-                <strong>Human review first</strong>
-                <div>
-                  Based on the safety information provided, this intake will be personally reviewed by our care and clinical team before recommending matches.
-                </div>
-              </div>
-            ) : matches.length ? (
-              matches.map((therapist) => (
-                <button
-                  type="button"
-                  key={therapist.id}
-                  className={`iw-match${selectedTherapist?.id === therapist.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedTherapist(therapist)}
-                >
-                  <div className="iw-matchhead">
-                    <div className="iw-avatar">
-                      {(therapist.name || 'Clinician').replace(/^Dr\.\s?/, '').charAt(0)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div className="iw-matchname">{therapist.name}</div>
-                      <div className="iw-tags">
-                        {therapist.credentials}
-                        {therapist.experienceYears ? ` · ${therapist.experienceYears} yrs` : ''}
-                        {therapist.specialties?.length ? ` · ${therapist.specialties.join(', ')}` : ''}
-                      </div>
-                      <div className="iw-fit">
-                        ₹{therapist.fee}/session · {therapist.availability}
-                        {therapist.bio ? (
-                          <>
-                            <br />
-                            {therapist.bio}
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="iw-check" />
-                  </div>
-                </button>
-              ))
+            ) : matchOutcome ? (
+              <TherapyMatchResultsView
+                matchData={matchOutcome}
+                clientAnswers={{
+                  ...d,
+                  severity: d.concernSeverity,
+                  stylestructure: d.styleStructure,
+                  termapproach: d.termApproach,
+                }}
+                onRequestTherapist={(therapist) => {
+                  setSelectedTherapist(therapist);
+                }}
+                onEditAnswers={() => setStep(5)}
+                onTalkToTeam={exit}
+              />
             ) : (
-              <div className="iw-note">
-                No active therapists currently match your specific filters. You can proceed to request a personalized placement from our clinical care team.
-              </div>
+              <>
+                <div className="iw-k">Therapist matching</div>
+                <h2>A few therapists who could be a good fit</h2>
+                <p>Licensed, verified practitioners actively available for consultation based on your intake responses.</p>
+                <div className="iw-note" style={{ textAlign: 'center', padding: '24px 0' }}>
+                  Finding verified active therapists...
+                </div>
+              </>
             )}
-            <div className="iw-note">
-              All clinicians shown are verified, active practitioners licensed for clinical practice. Matching prioritizes specialty overlap, schedule availability, and session format.
-            </div>
-          </>
+          </div>
         )}
 
         {sessionError && (
@@ -2342,6 +2372,24 @@ export default function TherapyPage({ user, profile, onSignOut }) {
   const [journey, setJourney] = useState(null);
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const [bookingTherapist, setBookingTherapist] = useState(null);
+  const [activeConnection, setActiveConnection] = useState(null);
+
+  useEffect(() => {
+    async function checkConnection() {
+      try {
+        const res = await fetch('/api/therapy/connection');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.connected) {
+            setActiveConnection(data);
+          }
+        }
+      } catch (err) {
+        // fail gracefully if session or connection route is not active
+      }
+    }
+    checkConnection();
+  }, []);
 
   const handleStartBooking = (therapist = null) => {
     setBookingTherapist(therapist);
@@ -2365,6 +2413,40 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             </button>
             <span style={{ color: '#9fb0c2', fontSize: 13 }}>Therapy</span>
           </div>
+
+          {activeConnection && (
+            <div
+              className="iw-card"
+              style={{
+                marginBottom: 24,
+                padding: '16px 20px',
+                borderRadius: 12,
+                backgroundColor: '#ecfdf5',
+                border: '1.5px solid #10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+              }}
+            >
+              <div>
+                <strong style={{ color: '#064e3b', display: 'block', fontSize: 15 }}>
+                  Active Clinical Care Relationship
+                </strong>
+                <span style={{ color: '#047857', fontSize: 13 }}>
+                  You are currently connected with {activeConnection?.therapist?.name || 'your designated therapist'}.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="iw-primary"
+                style={{ backgroundColor: '#064e3b', fontSize: 13, padding: '8px 16px', margin: 0 }}
+                onClick={() => handleStartBooking(activeConnection?.therapist)}
+              >
+                Book with {activeConnection?.therapist?.name ? activeConnection.therapist.name.split(' ')[0] : 'Clinician'}
+              </button>
+            </div>
+          )}
 
           <div className="iw-k">Support, at your pace</div>
           <h1>Let’s find the right way in.</h1>

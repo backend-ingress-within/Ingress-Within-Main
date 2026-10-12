@@ -1,137 +1,38 @@
 import { supabase } from '../db';
+import {
+  ClientProfile,
+  TherapistRecord,
+  ScoredMatch,
+  PublicTherapistMatch,
+  MatchIntakeResponse,
+  WEIGHTS,
+  BUDGET_BAND_MAX,
+  KNOWN_MODALITIES,
+  computeTriageTier,
+  getClientSafetyMessage,
+  getRoutingAction,
+  adaptClientAnswers,
+  inferModalitiesWithAI,
+  getGuaranteedMatches,
+  matchTherapistsForAcuityCase,
+  sanitizePublicTherapist,
+} from './matchingEngine';
 
 export interface TherapistMatchCandidate {
   therapistAccountId: string;
   therapistName: string;
-  email: string;
+  email?: string | null;
   score: number;
   reasons: string[];
   metadata: Record<string, unknown>;
-}
-
-type Intake = Record<string, any>;
-
-const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase();
-const list = (value: unknown): string[] => Array.isArray(value) ? value.map(normalize).filter(Boolean) : [];
-const textList = (value: unknown): string[] => list(value);
-
-function flattenValues(value: unknown): string[] {
-  if (Array.isArray(value)) return value.flatMap(flattenValues);
-  if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).flatMap(flattenValues);
-  return value == null ? [] : [normalize(value)];
-}
-
-function tokenOverlap(a: string[], b: string[]) {
-  const A = new Set(a.flatMap(x => x.split(/[^a-z0-9]+/).filter(Boolean)));
-  const B = new Set(b.flatMap(x => x.split(/[^a-z0-9]+/).filter(Boolean)));
-  let count = 0;
-  for (const token of A) if (B.has(token)) count += 1;
-  return count;
-}
-
-function concernTokens(intake: Intake) {
-  return flattenValues([
-    intake.presenting_reason,
-    intake.concerns,
-    intake.affected_life_areas,
-    intake.answers?.concerns,
-    intake.answers?.reason,
-    intake.answers?.concernSeverity,
-    intake.answers?.concernsOther,
-    intake.own_words,
-  ]);
-}
-
-function modalityTokens(intake: Intake) {
-  return flattenValues([
-    intake.expectations,
-    intake.answers?.styleStructure,
-    intake.answers?.stylePace,
-    intake.answers?.styleLead,
-    intake.answers?.termApproach,
-    intake.answers?.scenarios,
-  ]);
-}
-
-function budgetValue(intake: Intake): number | null {
-  const raw = intake.expectations?.budget ?? intake.answers?.budget ?? intake.answers?.therapistBudget;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
-  const m = String(raw ?? '').match(/\d[\d,]*/);
-  return m ? Number(m[0].replace(/,/g, '')) : null;
-}
-
-function severityValue(intake: Intake): number {
-  const raw = intake.answers?.concernSeverity ?? intake.answers?.severity ?? intake.answers?.severityLevel;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
-  const s = normalize(raw);
-  if (s.includes('severe') || s.includes('very high')) return 5;
-  if (s.includes('high')) return 4;
-  if (s.includes('moderate')) return 3;
-  if (s.includes('mild') || s.includes('low')) return 2;
-  return 3;
-}
-
-function hasTraumaFlag(intake: Intake) {
-  const values = flattenValues([intake.concerns, intake.answers?.concerns, intake.answers?.traumaListed, intake.answers?.traumaFlag]);
-  return values.some(v => v.includes('trauma') || v.includes('ptsd'));
-}
-
-function requestedGender(intake: Intake) {
-  return normalize(intake.answers?.therapistGender ?? intake.expectations?.therapistGender ?? '');
-}
-
-function requestedModality(intake: Intake) {
-  return normalize(intake.answers?.sessionFormat ?? intake.answers?.modality ?? intake.answers?.format ?? '');
-}
-
-function sameCity(clientCity: unknown, therapistCity: unknown) {
-  const a = normalize(clientCity);
-  const b = normalize(therapistCity);
-  return Boolean(a && b && a === b);
-}
-
-function isAgeFit(age: number | null, groups: string[]) {
-  if (!age || groups.length === 0) return true;
-  return groups.some(group => {
-    if (group.includes('18') && group.includes('25')) return age >= 18 && age <= 25;
-    if (group.includes('26') && group.includes('35')) return age >= 26 && age <= 35;
-    if (group.includes('36') && group.includes('50')) return age >= 36 && age <= 50;
-    if (group.includes('50')) return age >= 50;
-    if (group.includes('adult')) return age >= 18;
-    return false;
-  });
+  publicMatch?: PublicTherapistMatch;
 }
 
 /**
- * Server-side therapist matching based on persisted client intake and the
- * therapist's approved onboarding/profile data. Browser-provided match scores
- * are deliberately not trusted.
+ * Loads verified and eligible therapists from Supabase PostgreSQL,
+ * translating database rows into canonical TherapistRecord models.
  */
-export async function computeTherapistMatches(
-  sessionId: string,
-  userId: string,
-  limit = 3
-): Promise<TherapistMatchCandidate[]> {
-  const { data: intake, error: intakeError } = await supabase
-    .from('therapy_intakes')
-    .select('*')
-    .eq('therapy_session_id', sessionId)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (intakeError) throw new Error('Failed to load Therapy intake for matching.');
-  if (!intake) return [];
-
-  const { data: safety } = await supabase
-    .from('therapy_safety_assessments')
-    .select('triage_level')
-    .eq('therapy_session_id', sessionId)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  // Priority/immediate cases are handled outside computed matching.
-  if (safety?.triage_level && safety.triage_level !== 'standard') return [];
-
+export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> {
   const { data: accounts, error } = await supabase
     .from('therapist_accounts')
     .select(`
@@ -143,20 +44,21 @@ export async function computeTherapistMatches(
       per_session_fee,
       therapist_profiles (
         full_name,
-        contact_email,
+        title,
+        bio,
+        qualification,
+        experience_years,
         specializations,
-        broad_specialty_tags,
-        modalities,
         languages,
         session_formats,
         city,
         state,
         gender,
-        age_group_specialization,
-        capacity_current,
-        capacity_max,
-        concern_severity_ceiling,
-        soonest_opening_days
+        availability_hours
+      ),
+      therapist_applications (
+        answers,
+        acuity_clearance_level
       )
     `)
     .eq('status', 'active')
@@ -164,112 +66,232 @@ export async function computeTherapistMatches(
     .eq('verification_status', 'verified')
     .eq('can_practice', true);
 
-  if (error || !accounts) throw new Error('Failed to load eligible therapists.');
+  if (error || !accounts) {
+    console.warn('[TherapistMatchingService] Failed to load therapists from Supabase:', error);
+    return [];
+  }
 
-  const clientConcerns = concernTokens(intake);
-  const clientModalities = modalityTokens(intake);
-  const clientBudget = budgetValue(intake);
-  const clientSeverity = severityValue(intake);
-  const trauma = hasTraumaFlag(intake);
-  const genderPreference = requestedGender(intake);
-  const modalityPreference = requestedModality(intake);
-  const clientAge = typeof intake.age === 'number' ? intake.age : Number(intake.answers?.age) || null;
-  const clientCity = intake.city;
-
-  const candidates: TherapistMatchCandidate[] = [];
+  const roster: TherapistRecord[] = [];
 
   for (const account of accounts) {
-    const profile = Array.isArray(account.therapist_profiles) ? account.therapist_profiles[0] : account.therapist_profiles;
-    if (!profile?.full_name || !profile.contact_email) continue;
+    const profile = Array.isArray(account.therapist_profiles)
+      ? account.therapist_profiles[0]
+      : account.therapist_profiles;
 
-    const capacityMax = Number(profile.capacity_max);
-    const capacityCurrent = Number(profile.capacity_current);
-    if (Number.isFinite(capacityMax) && capacityMax > 0 && Number.isFinite(capacityCurrent) && capacityCurrent >= capacityMax) continue;
+    if (!profile?.full_name) continue;
 
-    if (sameCity(clientCity, profile.city)) continue;
+    const application = Array.isArray(account.therapist_applications)
+      ? account.therapist_applications[0]
+      : account.therapist_applications;
 
-    const ceiling = Number(profile.concern_severity_ceiling);
-    if (Number.isFinite(ceiling) && ceiling > 0 && clientSeverity > ceiling) continue;
+    const appAnswers = (application?.answers as Record<string, any>) || {};
 
-    const ageGroups = textList(profile.age_group_specialization);
-    if (!isAgeFit(clientAge, ageGroups)) continue;
+    const modalities = Array.isArray(appAnswers.modalities)
+      ? appAnswers.modalities
+      : Array.isArray(profile.specializations)
+      ? profile.specializations
+      : ['CBT'];
 
-    const specialties = textList(profile.specializations).concat(textList(profile.broad_specialty_tags));
-    const modalities = textList(profile.modalities).concat(textList(profile.session_formats));
-    const therapistGender = normalize(profile.gender);
+    const primaryModalities = Array.isArray(appAnswers.primaryModalities)
+      ? appAnswers.primaryModalities
+      : [];
 
-    const concernHits = tokenOverlap(clientConcerns, specialties);
-    if (clientConcerns.length > 0 && concernHits === 0) continue;
+    const specialties = Array.isArray(profile.specializations)
+      ? profile.specializations
+      : [];
 
-    const modalityHits = tokenOverlap(clientModalities, modalities);
-    if (modalityPreference && modalityHits === 0 && !modalities.some(m => modalityPreference.includes(m) || m.includes(modalityPreference))) continue;
+    const languages = Array.isArray(profile.languages)
+      ? profile.languages
+      : ['English', 'Hindi'];
 
-    let score = 0;
-    const reasons: string[] = [];
+    const formats = Array.isArray(profile.session_formats)
+      ? profile.session_formats
+      : ['Telehealth'];
 
-    // Prototype weighting: concern 40, modality 30, gender 12, budget 18.
-    score += Math.min(40, concernHits * 10);
-    if (concernHits > 0) reasons.push('Concern/specialization alignment');
+    const fee = account.per_session_fee
+      ? Number(account.per_session_fee)
+      : Number(appAnswers.fee) || 1200;
 
-    if (modalityHits > 0 || !clientModalities.length) {
-      score += modalityHits > 0 ? 30 : 15;
-      if (modalityHits > 0) reasons.push('Therapy style/modality alignment');
-    }
+    const experienceYears = Number(profile.experience_years) || Number(appAnswers.experienceYears) || 0;
 
-    if (genderPreference && therapistGender && genderPreference !== 'any' && genderPreference !== 'no preference') {
-      if (therapistGender === genderPreference || therapistGender.includes(genderPreference)) {
-        score += 12;
-        reasons.push('Therapist gender preference');
-      }
-    } else {
-      score += 6;
-    }
+    const capacityCurrent = Number(appAnswers.capacityCurrent ?? appAnswers.current_capacity ?? 0);
+    const capacityMax = Number(appAnswers.capacityMax ?? appAnswers.max_capacity ?? 10);
 
-    const fee = Number(account.per_session_fee);
-    if (clientBudget == null || !Number.isFinite(fee)) {
-      score += 9;
-    } else if (fee <= clientBudget) {
-      score += 18;
-      reasons.push('Within stated budget');
-    } else if (fee <= clientBudget * 1.25) {
-      score += 8;
-    }
+    const traumaListed = Boolean(appAnswers.traumaListed === 'Yes' || appAnswers.trauma_listed === 'Yes' || appAnswers.traumaCertification);
+    const traumaVerified = Boolean(appAnswers.traumaVerified || (account as any).trauma_verified);
+    const backgroundCheckCleared = Boolean(appAnswers.backgroundCheckCleared || appAnswers.backgroundCheckConsent);
 
-    if (trauma) {
-      const traumaExpert = specialties.some(s => s.includes('trauma') || s.includes('ptsd'));
-      if (traumaExpert) {
-        score += 10;
-        reasons.push('Trauma-related specialization');
-      } else {
-        continue;
-      }
-    }
+    const acuityClearance =
+      application?.acuity_clearance_level ||
+      appAnswers.acuityClearance ||
+      (account as any).acuity_clearance ||
+      'none';
 
-    if (Number.isFinite(Number(profile.soonest_opening_days))) {
-      reasons.push(`Opening in ${Number(profile.soonest_opening_days)} day(s)`);
-    }
-
-    candidates.push({
-      therapistAccountId: account.id,
-      therapistName: profile.full_name,
-      email: profile.contact_email,
-      score: Math.min(100, Math.round(score)),
-      reasons,
-      metadata: {
-        concernHits,
-        modalityHits,
-        fee: Number.isFinite(fee) ? fee : null,
-        city: profile.city || null,
-        state: profile.state || null,
-        capacityCurrent: Number.isFinite(capacityCurrent) ? capacityCurrent : null,
-        capacityMax: Number.isFinite(capacityMax) ? capacityMax : null,
-        severityCeiling: Number.isFinite(ceiling) ? ceiling : null,
-        soonestOpeningDays: Number.isFinite(Number(profile.soonest_opening_days)) ? Number(profile.soonest_opening_days) : null,
+    roster.push({
+      id: account.id,
+      name: profile.full_name,
+      credentials: profile.qualification || profile.title || 'Consultant Psychologist',
+      experienceYears,
+      city: profile.city || '',
+      state: profile.state || null,
+      bio: profile.bio || '',
+      languages,
+      formats,
+      fee,
+      specialties,
+      modalities,
+      primaryModalities,
+      ageGroups: Array.isArray(appAnswers.ageGroups) ? appAnswers.ageGroups : ['Adults'],
+      gender: (profile as any).gender || appAnswers.gender || null,
+      capacity: {
+        current: capacityCurrent,
+        max: capacityMax > 0 ? capacityMax : null,
       },
+      severityCeiling: Number(appAnswers.severityCeiling) || 3,
+      verificationStatus: account.verification_status,
+      traumaListed,
+      traumaVerified,
+      backgroundCheckCleared,
+      acuityClearance,
+      email: (profile as any).contact_email || null,
     });
   }
 
-  return candidates
-    .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(1, limit));
+  return roster;
 }
+
+/**
+ * End-to-end matching pipeline for client intake.
+ * Accepts client safety screening answers, intake answers, and an optional custom roster
+ * (for testing, mocks, or isolated execution).
+ */
+export async function runIntakeMatching(
+  safetyAnswers: Record<string, any>,
+  clientAnswers: Record<string, any>,
+  customRoster?: TherapistRecord[]
+): Promise<MatchIntakeResponse> {
+  // 1. Evaluate safety tier server-side
+  const triage = computeTriageTier(safetyAnswers || {});
+  const safetyMessage = getClientSafetyMessage(triage.tier);
+  const routing = getRoutingAction(triage.tier);
+
+  // 2. Adapt client answers to canonical profile shape
+  const profile = adaptClientAnswers(clientAnswers || {});
+
+  // 3. Modality inference (AI with deterministic fallback)
+  try {
+    const ai = await inferModalitiesWithAI(clientAnswers || {}, profile.concernPriority);
+    profile.modalityHints = {
+      modalities: ai.modalities,
+      confidence: ai.confidence,
+      reasoning: ai.reasoning,
+    };
+  } catch {
+    // Keep deterministic heuristic from adaptClientAnswers
+  }
+
+  // 4. Load therapist roster
+  const roster = customRoster || (await loadEligibleTherapistRoster());
+
+  // 5. Match based on safety routing
+  let matchResults: ScoredMatch[] = [];
+  let relaxed = false;
+  let relaxLabel: string | null = null;
+  let guaranteedHandoff = false;
+
+  if (routing.useAcuityPool) {
+    // Priority or immediate: match only from the admin-cleared acuity pool
+    const acuity = matchTherapistsForAcuityCase(
+      triage.tier === 'immediate' ? 'immediate' : 'priority',
+      profile,
+      roster
+    );
+    const top = acuity.ranked.find((r) => r.passesHard) || null;
+    matchResults = top ? [top] : [];
+    guaranteedHandoff = !top;
+  } else {
+    // Standard matching: strict -> language widening -> human handoff
+    const verifiedRoster = roster.filter((t) => t.verificationStatus === 'verified');
+    const outcome = getGuaranteedMatches(profile, verifiedRoster);
+    matchResults = outcome.results.filter((r) => r.qualifies);
+    relaxed = outcome.relaxed;
+    relaxLabel = outcome.relaxLabel;
+    guaranteedHandoff = outcome.guaranteedHandoff;
+  }
+
+  // 6. Public field sanitization (Privacy Shield)
+  const publicMatches = matchResults.slice(0, 3).map(sanitizePublicTherapist);
+
+  return {
+    tier: triage.tier,
+    safetyMessage,
+    needsTeamOutreach: routing.needsTeamOutreach,
+    guaranteedHandoff,
+    relaxed,
+    relaxLabel,
+    slaHours: routing.slaHours,
+    matches: publicMatches,
+  };
+}
+
+/**
+ * Computes therapist matches for an authenticated therapy session.
+ * Fully backwards-compatible with previous computeTherapistMatches calls.
+ */
+export async function computeTherapistMatches(
+  sessionId: string,
+  userId: string,
+  limit = 3,
+  overrideRoster?: TherapistRecord[]
+): Promise<TherapistMatchCandidate[]> {
+  const { data: intake } = await supabase
+    .from('therapy_intakes')
+    .select('*')
+    .eq('therapy_session_id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!intake) return [];
+
+  const { data: safety } = await supabase
+    .from('therapy_safety_assessments')
+    .select('*')
+    .eq('therapy_session_id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const answers = {
+    ...(intake.answers || {}),
+    concerns: intake.concerns || intake.answers?.concerns || [],
+    severity: intake.answers?.concernSeverity || intake.answers?.severity || {},
+    city: intake.city,
+    budget: intake.expectations?.budget || intake.answers?.budget,
+    therapistgender: intake.answers?.therapistGender || intake.expectations?.therapistGender,
+    clientlanguage: intake.answers?.clientlanguage || intake.answers?.languages || ['English'],
+    clienttype: intake.answers?.clienttype || 'Adults',
+  };
+
+  const outcome = await runIntakeMatching(safety?.answers || {}, answers, overrideRoster);
+
+  return outcome.matches.slice(0, limit).map((m, idx) => ({
+    therapistAccountId: m.therapist.id,
+    therapistName: m.therapist.name,
+    email: null,
+    score: m.score,
+    reasons: [
+      m.why.concerns.length ? `Matches concerns: ${m.why.concerns.join(', ')}` : 'Specialization fit',
+      m.why.modalities.length ? `Approach: ${m.why.modalities.join(', ')}` : 'Modality fit',
+      m.why.withinBudget ? 'Within stated budget' : 'Fee aligned with clinical experience',
+    ],
+    metadata: {
+      rank: idx + 1,
+      why: m.why,
+      qualifies: m.qualifies,
+      tier: outcome.tier,
+      relaxed: outcome.relaxed,
+    },
+    publicMatch: m,
+  }));
+}
+
+export * from './matchingEngine';

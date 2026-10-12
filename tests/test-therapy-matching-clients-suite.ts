@@ -21,6 +21,8 @@ try {
   }
 } catch (e) {}
 
+process.env.BYPASS_REDIS = 'true';
+
 import { NextRequest } from 'next/server';
 import { TherapistAuthService } from '../src/lib/therapist/therapistAuthService';
 import { TherapistPlatformService } from '../src/lib/therapist/therapistPlatformService';
