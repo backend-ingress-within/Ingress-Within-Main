@@ -660,7 +660,6 @@ async function runTestSuite() {
       assert.strictEqual(res.success, true);
       assert.strictEqual(capturedPayload.template_id, 'single_reusable_tpl_999');
       assert.strictEqual(capturedPayload.domain, 'ingresswithin.com');
-      assert.strictEqual(capturedPayload.subject, rendered.subject);
       assert.strictEqual(capturedPayload.recipients[0].to[0].email, 'alex@example.com');
       assert.strictEqual(capturedPayload.recipients[0].to[0].name, 'Alex');
       assert.strictEqual(capturedPayload.recipients[0].to[0].CRQID, 'crq_alex_123');

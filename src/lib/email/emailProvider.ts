@@ -146,8 +146,17 @@ export class Msg91EmailProvider implements IEmailProvider {
 
     // 2. Parse sender & reply-to details
     const parsedSender = parseEmailAndName(options.from, 'Ingress Within');
-    const senderEmail = parsedSender.email;
+    let senderEmail = parsedSender.email;
     const senderName = parsedSender.name;
+
+    // MSG91 strictly requires from.email domain to match the configured sending domain
+    if (this.domain) {
+      const senderDomain = senderEmail.split('@')[1];
+      if (senderDomain && senderDomain.toLowerCase() !== this.domain.toLowerCase()) {
+        const username = senderEmail.split('@')[0];
+        senderEmail = `${username}@${this.domain}`;
+      }
+    }
 
     let replyToObj: Array<{ name?: string; email: string }> | undefined = undefined;
     if (options.replyTo) {
@@ -181,7 +190,7 @@ export class Msg91EmailProvider implements IEmailProvider {
       recipientToObj.CRQID = options.crqid;
     }
 
-    const payload = {
+    const payload: Record<string, any> = {
       recipients: [
         {
           to: [recipientToObj],
@@ -193,10 +202,12 @@ export class Msg91EmailProvider implements IEmailProvider {
         email: senderEmail,
       },
       domain: this.domain,
-      reply_to: replyToObj,
-      subject: options.subject,
       template_id: templateId,
     };
+
+    if (replyToObj && replyToObj.length > 0) {
+      payload.reply_to = replyToObj;
+    }
 
     // 5. Execute bounded HTTP request
     try {
@@ -264,11 +275,20 @@ export class Msg91EmailProvider implements IEmailProvider {
           }
         }
 
-        const rawErrorMsg =
+        let rawErrorMsg =
           responseJson?.message ||
           responseJson?.error?.message ||
           responseJson?.error ||
           `HTTP ${res.status}: ${responseText || 'Unknown MSG91 error'}`;
+
+        if (responseJson?.errors && typeof responseJson.errors === 'object') {
+          const errorDetails = Object.entries(responseJson.errors)
+            .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
+            .join('; ');
+          if (errorDetails) {
+            rawErrorMsg = `${rawErrorMsg} (${errorDetails})`;
+          }
+        }
 
         let errorCategory = 'TRANSIENT_PROVIDER_ERROR';
         if (res.status === 401) {
