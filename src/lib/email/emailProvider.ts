@@ -149,12 +149,16 @@ export class Msg91EmailProvider implements IEmailProvider {
     let senderEmail = parsedSender.email;
     const senderName = parsedSender.name;
 
-    // MSG91 strictly requires from.email domain to match the configured sending domain
-    if (this.domain) {
+    // MSG91 strictly requires from.email domain to match the configured sending domain (case-sensitive)
+    const effectiveDomain = this.domain ? this.domain.toLowerCase().trim() : '';
+
+    if (effectiveDomain) {
       const senderDomain = senderEmail.split('@')[1];
-      if (senderDomain && senderDomain.toLowerCase() !== this.domain.toLowerCase()) {
+      if (senderDomain && senderDomain.toLowerCase() !== effectiveDomain) {
         const username = senderEmail.split('@')[0];
-        senderEmail = `${username}@${this.domain}`;
+        senderEmail = `${username}@${effectiveDomain}`;
+      } else {
+        senderEmail = senderEmail.toLowerCase();
       }
     }
 
@@ -201,7 +205,7 @@ export class Msg91EmailProvider implements IEmailProvider {
         name: senderName,
         email: senderEmail,
       },
-      domain: this.domain,
+      domain: effectiveDomain || this.domain,
       template_id: templateId,
     };
 

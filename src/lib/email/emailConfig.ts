@@ -117,10 +117,11 @@ export function getEmailConfig(): EmailConfig {
     process.env.MSG91_AUTH_KEY?.trim() ||
     null;
 
-  const msg91EmailDomain =
+  const rawMsg91Domain =
     readFreshEnvKey('MSG91_EMAIL_DOMAIN') ||
     process.env.MSG91_EMAIL_DOMAIN?.trim() ||
     extractedDomain;
+  const msg91EmailDomain = rawMsg91Domain ? rawMsg91Domain.toLowerCase().trim() : 'mail.ingresswithin.com';
 
   const msg91EmailDefaultTemplateId =
     readFreshEnvKey('MSG91_EMAIL_DEFAULT_TEMPLATE_ID') ||
