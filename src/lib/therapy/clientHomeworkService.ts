@@ -24,7 +24,10 @@ export class ClientHomeworkService {
         submitted_at,
         reviewed_at,
         created_at,
-        therapist:therapist_account_id (id, full_name, email),
+        therapist_accounts:therapist_account_id (
+          id,
+          therapist_profiles (full_name)
+        ),
         submission:client_homework_submissions (id, is_draft, submitted_at, therapist_feedback, feedback_added_at)
       `)
       .eq('user_id', userId)
@@ -49,10 +52,13 @@ export class ClientHomeworkService {
       const hoursRemaining = dueTime ? (dueTime - now) / (1000 * 60 * 60) : null;
       const isOverdue = dueTime ? dueTime < now && !['submitted', 'reviewed'].includes(a.status) : false;
 
+      const acc = a.therapist_accounts as any;
+      const prof = Array.isArray(acc?.therapist_profiles) ? acc.therapist_profiles[0] : acc?.therapist_profiles;
+
       return {
         id: a.id,
         therapistAccountId: a.therapist_account_id,
-        therapistName: a.therapist?.full_name || 'Your Therapist',
+        therapistName: prof?.full_name || 'Your Therapist',
         appointmentId: a.appointment_id,
         title: a.title,
         instructions: a.instructions,

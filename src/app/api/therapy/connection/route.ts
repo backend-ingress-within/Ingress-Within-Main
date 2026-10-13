@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
-import { getClientConnectedTherapist } from '../../../../lib/therapy/therapyService';
+import { getClientConnectedTherapist, getClientTherapyDashboardSummary } from '../../../../lib/therapy/therapyService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,13 +18,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const connectedTherapist = await getClientConnectedTherapist(authUser.userId);
+    const [connectedTherapist, summary] = await Promise.all([
+      getClientConnectedTherapist(authUser.userId),
+      getClientTherapyDashboardSummary(authUser.userId),
+    ]);
 
     return NextResponse.json({
       success: true,
       connected: Boolean(connectedTherapist),
       connection: connectedTherapist,
-      therapist: connectedTherapist?.therapist || null,
+      therapist: connectedTherapist?.therapist || summary.therapist || null,
+      connectionStatus: summary.status,
+      pendingRequest: summary.pendingRequest,
+      history: summary.history,
     });
   } catch (error: any) {
     console.error('[Therapy Connection GET] Error:', error);

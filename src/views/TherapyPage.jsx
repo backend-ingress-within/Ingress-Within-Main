@@ -9,9 +9,15 @@ import {
   Phone,
   ShieldCheck,
   Users,
+  Clock,
+  RotateCcw,
+  Sparkles,
+  AlertCircle,
+  Info,
 } from 'lucide-react';
 import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
 import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
+import ClientTherapyDashboard from './client/ClientTherapyDashboard';
 
 /*
  * Ingress Within — Therapy intake
@@ -2372,22 +2378,28 @@ export default function TherapyPage({ user, profile, onSignOut }) {
   const [journey, setJourney] = useState(null);
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const [bookingTherapist, setBookingTherapist] = useState(null);
-  const [activeConnection, setActiveConnection] = useState(null);
+  const [loadingConnection, setLoadingConnection] = useState(true);
+  const [connectionData, setConnectionData] = useState(null);
+  const [viewHistoryOnly, setViewHistoryOnly] = useState(false);
+  const [showIntakeOverride, setShowIntakeOverride] = useState(false);
+
+  const checkConnection = async () => {
+    try {
+      const res = await fetch('/api/therapy/connection');
+      if (res.ok) {
+        const data = await res.json();
+        setConnectionData(data);
+      } else {
+        setConnectionData({ connectionStatus: 'no_therapist' });
+      }
+    } catch (err) {
+      setConnectionData({ connectionStatus: 'no_therapist' });
+    } finally {
+      setLoadingConnection(false);
+    }
+  };
 
   useEffect(() => {
-    async function checkConnection() {
-      try {
-        const res = await fetch('/api/therapy/connection');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.connected) {
-            setActiveConnection(data);
-          }
-        }
-      } catch (err) {
-        // fail gracefully if session or connection route is not active
-      }
-    }
     checkConnection();
   }, []);
 
@@ -2401,6 +2413,56 @@ export default function TherapyPage({ user, profile, onSignOut }) {
     else if (typeof window !== 'undefined') window.history.back();
   };
 
+  if (loadingConnection) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F1EC', color: '#132A24' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #132A24', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: '#132A24', margin: 0 }}>Loading your therapy space...</p>
+        </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  const connectionStatus = connectionData?.connectionStatus || (connectionData?.connected ? 'connected' : 'no_therapist');
+
+  // STATE C: Connected therapist -> Show Client Therapy Dashboard
+  if (connectionStatus === 'connected' && !showIntakeOverride && !journey) {
+    return (
+      <ClientTherapyDashboard
+        user={user}
+        profile={profile}
+        relationship={connectionData?.connection}
+        therapist={connectionData?.therapist}
+        onRefreshRelationship={checkConnection}
+        onSignOut={onSignOut}
+        onStartRematch={() => setShowIntakeOverride(true)}
+      />
+    );
+  }
+
+  // STATE D (View History Mode): Paused or Ended Client requests to inspect past records
+  if (viewHistoryOnly && !journey) {
+    const historicalRelationship = connectionData?.history?.[0] || connectionData?.connection;
+    return (
+      <ClientTherapyDashboard
+        user={user}
+        profile={profile}
+        relationship={historicalRelationship}
+        therapist={connectionData?.therapist}
+        onRefreshRelationship={checkConnection}
+        onSignOut={onSignOut}
+        isPastRelationship={true}
+        onStartRematch={() => {
+          setViewHistoryOnly(false);
+          setJourney('guided');
+        }}
+        onExitHistory={() => setViewHistoryOnly(false)}
+      />
+    );
+  }
+
   return (
     <div className="iw">
       <style>{CSS}</style>
@@ -2411,52 +2473,214 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             <button type="button" className="iw-back" onClick={dashboard}>
               <ArrowLeft size={15} /> Dashboard
             </button>
-            <span style={{ color: '#9fb0c2', fontSize: 13 }}>Therapy</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {showIntakeOverride && connectionStatus === 'connected' && (
+                <button
+                  type="button"
+                  onClick={() => setShowIntakeOverride(false)}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#064E3B',
+                    background: '#ECFDF5',
+                    border: '1px solid #10B981',
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Return to Active Portal →
+                </button>
+              )}
+              <span style={{ color: '#9fb0c2', fontSize: 13 }}>Therapy</span>
+            </div>
           </div>
 
-          {activeConnection && (() => {
-            const connectedClinician = activeConnection?.therapist || activeConnection?.connection?.therapist;
-            const clinicianFullName = connectedClinician?.displayName || connectedClinician?.name || connectedClinician?.full_name || '';
-            const clinicianTitle = connectedClinician?.title || connectedClinician?.credentials || 'Designated Clinician';
-            const displayLabel = clinicianFullName ? `${clinicianFullName} (${clinicianTitle})` : 'your designated therapist';
-            const buttonName = clinicianFullName ? clinicianFullName.replace(/^Dr\.?\s*/i, '').trim().split(' ')[0] : 'Clinician';
+          {showIntakeOverride && connectionStatus === 'connected' && (
+            <div
+              className="iw-card"
+              style={{
+                marginBottom: 24,
+                padding: '16px 20px',
+                borderRadius: 12,
+                backgroundColor: '#ecfdf5',
+                border: '1.5px solid #10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <strong style={{ color: '#064e3b', display: 'block', fontSize: 15 }}>
+                  Active Clinical Care Relationship
+                </strong>
+                <span style={{ color: '#047857', fontSize: 13 }}>
+                  You are currently connected with {connectionData?.therapist?.displayName || connectionData?.therapist?.name || 'your designated therapist'}.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="iw-primary"
+                style={{ backgroundColor: '#064e3b', fontSize: 13, padding: '8px 18px', margin: 0, width: 'auto' }}
+                onClick={() => setShowIntakeOverride(false)}
+              >
+                Return to Care Dashboard
+              </button>
+            </div>
+          )}
+          {connectionStatus === 'pending' && (() => {
+            const req = connectionData?.pendingRequest;
+            const concerns = req?.concerns || [];
+            return (
+              <div
+                className="iw-card"
+                style={{
+                  marginBottom: 32,
+                  padding: 28,
+                  borderRadius: 16,
+                  backgroundColor: '#ffffff',
+                  border: '1.5px solid rgba(38,50,56,0.15)',
+                  boxShadow: '0 4px 20px rgba(19, 42, 36, 0.05)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    <Clock size={13} /> Matching in Progress
+                  </div>
+                  <span style={{ fontSize: 12, color: '#66747A' }}>
+                    Request active · No re-submission needed
+                  </span>
+                </div>
+
+                <h2 style={{ fontSize: 24, margin: '0 0 10px', color: '#132A24' }}>
+                  Your Care Preferences are Being Matched
+                </h2>
+                <p style={{ color: '#4A5568', fontSize: 14, lineHeight: 1.6, maxWidth: 680, margin: '0 0 20px' }}>
+                  Our clinical care coordinator is reviewing your intake to match you with a vetted, licensed practitioner aligned with your presenting concerns, clinical modalities, and preferred schedule.
+                </p>
+
+                {concerns.length > 0 && (
+                  <div style={{ marginBottom: 20, padding: '12px 16px', background: '#F4F1EC', borderRadius: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#7B6A72', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                      Submitted Presenting Concerns
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {concerns.map((c, i) => (
+                        <span key={i} style={{ fontSize: 12, padding: '3px 9px', background: '#ffffff', borderRadius: 6, border: '1px solid rgba(38,50,56,0.1)', color: '#263238', fontWeight: 500 }}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
+                  <div style={{ padding: 14, background: '#FAFAF9', borderRadius: 10, border: '1px solid rgba(38,50,56,0.06)' }}>
+                    <strong style={{ display: 'block', fontSize: 13, color: '#132A24', marginBottom: 4 }}>1. Clinical Review</strong>
+                    <span style={{ fontSize: 12, color: '#66747A' }}>Our care coordinator verifies licensure and therapeutic specialization.</span>
+                  </div>
+                  <div style={{ padding: 14, background: '#FAFAF9', borderRadius: 10, border: '1px solid rgba(38,50,56,0.06)' }}>
+                    <strong style={{ display: 'block', fontSize: 13, color: '#132A24', marginBottom: 4 }}>2. Availability Check</strong>
+                    <span style={{ fontSize: 12, color: '#66747A' }}>Real-time Google Calendar openings are verified for immediate booking.</span>
+                  </div>
+                  <div style={{ padding: 14, background: '#FAFAF9', borderRadius: 10, border: '1px solid rgba(38,50,56,0.06)' }}>
+                    <strong style={{ display: 'block', fontSize: 13, color: '#132A24', marginBottom: 4 }}>3. Portal Activation</strong>
+                    <span style={{ fontSize: 12, color: '#66747A' }}>You receive an email and this page updates directly to your active care portal.</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="iw-primary"
+                    style={{ width: 'auto', padding: '10px 20px', fontSize: 13 }}
+                    onClick={() => setJourney('team')}
+                  >
+                    Speak with Care Coordinator
+                  </button>
+                  <button
+                    type="button"
+                    className="iw-secondary"
+                    style={{ width: 'auto', padding: '10px 18px', fontSize: 13 }}
+                    onClick={() => {
+                      if (window.confirm('Do you want to start a fresh intake? This will replace your previous intake answers.')) {
+                        setJourney('guided');
+                      }
+                    }}
+                  >
+                    Update Intake Preferences
+                  </button>
+                  <button
+                    type="button"
+                    className="iw-secondary"
+                    style={{ width: 'auto', padding: '10px 18px', fontSize: 13 }}
+                    onClick={dashboard}
+                  >
+                    Return to Dashboard
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* STATE D: Paused, Ended, Declined, or Transferred Relationship Notice */}
+          {['paused', 'ended', 'transferred'].includes(connectionStatus) && (() => {
+            const pastClinician = connectionData?.therapist;
+            const pastClinicianName = pastClinician?.displayName || pastClinician?.name || pastClinician?.full_name || 'your previous therapist';
+            const statusLabel = connectionStatus === 'paused' ? 'Paused' : connectionStatus === 'transferred' ? 'Transferred' : 'Concluded';
 
             return (
               <div
                 className="iw-card"
                 style={{
-                  marginBottom: 24,
-                  padding: '16px 20px',
-                  borderRadius: 12,
-                  backgroundColor: '#ecfdf5',
-                  border: '1.5px solid #10b981',
+                  marginBottom: 28,
+                  padding: '20px 24px',
+                  borderRadius: 14,
+                  backgroundColor: '#FFFBEB',
+                  border: '1.5px solid #F59E0B',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: 16,
+                  gap: 18,
                   flexWrap: 'wrap',
                 }}
               >
                 <div>
-                  <strong style={{ color: '#064e3b', display: 'block', fontSize: 15 }}>
-                    Active Clinical Care Relationship
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#B45309', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+                    <Info size={12} /> Care Relationship {statusLabel}
+                  </div>
+                  <strong style={{ color: '#92400E', display: 'block', fontSize: 15 }}>
+                    Care with {pastClinicianName} has ended or is paused.
                   </strong>
-                  <span style={{ color: '#047857', fontSize: 13 }}>
-                    You are currently connected with {displayLabel}.
+                  <span style={{ color: '#B45309', fontSize: 13 }}>
+                    Your session notes, assignments, and billing history are preserved in your account records.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="iw-primary"
-                  style={{ backgroundColor: '#064e3b', fontSize: 13, padding: '8px 18px', margin: 0 }}
-                  onClick={() => handleStartBooking(connectedClinician)}
-                >
-                  Book with {buttonName}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="iw-secondary"
+                    style={{ fontSize: 13, padding: '8px 16px', margin: 0, backgroundColor: '#ffffff' }}
+                    onClick={() => setViewHistoryOnly(true)}
+                  >
+                    View Past Care History
+                  </button>
+                  <button
+                    type="button"
+                    className="iw-primary"
+                    style={{ backgroundColor: '#B45309', borderColor: '#B45309', fontSize: 13, padding: '8px 16px', margin: 0 }}
+                    onClick={() => setJourney('guided')}
+                  >
+                    Find a New Therapist
+                  </button>
+                </div>
               </div>
             );
           })()}
 
+          {/* STATE A & D: Primary 4 Entry Paths */}
           <div className="iw-k">Support, at your pace</div>
           <h1>Let’s find the right way in.</h1>
           <p className="iw-lede">
@@ -2517,13 +2741,13 @@ export default function TherapyPage({ user, profile, onSignOut }) {
         </div>
       )}
 
-      {journey === 'conversation' && <Conversation exit={() => setJourney(null)} user={user} profile={profile} />}
-      {journey === 'guided' && <Guided exit={() => setJourney(null)} onBookSession={handleStartBooking} user={user} profile={profile} />}
-      {journey === 'team' && <Team exit={() => setJourney(null)} user={user} profile={profile} />}
+      {journey === 'conversation' && <Conversation exit={() => { setJourney(null); checkConnection(); }} user={user} profile={profile} />}
+      {journey === 'guided' && <Guided exit={() => { setJourney(null); checkConnection(); }} onBookSession={handleStartBooking} user={user} profile={profile} />}
+      {journey === 'team' && <Team exit={() => { setJourney(null); checkConnection(); }} user={user} profile={profile} />}
 
       <TherapyBookingFlow
         isOpen={bookingFlowOpen}
-        onClose={() => setBookingFlowOpen(false)}
+        onClose={() => { setBookingFlowOpen(false); checkConnection(); }}
         initialTherapist={bookingTherapist}
         user={user}
       />

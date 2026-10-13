@@ -773,3 +773,391 @@ export async function getClientConnectedTherapist(userId: string) {
     },
   };
 }
+
+export type ClientRelationshipLifecycleStatus =
+  | 'connected'
+  | 'pending'
+  | 'no_therapist'
+  | 'paused'
+  | 'ended'
+  | 'transferred';
+
+/**
+ * Resolves the full therapy relationship lifecycle for an authenticated client.
+ * Identifies whether client is:
+ * - 'connected': active relationship with an approved clinician
+ * - 'pending': matching request or team triage pending acceptance
+ * - 'paused': relationship temporarily placed on hold
+ * - 'ended': care journey finished/completed or terminated
+ * - 'transferred': transfer/handover pending to a new clinician
+ * - 'no_therapist': no active connection or request
+ */
+export async function getClientTherapyDashboardSummary(userId: string) {
+  if (!userId) {
+    return {
+      status: 'no_therapist' as ClientRelationshipLifecycleStatus,
+      connection: null,
+      therapist: null,
+      pendingRequest: null,
+      history: [],
+    };
+  }
+
+  // 1. Fetch care relationships (both active and historical)
+  const { data: relationships, error: relError } = await supabase
+    .from('therapy_care_relationships')
+    .select(`
+      id,
+      therapist_account_id,
+      status,
+      care_stage,
+      started_at,
+      ended_at,
+      created_at,
+      therapist_accounts (
+        id,
+        status,
+        can_practice,
+        per_session_fee,
+        therapist_profiles (
+          full_name,
+          title,
+          bio,
+          qualification,
+          experience_years,
+          specializations,
+          languages,
+          session_formats,
+          profile_image_url,
+          city,
+          state
+        )
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (relError) {
+    console.error('[TherapyService] Error fetching client relationships:', relError);
+  }
+
+  const allRel = relationships || [];
+  const activeRel = allRel.find((r) => r.status === 'active');
+
+  const mapTherapistProfile = (rel: any) => {
+    const account = rel.therapist_accounts as any;
+    const profile = Array.isArray(account?.therapist_profiles)
+      ? account.therapist_profiles[0]
+      : account?.therapist_profiles;
+
+    return {
+      id: rel.therapist_account_id,
+      displayName: profile?.full_name || 'Assigned Therapist',
+      name: profile?.full_name || 'Assigned Therapist',
+      full_name: profile?.full_name || 'Assigned Therapist',
+      title: profile?.title || 'Consultant Psychologist',
+      credentials: profile?.qualification || profile?.title || 'Consultant Psychologist',
+      qualification: profile?.qualification || '',
+      experienceYears: profile?.experience_years || 0,
+      specializations: profile?.specializations || [],
+      languages: profile?.languages || ['English', 'Hindi'],
+      sessionFormats: profile?.session_formats || ['telehealth'],
+      profileImageUrl: profile?.profile_image_url || null,
+      city: profile?.city || null,
+      state: profile?.state || null,
+      bio: profile?.bio || '',
+      fee: account?.per_session_fee ? Number(account.per_session_fee) : 1500,
+      per_session_fee: account?.per_session_fee ? Number(account.per_session_fee) : 1500,
+    };
+  };
+
+  // If active relationship exists -> state is 'connected'
+  if (activeRel) {
+    return {
+      status: 'connected' as ClientRelationshipLifecycleStatus,
+      connection: {
+        relationshipId: activeRel.id,
+        status: activeRel.status,
+        careStage: activeRel.care_stage,
+        startedAt: activeRel.started_at,
+      },
+      therapist: mapTherapistProfile(activeRel),
+      pendingRequest: null,
+      history: allRel
+        .filter((r) => r.id !== activeRel.id)
+        .map((r) => ({
+          relationshipId: r.id,
+          status: r.status,
+          careStage: r.care_stage,
+          startedAt: r.started_at,
+          endedAt: r.ended_at,
+          therapist: mapTherapistProfile(r),
+        })),
+    };
+  }
+
+  // Check if latest historical relationship was paused, transferred, or completed
+  const latestHistorical = allRel[0];
+  if (latestHistorical) {
+    if (latestHistorical.status === 'paused') {
+      return {
+        status: 'paused' as ClientRelationshipLifecycleStatus,
+        connection: {
+          relationshipId: latestHistorical.id,
+          status: 'paused',
+          careStage: latestHistorical.care_stage,
+          startedAt: latestHistorical.started_at,
+        },
+        therapist: mapTherapistProfile(latestHistorical),
+        pendingRequest: null,
+        history: allRel.map((r) => ({
+          relationshipId: r.id,
+          status: r.status,
+          careStage: r.care_stage,
+          startedAt: r.started_at,
+          endedAt: r.ended_at,
+          therapist: mapTherapistProfile(r),
+        })),
+      };
+    }
+
+    if (latestHistorical.status === 'transferred') {
+      return {
+        status: 'transferred' as ClientRelationshipLifecycleStatus,
+        connection: {
+          relationshipId: latestHistorical.id,
+          status: 'transferred',
+          careStage: latestHistorical.care_stage,
+          startedAt: latestHistorical.started_at,
+        },
+        therapist: mapTherapistProfile(latestHistorical),
+        pendingRequest: null,
+        history: allRel.map((r) => ({
+          relationshipId: r.id,
+          status: r.status,
+          careStage: r.care_stage,
+          startedAt: r.started_at,
+          endedAt: r.ended_at,
+          therapist: mapTherapistProfile(r),
+        })),
+      };
+    }
+  }
+
+  // 2. Check for pending matching requests or team submissions
+  const [matchRes, subRes] = await Promise.all([
+    supabase
+      .from('therapy_matches')
+      .select(`
+        id,
+        therapy_session_id,
+        therapist_account_id,
+        match_status,
+        match_rank,
+        match_score,
+        created_at,
+        therapist_accounts (
+          id,
+          therapist_profiles (full_name, title, profile_image_url)
+        )
+      `)
+      .eq('user_id', userId)
+      .in('match_status', ['shortlisted', 'candidate'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('therapy_submissions')
+      .select(`
+        id,
+        therapy_session_id,
+        submission_type,
+        submission_status,
+        submitted_at,
+        metadata
+      `)
+      .eq('user_id', userId)
+      .in('submission_status', ['submitted', 'under_review'])
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const activeMatch = matchRes.data;
+  const activeSubmission = subRes.data;
+
+  if (activeMatch || activeSubmission) {
+    let requestedTherapistName: string | null = null;
+    let requestedTherapistTitle: string | null = null;
+    let requestedTherapistImage: string | null = null;
+
+    if (activeMatch?.therapist_accounts) {
+      const acc = activeMatch.therapist_accounts as any;
+      const prof = Array.isArray(acc?.therapist_profiles)
+        ? acc.therapist_profiles[0]
+        : acc?.therapist_profiles;
+      requestedTherapistName = prof?.full_name || null;
+      requestedTherapistTitle = prof?.title || null;
+      requestedTherapistImage = prof?.profile_image_url || null;
+    } else if (activeSubmission?.metadata) {
+      requestedTherapistName = (activeSubmission.metadata as any)?.selectedTherapistName || null;
+    }
+
+    return {
+      status: 'pending' as ClientRelationshipLifecycleStatus,
+      connection: null,
+      therapist: null,
+      pendingRequest: {
+        matchId: activeMatch?.id || null,
+        submissionId: activeSubmission?.id || null,
+        submissionType: activeSubmission?.submission_type || 'guided',
+        submissionStatus: activeSubmission?.submission_status || activeMatch?.match_status || 'submitted',
+        submittedAt: activeSubmission?.submitted_at || activeMatch?.created_at || new Date().toISOString(),
+        requestedTherapistName,
+        requestedTherapistTitle,
+        requestedTherapistImage,
+      },
+      history: allRel.map((r) => ({
+        relationshipId: r.id,
+        status: r.status,
+        careStage: r.care_stage,
+        startedAt: r.started_at,
+        endedAt: r.ended_at,
+        therapist: mapTherapistProfile(r),
+      })),
+    };
+  }
+
+  // If relationship was ended/completed and no pending requests
+  if (latestHistorical && (latestHistorical.status === 'completed' || latestHistorical.status === 'terminated')) {
+    return {
+      status: 'ended' as ClientRelationshipLifecycleStatus,
+      connection: {
+        relationshipId: latestHistorical.id,
+        status: latestHistorical.status,
+        careStage: latestHistorical.care_stage,
+        startedAt: latestHistorical.started_at,
+        endedAt: latestHistorical.ended_at,
+      },
+      therapist: mapTherapistProfile(latestHistorical),
+      pendingRequest: null,
+      history: allRel.map((r) => ({
+        relationshipId: r.id,
+        status: r.status,
+        careStage: r.care_stage,
+        startedAt: r.started_at,
+        endedAt: r.ended_at,
+        therapist: mapTherapistProfile(r),
+      })),
+    };
+  }
+
+  return {
+    status: 'no_therapist' as ClientRelationshipLifecycleStatus,
+    connection: null,
+    therapist: null,
+    pendingRequest: null,
+    history: allRel.map((r) => ({
+      relationshipId: r.id,
+      status: r.status,
+      careStage: r.care_stage,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      therapist: mapTherapistProfile(r),
+    })),
+  };
+}
+
+/**
+ * Retrieves the client-facing care journey model.
+ * Strict Privacy Shield:
+ * - NO SOAP notes (subjective, objective, assessment, plan)
+ * - NO clinical formulation, risk logs, or diagnostic codes
+ * - Only longitudinal care stage progression, session milestones, and client-safe progress notes.
+ */
+export async function getClientCareJourney(userId: string) {
+  if (!userId) {
+    return null;
+  }
+
+  // 1. Locate relationship
+  const { data: relationship, error: relError } = await supabase
+    .from('therapy_care_relationships')
+    .select(`
+      id,
+      therapist_account_id,
+      status,
+      care_stage,
+      started_at,
+      ended_at,
+      therapist_accounts (
+        id,
+        therapist_profiles (full_name, title, qualification, profile_image_url)
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (relError || !relationship) {
+    return null;
+  }
+
+  const account = relationship.therapist_accounts as any;
+  const profile = Array.isArray(account?.therapist_profiles)
+    ? account.therapist_profiles[0]
+    : account?.therapist_profiles;
+
+  // 2. Fetch care stage transition history
+  const { data: stageHistory } = await supabase
+    .from('therapy_care_stage_history')
+    .select('id, previous_stage, new_stage, changed_at, reason')
+    .eq('relationship_id', relationship.id)
+    .order('changed_at', { ascending: true });
+
+  // 3. Fetch appointment metrics
+  const { data: appointments } = await supabase
+    .from('therapist_clinical_appointments')
+    .select('id, scheduled_start, status, attendance_status')
+    .eq('relationship_id', relationship.id)
+    .eq('user_id', userId)
+    .order('scheduled_start', { ascending: false });
+
+  const appts = appointments || [];
+  const now = new Date();
+  const totalSessions = appts.length;
+  const completedSessions = appts.filter(
+    (a) => a.status === 'completed' && a.attendance_status !== 'client_no_show'
+  ).length;
+  const upcomingSessions = appts.filter(
+    (a) => ['scheduled', 'confirmed', 'in_progress'].includes(a.status) && new Date(a.scheduled_start) >= now
+  ).length;
+
+  return {
+    relationshipId: relationship.id,
+    careStage: relationship.care_stage,
+    status: relationship.status,
+    startedAt: relationship.started_at,
+    endedAt: relationship.ended_at,
+    therapist: {
+      id: relationship.therapist_account_id,
+      name: profile?.full_name || 'Assigned Clinician',
+      title: profile?.title || 'Consultant Psychologist',
+      qualification: profile?.qualification || '',
+      profileImageUrl: profile?.profile_image_url || null,
+    },
+    stageHistory: (stageHistory || []).map((h) => ({
+      id: h.id,
+      previousStage: h.previous_stage,
+      newStage: h.new_stage,
+      changedAt: h.changed_at,
+      note: h.reason || null,
+    })),
+    sessionMetrics: {
+      total: totalSessions,
+      completed: completedSessions,
+      upcoming: upcomingSessions,
+    },
+  };
+}

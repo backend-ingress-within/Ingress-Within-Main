@@ -46,11 +46,19 @@ export async function GET(request: NextRequest) {
     if (therapistIds.length > 0) {
       const { data: therapists } = await supabase
         .from('therapist_accounts')
-        .select('id, full_name, email')
+        .select(`
+          id,
+          therapist_profiles (full_name, title)
+        `)
         .in('id', therapistIds);
 
-      therapists?.forEach((t) => {
-        therapistsMap[t.id] = t;
+      therapists?.forEach((t: any) => {
+        const prof = Array.isArray(t.therapist_profiles) ? t.therapist_profiles[0] : t.therapist_profiles;
+        therapistsMap[t.id] = {
+          id: t.id,
+          full_name: prof?.full_name || 'Assigned Therapist',
+          title: prof?.title || 'Consultant Psychologist',
+        };
       });
     }
 
@@ -92,7 +100,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ sessions: formatted });
+    return NextResponse.json({ success: true, sessions: formatted });
   } catch (err: any) {
     return NextResponse.json(
       { error: { code: 'CLIENT_SESSIONS_ERROR', message: err.message || 'Failed to retrieve sessions' } },
