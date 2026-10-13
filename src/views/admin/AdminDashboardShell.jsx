@@ -2614,7 +2614,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                 <div className="flex items-center gap-2.5">
                   <ShieldCheck className="w-5 h-5 text-[#4E7A66] shrink-0" />
                   <div>
-                    <span className="font-semibold text-[#132A24]">Transactional Email Observability:</span> Status <strong className="text-emerald-700">SENT</strong> confirms the message was verified and accepted by Resend's API. Status <strong className="text-green-800">DELIVERED</strong> confirms recipient mailbox arrival via Resend Svix webhook callback.
+                    <span className="font-semibold text-[#132A24]">Transactional Email Observability:</span> Status <strong className="text-emerald-700">SENT</strong> confirms the message was verified and accepted by MSG91's API. Status <strong className="text-green-800">DELIVERED</strong> confirms recipient mailbox arrival via MSG91 webhook callback.
                   </div>
                 </div>
                 <button
@@ -2716,18 +2716,18 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                                 {d.status}
                               </span>
                               <span className="text-[9px] text-[#132A24]/40">
-                                {d.status === 'sent' ? 'Accepted by Resend' : d.status === 'delivered' ? 'Inbox Confirmed' : ''}
+                                {d.status === 'sent' ? 'Accepted by MSG91' : d.status === 'delivered' ? 'Inbox Confirmed' : ''}
                               </span>
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-1.5">
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                                d.provider === 'resend'
+                                d.provider === 'msg91'
                                   ? 'bg-[#132A24]/5 text-[#132A24] border border-[#132A24]/10'
-                                  : 'bg-amber-100 text-amber-900'
+                                  : 'bg-emerald-100 text-emerald-900'
                               }`}>
-                                {d.provider || 'resend'}
+                                {d.provider || 'msg91'}
                               </span>
                               {d.provider_message_id && (
                                 <div className="flex items-center gap-1 font-mono text-[10px] text-[#132A24]/70 max-w-[120px] truncate" title={d.provider_message_id}>
@@ -2799,7 +2799,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                             Live Email Provider Smoke Test
                           </h4>
                           <span className="text-[11px] text-[#132A24]/60">
-                            Tests end-to-end dispatch through the real Resend provider pipeline
+                            Tests end-to-end dispatch through the real MSG91 provider pipeline
                           </span>
                         </div>
                       </div>
@@ -2824,7 +2824,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                           className="w-full bg-[#FAFAF8] border border-[#132A24]/15 rounded-xl px-3 py-2 text-xs text-[#132A24] placeholder-[#132A24]/30 focus:outline-none focus:border-[#4E7A66]"
                         />
                         <span className="text-[10px] text-[#132A24]/50 mt-1 block">
-                          Note: In Resend unverified sandbox mode, only account owner can receive emails. Once domain is verified in Resend, emails deliver to any recipient.
+                          Note: Transactional emails are dispatched via MSG91 using the verified domain (ingresswithin.com).
                         </span>
                       </div>
 
@@ -2845,7 +2845,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                           <div className="grid grid-cols-2 gap-2 text-[11px]">
                             <div>
                               <span className="opacity-60 block">Provider:</span>
-                              <span className="font-semibold uppercase">{smokeTestResult.provider || 'resend'}</span>
+                              <span className="font-semibold uppercase">{smokeTestResult.provider || 'msg91'}</span>
                             </div>
                             <div>
                               <span className="opacity-60 block">Status:</span>

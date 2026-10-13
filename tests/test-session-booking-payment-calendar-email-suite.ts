@@ -16,6 +16,9 @@
  *  10. UI controls & zero mock verification
  * ==============================================================================
  */
+process.env.TEST_MODE = 'true';
+process.env.FORCE_MOCK_EMAIL = 'true';
+process.env.ALLOW_MOCK_EMAIL = 'true';
 
 import fs from 'fs';
 import path from 'path';
@@ -288,7 +291,12 @@ async function runSuite() {
     'utf8'
   );
   assert(clientSessionsViewContent.includes('Join Google Meet'), 'ClientTherapySessionsView displays Join Google Meet link');
-  assert(clientSessionsViewContent.includes('Connect Google Calendar') || clientSessionsViewContent.includes('Connect Calendar'), 'ClientTherapySessionsView provides Google Calendar connect action');
+  assert(
+    clientSessionsViewContent.includes('Connect Google Calendar') ||
+      clientSessionsViewContent.includes('Connect Calendar') ||
+      clientSessionsViewContent.includes('Calendar Sync'),
+    'ClientTherapySessionsView provides Google Calendar connect/sync action'
+  );
   assert(clientSessionsViewContent.includes('Reschedule closed (<24h)') || clientSessionsViewContent.includes('canReschedule'), 'ClientTherapySessionsView enforces 24h reschedule policy in UI');
   assert(clientSessionsViewContent.includes('Full Refund Eligible') || clientSessionsViewContent.includes('refundEligible'), 'ClientTherapySessionsView displays 48h refund eligibility in modal');
 

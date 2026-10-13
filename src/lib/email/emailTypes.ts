@@ -30,6 +30,7 @@ export interface SendEmailOptions {
   entityType?: 'appointment' | 'booking' | 'match' | 'refund' | 'application' | 'therapist';
   entityId?: string;
   idempotencyKey?: string;
+  crqid?: string;
   metadata?: Record<string, any>;
 }
 
@@ -47,6 +48,7 @@ export interface EmailDeliveryRecord {
   entityId?: string | null;
   status: EmailDeliveryStatus;
   idempotencyKey?: string | null;
+  crqid?: string | null;
   provider?: string;
   providerMessageId?: string | null;
   attemptCount: number;

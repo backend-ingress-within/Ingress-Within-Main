@@ -108,12 +108,15 @@ export async function processEmailJob(
       entity_id: jobData.entityId || null,
       status: 'sending',
       attempt_count: attempt,
-      provider: 'resend',
+      provider: 'msg91',
       metadata: {
         ...(jobData.metadata || {}),
         templateKey: jobData.templateKey,
       },
     };
+
+    const effectiveCrqid = jobData.crqid || idempotencyKey || `crq_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    deliveryPayload.crqid = effectiveCrqid;
 
     if (idempotencyKey) {
       deliveryPayload.idempotency_key = idempotencyKey;
@@ -144,16 +147,20 @@ export async function processEmailJob(
   try {
     sendResult = await provider.send({
       to: normalizedTo,
+      recipientName: jobData.recipient.name,
       from: formattedSender,
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
       replyTo,
+      templateKey: jobData.templateKey,
+      templateData: jobData.templateData,
+      crqid: jobData.crqid || deliveryId || idempotencyKey || undefined,
     });
   } catch (dispatchErr: any) {
     sendResult = {
       success: false,
-      provider: 'resend' as const,
+      provider: 'msg91' as const,
       error: dispatchErr.message || 'Network exception in email provider',
       errorCategory: 'NETWORK_ERROR',
     };
@@ -234,6 +241,7 @@ export async function processEmailJob(
   // Missing credentials, unverified domain, invalid email, auth errors MUST NOT be blindly retried in loops
   const isPermanent =
     category === 'MISSING_PROVIDER_CREDENTIALS' ||
+    category === 'MISSING_TEMPLATE_CONFIGURATION' ||
     category === 'AUTHENTICATION_ERROR' ||
     category === 'DOMAIN_NOT_VERIFIED' ||
     category === 'VALIDATION_ERROR' ||

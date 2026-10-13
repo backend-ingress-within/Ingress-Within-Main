@@ -37,7 +37,7 @@ export class EmailService {
     senderEmail?: string;
   }): Promise<{
     success: boolean;
-    provider: 'resend' | 'mock';
+    provider: 'msg91' | 'resend' | 'mock';
     recipient?: string;
     messageId?: string;
     deliveryId?: string;
@@ -49,7 +49,7 @@ export class EmailService {
     if (!validation.valid) {
       return {
         success: false,
-        provider: 'resend',
+        provider: 'msg91',
         recipient: options.recipientEmail,
         status: 'failed',
         errorCategory: 'INVALID_RECIPIENT_EMAIL',
@@ -67,7 +67,7 @@ export class EmailService {
           name: 'Authorized Administrator',
           type: 'admin',
         },
-        templateKey: 'therapist_application_received',
+        templateKey: 'smoke_test',
         templateData: {
           therapistName: 'System Administrator (Live Smoke Test)',
           statusUrl: 'https://ingresswithin.com/admin/emails',
@@ -81,7 +81,7 @@ export class EmailService {
 
       return {
         success: deliveryRecord?.status === 'sent',
-        provider: (deliveryRecord?.provider as any) || 'resend',
+        provider: (deliveryRecord?.provider as any) || 'msg91',
         recipient: validation.normalizedEmail!,
         messageId: deliveryRecord?.providerMessageId || undefined,
         deliveryId: deliveryRecord?.id || undefined,
@@ -92,7 +92,7 @@ export class EmailService {
     } catch (err: any) {
       return {
         success: false,
-        provider: 'resend',
+        provider: 'msg91',
         recipient: validation.normalizedEmail!,
         status: 'failed',
         errorCategory: err.errorCategory || 'SMOKE_TEST_FAILURE',
@@ -149,8 +149,9 @@ export class EmailService {
               entity_id: options.entityId || null,
               status: 'queued',
               attempt_count: 0,
-              provider: 'resend',
+              provider: 'msg91',
               idempotency_key: options.idempotencyKey || null,
+              crqid: options.crqid || options.idempotencyKey || null,
               metadata: options.metadata || {},
               created_at: now,
             },
@@ -824,18 +825,78 @@ export class EmailService {
   }
 
   /**
-   * Processes email provider webhooks (e.g., Resend delivered/bounced events).
+   * Processes email provider webhooks (MSG91 delivery reports & legacy provider events).
+   * Matches by provider message ID or CRQID, and prevents out-of-order state regression.
    */
   static async handleProviderWebhook(event: {
-    type: 'email.delivered' | 'email.bounced' | 'email.complained';
-    messageId: string;
+    type?: string;
+    status?: string;
+    messageId?: string;
+    requestId?: string;
+    crqid?: string;
     timestamp?: string;
     reason?: string;
+    description?: string;
   }): Promise<{ updated: boolean }> {
     try {
       const now = event.timestamp || new Date().toISOString();
-      const isDelivered = event.type === 'email.delivered';
-      const isBounce = event.type === 'email.bounced' || event.type === 'email.complained';
+      const rawStatus = (event.status || event.type || '').toLowerCase();
+
+      const isDelivered =
+        rawStatus.includes('delivered') ||
+        rawStatus === 'email.delivered' ||
+        rawStatus === 'opened' ||
+        rawStatus === 'clicked';
+
+      const isBounce =
+        rawStatus.includes('failed') ||
+        rawStatus.includes('bounce') ||
+        rawStatus.includes('complaint') ||
+        rawStatus.includes('reject') ||
+        rawStatus.includes('drop') ||
+        rawStatus === 'email.bounced' ||
+        rawStatus === 'email.complained';
+
+      const isSent =
+        rawStatus.includes('sent') ||
+        rawStatus.includes('enqueued') ||
+        rawStatus.includes('accepted') ||
+        rawStatus === 'email.sent';
+
+      const targetMessageId = event.messageId || event.requestId;
+      const targetCrqid = event.crqid;
+
+      if (!targetMessageId && !targetCrqid) {
+        return { updated: false };
+      }
+
+      // 1. Fetch current delivery record to protect against regression
+      let existingRecord: any = null;
+      if (targetMessageId) {
+        const { data } = await supabase
+          .from('email_deliveries')
+          .select('id, status, provider_message_id, crqid')
+          .eq('provider_message_id', targetMessageId)
+          .maybeSingle();
+        existingRecord = data;
+      }
+
+      if (!existingRecord && targetCrqid) {
+        const { data } = await supabase
+          .from('email_deliveries')
+          .select('id, status, provider_message_id, crqid')
+          .or(`crqid.eq.${targetCrqid},idempotency_key.eq.${targetCrqid},id.eq.${targetCrqid}`)
+          .maybeSingle();
+        existingRecord = data;
+      }
+
+      // 2. Prevent duplicate or out-of-order state regression
+      // e.g. delivered must not regress back to sent or enqueued
+      if (existingRecord) {
+        if (existingRecord.status === 'delivered' && (isSent || !isBounce)) {
+          return { updated: true }; // Idempotent success without regression
+        }
+      }
 
       const updateData: Record<string, any> = {};
 
@@ -845,16 +906,30 @@ export class EmailService {
       } else if (isBounce) {
         updateData.status = 'failed';
         updateData.failed_at = now;
-        updateData.last_error = event.reason || `Provider webhook status: ${event.type}`;
-        updateData.last_error_category = event.type === 'email.bounced' ? 'BOUNCE' : 'COMPLAINT';
+        updateData.last_error = event.reason || event.description || `Provider webhook status: ${event.status || event.type}`;
+        updateData.last_error_category =
+          rawStatus.includes('bounce') ? 'BOUNCE' :
+          rawStatus.includes('complaint') ? 'COMPLAINT' :
+          rawStatus.includes('reject') ? 'REJECTED' : 'PROVIDER_FAILURE';
+      } else if (isSent && (!existingRecord || existingRecord.status === 'queued' || existingRecord.status === 'sending')) {
+        updateData.status = 'sent';
+        updateData.sent_at = now;
       }
 
-      const { data, error } = await supabase
-        .from('email_deliveries')
-        .update(updateData)
-        .eq('provider_message_id', event.messageId)
-        .select('id');
+      if (Object.keys(updateData).length === 0) {
+        return { updated: false };
+      }
 
+      let query = supabase.from('email_deliveries').update(updateData);
+      if (existingRecord?.id) {
+        query = query.eq('id', existingRecord.id);
+      } else if (targetMessageId) {
+        query = query.eq('provider_message_id', targetMessageId);
+      } else if (targetCrqid) {
+        query = query.eq('crqid', targetCrqid);
+      }
+
+      const { data, error } = await query.select('id');
       return { updated: !error && Boolean(data && data.length > 0) };
     } catch (err: any) {
       console.warn('[EmailService.handleProviderWebhook] Exception:', err.message);
