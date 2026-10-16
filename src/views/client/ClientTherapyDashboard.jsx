@@ -48,6 +48,7 @@ export default function ClientTherapyDashboard({
   // Sessions state
   const [sessions, setSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [sessionsError, setSessionsError] = useState(null);
   const [sessionFilter, setSessionFilter] = useState('upcoming'); // upcoming | past | cancelled
 
   // Reschedule / Cancel modals
@@ -65,17 +66,20 @@ export default function ClientTherapyDashboard({
 
   // Homework state
   const [homeworkList, setHomeworkList] = useState([]);
-  const [loadingHomework, setLoadingHomework] = useState(false);
+  const [loadingHomework, setLoadingHomework] = useState(true);
+  const [homeworkError, setHomeworkError] = useState(null);
   const [selectedHomeworkId, setSelectedHomeworkId] = useState(null);
   const [homeworkFilter, setHomeworkFilter] = useState('all'); // all | pending | completed
 
   // Journey state
   const [journeyData, setJourneyData] = useState(null);
-  const [loadingJourney, setLoadingJourney] = useState(false);
+  const [loadingJourney, setLoadingJourney] = useState(true);
+  const [journeyError, setJourneyError] = useState(null);
 
   // Billing state
   const [billingData, setBillingData] = useState(null);
   const [loadingBilling, setLoadingBilling] = useState(false);
+  const [billingError, setBillingError] = useState(null);
 
   // Booking flow modal state
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
@@ -84,14 +88,19 @@ export default function ClientTherapyDashboard({
   // Fetch sessions
   const fetchSessions = async () => {
     setLoadingSessions(true);
+    setSessionsError(null);
     try {
       const res = await fetch('/api/therapy/client/sessions');
       if (res.ok) {
         const json = await res.json();
         setSessions(json.sessions || []);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setSessionsError(errJson.error?.message || 'Unable to load scheduled sessions');
       }
     } catch (err) {
       console.warn('Failed to load sessions:', err);
+      setSessionsError('Network error loading sessions. Please check your connection.');
     } finally {
       setLoadingSessions(false);
     }
@@ -100,14 +109,19 @@ export default function ClientTherapyDashboard({
   // Fetch homework
   const fetchHomework = async () => {
     setLoadingHomework(true);
+    setHomeworkError(null);
     try {
       const res = await fetch('/api/therapy/client/homework');
       if (res.ok) {
         const json = await res.json();
         setHomeworkList(json.assignments || []);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setHomeworkError(errJson.error?.message || 'Unable to load clinical self-work');
       }
     } catch (err) {
       console.warn('Failed to load homework:', err);
+      setHomeworkError('Network error loading self-work. Please check your connection.');
     } finally {
       setLoadingHomework(false);
     }
@@ -116,14 +130,19 @@ export default function ClientTherapyDashboard({
   // Fetch care journey
   const fetchJourney = async () => {
     setLoadingJourney(true);
+    setJourneyError(null);
     try {
       const res = await fetch('/api/therapy/client/journey');
       if (res.ok) {
         const json = await res.json();
         setJourneyData(json.journey || null);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setJourneyError(errJson.error?.message || 'Unable to load longitudinal care journey');
       }
     } catch (err) {
       console.warn('Failed to load journey:', err);
+      setJourneyError('Network error loading care journey. Please check your connection.');
     } finally {
       setLoadingJourney(false);
     }
@@ -132,14 +151,19 @@ export default function ClientTherapyDashboard({
   // Fetch billing
   const fetchBilling = async () => {
     setLoadingBilling(true);
+    setBillingError(null);
     try {
       const res = await fetch('/api/therapy/client/billing');
       if (res.ok) {
         const json = await res.json();
         setBillingData(json);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setBillingError(errJson.error?.message || 'Unable to load billing records');
       }
     } catch (err) {
       console.warn('Failed to load billing:', err);
+      setBillingError('Network error loading billing.');
     } finally {
       setLoadingBilling(false);
     }
@@ -517,7 +541,26 @@ export default function ClientTherapyDashboard({
                     )}
                   </div>
 
-                  {nextSession ? (
+                  {loadingSessions ? (
+                    <div className="py-10 text-center space-y-2">
+                      <div className="w-5 h-5 border-2 border-[#132A24] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs text-[#66747A]">Checking scheduled consultations...</p>
+                    </div>
+                  ) : sessionsError ? (
+                    <div className="py-8 text-center space-y-3">
+                      <div className="inline-flex p-2 bg-red-50 text-red-700 rounded-full">
+                        <AlertCircle size={20} />
+                      </div>
+                      <p className="text-xs text-red-800 max-w-xs mx-auto">{sessionsError}</p>
+                      <button
+                        type="button"
+                        onClick={fetchSessions}
+                        className="text-xs text-[#132A24] hover:underline font-semibold inline-flex items-center gap-1"
+                      >
+                        <RefreshCw size={12} /> Retry Loading
+                      </button>
+                    </div>
+                  ) : nextSession ? (
                     <div className="mt-4 space-y-3">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -645,7 +688,26 @@ export default function ClientTherapyDashboard({
                     )}
                   </div>
 
-                  {nextDueHomework ? (
+                  {loadingHomework ? (
+                    <div className="py-10 text-center space-y-2">
+                      <div className="w-5 h-5 border-2 border-[#132A24] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs text-[#66747A]">Loading assignments...</p>
+                    </div>
+                  ) : homeworkError ? (
+                    <div className="py-8 text-center space-y-3">
+                      <div className="inline-flex p-2 bg-red-50 text-red-700 rounded-full">
+                        <AlertCircle size={20} />
+                      </div>
+                      <p className="text-xs text-red-800 max-w-xs mx-auto">{homeworkError}</p>
+                      <button
+                        type="button"
+                        onClick={fetchHomework}
+                        className="text-xs text-[#132A24] hover:underline font-semibold inline-flex items-center gap-1"
+                      >
+                        <RefreshCw size={12} /> Retry Loading
+                      </button>
+                    </div>
+                  ) : nextDueHomework ? (
                     <div className="mt-4 space-y-3">
                       <div>
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-[#8B5E66]">
@@ -729,44 +791,53 @@ export default function ClientTherapyDashboard({
               </div>
 
               {/* Progress Steps */}
-              <div className="grid grid-cols-4 gap-2 pt-2">
-                {[
-                  { key: 'intake', label: '1. Intake' },
-                  { key: 'active_care', label: '2. Active Care' },
-                  { key: 'maintenance', label: '3. Maintenance' },
-                  { key: 'completed', label: '4. Concluded' },
-                ].map((s, idx) => {
-                  const stageOrder = ['intake', 'active_care', 'maintenance', 'completed'];
-                  const currentIndex = stageOrder.indexOf(careStage);
-                  const isPast = idx < currentIndex;
-                  const isCurrent = idx === currentIndex;
+              {loadingJourney ? (
+                <div className="py-4 text-center text-xs text-[#66747A]">Loading journey progression...</div>
+              ) : journeyError ? (
+                <div className="py-3 text-center text-xs text-red-800 flex items-center justify-center gap-2">
+                  <span>{journeyError}</span>
+                  <button type="button" onClick={fetchJourney} className="font-semibold underline">Retry</button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                  {[
+                    { key: 'intake', label: '1. Intake' },
+                    { key: 'active_care', label: '2. Active Care' },
+                    { key: 'maintenance', label: '3. Maintenance' },
+                    { key: 'completed', label: '4. Concluded' },
+                  ].map((s, idx) => {
+                    const stageOrder = ['intake', 'active_care', 'maintenance', 'completed'];
+                    const currentIndex = stageOrder.indexOf(careStage);
+                    const isPast = idx < currentIndex;
+                    const isCurrent = idx === currentIndex;
 
-                  return (
-                    <div key={s.key} className="space-y-1.5 text-center">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          isPast
-                            ? 'bg-emerald-600'
-                            : isCurrent
-                            ? 'bg-emerald-700 ring-2 ring-emerald-300'
-                            : 'bg-gray-200'
-                        }`}
-                      />
-                      <span
-                        className={`text-[10px] sm:text-[11px] block truncate ${
-                          isCurrent
-                            ? 'font-bold text-[#132A24]'
-                            : isPast
-                            ? 'font-medium text-emerald-800'
-                            : 'text-gray-400'
-                        }`}
-                      >
-                        {s.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    return (
+                      <div key={s.key} className="space-y-1.5 text-center">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            isPast
+                              ? 'bg-emerald-600'
+                              : isCurrent
+                              ? 'bg-emerald-700 ring-2 ring-emerald-300'
+                              : 'bg-gray-200'
+                          }`}
+                        />
+                        <span
+                          className={`text-[10px] sm:text-[11px] block truncate ${
+                            isCurrent
+                              ? 'font-bold text-[#132A24]'
+                              : isPast
+                              ? 'font-medium text-emerald-800'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {s.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -970,8 +1041,24 @@ export default function ClientTherapyDashboard({
 
             {/* Sessions List */}
             {loadingSessions ? (
-              <div className="py-12 text-center text-xs text-[#66747A]">
-                Loading your therapy appointments...
+              <div className="py-16 text-center space-y-3 bg-white border border-[#263238]/10 rounded-2xl p-8">
+                <div className="w-6 h-6 border-2 border-[#132A24] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-[#66747A]">Loading your clinical therapy appointments...</p>
+              </div>
+            ) : sessionsError ? (
+              <div className="bg-white border border-red-200 rounded-2xl p-10 text-center space-y-3">
+                <div className="inline-flex p-3 bg-red-50 text-red-700 rounded-full">
+                  <AlertCircle size={24} />
+                </div>
+                <h3 className="font-serif text-base text-red-950">Unable to load appointments</h3>
+                <p className="text-xs text-red-800 max-w-sm mx-auto">{sessionsError}</p>
+                <button
+                  type="button"
+                  onClick={fetchSessions}
+                  className="mt-2 bg-[#132A24] text-white hover:bg-[#1C3E35] px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                >
+                  <RefreshCw size={13} /> Retry Loading Sessions
+                </button>
               </div>
             ) : (() => {
               const filtered = sessions.filter((s) => {
@@ -992,6 +1079,8 @@ export default function ClientTherapyDashboard({
                     <p className="text-xs text-[#66747A] max-w-sm mx-auto">
                       {sessionFilter === 'upcoming'
                         ? `You have no upcoming consultations scheduled. Book a slot based on ${clinicianName}'s real-time Google Calendar.`
+                        : sessionFilter === 'cancelled'
+                        ? 'No cancelled appointments on record.'
                         : 'Your session records will appear here as you progress through therapy.'}
                     </p>
                     {sessionFilter === 'upcoming' && (
@@ -1017,11 +1106,11 @@ export default function ClientTherapyDashboard({
                       <div
                         key={s.id}
                         className={`bg-white border border-[#263238]/10 rounded-xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-                          s.status === 'cancelled' ? 'opacity-60 bg-gray-50' : 'hover:border-[#263238]/20'
+                          s.status === 'cancelled' ? 'opacity-70 bg-gray-50/80 border-gray-200' : 'hover:border-[#263238]/20'
                         }`}
                       >
                         <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-semibold text-[#132A24]">
                               {startDate.toLocaleDateString('en-US', {
                                 weekday: 'short',
@@ -1050,11 +1139,27 @@ export default function ClientTherapyDashboard({
                             >
                               {s.status}
                             </span>
+                            {s.status === 'cancelled' && s.refundStatus && s.refundStatus !== 'none' && (
+                              <span
+                                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                                  s.refundStatus === 'full' || s.refundStatus === 'partial'
+                                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                    : s.refundStatus === 'eligible' || s.refundStatus === 'pending'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                Refund: {s.refundStatus}
+                              </span>
+                            )}
                           </div>
 
-                          <div className="text-xs text-[#66747A] flex items-center gap-4">
+                          <div className="text-xs text-[#66747A] flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span>Clinician: <strong>{s.therapist?.name || clinicianName}</strong></span>
                             <span>Mode: <strong className="capitalize">{s.sessionType || 'video'}</strong></span>
+                            {s.calendarSyncStatus && s.calendarSyncStatus !== 'synced' && isUpcoming && (
+                              <span className="text-amber-700 text-[11px] font-medium">Calendar: {s.calendarSyncStatus}</span>
+                            )}
                           </div>
                         </div>
 
@@ -1076,7 +1181,7 @@ export default function ClientTherapyDashboard({
                               type="button"
                               onClick={() => handleRetryCalendarSync(s.id)}
                               disabled={syncingAppointmentId === s.id}
-                              className="text-xs px-2.5 py-1.5 rounded-lg border border-[#263238]/10 hover:bg-[#263238]/5 font-medium flex items-center gap-1"
+                              className="text-xs px-2.5 py-1.5 rounded-lg border border-[#263238]/10 hover:bg-[#263238]/5 font-medium flex items-center gap-1 cursor-pointer"
                             >
                               <RefreshCw size={12} className={syncingAppointmentId === s.id ? 'animate-spin' : ''} />
                               Sync Meet
@@ -1087,7 +1192,7 @@ export default function ClientTherapyDashboard({
                             <button
                               type="button"
                               onClick={() => setRescheduleModalAppt(s)}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-[#263238]/15 hover:bg-[#263238]/5 text-[#132A24] font-medium"
+                              className="text-xs px-3 py-1.5 rounded-lg border border-[#263238]/15 hover:bg-[#263238]/5 text-[#132A24] font-medium cursor-pointer"
                             >
                               Reschedule
                             </button>
@@ -1097,7 +1202,7 @@ export default function ClientTherapyDashboard({
                             <button
                               type="button"
                               onClick={() => setCancelModalAppt(s)}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-700 font-medium"
+                              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-700 font-medium cursor-pointer"
                             >
                               Cancel
                             </button>
@@ -1694,16 +1799,21 @@ export default function ClientTherapyDashboard({
             </div>
 
             <form onSubmit={handleCancelSubmit} className="space-y-4">
-              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
+              <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-950 space-y-1">
                 {cancelModalAppt.policy?.refundEligible ? (
                   <p>
-                    <strong>100% Refund Eligible:</strong> You are cancelling more than 48 hours in advance.
-                    A full refund will be processed automatically to your payment method.
+                    <strong className="text-emerald-800">100% Refund Eligible:</strong> You are cancelling more than 48 hours in advance.
+                    An automatic refund will be credited to your original payment method.
+                  </p>
+                ) : cancelModalAppt.policy?.hoursUntilSession >= 24 ? (
+                  <p>
+                    <strong className="text-amber-800">Policy Review Window:</strong> You are cancelling between 24 and 48 hours in advance.
+                    Your cancellation will be submitted for care-team review regarding credit or refund eligibility.
                   </p>
                 ) : (
                   <p>
-                    <strong>Non-refundable:</strong> This session is under 48 hours away. According to policy,
-                    cancellations made under 48 hours are non-refundable.
+                    <strong className="text-red-800">Non-refundable:</strong> This session is scheduled within 24 hours. According to clinical policy,
+                    cancellations made under 24 hours are strictly non-refundable.
                   </p>
                 )}
               </div>
