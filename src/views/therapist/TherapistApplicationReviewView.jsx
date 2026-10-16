@@ -153,29 +153,16 @@ export default function TherapistApplicationReviewView({ applicationData, onLogo
           </div>
 
           {/* Actions */}
-          <div className="pt-2 flex flex-col sm:flex-row gap-3">
-            {isRejected ? (
+          {isRejected && (
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={onEditApplication}
                 className="flex-1 py-3 px-4 rounded-lg bg-[#4E7A66] text-white text-xs font-semibold hover:bg-[#3D6353] transition-all cursor-pointer text-center inline-flex items-center justify-center gap-2 shadow-xs"
               >
                 <FileText size={14} /> Update Application & Resubmit
               </button>
-            ) : (
-              <button
-                onClick={onRefresh}
-                className="flex-1 py-3 px-4 rounded-lg bg-[#132A24] text-white text-xs font-semibold hover:bg-[#132A24]/90 transition-all cursor-pointer text-center"
-              >
-                Check Status
-              </button>
-            )}
-            <a
-              href="mailto:clinical@ingresswithin.com"
-              className="flex-1 py-3 px-4 rounded-lg border border-[#132A24]/15 text-[#132A24] text-xs font-medium hover:bg-[#132A24]/5 transition-all cursor-pointer text-center no-underline"
-            >
-              Contact Clinical Governance
-            </a>
-          </div>
+            </div>
+          )}
 
         </motion.div>
       </main>

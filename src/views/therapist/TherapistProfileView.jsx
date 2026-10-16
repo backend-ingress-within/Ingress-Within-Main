@@ -246,7 +246,6 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
       { key: 'qualification', label: 'Qualification', valid: Boolean(formData.qualification?.trim()) },
       { key: 'experienceYears', label: 'Experience Years', valid: Number(formData.experienceYears) > 0 },
       { key: 'city', label: 'City', valid: Boolean(formData.city?.trim()) },
-      { key: 'state', label: 'State', valid: Boolean(formData.state?.trim()) },
       { key: 'specializations', label: 'Specialties', valid: formData.specializations?.length > 0 },
       { key: 'languages', label: 'Languages', valid: formData.languages?.length > 0 },
       { key: 'photo', label: 'Profile Photo', valid: Boolean(profile?.profile_image_url) },
@@ -906,13 +905,13 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
             </div>
 
             <div>
-              <label className="block font-semibold text-[#132A24] mb-1.5">State</label>
+              <label className="block font-semibold text-[#132A24] mb-1.5">State (Optional)</label>
               <input
                 type="text"
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 className="w-full border border-[#132A24]/15 rounded-xl px-3.5 py-2.5 outline-hidden focus:border-[#4E7A66]"
-                placeholder="Maharashtra"
+                placeholder="Optional"
               />
             </div>
           </div>
@@ -962,51 +961,20 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
 
           {/* Consultation Formats */}
           <div className="space-y-3 text-xs">
-            <label className="block font-semibold text-[#132A24]">Consultation Delivery Modes</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div
-                onClick={() => toggleArrayItem('sessionFormats', 'telehealth')}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                  formData.sessionFormats.includes('telehealth')
-                    ? 'border-[#4E7A66] bg-[#4E7A66]/5'
-                    : 'border-[#132A24]/10 bg-[#FAFAF8]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#132A24]">Telehealth (Video & Audio)</span>
-                  <input
-                    type="checkbox"
-                    checked={formData.sessionFormats.includes('telehealth')}
-                    onChange={() => {}}
-                    className="accent-[#4E7A66]"
-                  />
-                </div>
-                <p className="text-[11px] text-[#132A24]/60 mt-1">
-                  1-on-1 private video sessions via encrypted Google Meet integration.
-                </p>
+            <div className="flex items-center justify-between">
+              <label className="block font-semibold text-[#132A24]">Consultation Delivery Modes</label>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#4E7A66]/10 text-[#4E7A66] border border-[#4E7A66]/20">
+                Online Only Platform
+              </span>
+            </div>
+            <div className="p-4 rounded-xl border border-[#4E7A66] bg-[#4E7A66]/5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-[#132A24]">Telehealth (Video & Audio Consultations)</span>
+                <span className="text-[10px] font-bold text-[#4E7A66] uppercase tracking-wider">Active</span>
               </div>
-
-              <div
-                onClick={() => toggleArrayItem('sessionFormats', 'in_person')}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                  formData.sessionFormats.includes('in_person')
-                    ? 'border-[#4E7A66] bg-[#4E7A66]/5'
-                    : 'border-[#132A24]/10 bg-[#FAFAF8]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#132A24]">In-Person Consultations</span>
-                  <input
-                    type="checkbox"
-                    checked={formData.sessionFormats.includes('in_person')}
-                    onChange={() => {}}
-                    className="accent-[#4E7A66]"
-                  />
-                </div>
-                <p className="text-[11px] text-[#132A24]/60 mt-1">
-                  In-clinic sessions at your registered physical practice address.
-                </p>
-              </div>
+              <p className="text-[11px] text-[#132A24]/65 mt-1 leading-relaxed">
+                All client sessions on Ingress Within are conducted 100% online via secure, end-to-end encrypted video and audio sessions (Google Meet integration). Physical in-person consultations are not supported.
+              </p>
             </div>
           </div>
 

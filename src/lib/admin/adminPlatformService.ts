@@ -819,10 +819,22 @@ export class AdminPlatformService {
     const calibration = answers.calibration || {};
 
     // 6. Supervision Details
+    const sName = answers.supervision?.supervisorName || null;
+    const sPhone = answers.supervision?.supervisorPhone || null;
+    const sEmail = answers.supervision?.supervisorEmail || null;
+    const synthesizedContact = [
+      sName ? `Name: ${sName}` : null,
+      sPhone ? `Phone: ${sPhone}` : null,
+      sEmail ? `Email: ${sEmail}` : null,
+    ].filter(Boolean).join(' • ');
+
     const supervisionDetails = {
       status: answers.supervision?.status || (Number(answers.yearsOfExperience || 0) >= 3 ? 'not_required' : 'pending'),
+      supervisorName: sName,
+      supervisorPhone: sPhone,
+      supervisorEmail: sEmail,
       format: answers.supervision?.format || null,
-      supervisorContact: answers.supervision?.supervisorContact || null,
+      supervisorContact: synthesizedContact || answers.supervision?.supervisorContact || null,
       confirmationLetter: answers.supervision?.confirmationLetter || null,
       confirmationLetterSignedUrl: answers.supervision?.confirmationLetter?.path
         ? (signedUrlMap.get(answers.supervision.confirmationLetter.path) || null)
@@ -890,7 +902,11 @@ export class AdminPlatformService {
       traumaCertification: Boolean(answers.traumaCertification || answers.traumaListed === 'Yes'),
       traumaCertificationDoc: answers.traumaCertification || null,
       primaryModalityCertified: Boolean(answers.primaryCertificates && Object.keys(answers.primaryCertificates).length > 0),
-      supervisionConfirmed: Boolean(supervisionDetails.status === 'not_required' || supervisionDetails.confirmationLetter),
+      supervisionConfirmed: Boolean(
+        supervisionDetails.status === 'not_required' ||
+        supervisionDetails.confirmationLetter ||
+        (supervisionDetails.supervisorName && (supervisionDetails.supervisorPhone || supervisionDetails.supervisorEmail))
+      ),
     };
 
     // 12. Practice Information
@@ -916,7 +932,11 @@ export class AdminPlatformService {
     const hasTruthfulness = declarations.truthfulnessConfirmed;
     const hasBackgroundCheck = declarations.backgroundCheckConsent;
     const hasPayout = Boolean(payoutAccount?.id);
-    const isSupervisionCompliant = supervisionDetails.status === 'not_required' || supervisionDetails.status === 'opted_in' || Boolean(supervisionDetails.confirmationLetter);
+    const isSupervisionCompliant =
+      supervisionDetails.status === 'not_required' ||
+      supervisionDetails.status === 'opted_in' ||
+      Boolean(supervisionDetails.supervisorName && (supervisionDetails.supervisorPhone || supervisionDetails.supervisorEmail)) ||
+      Boolean(supervisionDetails.confirmationLetter);
 
     const readiness = {
       profileCompleted: hasProfile,

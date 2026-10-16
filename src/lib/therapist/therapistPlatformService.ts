@@ -583,6 +583,8 @@ export class TherapistPlatformService {
       ['licenseNumber', Boolean(mergedAnswers.licenseNumber)],
       ['issuingBody', Boolean(mergedAnswers.issuingBody)],
       ['degreeCertificate', Boolean(mergedAnswers.degreeCertificate)],
+      ['higherAcuityExperience', mergedAnswers.higherAcuityInterest !== 'Yes' || Boolean((mergedAnswers.higherAcuityExperience || '').trim())],
+      ['supervisorDetails', Number(mergedAnswers.yearsOfExperience || 0) >= 3 || (Boolean(mergedAnswers.supervision?.supervisorName?.trim()) && Boolean(mergedAnswers.supervision?.supervisorPhone?.trim() || mergedAnswers.supervision?.supervisorEmail?.trim()))],
       ['ethicsDeclaration', mergedAnswers.ethicsDeclaration !== undefined && mergedAnswers.ethicsDeclaration !== null],
       ['truthfulnessConfirmed', mergedAnswers.truthfulnessConfirmed !== undefined && mergedAnswers.truthfulnessConfirmed !== null],
     ];

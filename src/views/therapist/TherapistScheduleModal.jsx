@@ -177,7 +177,6 @@ export default function TherapistScheduleModal({
               >
                 <option value="video">Online Video</option>
                 <option value="audio">Audio Consultation</option>
-                <option value="in_person">In-Person</option>
               </select>
             </div>
           </div>

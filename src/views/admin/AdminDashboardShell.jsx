@@ -1946,15 +1946,17 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                                 </span>
                               </div>
                               <div>
-                                <span className="text-[#132A24]/40 font-medium block">Supervision Format</span>
-                                <span className="text-[#132A24]">
-                                  {selectedApplicationDetail.supervision?.format || 'Individual / Peer'}
+                                <span className="text-[#132A24]/40 font-medium block">Supervisor Details</span>
+                                <span className="text-[#132A24] font-medium">
+                                  {selectedApplicationDetail.supervision?.supervisorName
+                                    ? selectedApplicationDetail.supervision.supervisorName
+                                    : (selectedApplicationDetail.supervision?.format || 'Exempt / Not required')}
                                 </span>
                               </div>
                               <div>
                                 <span className="text-[#132A24]/40 font-medium block">Supervisor Contact</span>
                                 <span className="text-[#132A24]">
-                                  {selectedApplicationDetail.supervision?.supervisorContact || 'On file'}
+                                  {[selectedApplicationDetail.supervision?.supervisorPhone, selectedApplicationDetail.supervision?.supervisorEmail].filter(Boolean).join(' • ') || selectedApplicationDetail.supervision?.supervisorContact || 'On file'}
                                 </span>
                               </div>
                             </div>
