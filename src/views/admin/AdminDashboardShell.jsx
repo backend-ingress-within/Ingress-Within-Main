@@ -47,6 +47,7 @@ import {
   Sparkles,
   TrendingUp,
   MessageSquare,
+  Trash2,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
@@ -111,9 +112,35 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
   const [feedbackEditNotes, setFeedbackEditNotes] = useState('');
   const [isUpdatingFeedback, setIsUpdatingFeedback] = useState(false);
 
+  // Therapist Deletion States
+  const [therapistToDelete, setTherapistToDelete] = useState(null);
+  const [isDeletingTherapist, setIsDeletingTherapist] = useState(false);
+
   const showToast = (msg, isError = false) => {
     setToastMessage({ text: msg, isError });
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDeleteTherapist = async (therapistId) => {
+    if (!therapistId) return;
+    setIsDeletingTherapist(true);
+    try {
+      const res = await fetch(`/api/admin/therapists/${therapistId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || 'Therapist removed successfully.');
+        setTherapistToDelete(null);
+        fetchTabData();
+      } else {
+        showToast(data.error?.message || 'Failed to delete therapist.', true);
+      }
+    } catch (err) {
+      showToast(err.message || 'Network error deleting therapist.', true);
+    } finally {
+      setIsDeletingTherapist(false);
+    }
   };
 
   const handleRunSmokeTest = async () => {
@@ -904,6 +931,64 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
           {/* ========================================================================= */}
           {activeTab === 'therapists' && (
             <div className="space-y-4">
+              {/* Header & Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-lg font-semibold text-[#132A24]">
+                    Therapist Roster & Directory
+                  </h3>
+                  <p className="text-xs text-[#132A24]/60">
+                    Directory of registered clinicians, practice authorizations, and roster status.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#132A24]/40" />
+                    <input
+                      type="text"
+                      placeholder="Search clinicians..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-white border border-[#132A24]/15 rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#132A24] placeholder-[#132A24]/30 focus:outline-none focus:border-[#4E7A66] w-48 sm:w-64"
+                    />
+                  </div>
+                  <button
+                    onClick={() => fetchTabData()}
+                    className="p-2 bg-white border border-[#132A24]/15 rounded-xl text-[#132A24]/70 hover:text-[#132A24] cursor-pointer shadow-xs"
+                    title="Refresh Roster"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-2 border-b border-[#132A24]/10 pb-2 overflow-x-auto text-xs font-medium">
+                {[
+                  { id: 'all', label: 'All Clinicians' },
+                  { id: 'active', label: 'Active' },
+                  { id: 'pending', label: 'Pending' },
+                  { id: 'suspended', label: 'Suspended' },
+                  { id: 'rejected', label: 'Rejected' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => {
+                      setStatusFilter(st.id);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap cursor-pointer transition-colors ${
+                      statusFilter === st.id
+                        ? 'bg-[#132A24] text-white'
+                        : 'text-[#132A24]/60 hover:text-[#132A24] hover:bg-[#132A24]/5'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="bg-white border border-[#132A24]/10 rounded-2xl overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -915,63 +1000,174 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                         <th className="py-3.5 px-4">Verification</th>
                         <th className="py-3.5 px-4">Can Practice</th>
                         <th className="py-3.5 px-4">Session Fee</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#132A24]/5 text-[#132A24]">
                       {therapistsData.therapists.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="py-12 text-center text-[#132A24]/40 italic">
+                          <td colSpan="7" className="py-12 text-center text-[#132A24]/40 italic">
                             No therapists found.
                           </td>
                         </tr>
                       ) : (
-                        therapistsData.therapists.map((t) => (
-                          <tr key={t.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
-                            <td className="py-3.5 px-4">
-                              <div className="font-semibold text-[#132A24]">{t.full_name}</div>
-                              <div className="text-[10px] text-[#132A24]/50">{t.phone_number}</div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div>{t.qualification || 'Clinical Psychologist'}</div>
-                              <div className="text-[10px] text-[#132A24]/50">
-                                {t.rci_registered
-                                  ? `RCI: ${t.rci_number || 'Verified'}`
-                                  : 'Not RCI Registered'}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className="capitalize px-2.5 py-0.5 rounded-full bg-[#132A24]/5 border border-[#132A24]/10 text-[#132A24]/80 text-[10px] font-medium">
-                                {t.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                                  t.verification_status === 'verified'
-                                    ? 'bg-[#4E7A66]/10 border-[#4E7A66]/20 text-[#2D5A46]'
-                                    : 'bg-amber-50 border-amber-200 text-amber-800'
-                                }`}
-                              >
-                                {t.verification_status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              {t.can_practice ? (
-                                <span className="text-[#2D5A46] flex items-center gap-1 font-semibold">
-                                  <Check className="w-3.5 h-3.5" /> Authorized
+                        therapistsData.therapists.map((t) => {
+                          const isRejected =
+                            t.status === 'rejected' ||
+                            t.application_status === 'rejected' ||
+                            t.verification_status === 'rejected';
+
+                          return (
+                            <tr key={t.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-[#132A24]">{t.full_name}</div>
+                                <div className="text-[10px] text-[#132A24]/50">
+                                  {t.email ? `${t.email} • ` : ''}
+                                  {t.phone_number}
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div>{t.qualification || 'Clinical Psychologist'}</div>
+                                <div className="text-[10px] text-[#132A24]/50">
+                                  {t.rci_registered
+                                    ? `RCI: ${t.rci_number || 'Verified'}`
+                                    : 'Not RCI Registered'}
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`capitalize px-2.5 py-0.5 rounded-full border text-[10px] font-medium ${
+                                    isRejected
+                                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                      : 'bg-[#132A24]/5 border-[#132A24]/10 text-[#132A24]/80'
+                                  }`}
+                                >
+                                  {t.status}
                                 </span>
-                              ) : (
-                                <span className="text-rose-600 font-medium">Restricted</span>
-                              )}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono font-medium">₹{t.per_session_fee}</td>
-                          </tr>
-                        ))
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                                    t.verification_status === 'verified'
+                                      ? 'bg-[#4E7A66]/10 border-[#4E7A66]/20 text-[#2D5A46]'
+                                      : isRejected
+                                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                                  }`}
+                                >
+                                  {t.verification_status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {t.can_practice ? (
+                                  <span className="text-[#2D5A46] flex items-center gap-1 font-semibold">
+                                    <Check className="w-3.5 h-3.5" /> Authorized
+                                  </span>
+                                ) : (
+                                  <span className="text-rose-600 font-medium">Restricted</span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-medium">₹{t.per_session_fee}</td>
+                              <td className="py-3.5 px-4 text-right">
+                                {isRejected ? (
+                                  <button
+                                    onClick={() => setTherapistToDelete(t)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-colors cursor-pointer"
+                                    title="Delete rejected therapist record"
+                                  >
+                                    <Trash2 className="w-3 h-3 text-rose-600" />
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <span className="text-[#132A24]/20 font-mono text-xs select-none">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
                 </div>
               </div>
+
+              {/* Permanent Deletion Confirmation Modal for Rejected Therapist */}
+              {therapistToDelete && (
+                <div className="fixed inset-0 z-50 bg-[#132A24]/50 backdrop-blur-xs flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full border border-rose-200 shadow-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+                        <Trash2 className="w-5 h-5 text-rose-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-[#132A24]">
+                          Delete Rejected Therapist?
+                        </h3>
+                        <p className="text-xs text-[#132A24]/60">
+                          This action is permanent and cannot be undone.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-rose-50/50 border border-rose-100 text-xs space-y-2 text-[#132A24]">
+                      <div>
+                        <span className="font-semibold text-rose-900">Clinician: </span>
+                        <span className="font-medium">{therapistToDelete.full_name}</span>
+                      </div>
+                      {therapistToDelete.email && (
+                        <div>
+                          <span className="font-semibold text-rose-900">Email: </span>
+                          <span className="font-mono">{therapistToDelete.email}</span>
+                        </div>
+                      )}
+                      {therapistToDelete.phone_number && (
+                        <div>
+                          <span className="font-semibold text-rose-900">Phone: </span>
+                          <span className="font-mono">{therapistToDelete.phone_number}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-semibold text-rose-900">Status: </span>
+                        <span className="capitalize font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
+                          {therapistToDelete.status || therapistToDelete.application_status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#132A24]/70 pt-1 border-t border-rose-200/60 leading-relaxed">
+                        All associated records (applications, reviews, profile, and auth account) will be permanently purged from the system.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setTherapistToDelete(null)}
+                        disabled={isDeletingTherapist}
+                        className="px-4 py-2 rounded-xl border border-[#132A24]/15 hover:bg-[#132A24]/5 text-xs text-[#132A24] font-medium transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTherapist(therapistToDelete.id)}
+                        disabled={isDeletingTherapist}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isDeletingTherapist ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Confirm Permanent Delete
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

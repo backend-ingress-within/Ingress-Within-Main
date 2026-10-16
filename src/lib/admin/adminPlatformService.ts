@@ -399,7 +399,7 @@ export class AdminPlatformService {
         safeList.push({
           id: a.id,
           phone_number: a.phone_number,
-          email: a.email || null,
+          email: p.contact_email || null,
           status: a.status,
           application_status: a.application_status,
           verification_status: a.verification_status,
@@ -1164,6 +1164,148 @@ export class AdminPlatformService {
     err.code = 'INVALID_DECISION';
     err.status = 400;
     throw err;
+  }
+
+  /**
+   * Deletes a rejected therapist and all associated application/profile records.
+   * STRICT SECURITY ENFORCEMENT:
+   * Only therapists whose status, application_status, or verification_status is 'rejected'
+   * can be deleted. Active or approved therapists CANNOT be deleted via this endpoint.
+   */
+  static async deleteRejectedTherapist(therapistAccountId: string, adminId: string = 'system') {
+    if (!therapistAccountId) {
+      const err: any = new Error('Therapist account ID is required.');
+      err.code = 'INVALID_ID';
+      err.status = 400;
+      throw err;
+    }
+
+    // 1. Fetch current therapist account record
+    const { data: account, error: accErr } = await supabase
+      .from('therapist_accounts')
+      .select('id, status, application_status, verification_status, can_practice, auth_user_id')
+      .eq('id', therapistAccountId)
+      .maybeSingle();
+
+    if (accErr || !account) {
+      const err: any = new Error('Therapist account not found.');
+      err.code = 'THERAPIST_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    // 2. Strict validation: Only rejected therapists can be deleted
+    const isRejected =
+      account.status === 'rejected' ||
+      account.application_status === 'rejected' ||
+      account.verification_status === 'rejected';
+
+    if (!isRejected) {
+      const err: any = new Error('Deletion rejected: Only therapists with rejected status can be deleted from the roster.');
+      err.code = 'THERAPIST_NOT_REJECTED';
+      err.status = 400;
+      throw err;
+    }
+
+    // 3. Fetch profile and application to capture metadata for audit log and email cleanup
+    const [{ data: profile }, { data: application }] = await Promise.all([
+      supabase.from('therapist_profiles').select('full_name, contact_email').eq('therapist_account_id', therapistAccountId).maybeSingle(),
+      supabase.from('therapist_applications').select('contact_email, answers').eq('therapist_account_id', therapistAccountId).maybeSingle(),
+    ]);
+
+    const therapistName = profile?.full_name || application?.answers?.fullName || 'Therapist';
+    const candidateEmails = [
+      profile?.contact_email,
+      application?.contact_email,
+      application?.answers?.contact_email,
+      application?.answers?.email,
+    ].filter(Boolean) as string[];
+
+    // 4. Delete dependent records in foreign-key safe order
+    // A. Withdrawals & Payouts (prevents RESTRICT foreign key)
+    await supabase.from('therapist_withdrawal_requests').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapist_payout_accounts').delete().eq('therapist_account_id', therapistAccountId);
+
+    // B. Homework & Templates
+    const { data: assignments } = await supabase
+      .from('client_homework_assignments')
+      .select('id')
+      .eq('therapist_account_id', therapistAccountId);
+
+    if (assignments && assignments.length > 0) {
+      const assignmentIds = assignments.map((a: any) => a.id);
+      await supabase.from('client_homework_submissions').delete().in('assignment_id', assignmentIds);
+    }
+    await supabase.from('client_homework_assignments').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapy_homework_templates').delete().eq('therapist_account_id', therapistAccountId);
+
+    // C. SOAP notes & reschedules & clinical appointments
+    await supabase.from('therapist_soap_notes').delete().eq('therapist_account_id', therapistAccountId);
+    const { data: appts } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id')
+      .eq('therapist_account_id', therapistAccountId);
+
+    if (appts && appts.length > 0) {
+      const apptIds = appts.map((a: any) => a.id);
+      await supabase.from('therapist_session_reschedules').delete().in('appointment_id', apptIds);
+    }
+    await supabase.from('therapist_clinical_appointments').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('google_calendar_connections').delete().eq('therapist_account_id', therapistAccountId);
+
+    // D. Earnings, availability blocks, care relationships & matches
+    await supabase.from('therapist_earnings').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapist_availability_blocks').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapy_care_relationships').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapy_matches').delete().eq('therapist_account_id', therapistAccountId);
+
+    // E. Notifications, sessions, review audits & applications
+    await supabase.from('therapist_notifications').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapist_sessions').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapist_application_reviews').delete().eq('therapist_account_id', therapistAccountId);
+    await supabase.from('therapist_applications').delete().eq('therapist_account_id', therapistAccountId);
+
+    // F. Profile & Account
+    await supabase.from('therapist_profiles').delete().eq('therapist_account_id', therapistAccountId);
+    const { error: delAccError } = await supabase.from('therapist_accounts').delete().eq('id', therapistAccountId);
+
+    if (delAccError) {
+      throw new Error(`Failed to delete therapist account: ${delAccError.message}`);
+    }
+
+    // G. Clear transactional email logs & idempotency keys for these emails
+    for (const em of candidateEmails) {
+      await supabase.from('email_deliveries').delete().ilike('recipient_email', em);
+    }
+
+    // H. Clean up auth user if registered
+    if (account.auth_user_id) {
+      try {
+        await supabase.auth.admin.deleteUser(account.auth_user_id);
+      } catch (authErr) {
+        // Silently continue if auth user is already removed or unmanaged
+      }
+    }
+
+    // 5. Audit Log
+    await AdminAuditService.logAction({
+      actorId: adminId,
+      actorType: 'admin_user',
+      action: 'therapist_deleted',
+      entityType: 'therapist',
+      entityId: therapistAccountId,
+      metadata: {
+        therapistName,
+        status: account.status,
+        applicationStatus: account.application_status,
+        verificationStatus: account.verification_status,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Therapist "${therapistName}" was successfully removed from the roster.`,
+    };
   }
 
   /**
