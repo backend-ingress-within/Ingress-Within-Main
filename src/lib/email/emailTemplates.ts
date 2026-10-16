@@ -1,5 +1,6 @@
 import { EmailRenderedContent } from './emailTypes';
 import { renderBaseEmailLayout, escapeHtml } from './baseEmailLayout';
+import { SUPPORT_CONFIG } from '../../config/supportConfig';
 
 export { escapeHtml };
 
@@ -482,27 +483,283 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const rawTherapistName = data.therapistName || 'Doctor/Counselor';
     const therapistName = escapeHtml(rawTherapistName);
     const statusUrl = data.statusUrl || 'https://ingresswithin.com/therapist/application/status';
+    const answers = (data.answers || {}) as Record<string, any>;
+    const rawDocs = Array.isArray(data.documents) ? data.documents : [];
+    const submittedAtIso = data.submittedAt || new Date().toISOString();
+    const formattedSubmittedDate = formatDate(submittedAtIso);
+
+    // 1. Basic Applicant Information
+    const applicantEmail = escapeHtml(answers.contact_email || answers.email || data.email || 'Registered account email');
+    const applicantPhone = escapeHtml(answers.phone || 'Recorded in application');
+    const city = answers.city ? escapeHtml(answers.city) : '';
+    const state = answers.state ? escapeHtml(answers.state) : '';
+    const location = [city, state].filter(Boolean).join(', ') || 'India';
+    const gender = escapeHtml(answers.gender || 'Not specified');
+
+    // 2. Professional Credentials & Licensure
+    const credentials = escapeHtml(answers.credentials || 'Psychotherapist / Mental Health Professional');
+    const experienceYears = answers.yearsOfExperience !== undefined
+      ? `${escapeHtml(answers.yearsOfExperience)} years`
+      : (data.experienceYears !== undefined ? `${escapeHtml(data.experienceYears)} years` : 'Not specified');
+    const issuingBody = escapeHtml(answers.issuingBody || 'Accredited Board / University');
+    const rawLicenseNumber = answers.licenseNumber ? String(answers.licenseNumber).trim() : '';
+    const licenseNumberDisplay = rawLicenseNumber ? escapeHtml(rawLicenseNumber) : 'Not specified';
+    const isRci = String(answers.issuingBody || '').toLowerCase().includes('rci') ||
+      String(answers.issuingBody || '').toLowerCase().includes('rehabilitation council of india') ||
+      Boolean(answers.rciNumber);
+    const rciDisplay = isRci ? 'Yes (RCI Registered)' : 'Not RCI Registered';
+
+    // 3. Clinical Practice & Modalities
+    const specialtiesList: string[] = Array.isArray(answers.specialties) && answers.specialties.length > 0
+      ? answers.specialties
+      : (Array.isArray(answers.broadSpecialtyTags) && answers.broadSpecialtyTags.length > 0
+        ? answers.broadSpecialtyTags
+        : (Array.isArray(data.specialization) ? data.specialization : (data.specialization ? [String(data.specialization)] : [])));
+    const specialtiesDisplay = specialtiesList.length > 0 ? escapeHtml(specialtiesList.join(', ')) : 'General Clinical Psychology';
+
+    const modalitiesList: string[] = Array.isArray(answers.modalities) ? answers.modalities : [];
+    const modalitiesDisplay = modalitiesList.length > 0 ? escapeHtml(modalitiesList.join(', ')) : 'Evidence-based Practice';
+
+    const languagesList: string[] = Array.isArray(answers.languages) && answers.languages.length > 0 ? answers.languages : ['English'];
+    const languagesDisplay = escapeHtml(languagesList.join(', '));
+
+    const sessionFormatsList: string[] = Array.isArray(answers.sessionFormats) && answers.sessionFormats.length > 0 ? answers.sessionFormats : ['Telehealth (Video)'];
+    const sessionFormatsDisplay = escapeHtml(sessionFormatsList.join(', '));
+
+    const fee = answers.feePerSession || answers.perSessionFee;
+    const feeDisplay = fee ? `₹${escapeHtml(fee)} per session` : 'Platform Standard';
+
+    // 4. Caseload & Acuity Logistics
+    const currentCaseload = answers.currentCapacity !== undefined ? `${escapeHtml(answers.currentCapacity)} clients` : 'Flexible';
+    const maxCaseload = answers.maxCapacity !== undefined ? `${escapeHtml(answers.maxCapacity)} clients` : 'Flexible';
+    const openingDays = answers.soonestOpeningDays !== undefined ? `Within ${escapeHtml(answers.soonestOpeningDays)} days` : 'Immediate';
+    const severityCeiling = answers.severityCeiling !== undefined ? `Level ${escapeHtml(answers.severityCeiling)} of 5` : 'Standard Outpatient';
+    const ageGroupsList: string[] = Array.isArray(answers.ageGroups) && answers.ageGroups.length > 0 ? answers.ageGroups : ['Adults (18+)'];
+    const ageGroupsDisplay = escapeHtml(ageGroupsList.join(', '));
+    const higherAcuityDisplay = answers.higherAcuityInterest === 'Yes'
+      ? 'Interested in higher-acuity referral triage'
+      : 'Standard outpatient care';
+
+    // 5. Supervision & Declarations
+    const supervisionDisplay = answers.supervision?.status
+      ? escapeHtml(`${answers.supervision.status}${answers.supervision.format ? ` (${answers.supervision.format})` : ''}`)
+      : 'Independent Practice / Direct Care';
+    const ethicsConfirmed = answers.ethicsDeclaration ? 'Confirmed' : 'Recorded';
+    const backgroundConsent = answers.backgroundCheckConsent ? 'Authorized' : 'Recorded';
+    const truthConfirmed = answers.truthfulnessConfirmed ? 'Confirmed' : 'Recorded';
+
+    // 6. Uploaded Documents Ledger (Privacy boundary: NO internal paths, NO bucket URLs, NO raw storage keys)
+    const formatCategory = (cat?: string): string => {
+      if (!cat) return 'Verification Document';
+      const norm = cat.toLowerCase().trim();
+      if (norm === 'profile_photo' || norm === 'photo') return 'Profile Photo';
+      if (norm === 'degree_certificate' || norm === 'degree') return 'Degree / Qualification Certificate';
+      if (norm === 'trauma_certification' || norm === 'trauma_certificate') return 'Trauma-Informed Certification';
+      if (norm === 'primary_modality_certificate') return 'Primary Modality Certificate';
+      if (norm === 'secondary_modality_certificate') return 'Secondary Modality Certificate';
+      if (norm === 'supervision_confirmation' || norm === 'supervision') return 'Supervision Documentation';
+      if (norm === 'government_id' || norm === 'identity_proof') return 'Identity Verification Document';
+      if (norm === 'license_certificate' || norm === 'rci_certificate') return 'Clinical Licensure / RCI Certificate';
+      return norm.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
+    const docItems: Array<{ category: string; filename: string; status: string; sizeFormatted?: string }> = [];
+    const seenFilenames = new Set<string>();
+
+    for (const d of rawDocs) {
+      if (!d) continue;
+      const rawName = String(d.filename || d.name || d.title || '');
+      const cleanFilename = rawName ? rawName.split('/').pop()!.split('\\').pop()! : 'verification-document.pdf';
+      const category = formatCategory(d.category || d.type);
+      const key = `${category}:${cleanFilename}`;
+      if (!seenFilenames.has(key)) {
+        seenFilenames.add(key);
+        const sizeFormatted = typeof d.size === 'number' && d.size > 0
+          ? (d.size < 1024 * 1024 ? `${(d.size / 1024).toFixed(1)} KB` : `${(d.size / (1024 * 1024)).toFixed(2)} MB`)
+          : undefined;
+        docItems.push({
+          category,
+          filename: cleanFilename,
+          status: 'Uploaded (Pending Review)',
+          sizeFormatted,
+        });
+      }
+    }
+
+    if (answers.photo && typeof answers.photo === 'object' && answers.photo.filename) {
+      const clean = String(answers.photo.filename).split('/').pop()!.split('\\').pop()!;
+      const key = `Profile Photo:${clean}`;
+      if (!seenFilenames.has(key)) {
+        seenFilenames.add(key);
+        docItems.push({
+          category: 'Profile Photo',
+          filename: clean,
+          status: 'Uploaded (Pending Review)',
+        });
+      }
+    }
+
+    if (answers.traumaCertificateDoc && typeof answers.traumaCertificateDoc === 'object' && answers.traumaCertificateDoc.filename) {
+      const clean = String(answers.traumaCertificateDoc.filename).split('/').pop()!.split('\\').pop()!;
+      const key = `Trauma-Informed Certification:${clean}`;
+      if (!seenFilenames.has(key)) {
+        seenFilenames.add(key);
+        docItems.push({
+          category: 'Trauma-Informed Certification',
+          filename: clean,
+          status: 'Uploaded (Pending Review)',
+        });
+      }
+    }
+
+    const docsTableHtml = docItems.length > 0
+      ? `<table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px;">
+          <thead>
+            <tr style="background-color: #f1f5f9; text-align: left;">
+              <th style="padding: 8px 12px; color: #475569; font-weight: 600; border-bottom: 1px solid #cbd5e1;">Document Category</th>
+              <th style="padding: 8px 12px; color: #475569; font-weight: 600; border-bottom: 1px solid #cbd5e1;">Original Filename</th>
+              <th style="padding: 8px 12px; color: #475569; font-weight: 600; border-bottom: 1px solid #cbd5e1; text-align: right;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${docItems.map((item, idx) => `
+              <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
+                <td style="padding: 8px 12px; color: #0f172a; font-weight: 500;">${escapeHtml(item.category)}</td>
+                <td style="padding: 8px 12px; color: #475569; font-family: monospace; font-size: 12px;">${escapeHtml(item.filename)}${item.sizeFormatted ? ` <span style="color: #94a3b8; font-size: 11px;">(${escapeHtml(item.sizeFormatted)})</span>` : ''}</td>
+                <td style="padding: 8px 12px; text-align: right;"><span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(item.status)}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`
+      : `<p style="margin: 0; font-size: 13px; color: #64748b; font-style: italic;">No uploaded verification documents were recorded with this submission.</p>`;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${therapistName}</strong>,</p>
-      <p style="margin: 0 0 16px 0;">Thank you for submitting your application to join the Ingress Within mental healthcare network. We have safely received your profile, clinical preferences, and verification documents.</p>
-      
-      <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px 20px; margin: 20px 0; border-radius: 6px;">
-        <p style="margin: 0; font-weight: 600; color: #166534; font-size: 14px;">Current Status: UNDER REVIEW</p>
-        <p style="margin: 6px 0 0 0; font-size: 13px; color: #15803d; line-height: 1.5;">
-          Our clinical governance team will examine your degree credentials, state licensure, and submitted practice modalities.
+      <p style="margin: 0 0 16px 0; line-height: 1.6;">
+        Thank you for submitting your application to join the Ingress Within mental healthcare network. We have safely received your application and uploaded verification records. A full copy of your submitted application is provided below for your records.
+      </p>
+
+      <!-- Status Banner -->
+      <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 16px 20px; margin: 20px 0; border-radius: 6px;">
+        <p style="margin: 0; font-weight: 700; color: #1e40af; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Current Status: SUBMITTED / UNDER REVIEW</p>
+        <p style="margin: 6px 0 0 0; font-size: 13px; color: #1e3a8a; line-height: 1.5;">
+          Submitted on <strong>${escapeHtml(formattedSubmittedDate)}</strong>. Our clinical governance and credentialing team is now reviewing your application, qualifications, and verification documents.
         </p>
       </div>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px; color: #475569;">
-        <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a;">Important Information Regarding Review:</p>
-        <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
-          <li>Document submission does not in itself constitute practice verification.</li>
-          <li>Your profile will remain private and hidden from prospective clients until clinical verification is finalized.</li>
-          <li>You will receive an automated notification as soon as our administrative decision is recorded.</li>
-        </ul>
+      <!-- Essential Regulatory Disclaimer -->
+      <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13px; color: #92400e; line-height: 1.5;">
+        <strong>Important Clinical Notice:</strong> Submitting an onboarding application and verification documents does not constitute authorization to practise. Your profile remains private and hidden from prospective clients until clinical verification and administrative approval are finalized.
+      </div>
+
+      <h2 style="font-size: 16px; font-weight: 700; color: #132A24; margin: 28px 0 12px 0; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0;">
+        Summary of Submitted Application
+      </h2>
+
+      <!-- Section 1: Basic Information & Contact -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">1. Basic Information &amp; Contact</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+          <tr><td style="padding: 8px 16px; color: #64748b; width: 35%; border-bottom: 1px solid #f1f5f9;">Full Name:</td><td style="padding: 8px 16px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">${therapistName}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Email Address:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${applicantEmail}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Phone Number:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${applicantPhone}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${location}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b;">Gender:</td><td style="padding: 8px 16px; color: #0f172a;">${gender}</td></tr>
+        </table>
+      </div>
+
+      <!-- Section 2: Professional Credentials & Education -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">2. Professional Credentials &amp; Licensure</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+          <tr><td style="padding: 8px 16px; color: #64748b; width: 35%; border-bottom: 1px solid #f1f5f9;">Title / Credentials:</td><td style="padding: 8px 16px; color: #0f172a; font-weight: 600; border-bottom: 1px solid #f1f5f9;">${credentials}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Clinical Experience:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${experienceYears}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Licensing / Issuing Body:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${issuingBody}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">License / Registration:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${licenseNumberDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b;">RCI Registration:</td><td style="padding: 8px 16px; color: #0f172a;">${escapeHtml(rciDisplay)}</td></tr>
+        </table>
+      </div>
+
+      <!-- Section 3: Clinical Practice & Modalities -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">3. Clinical Practice &amp; Modalities</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+          <tr><td style="padding: 8px 16px; color: #64748b; width: 35%; border-bottom: 1px solid #f1f5f9;">Clinical Specialties:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${specialtiesDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Therapeutic Modalities:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${modalitiesDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Languages Spoken:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${languagesDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Session Formats:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${sessionFormatsDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b;">Consultation Fee:</td><td style="padding: 8px 16px; color: #0f172a; font-weight: 600;">${feeDisplay}</td></tr>
+        </table>
+      </div>
+
+      <!-- Section 4: Caseload & Availability -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">4. Caseload &amp; Availability</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+          <tr><td style="padding: 8px 16px; color: #64748b; width: 35%; border-bottom: 1px solid #f1f5f9;">Current Caseload:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${currentCaseload}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Maximum Caseload:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${maxCaseload}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Soonest Opening:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${openingDays}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Severity Ceiling:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${severityCeiling}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Age Groups Served:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${ageGroupsDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b;">Higher-Acuity Referral:</td><td style="padding: 8px 16px; color: #0f172a;">${escapeHtml(higherAcuityDisplay)}</td></tr>
+        </table>
+      </div>
+
+      <!-- Section 5: Supervision & Declarations -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">5. Supervision &amp; Declarations</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+          <tr><td style="padding: 8px 16px; color: #64748b; width: 35%; border-bottom: 1px solid #f1f5f9;">Supervision Pathway:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${supervisionDisplay}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Ethics Declaration:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${escapeHtml(ethicsConfirmed)}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Background Check Consent:</td><td style="padding: 8px 16px; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${escapeHtml(backgroundConsent)}</td></tr>
+          <tr><td style="padding: 8px 16px; color: #64748b;">Truthfulness Declaration:</td><td style="padding: 8px 16px; color: #0f172a;">${escapeHtml(truthConfirmed)}</td></tr>
+        </table>
+      </div>
+
+      <!-- Section 6: Uploaded Documents Ledger -->
+      <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 8px 16px; border-bottom: 1px solid #e2e8f0;">
+          <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">6. Uploaded Verification Documents</h3>
+        </div>
+        <div style="padding: 12px 16px; background-color: #ffffff;">
+          ${docsTableHtml}
+          <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+            <strong>Document Privacy &amp; Security:</strong> For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents by logging in to your <a href="${statusUrl}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">Application Status Portal</a>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Next Steps & Support -->
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; margin: 24px 0;">
+        <p style="margin: 0 0 8px 0; font-weight: 700; color: #0f172a; font-size: 14px;">Next Steps in the Review Process:</p>
+        <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.7;">
+          <li><strong>Credential Verification:</strong> Our clinical review board will examine your degree credentials, state licensure, and submitted practice modalities.</li>
+          <li><strong>Administrative Review:</strong> Once credential checks are complete, you will receive an email update with your application outcome.</li>
+          <li><strong>Practice Activation:</strong> If approved, your account will be activated and you will be invited to configure your availability, Google Calendar integration, and practice settings.</li>
+        </ol>
+      </div>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13px; color: #475569;">
+        <p style="margin: 0; font-weight: 600; color: #0f172a;">Need assistance or have corrections?</p>
+        <p style="margin: 4px 0 0 0; line-height: 1.5;">
+          If you have any questions or need to update your submitted details, please contact our support team at <a href="mailto:${SUPPORT_CONFIG.supportEmail}" style="color: #4E7A66; text-decoration: none; font-weight: 600;">${SUPPORT_CONFIG.supportEmail}</a> or call <strong>${SUPPORT_CONFIG.temporaryContactNumber}</strong>.
+        </p>
       </div>
     `;
+
+    const docsTextList = docItems.length > 0
+      ? docItems.map((item) => `  - ${item.category}: ${item.filename} [${item.status}]${item.sizeFormatted ? ` (${item.sizeFormatted})` : ''}`).join('\n')
+      : '  (No external document files attached with this submission)';
 
     return {
       subject: 'Your Ingress Within Therapist Application Has Been Received',
@@ -511,58 +768,89 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         badge: 'Under Review',
         badgeVariant: 'info',
         heading: 'Application Received',
-        preheader: 'Your therapist application has been safely received and is under clinical review.',
+        preheader: `Thank you for applying to Ingress Within. Your application has been safely received and is under clinical review.`,
         contentHtml,
         ctaButton: {
           label: 'View Application Status',
           url: statusUrl,
         },
       }),
-      text: `Hello ${rawTherapistName},\n\nWe have received your therapist application for Ingress Within.\n\nYour application is currently:\nUNDER REVIEW\n\nOur clinical and administrative review team will review the information, certifications, and credentials you submitted.\n\nPlease note: Uploading documents does not itself mean verification. Your profile remains hidden from clients until credentialing is complete. You will receive another email when your application status changes.\n\nView Application Status:\n${statusUrl}\n\nWarm regards,\nThe Ingress Within Clinical Team\ncontactus@ingresswithin.com`,
+      text: `Hello ${rawTherapistName},\n\nThank you for submitting your application to join the Ingress Within mental healthcare network. We have safely received your application and uploaded verification records.\n\n============================================================\nCURRENT APPLICATION STATUS: SUBMITTED / UNDER REVIEW\n============================================================\nSubmitted on: ${formattedSubmittedDate}\nStatus Portal: ${statusUrl}\n\nIMPORTANT CLINICAL NOTICE:\nSubmitting an onboarding application and verification documents does not constitute authorization to practise. Your profile remains private and hidden from prospective clients until clinical verification and administrative approval are finalized.\n\n============================================================\nSUMMARY OF SUBMITTED APPLICATION\n============================================================\n\n1. BASIC INFORMATION & CONTACT\n- Full Name: ${rawTherapistName}\n- Email: ${answers.contact_email || answers.email || data.email || 'Registered account email'}\n- Phone: ${answers.phone || 'Recorded in application'}\n- Location: ${[answers.city, answers.state].filter(Boolean).join(', ') || 'India'}\n- Gender: ${answers.gender || 'Not specified'}\n\n2. PROFESSIONAL CREDENTIALS & LICENSURE\n- Title / Credentials: ${answers.credentials || 'Psychotherapist'}\n- Clinical Experience: ${answers.yearsOfExperience !== undefined ? `${answers.yearsOfExperience} years` : (data.experienceYears !== undefined ? `${data.experienceYears} years` : 'Not specified')}\n- Licensing / Issuing Body: ${answers.issuingBody || 'Accredited Board'}\n- License / Registration: ${answers.licenseNumber || 'Not specified'}\n- RCI Registration: ${isRci ? 'Yes (RCI Registered)' : 'Not RCI Registered'}\n\n3. CLINICAL PRACTICE & MODALITIES\n- Specialties: ${specialtiesList.length > 0 ? specialtiesList.join(', ') : 'General Clinical Psychology'}\n- Therapeutic Modalities: ${modalitiesList.length > 0 ? modalitiesList.join(', ') : 'Evidence-based Practice'}\n- Languages: ${languagesList.join(', ')}\n- Session Formats: ${sessionFormatsList.join(', ')}\n- Consultation Fee: ${fee ? `₹${fee} per session` : 'Platform Standard'}\n\n4. CASELOAD & AVAILABILITY\n- Current Caseload: ${answers.currentCapacity !== undefined ? `${answers.currentCapacity} clients` : 'Flexible'}\n- Maximum Caseload: ${answers.maxCapacity !== undefined ? `${answers.maxCapacity} clients` : 'Flexible'}\n- Soonest Opening: ${answers.soonestOpeningDays !== undefined ? `Within ${answers.soonestOpeningDays} days` : 'Immediate'}\n- Severity Ceiling: ${answers.severityCeiling !== undefined ? `Level ${answers.severityCeiling} of 5` : 'Standard Outpatient'}\n- Age Groups Served: ${ageGroupsList.join(', ')}\n- Higher-Acuity Referral: ${answers.higherAcuityInterest === 'Yes' ? 'Interested' : 'Standard outpatient'}\n\n5. SUPERVISION & DECLARATIONS\n- Supervision: ${answers.supervision?.status || 'Independent Practice'}\n- Ethics Declaration: ${ethicsConfirmed}\n- Background Check: ${backgroundConsent}\n- Truthfulness: ${truthConfirmed}\n\n6. UPLOADED VERIFICATION DOCUMENTS\n${docsTextList}\n\n(Document Privacy Notice: For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents after authenticating at ${statusUrl})\n\n============================================================\nNEXT STEPS IN THE REVIEW PROCESS\n============================================================\n1. Credential Verification: Our clinical review board will examine your degree credentials, state licensure, and submitted practice modalities.\n2. Administrative Review: Once credential checks are complete, you will receive an email update with your application outcome.\n3. Practice Activation: If approved, your account will be activated and you will be invited to configure your availability, Google Calendar integration, and practice settings.\n\nNeed assistance or have corrections?\nContact support at:\nEmail: ${SUPPORT_CONFIG.supportEmail}\nPhone: ${SUPPORT_CONFIG.temporaryContactNumber}\n\nView Application Status:\n${statusUrl}\n\nWarm regards,\nThe Ingress Within Clinical Team`,
     };
   },
 
   therapist_application_approved: (data) => {
     const rawTherapistName = data.therapistName || 'Doctor/Counselor';
     const therapistName = escapeHtml(rawTherapistName);
+    const loginUrl = data.loginUrl || 'https://ingresswithin.com/auth?role=therapist';
     const dashboardUrl = data.dashboardUrl || 'https://ingresswithin.com/therapist';
+    const supportEmail = escapeHtml(data.supportEmail || SUPPORT_CONFIG.supportEmail);
+    const supportPhone = escapeHtml(data.supportPhone || SUPPORT_CONFIG.temporaryContactNumber);
 
     const contentHtml = `
-      <p style="margin: 0 0 12px 0;">Hello <strong>${therapistName}</strong>,</p>
-      <p style="margin: 0 0 16px 0;">We are delighted to share that your therapist application has been formally approved by the Ingress Within clinical governance and verification team.</p>
-      
-      <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-        <p style="margin: 0; font-weight: 600; color: #166534; font-size: 15px;">Your Therapist Account is Now Verified</p>
-        <p style="margin: 8px 0 0 0; font-size: 13px; color: #15803d; line-height: 1.5;">
-          Practice authorization has been granted. You are now authorized to provide psychotherapy consultations on the Ingress Within platform in accordance with our clinical standards.
+      <p style="margin: 0 0 16px 0; font-size: 15px;">Hello <strong>${therapistName}</strong>,</p>
+
+      <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #132A24;">
+        <strong>Congratulations, and welcome to Ingress Within!</strong>
+      </p>
+
+      <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
+        We're happy to let you know that your therapist application has been approved. Thank you for completing the onboarding and verification process.
+      </p>
+
+      <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
+        <p style="margin: 0 0 6px 0; font-weight: 700; color: #166534; font-size: 15px;">Your Therapist Account is Verified &amp; Practice Authorized</p>
+        <p style="margin: 0; font-size: 13.5px; color: #15803d; line-height: 1.5;">
+          You are now authorized to provide psychotherapy consultations on the Ingress Within platform in accordance with our clinical standards.
         </p>
       </div>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0; font-size: 13px; color: #334155;">
-        <p style="margin: 0 0 10px 0; font-weight: 600; color: #0f172a;">Recommended Next Steps in Your Workspace:</p>
-        <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
-          <li><strong>Connect Google Calendar</strong> to synchronize availability and automated Google Meet links.</li>
-          <li><strong>Configure Practice Hours</strong> and set weekly session buffers.</li>
-          <li><strong>Link Payout Details</strong> under Earnings to receive direct session honorariums.</li>
+      <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155;">
+        You can now sign in to your therapist account and continue setting up your professional profile, availability, and practice workflow.
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+        <p style="margin: 0 0 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">Next Steps for Setting Up Your Practice:</p>
+        <ol style="margin: 0; padding-left: 20px; font-size: 13.5px; color: #334155; line-height: 1.8;">
+          <li><strong>Log In to Your Therapist Dashboard:</strong> Sign in at <a href="${escapeHtml(loginUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">${escapeHtml(loginUrl)}</a> using your registered credentials.</li>
+          <li><strong>Connect Google Calendar:</strong> Synchronize your calendar to automatically generate Google Meet consultation links for upcoming client sessions.</li>
+          <li><strong>Configure Practice Hours &amp; Buffers:</strong> Set your weekly consultation windows, daily session caps, and appointment buffers.</li>
+          <li><strong>Link Payout Details:</strong> Enter your bank account details under the Earnings tab to receive direct session disbursements.</li>
         </ol>
       </div>
+
+      <p style="margin: 16px 0; font-size: 14px; color: #334155; line-height: 1.6;">
+        Log in to your therapist dashboard:<br>
+        <a href="${escapeHtml(loginUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(loginUrl)}</a>
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 20px 0; font-size: 13px; color: #475569;">
+        <p style="margin: 0; font-weight: 600; color: #0f172a;">Need assistance getting started?</p>
+        <p style="margin: 6px 0 0 0; line-height: 1.5;">
+          If you need any assistance, please contact our support team at <a href="mailto:${supportEmail}" style="color: #4E7A66; text-decoration: none; font-weight: 600;">${supportEmail}</a> or call <strong>${supportPhone}</strong>.
+        </p>
+      </div>
+
+      <p style="margin: 24px 0 0 0; font-size: 14px; color: #334155; line-height: 1.5;">
+        We look forward to having you with us!
+      </p>
     `;
 
     return {
-      subject: 'Your Ingress Within Therapist Application Has Been Approved',
+      subject: 'Congratulations! Your Ingress Within therapist application is approved',
       html: renderBaseEmailLayout({
         title: 'Application Approved',
         badge: 'Practice Authorized',
         badgeVariant: 'success',
-        heading: 'Congratulations — Application Approved!',
-        preheader: 'Your Ingress Within therapist application has been approved and verified for practice.',
+        heading: 'Congratulations! Your Ingress Within therapist application is approved',
+        preheader: 'Congratulations and welcome to Ingress Within! Your therapist application has been approved.',
         contentHtml,
         ctaButton: {
-          label: 'Open Therapist Dashboard',
-          url: dashboardUrl,
+          label: 'Log in to Therapist Dashboard',
+          url: loginUrl,
         },
       }),
-      text: `Hello ${rawTherapistName},\n\nYour therapist application has been approved by the Ingress Within review team.\n\nYour therapist account is now approved and verified for clinical practice.\n\nYou can now continue setting up your professional profile, connect your Google Calendar for session syncing, and begin accepting client connections.\n\nOpen Therapist Dashboard:\n${dashboardUrl}\n\nWelcome to the network,\nThe Ingress Within Clinical Team`,
+      text: `Hello ${rawTherapistName},\n\nCongratulations, and welcome to Ingress Within!\n\nWe're happy to let you know that your therapist application has been approved. Thank you for completing the onboarding and verification process.\n\nYour practitioner account has been verified, and clinical practice authorization has been granted on the Ingress Within platform.\n\nYou can now sign in to your therapist account and continue setting up your professional profile, availability, and practice workflow.\n\nNext steps for setting up your practice:\n1. Log in to your therapist dashboard: ${loginUrl}\n2. Connect Google Calendar to synchronize availability and automated Google Meet links.\n3. Configure Practice Hours and weekly session buffers.\n4. Link Payout Details under Earnings to receive direct session honorariums.\n\nLog in to your therapist dashboard:\n${loginUrl}\n\nIf you need any assistance, please contact our support team:\nEmail: ${data.supportEmail || SUPPORT_CONFIG.supportEmail}\nPhone: ${data.supportPhone || SUPPORT_CONFIG.temporaryContactNumber}\n\nWe look forward to having you with us!\n\nWarm regards,\nThe Ingress Within Clinical Team`,
     };
   },
 

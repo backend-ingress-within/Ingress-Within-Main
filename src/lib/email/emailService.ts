@@ -8,6 +8,7 @@ import { validateAndNormalizeEmail } from './emailValidation';
 import { ApiUsageService } from '../admin/apiUsageService';
 import { processEmailJob } from '../queue/workers/emailWorker';
 import { queueRegistry } from '../queue/registry';
+import { SUPPORT_CONFIG } from '../../config/supportConfig';
 
 export class EmailService {
   /**
@@ -217,7 +218,7 @@ export class EmailService {
    * Triggered when a new therapist application is formally submitted.
    * Sends:
    * 1. Notification to official admin address (contactus@ingresswithin.com)
-   * 2. Confirmation receipt to the therapist applicant.
+   * 2. Full confirmation receipt with readable submission copy and document metadata to the therapist applicant.
    */
   static async notifyTherapistApplicationSubmitted(payload: {
     therapistAccountId: string;
@@ -227,6 +228,9 @@ export class EmailService {
     experienceYears?: number;
     submittedAt?: string;
     applicationId?: string;
+    answers?: Record<string, any>;
+    documents?: Array<any>;
+    idempotencyKey?: string;
   }) {
     const submittedAtIso = payload.submittedAt || new Date().toISOString();
 
@@ -255,7 +259,7 @@ export class EmailService {
       },
     });
 
-    // 2. Confirmation email to the therapist applicant
+    // 2. Full Confirmation receipt with submission copy & document metadata to the therapist applicant
     await this.queueEmail({
       eventType: EmailEvents.THERAPIST_APPLICATION_RECEIVED,
       recipient: {
@@ -267,13 +271,21 @@ export class EmailService {
       templateKey: 'therapist_application_received',
       templateData: {
         therapistName: payload.therapistName,
+        email: payload.email,
+        applicationId: payload.applicationId,
+        submittedAt: submittedAtIso,
         statusUrl: 'https://ingresswithin.com/therapist/application/status',
+        answers: payload.answers || {},
+        documents: payload.documents || [],
+        specialization: payload.specialization,
+        experienceYears: payload.experienceYears,
       },
       entityType: 'application',
       entityId: payload.applicationId || payload.therapistAccountId,
-      idempotencyKey: `therapist_app_rec_conf:${payload.therapistAccountId}:${submittedAtIso.substring(0, 16)}`,
+      idempotencyKey: payload.idempotencyKey || `therapist_app_rec_conf:${payload.applicationId || payload.therapistAccountId}:${submittedAtIso.substring(0, 16)}`,
       metadata: {
         therapistAccountId: payload.therapistAccountId,
+        documentCount: Array.isArray(payload.documents) ? payload.documents.length : 0,
       },
     });
   }
@@ -286,7 +298,13 @@ export class EmailService {
     therapistName: string;
     email: string;
     applicationId?: string;
+    loginUrl?: string;
+    dashboardUrl?: string;
+    idempotencyKey?: string;
   }) {
+    const loginUrl = payload.loginUrl || 'https://ingresswithin.com/auth?role=therapist';
+    const dashboardUrl = payload.dashboardUrl || 'https://ingresswithin.com/therapist';
+
     await this.queueEmail({
       eventType: EmailEvents.THERAPIST_APPLICATION_APPROVED,
       recipient: {
@@ -298,13 +316,18 @@ export class EmailService {
       templateKey: 'therapist_application_approved',
       templateData: {
         therapistName: payload.therapistName,
-        dashboardUrl: 'https://ingresswithin.com/therapist',
+        loginUrl,
+        dashboardUrl,
+        therapistAccountId: payload.therapistAccountId,
+        supportEmail: SUPPORT_CONFIG.supportEmail,
+        supportPhone: SUPPORT_CONFIG.temporaryContactNumber,
       },
       entityType: 'therapist',
       entityId: payload.therapistAccountId,
-      idempotencyKey: `therapist_app_approved:${payload.therapistAccountId}`,
+      idempotencyKey: payload.idempotencyKey || `therapist_app_approved:${payload.therapistAccountId}`,
       metadata: {
         therapistAccountId: payload.therapistAccountId,
+        approvedAt: new Date().toISOString(),
       },
     });
   }

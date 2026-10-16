@@ -133,9 +133,9 @@ async function runTestSuite() {
       dashboardUrl: 'https://ingresswithin.com/therapist',
     });
 
-    assert(rendered.subject.includes('Has Been Approved'), 'Subject conveys approval');
+    assert(rendered.subject.toLowerCase().includes('approved'), 'Subject conveys approval');
     assert(rendered.html.includes('Connect Google Calendar'), 'Recommends calendar setup');
-    assert(rendered.html.includes('Open Therapist Dashboard'), 'Includes CTA');
+    assert(rendered.html.includes('Therapist Dashboard'), 'Includes CTA');
     assert(!rendered.html.includes('undefined'), 'Zero undefined in approved template');
   });
 
@@ -321,7 +321,7 @@ async function runTestSuite() {
     const sent = await waitForSent(1);
     const approvalMsg = sent.find((m) => m.to === 'approved.doctor@example.com');
     assert(approvalMsg, 'Approval message must be dispatched');
-    assert(approvalMsg.subject.includes('Has Been Approved'), 'Subject conveys approval');
+    assert(approvalMsg.subject.toLowerCase().includes('approved'), 'Subject conveys approval');
   });
 
   await test('Admin rejection requires minimum 5-character reason and delivers feedback', async () => {

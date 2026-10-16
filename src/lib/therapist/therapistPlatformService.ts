@@ -349,6 +349,8 @@ export class TherapistPlatformService {
       experienceYears: Number(mergedAnswers.yearsOfExperience) || 0,
       submittedAt: now,
       applicationId: app?.id || therapistAccountId,
+      answers: mergedAnswers,
+      documents: persistedDocuments,
     }).catch((mailErr) => {
       console.warn('[TherapistPlatformService] Notification queue notice:', mailErr);
     });
@@ -504,11 +506,18 @@ export class TherapistPlatformService {
           .eq('therapist_account_id', therapistAccountId)
           .maybeSingle();
 
+        const { data: account } = await supabase
+          .from('therapist_accounts')
+          .select('email')
+          .eq('id', therapistAccountId)
+          .maybeSingle();
+
         const targetEmail =
           profile?.contact_email ||
           application?.contact_email ||
           application?.answers?.contact_email ||
-          application?.answers?.email;
+          application?.answers?.email ||
+          account?.email;
         const targetName =
           profile?.full_name || application?.answers?.fullName || 'Doctor/Counselor';
 
@@ -519,6 +528,8 @@ export class TherapistPlatformService {
               therapistName: targetName,
               email: targetEmail,
               applicationId: application?.id,
+              loginUrl: 'https://ingresswithin.com/auth?role=therapist',
+              dashboardUrl: 'https://ingresswithin.com/therapist',
             });
           } else {
             await EmailService.notifyTherapistApplicationRejected({
