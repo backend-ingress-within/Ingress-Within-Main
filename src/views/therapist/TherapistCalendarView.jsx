@@ -14,10 +14,13 @@ import {
   RotateCcw,
   User,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Ban,
+  Trash2
 } from 'lucide-react';
 import TherapistScheduleModal from './TherapistScheduleModal';
 import TherapistRescheduleModal from './TherapistRescheduleModal';
+import TherapistBlockTimeModal from './TherapistBlockTimeModal';
 
 export default function TherapistCalendarView({
   onOpenSession,
@@ -26,6 +29,7 @@ export default function TherapistCalendarView({
 }) {
   const [sessions, setSessions] = useState([]);
   const [externalBusy, setExternalBusy] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
   const [googleCalendarStatus, setGoogleCalendarStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,9 +44,11 @@ export default function TherapistCalendarView({
   });
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [rescheduleAppt, setRescheduleAppt] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
   const [completingId, setCompletingId] = useState(null);
+  const [unblockingId, setUnblockingId] = useState(null);
   const [connectingCalendar, setConnectingCalendar] = useState(false);
   const [successBanner, setSuccessBanner] = useState(null);
 
@@ -91,6 +97,8 @@ export default function TherapistCalendarView({
       const list = json.sessions || json.appointments || [];
       setSessions(list);
       setExternalBusy(json.externalBusy || []);
+      const blocks = (json.availabilityBlocks || []).filter(b => b.is_blocked);
+      setBlockedSlots(blocks);
       setGoogleCalendarStatus(json.googleCalendarStatus || null);
     } catch (err) {
       console.error('Calendar error:', err);
@@ -182,6 +190,9 @@ export default function TherapistCalendarView({
       const activeCount = daySessions.filter(s => s.status !== 'cancelled').length;
       const cancelledCount = daySessions.filter(s => s.status === 'cancelled').length;
 
+      const dayBlocks = blockedSlotsByDay.get(dayKey) || [];
+      const isDayBlocked = dayBlocks.length > 0;
+
       days.push({
         dayNumber: day,
         isCurrentMonth: true,
@@ -190,10 +201,12 @@ export default function TherapistCalendarView({
         sessions: daySessions,
         activeCount,
         cancelledCount,
+        blockedSlots: dayBlocks,
+        isBlocked: isDayBlocked,
       });
     }
     return days;
-  }, [currentMonth, sessionsByDay]);
+  }, [currentMonth, sessionsByDay, blockedSlotsByDay]);
 
   const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
   const selectedDaySessions = useMemo(() => {
@@ -218,7 +231,30 @@ export default function TherapistCalendarView({
     return externalBusyByDay.get(selectedDayKey) || [];
   }, [externalBusyByDay, selectedDayKey]);
 
+  const selectedDayBlockedSlots = useMemo(() => {
+    return blockedSlotsByDay.get(selectedDayKey) || [];
+  }, [blockedSlotsByDay, selectedDayKey]);
+
   // Actions
+  const handleUnblockSlot = async (blockId) => {
+    if (!window.confirm('Are you sure you want to remove this blocked time / leave window?')) return;
+    setUnblockingId(blockId);
+    try {
+      const res = await fetch(`/api/therapist/calendar/block?blockId=${encodeURIComponent(blockId)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || 'Failed to remove blocked slot.');
+      }
+      await fetchCalendar();
+    } catch (err) {
+      alert(`Error removing blocked slot: ${err.message}`);
+    } finally {
+      setUnblockingId(null);
+    }
+  };
+
   const handleCancelSession = async (appointmentId) => {
     const reason = window.prompt('Reason for session cancellation:');
     if (reason === null) return;
@@ -313,6 +349,13 @@ export default function TherapistCalendarView({
               Day Agenda
             </button>
           </div>
+
+          <button
+            onClick={() => setBlockModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
+          >
+            <Ban size={13} className="text-amber-700" /> Block Time / Leave
+          </button>
 
           <button
             onClick={() => setScheduleModalOpen(true)}
@@ -508,14 +551,30 @@ export default function TherapistCalendarView({
                         {cell.dayNumber}
                       </span>
 
-                      {hasSessions && (
-                        <span className="text-[10px] font-bold text-[#4E7A66] px-1.5 py-0.2 bg-[#4E7A66]/10 rounded-md">
-                          {cell.activeCount}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {cell.isBlocked && (
+                          <span
+                            className="text-[9px] font-bold text-amber-800 px-1.5 py-0.5 bg-amber-100 rounded-md border border-amber-200"
+                            title={cell.blockedSlots?.map((b) => b.reason || 'Blocked').join(', ') || 'Time Blocked / Leave'}
+                          >
+                            Blocked
+                          </span>
+                        )}
+                        {hasSessions && (
+                          <span className="text-[10px] font-bold text-[#4E7A66] px-1.5 py-0.2 bg-[#4E7A66]/10 rounded-md">
+                            {cell.activeCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-1 mt-1">
+                      {cell.isBlocked && cell.blockedSlots?.length > 0 && (
+                        <div className="text-[9px] text-amber-700 font-medium truncate flex items-center gap-0.5">
+                          <Ban size={9} className="shrink-0" />
+                          <span>{cell.blockedSlots[0].reason || 'On Leave'}</span>
+                        </div>
+                      )}
                       {cell.activeCount > 0 && (
                         <div className="text-[10px] text-[#132A24]/80 font-medium truncate">
                           {cell.activeCount} {cell.activeCount === 1 ? 'session' : 'sessions'}
@@ -558,15 +617,16 @@ export default function TherapistCalendarView({
               </span>
             </div>
 
-            {selectedDaySessions.length === 0 && selectedDayExternalBusy.length === 0 ? (
+            {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalBusy.length === 0 ? (
               <div className="bg-white border border-[#132A24]/10 rounded-xl p-8 text-center space-y-2">
                 <p className="text-sm font-medium text-[#132A24]">No sessions scheduled for this day.</p>
                 <p className="text-xs text-[#132A24]/50 max-w-sm mx-auto">
-                  Click "Schedule Session" above to book a clinical encounter on this date.
+                  Click "Schedule Session" above to book a clinical encounter on this date, or "Block Time / Leave" to adjust your availability manually.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
+                {selectedDayBlockedSlots.map(renderBlockedSlotCard)}
                 {selectedDaySessions.map(renderSessionCard)}
                 {selectedDayExternalBusy.map(renderExternalBusyCard)}
               </div>
@@ -581,6 +641,11 @@ export default function TherapistCalendarView({
               {selectedDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </h3>
             <div className="flex items-center gap-2">
+              {selectedDayBlockedSlots.length > 0 && (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                  {selectedDayBlockedSlots.length} blocked / leave
+                </span>
+              )}
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#132A24]/5 text-[#132A24]/70">
                 {selectedDaySessions.length} {selectedDaySessions.length === 1 ? 'session' : 'sessions'}
               </span>
@@ -592,18 +657,19 @@ export default function TherapistCalendarView({
             </div>
           </div>
 
-          {selectedDaySessions.length === 0 && selectedDayExternalBusy.length === 0 ? (
+          {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalBusy.length === 0 ? (
             <div className="bg-white border border-[#132A24]/10 rounded-2xl p-12 text-center space-y-3">
               <CalendarIcon size={36} className="mx-auto text-[#132A24]/30" />
               <h3 className="font-serif text-xl font-normal text-[#132A24]">
                 No commitments scheduled for this day.
               </h3>
               <p className="text-xs text-[#132A24]/60 max-w-sm mx-auto">
-                No clinical consultations or external Google Calendar commitments are recorded for this date.
+                No clinical consultations, manual blocked leaves, or external Google Calendar commitments are recorded for this date.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
+              {selectedDayBlockedSlots.map(renderBlockedSlotCard)}
               {selectedDaySessions.map(renderSessionCard)}
               {selectedDayExternalBusy.map(renderExternalBusyCard)}
             </div>
@@ -619,6 +685,15 @@ export default function TherapistCalendarView({
         />
       )}
 
+      {/* Block Time / Leave Modal */}
+      {blockModalOpen && (
+        <TherapistBlockTimeModal
+          initialDate={selectedDate}
+          onClose={() => setBlockModalOpen(false)}
+          onSuccess={() => fetchCalendar()}
+        />
+      )}
+
       {/* Reschedule Modal */}
       {rescheduleAppt && (
         <TherapistRescheduleModal
@@ -629,6 +704,53 @@ export default function TherapistCalendarView({
       )}
     </div>
   );
+
+  // Render therapist manual blocked slot card (e.g. Leave, Time off)
+  function renderBlockedSlotCard(block) {
+    const isAllDay =
+      (!block.start_time || block.start_time.startsWith('00:00')) &&
+      (!block.end_time || block.end_time.startsWith('23:59') || block.end_time.startsWith('24:00'));
+
+    const timeLabel = isAllDay
+      ? 'All Day / On Leave'
+      : `${(block.start_time || '00:00').substring(0, 5)} – ${(block.end_time || '23:59').substring(0, 5)}`;
+
+    return (
+      <div
+        key={`blocked-${block.id}`}
+        className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 flex items-center justify-between gap-4 transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-300/40 flex flex-col items-center justify-center shrink-0 text-amber-800">
+            <Ban size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#132A24]">
+                {timeLabel}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 text-amber-900 uppercase tracking-wider">
+                Blocked / Leave
+              </span>
+            </div>
+            <p className="text-[11px] text-[#132A24]/70 mt-0.5 font-medium">
+              {block.reason || 'Personal Leave / Not Taking Cases'} &bull; Client booking prevented during this window
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => handleUnblockSlot(block.id)}
+          disabled={unblockingId === block.id}
+          className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 shadow-2xs"
+          title="Remove this block and reopen availability"
+        >
+          <Trash2 size={13} />
+          {unblockingId === block.id ? 'Removing...' : 'Unblock'}
+        </button>
+      </div>
+    );
+  }
 
   // Render external Google Calendar busy block (strictly privacy-sanitized: no titles, descriptions, or attendees)
   function renderExternalBusyCard(busyItem, idx) {

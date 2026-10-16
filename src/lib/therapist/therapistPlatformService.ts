@@ -3400,6 +3400,86 @@ export class TherapistPlatformService {
   }
 
   /**
+   * Manually blocks a date or time window on the therapist's calendar (e.g. Leave, Personal Time Off).
+   */
+  static async createBlockedSlot(
+    therapistAccountId: string,
+    params: {
+      specificDate: string; // 'YYYY-MM-DD'
+      startTime?: string;   // 'HH:mm' or 'HH:mm:ss' (defaults to '00:00:00')
+      endTime?: string;     // 'HH:mm' or 'HH:mm:ss' (defaults to '23:59:59')
+      reason?: string;      // Optional description, e.g. 'Personal Leave'
+      isRecurring?: boolean;
+      dayOfWeek?: number;
+    }
+  ) {
+    if (!params.specificDate && params.dayOfWeek === undefined) {
+      const err: any = new Error('A specific date or recurring day of week is required.');
+      err.status = 400;
+      throw err;
+    }
+
+    const startTime = (params.startTime || '00:00:00').length === 5 ? `${params.startTime}:00` : (params.startTime || '00:00:00');
+    const endTime = (params.endTime || '23:59:59').length === 5 ? `${params.endTime}:00` : (params.endTime || '23:59:59');
+
+    // Calculate dayOfWeek from specificDate if not provided
+    let dayOfWeek = params.dayOfWeek;
+    if (dayOfWeek === undefined && params.specificDate) {
+      const d = new Date(params.specificDate);
+      dayOfWeek = isNaN(d.getDay()) ? 0 : d.getDay();
+    }
+
+    const payload: any = {
+      therapist_account_id: therapistAccountId,
+      specific_date: params.specificDate || null,
+      start_time: startTime,
+      end_time: endTime,
+      day_of_week: dayOfWeek ?? null,
+      is_recurring: params.isRecurring ?? false,
+      is_blocked: true,
+      reason: params.reason || 'Manual Block / Leave',
+    };
+
+    const { data, error } = await supabase
+      .from('therapist_availability_blocks')
+      .insert([payload])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[TherapistPlatformService] createBlockedSlot error:', error);
+      throw new Error(error.message || 'Failed to create blocked slot.');
+    }
+
+    return data;
+  }
+
+  /**
+   * Deletes a manual blocked slot / leave window from the therapist's calendar.
+   */
+  static async deleteBlockedSlot(therapistAccountId: string, blockId: string) {
+    if (!blockId) {
+      const err: any = new Error('Block ID is required.');
+      err.status = 400;
+      throw err;
+    }
+
+    const { error } = await supabase
+      .from('therapist_availability_blocks')
+      .delete()
+      .eq('id', blockId)
+      .eq('therapist_account_id', therapistAccountId)
+      .eq('is_blocked', true);
+
+    if (error) {
+      console.error('[TherapistPlatformService] deleteBlockedSlot error:', error);
+      throw new Error(error.message || 'Failed to remove blocked slot.');
+    }
+
+    return { success: true };
+  }
+
+  /**
    * =========================================================================
    * 8. EARNINGS & PAYOUTS (Real Payment Ledger)
    * =========================================================================
