@@ -170,6 +170,21 @@ export default function TherapistCalendarView({
     return map;
   }, [sessions]);
 
+  // Group manual blocked slots by day (YYYY-MM-DD)
+  const blockedSlotsByDay = useMemo(() => {
+    const map = new Map();
+    blockedSlots.forEach((b) => {
+      if (b.specific_date) {
+        const dayKey = b.specific_date;
+        if (!map.has(dayKey)) {
+          map.set(dayKey, []);
+        }
+        map.get(dayKey).push(b);
+      }
+    });
+    return map;
+  }, [blockedSlots]);
+
   // Build calendar matrix for month
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
