@@ -574,7 +574,7 @@ export class SessionBookingService {
     // 7. Register therapist earnings (enforcing single earning per appointment)
     try {
       const gross = Number(therapistAccount?.per_session_fee) || 1500;
-      const commRate = Number(therapistAccount?.commission_rate) || 15;
+      const commRate = Number(therapistAccount?.commission_rate) || 20;
 
       await TherapistPayoutService.recordEarningForAppointment({
         therapistAccountId: booking.therapist_account_id,

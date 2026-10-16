@@ -150,28 +150,29 @@ async function runTherapistEarningsSuite() {
   const nowTime = Date.now();
 
   // Record 3 sessions:
-  // 1. Paid session: Gross 1500, Fee 225, Net 1275, Status 'collected'
+  // 1. Paid session: Gross 1500, Comm 20% (300) + 18% GST (54) = Fee 354, Net 1146, Status 'collected'
   const earning1 = await TherapistPayoutService.recordEarningForAppointment({
     therapistAccountId: mockTherapistId,
     appointmentId: 'appt-fin-001',
     grossAmount: 1500,
-    commissionRate: 15,
+    commissionRate: 20,
     initialStatus: 'collected',
   });
   assert(earning1.gross_amount === 1500, 'Earning 1 gross amount is 1500');
-  assert(earning1.platform_fee === 225, 'Platform fee calculated as 15% (225)');
-  assert(earning1.net_earnings === 1275, 'Net earnings calculated as 1275');
+  assert(earning1.platform_fee === 354, 'Platform fee calculated as 20% commission + 18% GST (354)');
+  assert(earning1.net_earnings === 1146, 'Net earnings calculated as 1146');
 
-  // 2. Paid session: Gross 2000, Fee 300, Net 1700, Status 'collected'
+  // 2. Paid session: Gross 2000, Comm 20% (400) + 18% GST (72) = Fee 472, Net 1528, Status 'collected'
   const earning2 = await TherapistPayoutService.recordEarningForAppointment({
     therapistAccountId: mockTherapistId,
     appointmentId: 'appt-fin-002',
     grossAmount: 2000,
-    commissionRate: 15,
+    commissionRate: 20,
     initialStatus: 'collected',
   });
   assert(earning2.gross_amount === 2000, 'Earning 2 gross amount is 2000');
-  assert(earning2.net_earnings === 1700, 'Earning 2 net earnings is 1700');
+  assert(earning2.platform_fee === 472, 'Platform fee calculated as 20% commission + 18% GST (472)');
+  assert(earning2.net_earnings === 1528, 'Earning 2 net earnings is 1528');
 
   // 3. Refunded/Cancelled session: Gross 1500, Fee 225, Net 1275, then refunded
   const earning3 = await TherapistPayoutService.recordEarningForAppointment({

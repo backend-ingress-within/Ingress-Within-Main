@@ -255,7 +255,7 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
       verification_status: account.verification_status || 'unverified',
       rci_registered: Boolean(account.rci_registered),
       rci_number: account.rci_number || null,
-      commission_rate: Number(account.commission_rate) || 15,
+      commission_rate: Number(account.commission_rate) || 20,
       per_session_fee: Number(account.per_session_fee) || 1500,
       created_at: account.created_at,
       updated_at: account.updated_at

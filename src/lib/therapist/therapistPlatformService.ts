@@ -2943,8 +2943,10 @@ export class TherapistPlatformService {
       .single();
 
     const gross = Number(account?.per_session_fee) || 1500;
-    const commRate = Number(account?.commission_rate) || 15;
-    const platformFee = Math.round((gross * (commRate / 100)) * 100) / 100;
+    const commRate = Number(account?.commission_rate) || 20;
+    const baseCommission = Math.round(gross * (commRate / 100) * 100) / 100;
+    const gstOnCommission = Math.round(baseCommission * 0.18 * 100) / 100;
+    const platformFee = Math.round((baseCommission + gstOnCommission) * 100) / 100;
     const net = Math.round((gross - platformFee) * 100) / 100;
 
     // 4. Register collected earning if not already registered (enforcing single earning per appointment)

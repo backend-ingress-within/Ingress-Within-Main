@@ -523,7 +523,7 @@ export default function TherapistEarningsView() {
                 <span className="font-semibold text-[#132A24]">₹{summary.grossRevenue.toLocaleString('en-IN')}</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block">Platform Fee (15%)</span>
+                <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block">Platform Fee (20% + 18% GST)</span>
                 <span className="font-semibold text-[#132A24]/70">-₹{summary.platformFees.toLocaleString('en-IN')}</span>
               </div>
               {summary.refunds > 0 && (
@@ -535,7 +535,7 @@ export default function TherapistEarningsView() {
             </div>
 
             <div className="text-[11px] text-[#132A24]/50 italic">
-              Standard platform revenue share: 85% practitioner / 15% Ingress Within
+              Standard platform fee: 20% commission + 18% GST on commission (23.6% total fee) &bull; 76.4% practitioner net payout
             </div>
           </div>
 

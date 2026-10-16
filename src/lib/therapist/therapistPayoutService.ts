@@ -145,7 +145,7 @@ export class TherapistPayoutService {
     commissionRate?: number;
     initialStatus?: EarningFinancialStatus;
   }): Promise<TherapistEarningRecord> {
-    const { therapistAccountId, appointmentId, grossAmount, commissionRate = 15, initialStatus = 'collected' } = params;
+    const { therapistAccountId, appointmentId, grossAmount, commissionRate = 20, initialStatus = 'collected' } = params;
 
     // 1. Check existing earning in memory
     for (const earning of this.inMemoryEarnings.values()) {
@@ -180,10 +180,13 @@ export class TherapistPayoutService {
       return record;
     }
 
-    // 3. Compute platform fee & net earnings authoritatively
+    // 3. Compute platform fee & net earnings authoritatively:
+    // Platform charges base commission (default 20%) plus 18% GST on that commission
     const gross = Number(grossAmount);
     const commRate = Number(commissionRate);
-    const platformFee = Math.round(gross * (commRate / 100) * 100) / 100;
+    const baseCommission = Math.round(gross * (commRate / 100) * 100) / 100;
+    const gstOnCommission = Math.round(baseCommission * 0.18 * 100) / 100;
+    const platformFee = Math.round((baseCommission + gstOnCommission) * 100) / 100;
     const netEarnings = Math.round((gross - platformFee) * 100) / 100;
     const nowIso = new Date().toISOString();
 

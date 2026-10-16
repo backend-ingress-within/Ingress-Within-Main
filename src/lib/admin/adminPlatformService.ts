@@ -406,7 +406,7 @@ export class AdminPlatformService {
           can_practice: a.can_practice,
           rci_registered: !!a.rci_registered,
           rci_number: a.rci_number || null,
-          commission_rate: Number(a.commission_rate || 0.15),
+          commission_rate: Number(a.commission_rate || 0.20),
           per_session_fee: Number(a.per_session_fee || 1500),
           full_name: p.full_name || 'Therapist',
           title: p.title || null,
@@ -913,7 +913,7 @@ export class AdminPlatformService {
     const practiceInfo = {
       sessionFormats: professionalInfo.sessionFormats,
       feePerSession: professionalInfo.feePerSession,
-      commissionRate: Number(account.commission_rate || 15.0),
+      commissionRate: Number(account.commission_rate || 20.0),
       availabilityHours: profile?.availability_hours || {
         mon: ['09:00-17:00'],
         tue: ['09:00-17:00'],

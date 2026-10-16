@@ -84,13 +84,13 @@ async function runFinancialSuite() {
     therapistAccountId: therapistAId,
     appointmentId: appointment1Id,
     grossAmount: 2000,
-    commissionRate: 15,
+    commissionRate: 20,
   });
 
   assert(earning1.appointment_id === appointment1Id, 'Earning is bound to appointment ID');
   assert(earning1.gross_amount === 2000, 'Gross amount is 2000');
-  assert(earning1.platform_fee === 300, 'Platform fee calculated at 15% (300)');
-  assert(earning1.net_earnings === 1700, 'Net earnings calculated at 1700');
+  assert(earning1.platform_fee === 472, 'Platform fee calculated at 20% comm + 18% GST (472)');
+  assert(earning1.net_earnings === 1528, 'Net earnings calculated at 1528');
   assert(earning1.payment_status === 'collected', 'Initial financial status is collected');
 
   // Attempt to create duplicate earning for same appointment
@@ -101,7 +101,7 @@ async function runFinancialSuite() {
   });
 
   assert(earningDuplicate.id === earning1.id, 'Duplicate recording returns the existing earning ID');
-  assert(earningDuplicate.net_earnings === 1700, 'Net earnings preserved from original authoritative record');
+  assert(earningDuplicate.net_earnings === 1528, 'Net earnings preserved from original authoritative record');
 
   // Distinct appointment creates distinct earning
   const appointment2Id = crypto.randomUUID();
@@ -109,10 +109,10 @@ async function runFinancialSuite() {
     therapistAccountId: therapistAId,
     appointmentId: appointment2Id,
     grossAmount: 1500,
-    commissionRate: 15,
+    commissionRate: 20,
   });
   assert(earning2.id !== earning1.id, 'Distinct appointment creates distinct earning record');
-  assert(earning2.net_earnings === 1275, 'Earning 2 net is 1275');
+  assert(earning2.net_earnings === 1146, 'Earning 2 net is 1146');
 
   // ===========================================================================
   // SECTION 3: Financial State Machine Invariants
@@ -214,7 +214,7 @@ async function runFinancialSuite() {
   const periodStart = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
   const periodEnd = new Date(Date.now() + 24 * 3600000).toISOString();
 
-  // Create batch for Therapist A (has earning1: 1700, earning2: 1275 => total: 2975)
+  // Create batch for Therapist A (has earning1: 1528, earning2: 1146 => total: 2674)
   const { batch: batch1, items: batch1Items } = await TherapistPayoutService.createPayoutBatch({
     therapistAccountId: therapistAId,
     periodStart,
@@ -223,7 +223,7 @@ async function runFinancialSuite() {
 
   assert(batch1.status === 'pending', 'New payout batch status is pending');
   assert(batch1.currency === 'INR', 'Payout batch currency is INR');
-  assert(batch1.total_net === 2975, 'Batch total_net strictly matches sum (1700 + 1275 = 2975)');
+  assert(batch1.total_net === 2674, 'Batch total_net strictly matches sum (1528 + 1146 = 2674)');
   assert(batch1Items.length === 2, 'Batch contains 2 items');
 
   const sumItems = batch1Items.reduce((acc, curr) => acc + curr.net_amount, 0);

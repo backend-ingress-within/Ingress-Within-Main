@@ -1005,26 +1005,43 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
               <span className="font-semibold text-xs text-[#132A24]">Standard Session Financial Breakdown</span>
               <span className="text-[10px] text-[#4E7A66] font-bold uppercase tracking-wider">Governed Rate</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
-                <span className="text-[10px] text-[#132A24]/50 block">Standard Fee (Gross)</span>
-                <span className="font-serif text-base font-semibold text-[#132A24]">
-                  ₹{Number(account?.per_session_fee || 1500).toFixed(2)}
-                </span>
-              </div>
-              <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
-                <span className="text-[10px] text-[#132A24]/50 block">Platform Commission ({account?.commission_rate || 15}%)</span>
-                <span className="font-serif text-base font-semibold text-amber-900">
-                  ₹{((Number(account?.per_session_fee || 1500) * Number(account?.commission_rate || 15)) / 100).toFixed(2)}
-                </span>
-              </div>
-              <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
-                <span className="text-[10px] text-[#4E7A66] font-semibold block">Therapist Net Payout</span>
-                <span className="font-serif text-base font-semibold text-[#4E7A66]">
-                  ₹{(Number(account?.per_session_fee || 1500) * (1 - Number(account?.commission_rate || 15) / 100)).toFixed(2)}
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const grossFee = Number(account?.per_session_fee || 1500);
+              const commPct = Number(account?.commission_rate || 20);
+              const baseComm = (grossFee * commPct) / 100;
+              const gstOnComm = baseComm * 0.18;
+              const totalPlatformFee = baseComm + gstOnComm;
+              const therapistNet = grossFee - totalPlatformFee;
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
+                    <span className="text-[10px] text-[#132A24]/50 block">Standard Fee (Gross)</span>
+                    <span className="font-serif text-base font-semibold text-[#132A24]">
+                      ₹{grossFee.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
+                    <span className="text-[10px] text-[#132A24]/50 block">Platform Commission ({commPct}%)</span>
+                    <span className="font-serif text-base font-semibold text-amber-900">
+                      ₹{baseComm.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
+                    <span className="text-[10px] text-[#132A24]/50 block">GST on Comm. (18%)</span>
+                    <span className="font-serif text-base font-semibold text-amber-900">
+                      ₹{gstOnComm.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-[#132A24]/10">
+                    <span className="text-[10px] text-[#4E7A66] font-semibold block">Therapist Net Payout</span>
+                    <span className="font-serif text-base font-semibold text-[#4E7A66]">
+                      ₹{therapistNet.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Availability Overview Card */}

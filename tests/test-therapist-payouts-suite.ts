@@ -178,26 +178,26 @@ async function runTestSuite() {
     await TherapistPayoutService.recordEarningForAppointment({
       therapistAccountId: testTherapistId,
       appointmentId: 'appt-payout-seed-1',
-      grossAmount: 1500, // 1500 gross - 225 fee = 1275 net
-      commissionRate: 15,
+      grossAmount: 1500, // 1500 gross - 354 fee = 1146 net
+      commissionRate: 20,
       initialStatus: 'collected',
     });
 
     await TherapistPayoutService.recordEarningForAppointment({
       therapistAccountId: testTherapistId,
       appointmentId: 'appt-payout-seed-2',
-      grossAmount: 2000, // 2000 gross - 300 fee = 1700 net
-      commissionRate: 15,
+      grossAmount: 2000, // 2000 gross - 472 fee = 1528 net
+      commissionRate: 20,
       initialStatus: 'collected',
     });
   });
 
   await test('Calculates Available to Withdraw as exact sum of unbatched collected earnings', async () => {
     const balance = await TherapistPayoutAccountService.getAvailableBalance(testTherapistId);
-    // 1275 + 1700 = 2975
+    // 1146 + 1528 = 2674
     assert.strictEqual(balance.currency, 'INR');
-    assert(balance.totalNetEarned >= 2975, 'Total net earned incorporates both sessions');
-    assert(balance.availableToWithdraw >= 2975, 'Available to withdraw matches unbatched collected net');
+    assert(balance.totalNetEarned >= 2674, 'Total net earned incorporates both sessions');
+    assert(balance.availableToWithdraw >= 2674, 'Available to withdraw matches unbatched collected net');
     assert.strictEqual(balance.inFlightWithdrawals, 0, 'Zero in-flight withdrawals initially');
   });
 
@@ -256,8 +256,8 @@ async function runTestSuite() {
   await test('Deducts in-flight withdrawal from available balance', async () => {
     const balanceAfter = await TherapistPayoutAccountService.getAvailableBalance(testTherapistId);
     assert.strictEqual(balanceAfter.inFlightWithdrawals, 1000, 'In-flight withdrawals is exactly ₹1000');
-    // Available was 2975, now should be 1975
-    assert.strictEqual(balanceAfter.availableToWithdraw, 1975, 'Available to withdraw reduced by in-flight amount');
+    // Available was 2674, now should be 1674
+    assert.strictEqual(balanceAfter.availableToWithdraw, 1674, 'Available to withdraw reduced by in-flight amount');
   });
 
   await test('Idempotent duplicate withdrawal returns existing record without double deduction', async () => {
@@ -333,10 +333,10 @@ async function runTestSuite() {
     assert.strictEqual(updated?.failure_reason, 'Beneficiary bank technical timeout');
   });
 
-  await test('Double-spend immunity: Available balance remains ₹1975 and Withdrawn is ₹1000 after payout completion', async () => {
+  await test('Double-spend immunity: Available balance remains ₹1674 and Withdrawn is ₹1000 after payout completion', async () => {
     const balance = await TherapistPayoutAccountService.getAvailableBalance(testTherapistId);
     assert.strictEqual(balance.withdrawn, 1000, 'Withdrawn must reflect the ₹1000 completed withdrawal');
-    assert.strictEqual(balance.availableToWithdraw, 1975, 'Available balance must remain ₹1975 (not revert to ₹2975)');
+    assert.strictEqual(balance.availableToWithdraw, 1674, 'Available balance must remain ₹1674 (not revert to ₹2674)');
   });
 
   await test('Idempotent webhook replay: 10x delivery of payout.processed causes no state regression or balance drift', async () => {
@@ -361,7 +361,7 @@ async function runTestSuite() {
 
     const balanceAfterReplay = await TherapistPayoutAccountService.getAvailableBalance(testTherapistId);
     assert.strictEqual(balanceAfterReplay.withdrawn, 1000, 'Withdrawn is still exactly ₹1000');
-    assert.strictEqual(balanceAfterReplay.availableToWithdraw, 1975, 'Available balance is still exactly ₹1975');
+    assert.strictEqual(balanceAfterReplay.availableToWithdraw, 1674, 'Available balance is still exactly ₹1674');
   });
 
   await test('Out-of-order webhook rejection: Refuses payout.failed after payout is already completed', async () => {
@@ -386,7 +386,7 @@ async function runTestSuite() {
     assert.strictEqual(check?.status, 'completed', 'Withdrawal record must remain completed');
   });
 
-  await test('Concurrency race prevention: Two simultaneous requests for ₹1500 when available is ₹1975', async () => {
+  await test('Concurrency race prevention: Two simultaneous requests for ₹1500 when available is ₹1674', async () => {
     // Attempt two simultaneous withdrawals for ₹1500 each
     const results = await Promise.allSettled([
       TherapistPayoutAccountService.requestWithdrawal({
@@ -409,8 +409,8 @@ async function runTestSuite() {
     assert.strictEqual(rejected.length, 1, 'The competing concurrent withdrawal must be rejected');
 
     const bal = await TherapistPayoutAccountService.getAvailableBalance(testTherapistId);
-    // 1975 - 1500 = 475
-    assert.strictEqual(bal.availableToWithdraw, 475, 'Remaining available balance is exactly ₹475');
+    // 1674 - 1500 = 174
+    assert.strictEqual(bal.availableToWithdraw, 174, 'Remaining available balance is exactly ₹174');
   });
 
   // --- SECTION 6: Multi-Tenant Isolation & Privacy Safeguards ---
