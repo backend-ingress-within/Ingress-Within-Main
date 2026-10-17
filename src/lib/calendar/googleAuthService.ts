@@ -44,6 +44,19 @@ export const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
 
+/**
+ * Sanitizes returnTo paths to strictly prevent open redirect abuse.
+ * Ensures the target is an internal relative path starting with '/' and not '//' or containing protocol schemes.
+ */
+export function sanitizeReturnTo(path: string | null | undefined, defaultPath: string): string {
+  if (!path || typeof path !== 'string') return defaultPath;
+  const trimmed = path.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/\\') || trimmed.includes(':')) {
+    return defaultPath;
+  }
+  return trimmed;
+}
+
 export class GoogleAuthService {
   // In-memory fallback stores for test/local environments when DB table is pending migration
   private static inMemoryStates: Map<string, OAuthStateRecord> = new Map();
@@ -86,13 +99,16 @@ export class GoogleAuthService {
 
     // 3. Store server-side state with 10-minute expiry
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const defaultReturn = accountType === 'therapist' ? '/therapist/calendar' : '/client/appointments';
+    const safeReturnTo = sanitizeReturnTo(returnTo, defaultReturn);
+
     const record: OAuthStateRecord = {
       id: crypto.randomUUID(),
       state_hash: stateHash,
       account_type: accountType,
       user_id: accountType === 'user' ? (userId || null) : null,
       therapist_account_id: accountType === 'therapist' ? (therapistAccountId || null) : null,
-      return_to: returnTo || (accountType === 'therapist' ? '/therapist/calendar' : '/client/appointments'),
+      return_to: safeReturnTo,
       expires_at: expiresAt,
       used_at: null,
       created_at: new Date().toISOString(),

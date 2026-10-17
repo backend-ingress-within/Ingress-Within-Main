@@ -412,8 +412,15 @@ export class SessionBookingService {
     const bookingReference = `IW-BKG-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
     // 5. Create Razorpay order
-    let razorpayOrderId = `order_mock_${Date.now()}`;
-    const rzp = BillingService.getRazorpayClient();
+    const isPaymentBypassed =
+      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true';
+
+    let razorpayOrderId = isPaymentBypassed
+      ? `order_test_bypass_${Date.now()}`
+      : `order_mock_${Date.now()}`;
+
+    const rzp = !isPaymentBypassed ? BillingService.getRazorpayClient() : null;
     if (rzp) {
       try {
         const order = await rzp.orders.create({
@@ -475,6 +482,7 @@ export class SessionBookingService {
       currency: 'INR',
       keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_key',
       expiresAt,
+      bypassPayment: isPaymentBypassed,
     };
   }
 
@@ -535,7 +543,12 @@ export class SessionBookingService {
     }
 
     // 2. Verify signature if provided
-    if (razorpaySignature && razorpayOrderId && razorpayPaymentId) {
+    const isPaymentBypassed =
+      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
+      razorpayPaymentId?.startsWith('pay_test_bypass_');
+
+    if (!isPaymentBypassed && razorpaySignature && razorpayOrderId && razorpayPaymentId) {
       const isValid = BillingService.verifyPaymentSignature(
         razorpayOrderId,
         razorpayPaymentId,

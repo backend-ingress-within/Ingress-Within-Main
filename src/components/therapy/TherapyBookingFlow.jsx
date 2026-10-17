@@ -111,7 +111,11 @@ export default function TherapyBookingFlow({
     return groups;
   }, [availableSlots]);
 
-  // Pricing calculations (Authoritative base + 18% GST)
+  // Authoritative Pricing & Developer Test Mode
+  const isPaymentDisabled =
+    process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
+    process.env.DISABLE_BOOKING_PAYMENTS === 'true';
+
   const baseFee = Number(selectedTherapist?.fee || selectedTherapist?.per_session_fee || 1500);
   const gstAmount = Math.round(baseFee * 0.18);
   const totalAmount = baseFee + gstAmount;
@@ -142,12 +146,34 @@ export default function TherapyBookingFlow({
       }
 
       setBookingOrder(orderData);
+
+      // If developer testing mode automatically confirmed the booking
+      if (orderData.confirmed && orderData.appointment) {
+        setConfirmedData(orderData);
+        setStep(5);
+        if (onSuccess) onSuccess(orderData);
+        return;
+      }
+
+      // If developer testing mode requested bypass confirmation without Razorpay popup
+      if (orderData.bypassPayment) {
+        await verifyPayment(
+          {
+            razorpay_payment_id: `pay_test_bypass_${Date.now()}`,
+            razorpay_order_id: orderData.razorpayOrderId,
+          },
+          orderData.bookingId
+        );
+        return;
+      }
+
       setStep(4);
 
       // Launch Razorpay
       await launchRazorpay(orderData);
     } catch (err) {
       setError(err.message || 'An error occurred during booking creation.');
+    } finally {
       setIsCreatingOrder(false);
     }
   };
@@ -596,6 +622,19 @@ export default function TherapyBookingFlow({
                 />
               </div>
 
+              {/* Developer Testing Badge */}
+              {isPaymentDisabled && (
+                <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                  <span className="text-base leading-none">🧪</span>
+                  <div className="space-y-0.5 text-[11px] leading-relaxed">
+                    <p className="font-semibold text-amber-950">Developer Testing Mode Active</p>
+                    <p className="text-amber-800">
+                      Payment collection is temporarily disabled for end-to-end testing. Clicking the button below will immediately confirm your session, sync Google Calendar, and generate Google Meet without any live charges.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Strict Policy Guarantee */}
               <div className="bg-[#FAF9F5] border border-[#132A24]/10 rounded-xl p-3.5 text-xs text-[#132A24]/80 flex items-start gap-2.5">
                 <ShieldCheck size={16} className="text-[#4E7A66] shrink-0 mt-0.5" />
@@ -622,7 +661,11 @@ export default function TherapyBookingFlow({
                   className="px-5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-semibold hover:bg-emerald-900 disabled:opacity-50 inline-flex items-center gap-2 transition-colors shadow-xs"
                 >
                   <CreditCard size={14} />
-                  {isCreatingOrder ? 'Reserving Slot (15 min hold)...' : `Proceed to Pay ₹${totalAmount}`}
+                  {isCreatingOrder
+                    ? 'Confirming Session...'
+                    : isPaymentDisabled
+                      ? 'Confirm Test Booking (No Charge)'
+                      : `Proceed to Pay ₹${totalAmount}`}
                 </button>
               </div>
             </div>

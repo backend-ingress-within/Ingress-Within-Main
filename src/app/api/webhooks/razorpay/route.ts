@@ -1,21 +1,23 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { BillingService } from '../../../../lib/billing/billingService';
+import { SessionBookingService } from '../../../../lib/therapy/sessionBookingService';
 import { supabase } from '../../../../lib/db';
 
 /**
  * POST /api/webhooks/razorpay
- * Authoritative webhook receiver for Razorpay payment and subscription events.
+ * Authoritative webhook receiver for Razorpay payment, session booking, and subscription events.
  *
  * Security:
  * - Verifies X-Razorpay-Signature with raw request body
  * - Idempotency via public.webhook_events
+ * - Out-of-order state protection
  * - Never logs PII, card numbers, or mental health data
  */
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     const signature = request.headers.get('x-razorpay-signature');
-    const eventId = request.headers.get('x-razorpay-event-id') || `evt_${Date.now()}`;
 
     if (!signature) {
       console.warn('[Razorpay Webhook] billing.webhook.signature_failed: Missing signature header.');
@@ -46,7 +48,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const eventType = payload.event;
+    const eventType = payload?.event;
+    const eventId =
+      request.headers.get('x-razorpay-event-id') ||
+      payload?.id ||
+      (payload?.payload?.payment?.entity?.id ? `evt_${payload.payload.payment.entity.id}_${eventType}` : null) ||
+      crypto.createHash('sha256').update(rawBody).digest('hex');
+
     console.log(`[Razorpay Webhook] billing.webhook.received event=${eventType} id=${eventId}`);
 
     // 3. Idempotency Check via webhook_events table
@@ -190,10 +198,53 @@ export async function POST(request: NextRequest) {
         const orderId = paymentEntity?.order_id || orderEntity?.id;
         const amount = paymentEntity?.amount || orderEntity?.amount;
         const userId = paymentEntity?.notes?.user_id || orderEntity?.notes?.user_id;
+        const bookingId = paymentEntity?.notes?.booking_id || orderEntity?.notes?.booking_id;
+        const bookingReference = paymentEntity?.notes?.booking_reference || orderEntity?.notes?.booking_reference;
 
-        if (paymentId && orderId) {
+        if (paymentId) {
+          // A. Reconcile therapy session booking if applicable
+          let therapyBooking: any = null;
+          if (bookingId) {
+            const { data } = await supabase
+              .from('therapy_session_bookings')
+              .select('id, payment_status, booking_status')
+              .eq('id', bookingId)
+              .maybeSingle();
+            therapyBooking = data;
+          }
+          if (!therapyBooking && orderId) {
+            const { data } = await supabase
+              .from('therapy_session_bookings')
+              .select('id, payment_status, booking_status')
+              .eq('razorpay_order_id', orderId)
+              .maybeSingle();
+            therapyBooking = data;
+          }
+          if (!therapyBooking && bookingReference) {
+            const { data } = await supabase
+              .from('therapy_session_bookings')
+              .select('id, payment_status, booking_status')
+              .eq('booking_reference', bookingReference)
+              .maybeSingle();
+            therapyBooking = data;
+          }
+
+          if (therapyBooking || bookingId || bookingReference) {
+            try {
+              await SessionBookingService.confirmSessionPayment({
+                razorpayPaymentId: paymentId,
+                razorpayOrderId: orderId,
+                bookingId: therapyBooking?.id || bookingId,
+              });
+              console.log(`[Razorpay Webhook] therapy_session_booking confirmed payment=${paymentId} order=${orderId}`);
+            } catch (bkgErr: any) {
+              console.warn(`[Razorpay Webhook] Therapy session payment confirmation notice:`, bkgErr.message);
+            }
+          }
+
+          // B. General platform orders and subscriptions
           let targetUserId = userId;
-          if (!targetUserId) {
+          if (!targetUserId && orderId) {
             const { data: localOrder } = await supabase
               .from('orders')
               .select('user_id')
@@ -222,14 +273,50 @@ export async function POST(request: NextRequest) {
         const paymentEntity = payload.payload?.payment?.entity;
         const orderId = paymentEntity?.order_id;
         if (orderId) {
-          await supabase
+          // Out of order protection: do not mark failed if order is already paid!
+          const { data: existingOrder } = await supabase
             .from('orders')
-            .update({
-              status: 'failed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('gateway_order_id', orderId);
-          console.log(`[Razorpay Webhook] billing.order.failed order=${orderId}`);
+            .select('status')
+            .eq('gateway_order_id', orderId)
+            .maybeSingle();
+
+          if (existingOrder && existingOrder.status === 'paid') {
+            console.log(`[Razorpay Webhook] Ignored late payment.failed for already paid order ${orderId}`);
+            break;
+          }
+
+          // Out of order protection for therapy session booking: do not mark failed if already paid!
+          const { data: existingBooking } = await supabase
+            .from('therapy_session_bookings')
+            .select('payment_status')
+            .eq('razorpay_order_id', orderId)
+            .maybeSingle();
+
+          if (existingBooking && existingBooking.payment_status === 'paid') {
+            console.log(`[Razorpay Webhook] Ignored late payment.failed for already paid therapy booking order ${orderId}`);
+            break;
+          }
+
+          if (existingBooking && existingBooking.payment_status === 'pending') {
+            await supabase
+              .from('therapy_session_bookings')
+              .update({
+                payment_status: 'failed',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('razorpay_order_id', orderId);
+          }
+
+          if (existingOrder && existingOrder.status !== 'paid') {
+            await supabase
+              .from('orders')
+              .update({
+                status: 'failed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('gateway_order_id', orderId);
+            console.log(`[Razorpay Webhook] billing.order.failed order=${orderId}`);
+          }
         }
         break;
       }
@@ -237,6 +324,7 @@ export async function POST(request: NextRequest) {
       case 'refund.processed': {
         const refundEntity = payload.payload?.refund?.entity;
         if (refundEntity?.id) {
+          // 1. General refund record
           await supabase
             .from('refunds')
             .update({
@@ -245,6 +333,25 @@ export async function POST(request: NextRequest) {
             })
             .eq('gateway_refund_id', refundEntity.id);
           console.log(`[Razorpay Webhook] billing.refund.created refund=${refundEntity.id}`);
+
+          // 2. Reconcile therapy session bookings and appointments if refund belongs to a session
+          await supabase
+            .from('therapy_session_bookings')
+            .update({
+              refund_status: 'full',
+              payment_status: 'refunded',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('refund_id', refundEntity.id);
+
+          await supabase
+            .from('therapist_clinical_appointments')
+            .update({
+              refund_status: 'full',
+              status: 'cancelled',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('refund_id', refundEntity.id);
         }
         break;
       }

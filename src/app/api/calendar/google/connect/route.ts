@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { getAuthenticatedTherapist } from '../../../../../lib/therapist/therapistAuthHelper';
-import { GoogleAuthService } from '../../../../../lib/calendar/googleAuthService';
+import { GoogleAuthService, sanitizeReturnTo } from '../../../../../lib/calendar/googleAuthService';
 import { GoogleCalendarConfigService } from '../../../../../lib/calendar/googleCalendarConfig';
 
 function getBaseOrigin(request: NextRequest): string {
@@ -18,7 +18,8 @@ function getBaseOrigin(request: NextRequest): string {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const asTherapist = searchParams.get('type') === 'therapist';
-  const returnTo = searchParams.get('returnTo') || (asTherapist ? '/therapist/profile' : '/client/appointments');
+  const defaultReturn = asTherapist ? '/therapist/profile' : '/client/appointments';
+  const returnTo = sanitizeReturnTo(searchParams.get('returnTo'), defaultReturn);
   const isSimulate = searchParams.get('simulate') === 'true';
 
   // Check whether caller expects JSON or is doing a direct page navigation in the browser bar

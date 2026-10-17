@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { getAuthenticatedTherapist } from '../../../../../lib/therapist/therapistAuthHelper';
-import { GoogleAuthService } from '../../../../../lib/calendar/googleAuthService';
+import { GoogleAuthService, sanitizeReturnTo } from '../../../../../lib/calendar/googleAuthService';
 
 function getBaseOrigin(request: NextRequest): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         const stateHash = crypto.createHash('sha256').update(state).digest('hex');
         const stateRecord = await GoogleAuthService.getStateRecordByHash(stateHash);
         if (stateRecord?.return_to) {
-          returnTo = stateRecord.return_to;
+          returnTo = sanitizeReturnTo(stateRecord.return_to, '/');
         } else if (stateRecord?.account_type === 'therapist') {
           returnTo = '/therapist/calendar';
         } else if (stateRecord?.account_type === 'user') {
@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
     // Handle explicit errors returned from Google OAuth consent (e.g. access_denied)
     if (googleError) {
       console.warn(`[GoogleCallback] Google OAuth returned error: ${googleError}`);
-      const errDestination = new URL(returnTo, base);
+      const errDestination = new URL(sanitizeReturnTo(returnTo, '/'), base);
       errDestination.searchParams.set('error', googleError);
       return NextResponse.redirect(errDestination);
     }
 
     if (!code || !state) {
-      const errDestination = new URL(returnTo, base);
+      const errDestination = new URL(sanitizeReturnTo(returnTo, '/'), base);
       errDestination.searchParams.set('error', 'missing_oauth_params');
       return NextResponse.redirect(errDestination);
     }
@@ -74,14 +74,15 @@ export async function GET(request: NextRequest) {
     const result = await GoogleAuthService.handleOAuthCallback(code, state, callerSession);
 
     // Redirect to returned destination with success query param
-    const destination = new URL(result.returnTo || returnTo || '/', base);
+    const safeDestinationPath = sanitizeReturnTo(result.returnTo || returnTo, '/');
+    const destination = new URL(safeDestinationPath, base);
     destination.searchParams.set('google_calendar_connected', 'true');
 
     return NextResponse.redirect(destination);
   } catch (err: any) {
     const errorCode = err.code || 'calendar_connection_failed';
     console.error(`[GoogleCallback] Error during OAuth callback: ${errorCode}`, err);
-    const errDestination = new URL(returnTo, base);
+    const errDestination = new URL(sanitizeReturnTo(returnTo, '/'), base);
     errDestination.searchParams.set('error', encodeURIComponent(errorCode));
     return NextResponse.redirect(errDestination);
   }

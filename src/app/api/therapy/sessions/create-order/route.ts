@@ -33,6 +33,29 @@ export async function POST(request: NextRequest) {
       isFirstSessionCoordination: false,
     });
 
+    const isBypass =
+      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true';
+
+    if (isBypass) {
+      const confirmation = await SessionBookingService.confirmSessionPayment({
+        bookingId: order.bookingId,
+        razorpayOrderId: order.razorpayOrderId,
+        razorpayPaymentId: `pay_test_bypass_${Date.now()}`,
+      });
+
+      return NextResponse.json(
+        {
+          ...order,
+          bypassPayment: true,
+          confirmed: true,
+          appointment: confirmation.appointment,
+          booking: confirmation.booking,
+        },
+        { status: 201 }
+      );
+    }
+
     return NextResponse.json(order, { status: 201 });
   } catch (err: any) {
     const status = err.status || 500;
