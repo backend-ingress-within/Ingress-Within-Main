@@ -16,11 +16,13 @@ import {
   ExternalLink,
   RefreshCw,
   Ban,
-  Trash2
+  Trash2,
+  Lock,
 } from 'lucide-react';
 import TherapistScheduleModal from './TherapistScheduleModal';
 import TherapistRescheduleModal from './TherapistRescheduleModal';
 import TherapistBlockTimeModal from './TherapistBlockTimeModal';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function TherapistCalendarView({
   onOpenSession,
@@ -977,29 +979,47 @@ export default function TherapistCalendarView({
             </button>
           )}
 
-          {isScheduled && (
-            <>
-              {Boolean(appt.googleMeetUrl || (appt.google_meet_url && String(appt.google_meet_url).startsWith('https://meet.google.com/'))) ? (
-                <a
-                  href={appt.googleMeetUrl || appt.google_meet_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 no-underline cursor-pointer inline-flex items-center gap-1"
-                >
-                  <Video size={13} /> Join Google Meet
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSyncSingleAppointment(appt.id)}
-                  disabled={syncingApptId === appt.id}
-                  className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs font-medium hover:bg-amber-100 cursor-pointer inline-flex items-center gap-1"
-                  title="Synchronize Google Meet room"
-                >
-                  <Video size={13} className={syncingApptId === appt.id ? 'animate-spin text-amber-700' : 'text-amber-700'} />
-                  {syncingApptId === appt.id ? 'Syncing...' : 'Sync Meet Link'}
-                </button>
-              )}
+          {isScheduled && (() => {
+            const hasMeetUrl = Boolean(appt.googleMeetUrl || (appt.google_meet_url && String(appt.google_meet_url).startsWith('https://meet.google.com/')));
+            const meetingWindow = getSessionMeetingWindow(
+              appt.startsAt || appt.scheduled_start || appt.scheduledStart,
+              appt.endsAt || appt.scheduled_end || appt.scheduledEnd
+            );
+
+            return (
+              <>
+                {hasMeetUrl ? (
+                  meetingWindow.canJoin ? (
+                    <a
+                      href={appt.googleMeetUrl || appt.google_meet_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 no-underline cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <Video size={13} /> Join Google Meet
+                    </a>
+                  ) : meetingWindow.isTooEarly ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium cursor-not-allowed inline-flex items-center gap-1"
+                      title={`Room access opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                    >
+                      <Lock size={12} className="text-gray-400" /> Join opens 1h prior
+                    </button>
+                  ) : null
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSyncSingleAppointment(appt.id)}
+                    disabled={syncingApptId === appt.id}
+                    className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs font-medium hover:bg-amber-100 cursor-pointer inline-flex items-center gap-1"
+                    title="Synchronize Google Meet room"
+                  >
+                    <Video size={13} className={syncingApptId === appt.id ? 'animate-spin text-amber-700' : 'text-amber-700'} />
+                    {syncingApptId === appt.id ? 'Syncing...' : 'Sync Meet Link'}
+                  </button>
+                )}
               <button
                 onClick={() => handleCompleteSession(appt.id)}
                 disabled={completingId === appt.id}
@@ -1027,8 +1047,9 @@ export default function TherapistCalendarView({
               >
                 {cancellingId === appt.id ? 'Cancelling...' : 'Cancel'}
               </button>
-            </>
-          )}
+              </>
+            );
+          })()}
 
           {onOpenSoap && (
             <button

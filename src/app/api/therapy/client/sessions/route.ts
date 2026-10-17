@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { supabase } from '../../../../../lib/db';
 import { isValidGoogleMeetUrl, GoogleCalendarService } from '../../../../../lib/calendar/googleCalendarService';
+import { getSessionMeetingWindow } from '../../../../../utils/sessionMeetingUtils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,6 +82,8 @@ export async function GET(request: NextRequest) {
                 ? GoogleCalendarService.getFallbackMeetUrl()
                 : null));
 
+      const meetingWindow = getSessionMeetingWindow(appt.scheduled_start, appt.scheduled_end);
+
       return {
         id: appt.id,
         scheduledStart: appt.scheduled_start,
@@ -93,6 +96,10 @@ export async function GET(request: NextRequest) {
         calendarSyncStatus: appt.calendar_sync_status,
         attendanceStatus: appt.attendance_status,
         refundStatus: appt.refund_status,
+        canJoin: meetingWindow.canJoin,
+        isJoinTooEarly: meetingWindow.isTooEarly,
+        joinOpensAt: meetingWindow.joinOpensAt.toISOString(),
+        joinOpensAtFormatted: meetingWindow.joinOpensAtFormatted,
         therapist: {
           id: appt.therapist_account_id,
           name: therapist?.full_name || 'Therapist',
@@ -101,6 +108,10 @@ export async function GET(request: NextRequest) {
           canReschedule,
           canCancel,
           refundEligible,
+          canJoin: meetingWindow.canJoin,
+          isJoinTooEarly: meetingWindow.isTooEarly,
+          joinOpensAt: meetingWindow.joinOpensAt.toISOString(),
+          joinOpensAtFormatted: meetingWindow.joinOpensAtFormatted,
           hoursUntilSession: Math.round(hoursRemaining * 10) / 10,
         },
       };

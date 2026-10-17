@@ -14,8 +14,10 @@ import {
   RefreshCw,
   Sparkles,
   ShieldCheck,
-  Inbox
+  Inbox,
+  Lock,
 } from 'lucide-react';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSession }) {
   const [data, setData] = useState(null);
@@ -342,16 +344,34 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSessi
                             Details
                           </button>
                         )}
-                        {session.googleMeetUrl && session.status !== 'completed' && session.status !== 'cancelled' && (
-                          <a
-                            href={session.googleMeetUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3.5 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 no-underline cursor-pointer inline-flex items-center gap-1"
-                          >
-                            Join Google Meet
-                          </a>
-                        )}
+                        {session.googleMeetUrl && session.status !== 'completed' && session.status !== 'cancelled' && (() => {
+                          const meetingWindow = getSessionMeetingWindow(session.scheduledStart, session.scheduledEnd);
+                          if (meetingWindow.canJoin) {
+                            return (
+                              <a
+                                href={session.googleMeetUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3.5 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 no-underline cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <Video size={13} /> Join Google Meet
+                              </a>
+                            );
+                          }
+                          if (meetingWindow.isTooEarly) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                className="px-3.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 text-xs font-medium cursor-not-allowed inline-flex items-center gap-1"
+                                title={`Join opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                              >
+                                <Lock size={12} className="text-gray-400" /> Join opens 1h prior
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         {session.status !== 'completed' && session.status !== 'cancelled' && (
                           <button
                             onClick={() => handleCompleteSession(session.id)}
@@ -549,16 +569,34 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSessi
                 </div>
 
                 <div className="pt-2 flex gap-2">
-                  {nextSession.googleMeetUrl && (
-                    <a
-                      href={nextSession.googleMeetUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 py-2 text-center rounded-lg bg-white text-[#132A24] text-xs font-semibold hover:bg-white/90 no-underline cursor-pointer inline-flex items-center justify-center gap-1"
-                    >
-                      Join Google Meet
-                    </a>
-                  )}
+                  {nextSession.googleMeetUrl && (() => {
+                    const meetingWindow = getSessionMeetingWindow(nextSession.scheduledStart, nextSession.scheduledEnd);
+                    if (meetingWindow.canJoin) {
+                      return (
+                        <a
+                          href={nextSession.googleMeetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 py-2 text-center rounded-lg bg-white text-[#132A24] text-xs font-semibold hover:bg-white/90 no-underline cursor-pointer inline-flex items-center justify-center gap-1"
+                        >
+                          <Video size={13} /> Join Google Meet
+                        </a>
+                      );
+                    }
+                    if (meetingWindow.isTooEarly) {
+                      return (
+                        <button
+                          type="button"
+                          disabled
+                          className="flex-1 py-2 text-center rounded-lg bg-white/20 text-white/60 text-xs font-medium cursor-not-allowed inline-flex items-center justify-center gap-1.5 border border-white/10"
+                          title={`Join opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                        >
+                          <Lock size={12} className="text-white/60" /> Join opens 1h prior
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
                   {onOpenSoap && (
                     <button
                       onClick={() => onOpenSoap(nextSession.id)}

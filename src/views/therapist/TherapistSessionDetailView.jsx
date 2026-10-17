@@ -25,6 +25,7 @@ import TherapistRescheduleModal from './TherapistRescheduleModal';
 import TherapistSoapModal from './TherapistSoapModal';
 import TherapistAssignHomeworkModal from './TherapistAssignHomeworkModal';
 import TherapistReviewHomeworkModal from './TherapistReviewHomeworkModal';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function TherapistSessionDetailView({
   sessionId,
@@ -283,6 +284,10 @@ export default function TherapistSessionDetailView({
   const meetUrl = (rawMeetUrl && typeof rawMeetUrl === 'string' && rawMeetUrl.startsWith('https://meet.google.com/')) ? rawMeetUrl : null;
   const calSyncStatus = session.calendarSyncStatus || session.calendar_sync_status || 'not_connected';
   const meetStatus = session.googleMeetStatus || session.google_meet_status || (meetUrl ? 'created' : 'none');
+  const meetingWindow = getSessionMeetingWindow(
+    session.scheduled_start || session.scheduledStart || session.startTime,
+    session.scheduled_end || session.scheduledEnd || session.endTime
+  );
 
   return (
     <div className="space-y-6">
@@ -335,14 +340,25 @@ export default function TherapistSessionDetailView({
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Google Meet Call Link */}
             {meetUrl && !isCancelled && (
-              <a
-                href={meetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all cursor-pointer no-underline shadow-xs"
-              >
-                <Video size={14} /> Join Google Meet
-              </a>
+              meetingWindow.canJoin ? (
+                <a
+                  href={meetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all cursor-pointer no-underline shadow-xs"
+                >
+                  <Video size={14} /> Join Google Meet
+                </a>
+              ) : meetingWindow.isTooEarly ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 text-xs font-semibold cursor-not-allowed shadow-none"
+                  title={`Room access opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                >
+                  <Lock size={13} className="text-gray-400" /> Join Available 1h Prior
+                </button>
+              ) : null
             )}
 
             {/* Before Session Actions (Scheduled) */}
@@ -473,14 +489,27 @@ export default function TherapistSessionDetailView({
 
             <div className="flex items-center gap-2">
               {meetUrl ? (
-                <a
-                  href={meetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 no-underline shadow-xs"
-                >
-                  <Video size={14} /> Join Google Meet
-                </a>
+                meetingWindow.canJoin ? (
+                  <a
+                    href={meetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 no-underline shadow-xs cursor-pointer"
+                  >
+                    <Video size={14} /> Join Google Meet
+                  </a>
+                ) : meetingWindow.isTooEarly ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-4 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 text-xs font-semibold cursor-not-allowed inline-flex items-center gap-1.5"
+                    title={`Room access opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                  >
+                    <Lock size={13} className="text-gray-400" /> Join Available 1h Prior
+                  </button>
+                ) : (
+                  <span className="text-xs text-[#132A24]/50 italic">Session ended</span>
+                )
               ) : (
                 <span className="text-xs text-[#132A24]/50 italic">
                   {calSyncStatus === 'not_connected'

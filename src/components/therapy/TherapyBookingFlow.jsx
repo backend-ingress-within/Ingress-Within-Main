@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   User,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function TherapyBookingFlow({
   isOpen,
@@ -759,21 +761,45 @@ export default function TherapyBookingFlow({
                   )}
                 </div>
 
-                {confirmedData?.appointment?.google_meet_url ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-gray-500">
-                      A dedicated Google Meet room has been generated and synced with your calendar.
-                    </p>
-                    <a
-                      href={confirmedData.appointment.google_meet_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 no-underline shadow-xs transition-colors"
-                    >
-                      <Video size={14} /> Join Google Meet <ExternalLink size={12} />
-                    </a>
-                  </div>
-                ) : (
+                {confirmedData?.appointment?.google_meet_url ? (() => {
+                  const meetingWindow = getSessionMeetingWindow(
+                    confirmedData.appointment.scheduled_start || confirmedData.appointment.scheduledStart,
+                    confirmedData.appointment.scheduled_end || confirmedData.appointment.scheduledEnd
+                  );
+
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-gray-500">
+                        A dedicated Google Meet room has been generated and synced with your calendar.
+                      </p>
+                      {meetingWindow.canJoin ? (
+                        <a
+                          href={confirmedData.appointment.google_meet_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 no-underline shadow-xs transition-colors cursor-pointer"
+                        >
+                          <Video size={14} /> Join Google Meet <ExternalLink size={12} />
+                        </a>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <Lock size={14} className="text-gray-500 shrink-0" />
+                            <span>Room access opens 1 hour prior ({meetingWindow.joinOpensAtFormatted})</span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled
+                            className="py-1.5 px-3 rounded-lg bg-gray-200 text-gray-500 text-xs font-medium cursor-not-allowed inline-flex items-center justify-center gap-1.5 shrink-0"
+                            title={`Room access opens at ${meetingWindow.joinOpensAtFormatted}`}
+                          >
+                            <Lock size={12} /> Join Available 1h Prior
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : (
                   <div className="space-y-2">
                     <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
                       Google Meet consultation details are being prepared and will be sent directly to your registered email address.

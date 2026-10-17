@@ -11,9 +11,11 @@ import {
   ChevronRight,
   Info,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Lock,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function ClientTherapySessionsView() {
   const [sessions, setSessions] = useState([]);
@@ -255,16 +257,34 @@ export default function ClientTherapySessionsView() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {isUpcoming && session.googleMeetUrl && (
-                    <a
-                      href={session.googleMeetUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 no-underline shadow-2xs"
-                    >
-                      <Video size={13} /> Join Google Meet
-                    </a>
-                  )}
+                  {isUpcoming && session.googleMeetUrl && (() => {
+                    const meetingWindow = getSessionMeetingWindow(session.scheduledStart, session.scheduledEnd);
+                    if (meetingWindow.canJoin) {
+                      return (
+                        <a
+                          href={session.googleMeetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 no-underline shadow-2xs cursor-pointer"
+                        >
+                          <Video size={13} /> Join Google Meet
+                        </a>
+                      );
+                    }
+                    if (meetingWindow.isTooEarly) {
+                      return (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 text-xs font-medium inline-flex items-center gap-1.5 cursor-not-allowed"
+                          title={`Join opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                        >
+                          <Lock size={12} className="text-gray-400" /> Join opens 1h prior
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   {isUpcoming && !session.googleMeetUrl && (
                     <span className="px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium inline-flex items-center gap-1.5">

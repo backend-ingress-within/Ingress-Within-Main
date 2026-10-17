@@ -26,10 +26,12 @@ import {
   Languages,
   MapPin,
   Check,
+  Lock,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
+import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function ClientTherapyDashboard({
   user,
@@ -577,21 +579,56 @@ export default function ClientTherapyDashboard({
                       </div>
 
                       {/* Google Meet Action */}
-                      {nextSession.googleMeetUrl ? (
-                        <a
-                          href={nextSession.googleMeetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-3 w-full bg-emerald-800 text-white hover:bg-emerald-900 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-2xs"
-                        >
-                          <Video size={15} /> Join Google Meet Consultation
-                        </a>
-                      ) : (
-                        <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-                          <Video size={14} className="text-amber-700 shrink-0" />
-                          <span>Google Meet room will be provided by your clinician prior to your session.</span>
-                        </div>
-                      )}
+                      {(() => {
+                        const nextMeetingWindow = getSessionMeetingWindow(nextSession.scheduledStart, nextSession.scheduledEnd);
+                        if (!nextSession.googleMeetUrl) {
+                          return (
+                            <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                              <Video size={14} className="text-amber-700 shrink-0" />
+                              <span>Google Meet room will be provided by your clinician prior to your session.</span>
+                            </div>
+                          );
+                        }
+
+                        if (nextMeetingWindow.canJoin) {
+                          return (
+                            <a
+                              href={nextSession.googleMeetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-3 w-full bg-emerald-800 text-white hover:bg-emerald-900 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
+                            >
+                              <Video size={15} /> Join Google Meet Consultation
+                            </a>
+                          );
+                        }
+
+                        if (nextMeetingWindow.isTooEarly) {
+                          return (
+                            <div className="mt-3 p-3 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-2 text-xs text-gray-700">
+                                <Lock size={14} className="text-gray-500 shrink-0" />
+                                <span>Meeting room access opens 1 hour prior to session ({nextMeetingWindow.joinOpensAtFormatted})</span>
+                              </div>
+                              <button
+                                type="button"
+                                disabled
+                                className="py-1.5 px-3 rounded-lg bg-gray-200 text-gray-500 text-xs font-medium cursor-not-allowed inline-flex items-center gap-1.5 shrink-0"
+                                title={`Google Meet room becomes accessible at ${nextMeetingWindow.joinOpensAtFormatted}`}
+                              >
+                                <Lock size={12} /> Join Available 1h Prior
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="mt-3 p-2.5 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-xs flex items-center gap-2">
+                            <Clock size={14} className="text-gray-500 shrink-0" />
+                            <span>This consultation session has ended.</span>
+                          </div>
+                        );
+                      })()}
 
                       {/* Reschedule & Policy Info */}
                       <div className="pt-2 flex items-center justify-between text-xs text-[#66747A]">
@@ -1140,16 +1177,34 @@ export default function ClientTherapyDashboard({
 
                         {/* Actions */}
                         <div className="flex flex-wrap items-center gap-2.5">
-                          {isUpcoming && s.googleMeetUrl && (
-                            <a
-                              href={s.googleMeetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-emerald-800 text-white hover:bg-emerald-900 px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
-                            >
-                              <Video size={13} /> Join Meet
-                            </a>
-                          )}
+                          {isUpcoming && s.googleMeetUrl && (() => {
+                            const meetingWindow = getSessionMeetingWindow(s.scheduledStart, s.scheduledEnd);
+                            if (meetingWindow.canJoin) {
+                              return (
+                                <a
+                                  href={s.googleMeetUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="bg-emerald-800 text-white hover:bg-emerald-900 px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                                >
+                                  <Video size={13} /> Join Meet
+                                </a>
+                              );
+                            }
+                            if (meetingWindow.isTooEarly) {
+                              return (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="bg-gray-100 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 cursor-not-allowed"
+                                  title={`Room access opens 1 hour prior to session (${meetingWindow.joinOpensAtFormatted})`}
+                                >
+                                  <Lock size={12} className="text-gray-400" /> Join opens 1h prior
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           {isUpcoming && !s.googleMeetUrl && (
                             <span className="text-xs text-amber-800 font-medium px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200 inline-flex items-center gap-1">
