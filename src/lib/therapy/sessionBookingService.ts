@@ -245,6 +245,91 @@ export class SessionBookingService {
   }
 
   /**
+   * Resolves genuine participant names and verified email addresses for transactional emails and calendar sync.
+   * Handles schema boundaries (users: name/phone; therapist_profiles: full_name/contact_email; booking metadata).
+   */
+  static async resolveParticipantIdentities(params: {
+    userId: string;
+    therapistAccountId: string;
+    bookingId?: string | null;
+  }): Promise<{
+    clientName: string;
+    clientEmail: string;
+    therapistName: string;
+    therapistEmail: string;
+    clientId: string;
+    therapistId: string;
+  }> {
+    const [
+      { data: clientUser },
+      { data: therapistProfile },
+      { data: therapistApp },
+      { data: bookingRecord },
+    ] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, name, phone_number')
+        .eq('id', params.userId)
+        .maybeSingle(),
+      supabase
+        .from('therapist_profiles')
+        .select('full_name, contact_email')
+        .eq('therapist_account_id', params.therapistAccountId)
+        .maybeSingle(),
+      supabase
+        .from('therapist_applications')
+        .select('contact_email, answers')
+        .eq('therapist_account_id', params.therapistAccountId)
+        .maybeSingle(),
+      params.bookingId
+        ? supabase
+            .from('therapy_session_bookings')
+            .select('metadata')
+            .eq('id', params.bookingId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    let clientEmail =
+      (bookingRecord?.metadata as any)?.client_email ||
+      (bookingRecord?.metadata as any)?.clientEmail ||
+      '';
+
+    if (!clientEmail) {
+      try {
+        const { data: authUserData } = await supabase.auth.admin.getUserById(params.userId);
+        if (authUserData?.user?.email) {
+          clientEmail = authUserData.user.email;
+        }
+      } catch {}
+    }
+
+    const clientName = clientUser?.name || 'Valued Client';
+
+    const therapistEmail =
+      therapistProfile?.contact_email ||
+      therapistApp?.contact_email ||
+      (therapistApp?.answers as any)?.contact_email ||
+      (therapistApp?.answers as any)?.email ||
+      process.env.ADMIN_NOTIFICATION_EMAIL ||
+      'contactus@ingresswithin.com';
+
+    const therapistName =
+      therapistProfile?.full_name ||
+      (therapistApp?.answers as any)?.fullName ||
+      'Therapist';
+
+    return {
+      clientName,
+      clientEmail,
+      therapistName,
+      therapistEmail,
+      clientId: params.userId,
+      therapistId: params.therapistAccountId,
+    };
+  }
+
+  /**
    * Creates a session booking hold and generates a Razorpay Order.
    * Holds the slot for 15 minutes while awaiting payment.
    */
@@ -257,6 +342,7 @@ export class SessionBookingService {
     modality?: 'telehealth' | 'in_person' | 'chat' | 'phone';
     isFirstSessionCoordination?: boolean;
     clientNotes?: string;
+    clientEmail?: string;
   }) {
     const { userId, therapistAccountId, slotStart, slotEnd } = params;
 
@@ -463,6 +549,7 @@ export class SessionBookingService {
         expires_at: expiresAt,
         metadata: {
           client_notes: params.clientNotes || null,
+          client_email: params.clientEmail ? params.clientEmail.trim().toLowerCase() : null,
           pricing,
         },
       })
@@ -499,24 +586,18 @@ export class SessionBookingService {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, bookingId } = params;
 
     // 1. Locate booking
-    let query = supabase.from('therapy_session_bookings').select('*');
-    if (razorpayPaymentId) {
-      query = query.eq('razorpay_payment_id', razorpayPaymentId);
-    } else if (razorpayOrderId) {
-      query = query.eq('razorpay_order_id', razorpayOrderId);
-    } else if (bookingId) {
-      query = query.eq('id', bookingId);
+    let booking: any = null;
+    if (bookingId) {
+      const { data } = await supabase.from('therapy_session_bookings').select('*').eq('id', bookingId).maybeSingle();
+      booking = data;
     }
-
-    let { data: booking } = await query.maybeSingle();
-
     if (!booking && razorpayOrderId) {
-      const fallback = await supabase
-        .from('therapy_session_bookings')
-        .select('*')
-        .eq('razorpay_order_id', razorpayOrderId)
-        .maybeSingle();
-      booking = fallback.data;
+      const { data } = await supabase.from('therapy_session_bookings').select('*').eq('razorpay_order_id', razorpayOrderId).maybeSingle();
+      booking = data;
+    }
+    if (!booking && razorpayPaymentId) {
+      const { data } = await supabase.from('therapy_session_bookings').select('*').eq('razorpay_payment_id', razorpayPaymentId).maybeSingle();
+      booking = data;
     }
 
     if (!booking) {
@@ -563,15 +644,15 @@ export class SessionBookingService {
     }
 
     // 3. Fetch client and therapist details
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('id, email, full_name')
-      .eq('id', booking.user_id)
-      .maybeSingle();
+    const identities = await this.resolveParticipantIdentities({
+      userId: booking.user_id,
+      therapistAccountId: booking.therapist_account_id,
+      bookingId: booking.id,
+    });
 
     const { data: therapistAccount } = await supabase
       .from('therapist_accounts')
-      .select('id, full_name, email, per_session_fee, commission_rate')
+      .select('id, per_session_fee, commission_rate')
       .eq('id', booking.therapist_account_id)
       .single();
 
@@ -610,7 +691,7 @@ export class SessionBookingService {
 
     try {
       const sync = await GoogleCalendarService.syncAppointmentToGoogle(newAppt.id, {
-        summary: `Ingress Within: Session with ${clientUser?.full_name || 'Client'}`,
+        summary: `Ingress Within: Session with ${identities.clientName}`,
         description: `Ingress Within confidential therapy session. Ref: ${booking.booking_reference}`,
       });
       syncResult = {
@@ -629,10 +710,11 @@ export class SessionBookingService {
     let meetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
     let meetStatus = syncResult.googleMeetStatus;
 
-    // Ensure confirmed telehealth consultations always receive a valid Google Meet room
+    // Check fallback meet url if configured in environment
+    const fallbackMeet = GoogleCalendarService.getFallbackMeetUrl();
     const isTelehealth = newAppt.modality !== 'in_person' && newAppt.session_type !== 'in_person';
-    if (!meetUrl && isTelehealth) {
-      meetUrl = GoogleCalendarService.generateCanonicalMeetUrl(newAppt.id);
+    if (!meetUrl && fallbackMeet && isTelehealth) {
+      meetUrl = fallbackMeet;
       meetStatus = 'created';
 
       await supabase
@@ -683,13 +765,13 @@ export class SessionBookingService {
         bookingReference: booking.booking_reference,
         scheduledStart: booking.slot_start,
         scheduledEnd: booking.slot_end,
-        clientEmail: clientUser?.email || 'client@ingresswithin.com',
-        therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
-        clientName: clientUser?.full_name || 'Valued Client',
-        therapistName: therapistAccount?.full_name || 'Therapist',
+        clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+        therapistEmail: identities.therapistEmail || 'contactus@ingresswithin.com',
+        clientName: identities.clientName,
+        therapistName: identities.therapistName,
         googleMeetUrl: meetUrl || undefined,
-        clientId: clientUser?.id,
-        therapistId: therapistAccount?.id,
+        clientId: identities.clientId,
+        therapistId: identities.therapistId,
       });
     } catch (mailErr) {
       console.warn('[SessionBookingService] Email notification dispatch failed gracefully:', mailErr);
@@ -842,26 +924,20 @@ export class SessionBookingService {
     }
 
     // 8. Dispatch notification emails
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('email, full_name')
-      .eq('id', appt.user_id)
-      .maybeSingle();
-
-    const { data: therapistAccount } = await supabase
-      .from('therapist_accounts')
-      .select('email, full_name')
-      .eq('id', appt.therapist_account_id)
-      .maybeSingle();
+    const identities = await this.resolveParticipantIdentities({
+      userId: appt.user_id,
+      therapistAccountId: appt.therapist_account_id,
+      bookingId: appt.booking_id,
+    });
 
     await EmailService.notifySessionRescheduled({
       appointmentId,
       previousStart: appt.scheduled_start,
       newStart,
-      clientEmail: clientUser?.email || 'client@ingresswithin.com',
-      therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
-      clientName: clientUser?.full_name || 'Client',
-      therapistName: therapistAccount?.full_name || 'Therapist',
+      clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+      therapistEmail: identities.therapistEmail || 'contactus@ingresswithin.com',
+      clientName: identities.clientName,
+      therapistName: identities.therapistName,
       googleMeetUrl: appt.google_meet_url || appt.meeting_link,
     });
 
@@ -1084,33 +1160,27 @@ export class SessionBookingService {
       }
 
       // 8. Dispatch notification emails
-      const { data: clientUser } = await supabase
-        .from('users')
-        .select('email, full_name')
-        .eq('id', appt.user_id)
-        .maybeSingle();
-
-      const { data: therapistAccount } = await supabase
-        .from('therapist_accounts')
-        .select('email, full_name')
-        .eq('id', appt.therapist_account_id)
-        .maybeSingle();
+      const identities = await this.resolveParticipantIdentities({
+        userId: appt.user_id,
+        therapistAccountId: appt.therapist_account_id,
+        bookingId: appt.booking_id,
+      });
 
       await EmailService.notifySessionCancelled({
         appointmentId,
         scheduledStart: appt.scheduled_start,
-        clientEmail: clientUser?.email || 'client@ingresswithin.com',
-        therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
-        clientName: clientUser?.full_name || 'Client',
-        therapistName: therapistAccount?.full_name || 'Therapist',
+        clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+        therapistEmail: identities.therapistEmail || 'contactus@ingresswithin.com',
+        clientName: identities.clientName,
+        therapistName: identities.therapistName,
         reason,
         refundStatus,
       });
 
       if (refundStatus === 'full' && refundId) {
         await EmailService.notifyRefundInitiated({
-          clientEmail: clientUser?.email || 'client@ingresswithin.com',
-          clientName: clientUser?.full_name || 'Client',
+          clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+          clientName: identities.clientName,
           amountPaise: refundAmountPaise,
           refundId,
           bookingId: appt.booking_id,
@@ -1448,32 +1518,26 @@ export class SessionBookingService {
 
       // Send notifications if no-show
       if (attendanceStatus === 'client_no_show' || attendanceStatus === 'therapist_no_show') {
-        const { data: clientUser } = await supabase
-          .from('users')
-          .select('email, full_name')
-          .eq('id', appt.user_id)
-          .maybeSingle();
-
-        const { data: therapistAccount } = await supabase
-          .from('therapist_accounts')
-          .select('email, full_name')
-          .eq('id', appt.therapist_account_id)
-          .maybeSingle();
+        const identities = await this.resolveParticipantIdentities({
+          userId: appt.user_id,
+          therapistAccountId: appt.therapist_account_id,
+          bookingId: appt.booking_id,
+        });
 
         await EmailService.notifyNoShow({
           appointmentId,
           scheduledStart: appt.scheduled_start,
-          clientEmail: clientUser?.email || 'client@ingresswithin.com',
-          therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
-          clientName: clientUser?.full_name || 'Client',
-          therapistName: therapistAccount?.full_name || 'Therapist',
+          clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+          therapistEmail: identities.therapistEmail || 'contactus@ingresswithin.com',
+          clientName: identities.clientName,
+          therapistName: identities.therapistName,
           attendanceStatus,
         });
 
         if (attendanceStatus === 'therapist_no_show' && refundStatus === 'full' && refundId) {
           await EmailService.notifyRefundInitiated({
-            clientEmail: clientUser?.email || 'client@ingresswithin.com',
-            clientName: clientUser?.full_name || 'Client',
+            clientEmail: identities.clientEmail || 'contactus@ingresswithin.com',
+            clientName: identities.clientName,
             amountPaise: 177000,
             refundId,
             bookingId: appt.booking_id,
@@ -1529,20 +1593,14 @@ export class SessionBookingService {
       throw err;
     }
 
-    const { data: clientUser } = await supabase
-      .from('users')
-      .select('email, full_name')
-      .eq('id', appt.user_id)
-      .maybeSingle();
-
-    const { data: therapistAccount } = await supabase
-      .from('therapist_accounts')
-      .select('email, full_name')
-      .eq('id', appt.therapist_account_id)
-      .maybeSingle();
+    const identities = await this.resolveParticipantIdentities({
+      userId: appt.user_id,
+      therapistAccountId: appt.therapist_account_id,
+      bookingId: appt.booking_id,
+    });
 
     const syncResult = await GoogleCalendarService.syncAppointmentToGoogle(appt.id, {
-      summary: `Ingress Within: Session with ${clientUser?.full_name || 'Client'}`,
+      summary: `Ingress Within: Session with ${identities.clientName}`,
       description: `Ingress Within confidential therapy session.`,
     });
 

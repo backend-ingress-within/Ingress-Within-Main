@@ -2587,8 +2587,9 @@ export class TherapistPlatformService {
     let validMeetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
     let meetStatus = syncResult.googleMeetStatus;
 
-    if (!validMeetUrl && targetModality !== 'in_person' && targetSessionType !== 'in_person') {
-      validMeetUrl = GoogleCalendarService.generateCanonicalMeetUrl(createdAppt.id);
+    const fallbackMeet = GoogleCalendarService.getFallbackMeetUrl();
+    if (!validMeetUrl && fallbackMeet && targetModality !== 'in_person' && targetSessionType !== 'in_person') {
+      validMeetUrl = fallbackMeet;
       meetStatus = 'created';
       await supabase
         .from('therapist_clinical_appointments')

@@ -356,6 +356,7 @@ export class Msg91EmailProvider implements IEmailProvider {
       // Alternatively: { requestId: "...", status: "success" } or { message_id: "..." }
       const isSuccessStatus = responseJson?.status === 'success' || !responseJson?.hasError;
       const messageId =
+        responseJson?.data?.unique_id ||
         responseJson?.data?.messageId ||
         responseJson?.data?.id ||
         responseJson?.requestId ||

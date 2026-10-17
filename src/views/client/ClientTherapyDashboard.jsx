@@ -589,7 +589,7 @@ export default function ClientTherapyDashboard({
                       ) : (
                         <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
                           <Video size={14} className="text-amber-700 shrink-0" />
-                          <span>Google Meet consultation link being prepared...</span>
+                          <span>Google Meet room will be provided by your clinician prior to your session.</span>
                         </div>
                       )}
 

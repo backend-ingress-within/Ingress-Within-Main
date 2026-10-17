@@ -41,16 +41,20 @@ export function decryptToken(cipherText: string): string {
     return cipherText;
   }
 
-  const [ivHex, tagHex, encryptedHex] = parts;
-  const key = getEncryptionKey();
-  const iv = Buffer.from(ivHex, 'hex');
-  const authTag = Buffer.from(tagHex, 'hex');
-  
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
+  try {
+    const [ivHex, tagHex, encryptedHex] = parts;
+    const key = getEncryptionKey();
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(tagHex, 'hex');
+    
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
 
-  let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
 
-  return decrypted;
+    return decrypted;
+  } catch {
+    return '';
+  }
 }

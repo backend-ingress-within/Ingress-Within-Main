@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapistAccountId, slotStart, slotEnd, sessionType, modality, clientNotes } = body;
+    const { therapistAccountId, slotStart, slotEnd, sessionType, modality, clientNotes, clientEmail } = body;
 
     if (!therapistAccountId || !slotStart || !slotEnd) {
       return NextResponse.json(
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       sessionType,
       modality,
       clientNotes,
+      clientEmail,
       isFirstSessionCoordination: false,
     });
 

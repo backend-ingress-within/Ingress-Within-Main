@@ -57,19 +57,23 @@ export class GoogleCalendarService {
   }
 
   /**
-   * Generates a canonical, deterministic 3-4-3 Google Meet room URL for appointments.
-   * Format: https://meet.google.com/iwk-xxxx-yyy
-   * Satisfies isValidGoogleMeetUrl and provides an immediate, functional consultation room.
+   * Retrieves an optional pre-configured static Google Meet room URL from environment.
+   * If DEFAULT_GOOGLE_MEET_URL is configured and satisfies isValidGoogleMeetUrl, returns it.
+   * Otherwise returns null (leaving consultation room link pending until provided or synced).
    */
-  static generateCanonicalMeetUrl(seedId?: string): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyz';
-    let clean = (seedId || '').replace(/[^a-zA-Z]/g, '').toLowerCase();
-    while (clean.length < 7) {
-      clean += chars[Math.floor(Math.random() * chars.length)];
+  static getFallbackMeetUrl(): string | null {
+    const defaultUrl = process.env.DEFAULT_GOOGLE_MEET_URL?.trim();
+    if (defaultUrl && isValidGoogleMeetUrl(defaultUrl)) {
+      return defaultUrl;
     }
-    const part2 = clean.slice(0, 4);
-    const part3 = clean.slice(4, 7);
-    return `https://meet.google.com/iwk-${part2}-${part3}`;
+    return null;
+  }
+
+  /**
+   * @deprecated Google Meet rooms must be created via Google Calendar API or specified via DEFAULT_GOOGLE_MEET_URL.
+   */
+  static generateCanonicalMeetUrl(seedId?: string): string | null {
+    return this.getFallbackMeetUrl();
   }
 
   /**
@@ -388,20 +392,34 @@ export class GoogleCalendarService {
       }
 
       // 2. Fetch therapist and client identity
-      const { data: therapistAccount } = await supabase
-        .from('therapist_accounts')
-        .select('email, full_name')
-        .eq('id', appt.therapist_account_id)
-        .maybeSingle();
+      const [
+        { data: therapistProfile },
+        { data: clientUser },
+        { data: bookingRecord },
+      ] = await Promise.all([
+        supabase
+          .from('therapist_profiles')
+          .select('full_name, contact_email')
+          .eq('therapist_account_id', appt.therapist_account_id)
+          .maybeSingle(),
+        supabase
+          .from('users')
+          .select('id, name, phone_number')
+          .eq('id', appt.user_id)
+          .maybeSingle(),
+        appt.booking_id
+          ? supabase
+              .from('therapy_session_bookings')
+              .select('metadata')
+              .eq('id', appt.booking_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
 
-      const { data: clientUser } = await supabase
-        .from('users')
-        .select('email, full_name')
-        .eq('id', appt.user_id)
-        .maybeSingle();
-
-      const clientName = clientUser?.full_name || 'Client';
-      const therapistName = therapistAccount?.full_name || 'Therapist';
+      const clientName = clientUser?.name || 'Client';
+      const therapistName = therapistProfile?.full_name || 'Therapist';
+      const clientEmail = (bookingRecord?.metadata as any)?.client_email || (bookingRecord?.metadata as any)?.clientEmail || null;
+      const therapistEmail = therapistProfile?.contact_email || null;
 
       const isTelehealth = appt.modality !== 'in_person' && appt.session_type !== 'in_person';
       const shouldCreateMeet = options.createMeetConference ?? isTelehealth;
@@ -411,7 +429,7 @@ export class GoogleCalendarService {
         ? `Confidential clinical telehealth session scheduled via Ingress Within.\nClient: ${clientName}\nTherapist: ${therapistName}`
         : `Confidential clinical in-person therapy session scheduled via Ingress Within.\nClient: ${clientName}\nTherapist: ${therapistName}`);
 
-      const attendees = [therapistAccount?.email, clientUser?.email].filter(Boolean) as string[];
+      const attendees = [therapistEmail, clientEmail].filter(Boolean) as string[];
 
       // 3. Create or reconcile event in Google Calendar
       const eventResult = await this.createEventWithMeet({

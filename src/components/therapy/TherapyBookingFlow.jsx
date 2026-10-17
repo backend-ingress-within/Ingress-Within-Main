@@ -33,6 +33,13 @@ export default function TherapyBookingFlow({
 
   // Notes & Details
   const [clientNotes, setClientNotes] = useState('');
+  const [clientEmail, setClientEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('iw_user_email') || '';
+    }
+    return '';
+  });
+  const [emailError, setEmailError] = useState(null);
   const [error, setError] = useState(null);
 
   // Checkout & Order
@@ -120,6 +127,17 @@ export default function TherapyBookingFlow({
   // Handle Order Creation and Razorpay Checkout
   const handleProceedToPayment = async () => {
     if (!selectedTherapist || !selectedSlot) return;
+
+    const trimmedEmail = (clientEmail || '').trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+      setEmailError('Please enter a valid email address to receive your session confirmation and Google Meet link.');
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iw_user_email', trimmedEmail);
+    }
+
     setIsCreatingOrder(true);
     setError(null);
 
@@ -134,6 +152,7 @@ export default function TherapyBookingFlow({
           sessionType: 'video',
           modality: 'telehealth',
           clientNotes: clientNotes || undefined,
+          clientEmail: trimmedEmail,
         }),
       });
 
@@ -569,6 +588,28 @@ export default function TherapyBookingFlow({
                     <span className="text-emerald-800">₹{totalAmount.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Recipient Email for Confirmation & Google Meet */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Email Address (Confirmation &amp; Google Meet) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={clientEmail}
+                  onChange={(e) => {
+                    setClientEmail(e.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                  placeholder="name@example.com"
+                  className="w-full text-xs p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:outline-hidden"
+                />
+                {emailError && <p className="text-[11px] text-red-600 mt-1 font-medium">{emailError}</p>}
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Your booking confirmation, calendar invite, and Google Meet consultation room will be dispatched here.
+                </p>
               </div>
 
               {/* Client Notes */}
