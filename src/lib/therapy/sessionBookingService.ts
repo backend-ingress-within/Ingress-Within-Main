@@ -1604,7 +1604,21 @@ export class SessionBookingService {
       description: `Ingress Within confidential therapy session.`,
     });
 
-    const meetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    let meetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    if (!meetUrl && appt.modality !== 'in_person' && appt.session_type !== 'in_person') {
+      const fallbackMeet = GoogleCalendarService.getFallbackMeetUrl();
+      if (fallbackMeet) {
+        meetUrl = fallbackMeet;
+        await supabase
+          .from('therapist_clinical_appointments')
+          .update({
+            google_meet_url: fallbackMeet,
+            google_meet_status: 'created',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', appt.id);
+      }
+    }
 
     const { data: updatedAppt } = await supabase
       .from('therapist_clinical_appointments')

@@ -395,6 +395,8 @@ export class GoogleAuthService {
     return {
       success: true,
       accountType: stateRecord.account_type,
+      therapistAccountId: targetTherapistId,
+      userId: targetUserId,
       googleEmail,
       returnTo: stateRecord.return_to || '/',
     };
@@ -544,11 +546,49 @@ export class GoogleAuthService {
     }
 
     const { data } = await query.maybeSingle();
+    if (!data) {
+      return {
+        connected: false,
+        googleEmail: null,
+        syncStatus: 'not_connected',
+        lastSyncedAt: null,
+      };
+    }
+
+    if (data.sync_status === 'revoked' || data.sync_status === 'error') {
+      return {
+        connected: false,
+        googleEmail: data.google_email || null,
+        syncStatus: data.sync_status,
+        lastSyncedAt: data.last_synced_at || null,
+      };
+    }
+
+    // Verify token validity / decryptability to prevent false positive 'connected' states
+    const validToken = await this.getValidAccessToken(accountType, accountId);
+    if (!validToken) {
+      if (data.sync_status === 'connected') {
+        await supabase
+          .from('google_calendar_connections')
+          .update({
+            sync_status: 'revoked',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.id);
+      }
+      return {
+        connected: false,
+        googleEmail: data.google_email || null,
+        syncStatus: 'revoked',
+        lastSyncedAt: data.last_synced_at || null,
+      };
+    }
+
     return {
-      connected: Boolean(data && data.sync_status === 'connected'),
-      googleEmail: data?.google_email || null,
-      syncStatus: data?.sync_status || 'not_connected',
-      lastSyncedAt: data?.last_synced_at || null,
+      connected: true,
+      googleEmail: data.google_email || null,
+      syncStatus: 'connected',
+      lastSyncedAt: data.last_synced_at || null,
     };
   }
 

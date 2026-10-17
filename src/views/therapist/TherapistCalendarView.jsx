@@ -50,6 +50,8 @@ export default function TherapistCalendarView({
   const [completingId, setCompletingId] = useState(null);
   const [unblockingId, setUnblockingId] = useState(null);
   const [connectingCalendar, setConnectingCalendar] = useState(false);
+  const [syncingCalendar, setSyncingCalendar] = useState(false);
+  const [syncingApptId, setSyncingApptId] = useState(null);
   const [successBanner, setSuccessBanner] = useState(null);
 
   useEffect(() => {
@@ -126,13 +128,72 @@ export default function TherapistCalendarView({
         return;
       }
       if (!res.ok) {
-        alert(data.error?.message || 'Failed to initiate Google Calendar connection.');
+        if (data.canSimulate) {
+          const sim = confirm(`${data.error?.message}\n\nWould you like to connect a simulated Google Calendar account for local development?`);
+          if (sim) {
+            const simRes = await fetch('/api/calendar/google/connect?type=therapist&simulate=true&format=json');
+            const simData = await simRes.json().catch(() => ({}));
+            if (simData.success) {
+              setSuccessBanner('Simulated Google Calendar connected successfully!');
+              await fetchCalendar();
+              setConnectingCalendar(false);
+              return;
+            }
+          }
+        } else {
+          alert(data.error?.message || 'Failed to initiate Google Calendar connection.');
+        }
         setConnectingCalendar(false);
         return;
       }
       window.location.href = '/api/calendar/google/connect?type=therapist&returnTo=/therapist/calendar';
     } catch {
       window.location.href = '/api/calendar/google/connect?type=therapist&returnTo=/therapist/calendar';
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setSyncingCalendar(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/therapist/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setSuccessBanner(`Successfully synchronized ${data.syncedCount || 0} upcoming session(s) with Google Calendar.`);
+        await fetchCalendar();
+      } else {
+        setError(data.error?.message || 'Failed to sync calendar with Google.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error syncing calendar.');
+    } finally {
+      setSyncingCalendar(false);
+    }
+  };
+
+  const handleSyncSingleAppointment = async (apptId) => {
+    setSyncingApptId(apptId);
+    setError(null);
+    try {
+      const res = await fetch('/api/therapy/sessions/sync-calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: apptId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && (data.success || data.googleMeetUrl)) {
+        setSuccessBanner('Google Meet room and calendar event successfully synchronized!');
+        await fetchCalendar();
+      } else {
+        setError(data.error?.message || data.error || 'Failed to sync appointment with Google Calendar.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error syncing appointment.');
+    } finally {
+      setSyncingApptId(null);
     }
   };
 
@@ -445,11 +506,12 @@ export default function TherapistCalendarView({
         <div className="flex items-center gap-2 shrink-0">
           {googleCalendarStatus?.connected ? (
             <button
-              onClick={fetchCalendar}
+              onClick={handleSyncNow}
+              disabled={syncingCalendar || loading}
               className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-[#132A24] font-medium hover:bg-[#132A24]/5 transition-colors cursor-pointer inline-flex items-center gap-1.5"
             >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              Sync Now
+              <RefreshCw size={12} className={syncingCalendar || loading ? 'animate-spin' : ''} />
+              {syncingCalendar ? 'Syncing...' : 'Sync Now'}
             </button>
           ) : (
             <button
@@ -917,7 +979,7 @@ export default function TherapistCalendarView({
 
           {isScheduled && (
             <>
-              {Boolean(appt.googleMeetUrl || (appt.google_meet_url && String(appt.google_meet_url).startsWith('https://meet.google.com/'))) && (
+              {Boolean(appt.googleMeetUrl || (appt.google_meet_url && String(appt.google_meet_url).startsWith('https://meet.google.com/'))) ? (
                 <a
                   href={appt.googleMeetUrl || appt.google_meet_url}
                   target="_blank"
@@ -926,6 +988,17 @@ export default function TherapistCalendarView({
                 >
                   <Video size={13} /> Join Google Meet
                 </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSyncSingleAppointment(appt.id)}
+                  disabled={syncingApptId === appt.id}
+                  className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs font-medium hover:bg-amber-100 cursor-pointer inline-flex items-center gap-1"
+                  title="Synchronize Google Meet room"
+                >
+                  <Video size={13} className={syncingApptId === appt.id ? 'animate-spin text-amber-700' : 'text-amber-700'} />
+                  {syncingApptId === appt.id ? 'Syncing...' : 'Sync Meet Link'}
+                </button>
               )}
               <button
                 onClick={() => handleCompleteSession(appt.id)}

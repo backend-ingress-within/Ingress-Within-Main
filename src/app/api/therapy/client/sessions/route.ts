@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { supabase } from '../../../../../lib/db';
-import { isValidGoogleMeetUrl } from '../../../../../lib/calendar/googleCalendarService';
+import { isValidGoogleMeetUrl, GoogleCalendarService } from '../../../../../lib/calendar/googleCalendarService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,7 +73,13 @@ export async function GET(request: NextRequest) {
       const refundEligible = hoursRemaining >= 48;
 
       const therapist = therapistsMap[appt.therapist_account_id];
-      const validMeetUrl = isValidGoogleMeetUrl(appt.google_meet_url) ? appt.google_meet_url : null;
+      const validMeetUrl = isValidGoogleMeetUrl(appt.google_meet_url)
+        ? appt.google_meet_url
+        : (isValidGoogleMeetUrl(appt.meeting_link)
+            ? appt.meeting_link
+            : (appt.modality !== 'in_person' && appt.session_type !== 'in_person'
+                ? GoogleCalendarService.getFallbackMeetUrl()
+                : null));
 
       return {
         id: appt.id,

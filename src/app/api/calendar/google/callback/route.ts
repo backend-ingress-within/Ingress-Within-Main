@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import { getAuthenticatedUser } from '../../../../../lib/auth-helper';
 import { getAuthenticatedTherapist } from '../../../../../lib/therapist/therapistAuthHelper';
 import { GoogleAuthService, sanitizeReturnTo } from '../../../../../lib/calendar/googleAuthService';
+import { GoogleCalendarService } from '../../../../../lib/calendar/googleCalendarService';
+import { supabase } from '../../../../../lib/db';
 
 function getBaseOrigin(request: NextRequest): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -72,6 +74,24 @@ export async function GET(request: NextRequest) {
     // the single-use, 256-bit cryptographically secure server-side state token bound
     // to the verified account when /connect was called.
     const result = await GoogleAuthService.handleOAuthCallback(code, state, callerSession);
+
+    // Automatically synchronize upcoming unsynced appointments to Google Calendar
+    if (result.therapistAccountId) {
+      try {
+        const { data: upcomingAppts } = await supabase
+          .from('therapist_clinical_appointments')
+          .select('id')
+          .eq('therapist_account_id', result.therapistAccountId)
+          .in('status', ['confirmed', 'scheduled'])
+          .gte('scheduled_start', new Date().toISOString());
+
+        for (const appt of (upcomingAppts || [])) {
+          await GoogleCalendarService.syncAppointmentToGoogle(appt.id);
+        }
+      } catch (syncErr) {
+        console.warn('[GoogleCallback] Auto-sync of upcoming appointments encountered non-blocking error:', syncErr);
+      }
+    }
 
     // Redirect to returned destination with success query param
     const safeDestinationPath = sanitizeReturnTo(result.returnTo || returnTo, '/');
