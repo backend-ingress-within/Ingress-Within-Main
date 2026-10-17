@@ -308,19 +308,50 @@ export default function ReportsPage({ user, profile, onSignOut }) {
       const listEmos = data.vocabThisWeek || [];
       const lengths = data.writing_behaviour?.entry_lengths || [];
 
+      const entriesCompleted = stats.entries_completed ?? (data.entriesCount ?? 0);
+      const totalPossible = stats.total_possible || 7;
+      const isZeroWeek = entriesCompleted === 0;
+      const prevWeekData = data.previous_week_data || null;
+
       // Parse what_we_saw into facts vs realization
-      const parts = (data.what_we_saw || '').split('\n\n');
-      const sawText = parts[0] || '';
-      const realizationText = parts[1] || '';
+      const parts = (data.what_we_saw || reportData.body || '').split('\n\n');
+      const sawText = parts[0] || (isZeroWeek 
+        ? (prevWeekData 
+            ? `No journal entries were recorded for Week ${reportData.week_number}. Your reflection baseline, focal themes, and emotional patterns from Week ${prevWeekData.week_number} remain active.`
+            : `No journal entries were recorded for Week ${reportData.week_number}. Your space remains open and ready whenever you choose to resume writing.`)
+        : '');
+      const realizationText = parts[1] || (isZeroWeek
+        ? 'Taking time between reflections is a natural pause. Continuity is maintained from your prior baseline until your next entry.'
+        : '');
 
       let sinceLastWeekContent = '';
-      if (typeof data.since_last_week === 'string') {
+      if (isZeroWeek) {
+        if (prevWeekData) {
+          const prevWords = (prevWeekData.vocabThisWeek || []).slice(0, 3).map((v) => v.word);
+          const prevClusters = (prevWeekData.emotion_clusters || []).slice(0, 3).map((c) => c.word);
+          const wordsToShow = prevWords.length > 0 ? prevWords : prevClusters;
+          if (wordsToShow.length > 0) {
+            sinceLastWeekContent = `Last week: ${wordsToShow.join(', ')}. This week: No entries logged — continuity maintained from Week ${prevWeekData.week_number}.`;
+          } else {
+            sinceLastWeekContent = `Maintained baseline from Week ${prevWeekData.week_number}. No new entries logged this week.`;
+          }
+        } else if (typeof data.since_last_week === 'string' && !data.since_last_week.includes('This week: .')) {
+          sinceLastWeekContent = data.since_last_week;
+        } else {
+          sinceLastWeekContent = 'First week on record. No journal entries logged during this period; baseline remains open.';
+        }
+      } else if (typeof data.since_last_week === 'string') {
         sinceLastWeekContent = data.since_last_week;
+        if (sinceLastWeekContent.endsWith('This week: .')) {
+          sinceLastWeekContent = sinceLastWeekContent.replace('This week: .', 'This week: No new entries logged — continuity maintained from prior week.');
+        }
       } else if (data.since_last_week && typeof data.since_last_week === 'object') {
         const lastWords = data.since_last_week.last_week_words || [];
         const thisWords = data.since_last_week.this_week_words || [];
         if (lastWords.length === 0) {
           sinceLastWeekContent = 'First week on record. No prior week to compare.';
+        } else if (thisWords.length === 0) {
+          sinceLastWeekContent = `Last week: ${lastWords.join(', ')}. This week: No new entries logged — continuity maintained from prior week.`;
         } else {
           sinceLastWeekContent = `Last week: ${lastWords.join(', ')}. This week: ${thisWords.join(', ')}.`;
         }
@@ -335,23 +366,34 @@ export default function ReportsPage({ user, profile, onSignOut }) {
               <div class="logo font-semibold">ingress <span>within</span></div>
               <div class="wl" style="margin-left: 14px; text-transform: uppercase;">Week ${reportData.week_number} Summary</div>
             </div>
-            <div class="dr">${stats.week_range || ''}</div>
+            <div class="dr">${stats.week_range || (reportData.generated_at ? new Date(reportData.generated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '')}</div>
           </div>
           <div class="body">
             <div class="sr">
               <div class="sc">
                 <div class="sl">Entries</div>
-                <div class="sv">${stats.entries_completed}<sup>/${stats.total_possible}</sup></div>
-                <div class="ss">${stats.skipped_days > 0 ? stats.skipped_days + ' days skipped' : 'Perfect streak'}</div>
+                <div class="sv">${entriesCompleted}<sup>/${totalPossible}</sup></div>
+                <div class="ss">${isZeroWeek ? 'Rest week · No entries' : (stats.skipped_days > 0 ? stats.skipped_days + ' days skipped' : 'Perfect streak')}</div>
               </div>
               <div class="sc">
                 <div class="sl">Top focal expression</div>
-                <div class="sw">"${listEmos[0]?.word || 'none'}"</div>
-                <div class="ss">appeared ${listEmos[0]?.frequency || 0} times</div>
+                ${isZeroWeek ? (
+                  prevWeekData?.top_focal_expression ? `
+                    <div class="sw">"${prevWeekData.top_focal_expression}"</div>
+                    <div class="ss">Maintained from Week ${prevWeekData.week_number}</div>
+                  ` : `
+                    <div class="sw" style="font-size: 13px; font-style: italic; font-weight: normal; color: var(--muted);">No entries written</div>
+                    <div class="ss">0 new expressions logged</div>
+                  `
+                ) : `
+                  <div class="sw">"${listEmos[0]?.word || 'none'}"</div>
+                  <div class="ss">appeared ${listEmos[0]?.frequency || 0} times</div>
+                `}
               </div>
               <div class="sc">
                 <div class="sl">Week tone</div>
-                <div class="st">${reportData.title || 'Neutral baseline'}</div>
+                <div class="st">${reportData.title && reportData.title !== 'Weekly Synthesis' ? reportData.title : (isZeroWeek && prevWeekData?.week_tone ? `${prevWeekData.week_tone} (Carried forward)` : (isZeroWeek ? 'Rest & Integration' : 'Neutral baseline'))}</div>
+                ${isZeroWeek && prevWeekData?.week_number ? `<div class="ss">Same as Week ${prevWeekData.week_number}</div>` : ''}
               </div>
             </div>
 
@@ -362,8 +404,8 @@ export default function ReportsPage({ user, profile, onSignOut }) {
 
             <div class="tc">
               <div>
-                <div class="lbl">Emotion language this week</div>
-                <div class="cx">Words pulled from your writing this week, grouped with related words you didn't use.</div>
+                <div class="lbl">Emotion language ${isZeroWeek ? '(Maintained baseline)' : 'this week'}</div>
+                <div class="cx">${isZeroWeek ? 'No new entries logged this week. Displaying baseline emotional patterns carried forward from your last active report.' : "Words pulled from your writing this week, grouped with related words you didn't use."}</div>
                 <div style="margin-top: 10px;">
                   ${data.emotion_clusters && data.emotion_clusters.length > 0 ? (
                     data.emotion_clusters.slice(0, 3).map(cluster => `
@@ -374,14 +416,50 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                         `).join('')}
                       </div>
                     `).join('')
-                  ) : (
+                  ) : listEmos.length > 0 ? (
                     listEmos.slice(0, 3).map(emo => `
                       <div class="cluster-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <span class="tag" style="background: var(--terracotta-bg); color: var(--terracotta-text); font-size: 12.5px; padding: 5px 11px; border-radius: 20px;">${emo.word} →</span>
                         <span class="related" style="background: #fff; border: 1px solid var(--border); font-size: 12.5px; padding: 5px 11px; border-radius: 20px; color: var(--muted);">${emo.normalized_word}</span>
                       </div>
                     `).join('')
-                  )}
+                  ) : isZeroWeek && prevWeekData?.emotion_clusters && prevWeekData.emotion_clusters.length > 0 ? (
+                    `
+                    <div style="background: #FAF9F7; border: 1px solid rgba(30,42,46,0.08); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                      <div style="font-size: 10.5px; font-weight: 600; color: #4A6A64; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>Week ${prevWeekData.week_number} Baseline</span>
+                        <span style="font-size: 9.5px; background: rgba(224,168,152,0.2); color: #A25845; padding: 2px 8px; border-radius: 12px;">Active baseline</span>
+                      </div>
+                      ${prevWeekData.emotion_clusters.slice(0, 3).map(cluster => `
+                        <div class="cluster-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                          <span class="tag" style="background: var(--terracotta-bg); color: var(--terracotta-text); font-size: 12.5px; padding: 4px 10px; border-radius: 20px;">${cluster.word} →</span>
+                          ${(cluster.related || []).slice(0, 3).map(rel => `
+                            <span class="related" style="background: #fff; border: 1px solid var(--border); font-size: 12.5px; padding: 4px 10px; border-radius: 20px; color: var(--muted);">${rel}</span>
+                          `).join('')}
+                        </div>
+                      `).join('')}
+                    </div>
+                    `
+                  ) : isZeroWeek && prevWeekData?.vocabThisWeek && prevWeekData.vocabThisWeek.length > 0 ? (
+                    `
+                    <div style="background: #FAF9F7; border: 1px solid rgba(30,42,46,0.08); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                      <div style="font-size: 10.5px; font-weight: 600; color: #4A6A64; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>Week ${prevWeekData.week_number} Baseline</span>
+                        <span style="font-size: 9.5px; background: rgba(224,168,152,0.2); color: #A25845; padding: 2px 8px; border-radius: 12px;">Active baseline</span>
+                      </div>
+                      ${prevWeekData.vocabThisWeek.slice(0, 3).map(emo => `
+                        <div class="cluster-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                          <span class="tag" style="background: var(--terracotta-bg); color: var(--terracotta-text); font-size: 12.5px; padding: 4px 10px; border-radius: 20px;">${emo.word} →</span>
+                          <span class="related" style="background: #fff; border: 1px solid var(--border); font-size: 12.5px; padding: 4px 10px; border-radius: 20px; color: var(--muted);">${emo.normalized_word}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                    `
+                  ) : `
+                    <div style="background: #FAF9F7; border: 1px solid rgba(30,42,46,0.08); border-radius: 8px; padding: 14px; text-align: center; color: #4A6A64; font-size: 12px; line-height: 1.6;">
+                      No journal entries were recorded this week. As you log entries, your unique emotion vocabulary and themes will automatically be mapped here.
+                    </div>
+                  `}
                 </div>
                 ${data.analytical_block ? `
                   <div class="cluster-note" style="font-size: 13.5px; line-height: 1.6; margin-top: 12px; color: var(--ink);">
@@ -402,7 +480,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                     `;
                   }).join('')}
                 </div>
-                <div class="arc-note" style="margin-top: 10px;">${data.writing_behaviour?.consistency || 'Writing patterns logged consistently.'}</div>
+                <div class="arc-note" style="margin-top: 10px;">${isZeroWeek ? (data.writing_behaviour?.consistency && data.writing_behaviour.consistency !== 'No reflection data recorded this week.' ? data.writing_behaviour.consistency : 'A restful week with no journal entries recorded. Daily pacing will resume with your next entry.') : (data.writing_behaviour?.consistency || 'Writing patterns logged consistently.')}</div>
               </div>
               <div>
                 <div class="lbl">What we saw</div>
@@ -414,7 +492,7 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                     ${realizationText}
                   </div>
                 ` : ''}
-                <div class="why-hedge" style="margin-top: 12px;">Based on ${stats.entries_completed || 0} of 7 entries this week.</div>
+                <div class="why-hedge" style="margin-top: 12px;">${isZeroWeek ? `Based on 0 of 7 entries this week${prevWeekData ? ` · Baseline maintained from Week ${prevWeekData.week_number}` : ' · Awaiting next entry'}.` : `Based on ${entriesCompleted} of ${totalPossible} entries this week.`}</div>
               </div>
             </div>
             ${data.crisis_review ? `
@@ -423,9 +501,9 @@ export default function ReportsPage({ user, profile, onSignOut }) {
               </div>
             ` : ''}
             <div class="cb" style="margin-top: 24px;">
-              <div class="cq">"${data.candidate_quote || 'Reflecting on your logs helps align focus.'}"</div>
+              <div class="cq">"${data.candidate_quote || (prevWeekData?.candidate_quote || 'Taking time between reflections is a natural pause in the journey.')}"</div>
               <div class="carry-label">Carry Question</div>
-              <div class="co">${reportData.open_question || data.carry_question}</div>
+              <div class="co">${reportData.open_question || data.carry_question || 'What thoughts or reflections would you like to explore as you step into the coming week?'}</div>
             </div>
           </div>
         </div>
@@ -2558,19 +2636,50 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                 const listEmos = data.vocabThisWeek || [];
                 const lengths = data.writing_behaviour?.entry_lengths || [];
 
+                const entriesCompleted = stats.entries_completed ?? (data.entriesCount ?? 0);
+                const totalPossible = stats.total_possible || 7;
+                const isZeroWeek = entriesCompleted === 0;
+                const prevWeekData = data.previous_week_data || null;
+
                 // Parse what_we_saw into facts vs realization
-                const parts = (data.what_we_saw || '').split('\n\n');
-                const sawText = parts[0] || '';
-                const realizationText = parts[1] || '';
+                const parts = (data.what_we_saw || selectedReport.body || '').split('\n\n');
+                const sawText = parts[0] || (isZeroWeek 
+                  ? (prevWeekData 
+                      ? `No journal entries were recorded for Week ${selectedReport.week_number}. Your reflection baseline, focal themes, and emotional patterns from Week ${prevWeekData.week_number} remain active.`
+                      : `No journal entries were recorded for Week ${selectedReport.week_number}. Your space remains open and ready whenever you choose to resume writing.`)
+                  : '');
+                const realizationText = parts[1] || (isZeroWeek
+                  ? 'Taking time between reflections is a natural pause. Continuity is maintained from your prior baseline until your next entry.'
+                  : '');
 
                 let sinceLastWeekContent = '';
-                if (typeof data.since_last_week === 'string') {
+                if (isZeroWeek) {
+                  if (prevWeekData) {
+                    const prevWords = (prevWeekData.vocabThisWeek || []).slice(0, 3).map((v) => v.word);
+                    const prevClusters = (prevWeekData.emotion_clusters || []).slice(0, 3).map((c) => c.word);
+                    const wordsToShow = prevWords.length > 0 ? prevWords : prevClusters;
+                    if (wordsToShow.length > 0) {
+                      sinceLastWeekContent = `Last week: ${wordsToShow.join(', ')}. This week: No entries logged — continuity maintained from Week ${prevWeekData.week_number}.`;
+                    } else {
+                      sinceLastWeekContent = `Maintained baseline from Week ${prevWeekData.week_number}. No new entries logged this week.`;
+                    }
+                  } else if (typeof data.since_last_week === 'string' && !data.since_last_week.includes('This week: .')) {
+                    sinceLastWeekContent = data.since_last_week;
+                  } else {
+                    sinceLastWeekContent = 'First week on record. No journal entries logged during this period; baseline remains open.';
+                  }
+                } else if (typeof data.since_last_week === 'string') {
                   sinceLastWeekContent = data.since_last_week;
+                  if (sinceLastWeekContent.endsWith('This week: .')) {
+                    sinceLastWeekContent = sinceLastWeekContent.replace('This week: .', 'This week: No new entries logged — continuity maintained from prior week.');
+                  }
                 } else if (data.since_last_week && typeof data.since_last_week === 'object') {
                   const lastWords = data.since_last_week.last_week_words || [];
                   const thisWords = data.since_last_week.this_week_words || [];
                   if (lastWords.length === 0) {
                     sinceLastWeekContent = 'First week on record. No prior week to compare.';
+                  } else if (thisWords.length === 0) {
+                    sinceLastWeekContent = `Last week: ${lastWords.join(', ')}. This week: No new entries logged — continuity maintained from prior week.`;
                   } else {
                     sinceLastWeekContent = `Last week: ${lastWords.join(', ')}. This week: ${thisWords.join(', ')}.`;
                   }
@@ -2596,19 +2705,58 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                       <div className="sr">
                         <div className="sc">
                           <div className="sl">Entries</div>
-                          <div className="sv">{stats.entries_completed}<sup>/{stats.total_possible}</sup></div>
+                          <div className="sv">{entriesCompleted}<sup>/{totalPossible}</sup></div>
                           <div className="ss">
-                            {stats.skipped_days > 0 ? `${stats.skipped_days} day${stats.skipped_days > 1 ? 's' : ''} skipped` : 'Perfect streak'}
+                            {isZeroWeek ? (
+                              <span className="text-[#4A6A64] font-medium">Rest week · No entries</span>
+                            ) : stats.skipped_days > 0 ? (
+                              `${stats.skipped_days} day${stats.skipped_days > 1 ? 's' : ''} skipped`
+                            ) : (
+                              'Perfect streak'
+                            )}
                           </div>
                         </div>
                         <div className="sc">
                           <div className="sl">Top focal expression</div>
-                          <div className="sw">"{listEmos[0]?.word || 'none'}"</div>
-                          <div className="ss">appeared {listEmos[0]?.frequency || 0} times</div>
+                          {isZeroWeek ? (
+                            prevWeekData?.top_focal_expression ? (
+                              <>
+                                <div className="sw" title={`Carried from Week ${prevWeekData.week_number}`}>
+                                  "{prevWeekData.top_focal_expression}"
+                                </div>
+                                <div className="ss text-[#4A6A64]">
+                                  Maintained from Week {prevWeekData.week_number}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="sw text-[13px] text-[#4A6A64] font-normal italic">
+                                  No entries written
+                                </div>
+                                <div className="ss">0 new expressions logged</div>
+                              </>
+                            )
+                          ) : (
+                            <>
+                              <div className="sw">"{listEmos[0]?.word || 'none'}"</div>
+                              <div className="ss">appeared {listEmos[0]?.frequency || 0} times</div>
+                            </>
+                          )}
                         </div>
                         <div className="sc">
                           <div className="sl">Week tone</div>
-                          <div className="st">{selectedReport.title || 'Neutral baseline'}</div>
+                          <div className="st">
+                            {selectedReport.title && selectedReport.title !== 'Weekly Synthesis'
+                              ? selectedReport.title
+                              : isZeroWeek && prevWeekData?.week_tone
+                              ? `${prevWeekData.week_tone} (Carried forward)`
+                              : isZeroWeek
+                              ? 'Rest & Integration'
+                              : 'Neutral baseline'}
+                          </div>
+                          {isZeroWeek && prevWeekData?.week_number && (
+                            <div className="ss text-[#4A6A64]">Same as Week {prevWeekData.week_number}</div>
+                          )}
                         </div>
                       </div>
 
@@ -2621,8 +2769,14 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                       <div className="tc">
                         {/* LEFT COLUMN */}
                         <div>
-                          <div className="lbl">Emotion language this week</div>
-                          <div className="cx">Words pulled from your writing this week, grouped with related words you didn't use.</div>
+                          <div className="lbl">
+                            Emotion language {isZeroWeek ? '(Maintained baseline)' : 'this week'}
+                          </div>
+                          <div className="cx">
+                            {isZeroWeek
+                              ? 'No new entries logged this week. Displaying baseline emotional patterns carried forward from your last active report.'
+                              : "Words pulled from your writing this week, grouped with related words you didn't use."}
+                          </div>
 
                           <div className="space-y-3">
                             {data.emotion_clusters && data.emotion_clusters.length > 0 ? (
@@ -2634,13 +2788,47 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                                   ))}
                                 </div>
                               ))
-                            ) : (
+                            ) : listEmos.length > 0 ? (
                               listEmos.slice(0, 3).map((emo, index) => (
                                 <div key={index} className="cr">
                                   <span className="wu">{emo.word} →</span>
                                   <span className="wn">{emo.normalized_word}</span>
                                 </div>
                               ))
+                            ) : isZeroWeek && prevWeekData?.emotion_clusters && prevWeekData.emotion_clusters.length > 0 ? (
+                              <div className="rounded-lg bg-[#FAF9F7] border border-[#1E2A2E]/8 p-3.5 space-y-2.5">
+                                <div className="text-[10.5px] font-semibold text-[#4A6A64] uppercase tracking-wider mb-1 flex items-center justify-between">
+                                  <span>Week {prevWeekData.week_number} Baseline</span>
+                                  <span className="text-[9.5px] bg-[#E0A898]/20 text-[#A25845] px-2 py-0.5 rounded-full font-normal">Active baseline</span>
+                                </div>
+                                {prevWeekData.emotion_clusters.slice(0, 3).map((cluster, index) => (
+                                  <div key={index} className="cr">
+                                    <span className="wu">{cluster.word} →</span>
+                                    {(cluster.related || []).slice(0, 3).map((rel, rIdx) => (
+                                      <span key={rIdx} className="wn">{rel}</span>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : isZeroWeek && prevWeekData?.vocabThisWeek && prevWeekData.vocabThisWeek.length > 0 ? (
+                              <div className="rounded-lg bg-[#FAF9F7] border border-[#1E2A2E]/8 p-3.5 space-y-2.5">
+                                <div className="text-[10.5px] font-semibold text-[#4A6A64] uppercase tracking-wider mb-1 flex items-center justify-between">
+                                  <span>Week {prevWeekData.week_number} Baseline</span>
+                                  <span className="text-[9.5px] bg-[#E0A898]/20 text-[#A25845] px-2 py-0.5 rounded-full font-normal">Active baseline</span>
+                                </div>
+                                {prevWeekData.vocabThisWeek.slice(0, 3).map((emo, index) => (
+                                  <div key={index} className="cr">
+                                    <span className="wu">{emo.word} →</span>
+                                    <span className="wn">{emo.normalized_word}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="rounded-lg bg-[#FAF9F7] border border-[#1E2A2E]/8 p-4 text-center">
+                                <p className="text-xs text-[#4A6A64] leading-relaxed">
+                                  No journal entries were recorded this week. As you log entries, your unique emotion vocabulary and themes will automatically be mapped here.
+                                </p>
+                              </div>
                             )}
                           </div>
 
@@ -2674,7 +2862,11 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                             })}
                           </div>
                           <div className="arc-note">
-                            {data.writing_behaviour?.consistency || 'Writing patterns logged consistently.'}
+                            {isZeroWeek 
+                              ? (data.writing_behaviour?.consistency && data.writing_behaviour.consistency !== 'No reflection data recorded this week.'
+                                  ? data.writing_behaviour.consistency
+                                  : 'A restful week with no journal entries recorded. Pacing will resume with your next entry.')
+                              : (data.writing_behaviour?.consistency || 'Writing patterns logged consistently.')}
                           </div>
 
                         </div>
@@ -2693,7 +2885,9 @@ export default function ReportsPage({ user, profile, onSignOut }) {
                           )}
 
                           <div className="why-hedge">
-                            Based on {stats.entries_completed || 0} of {stats.total_possible || 7} entries this week.
+                            {isZeroWeek 
+                              ? `Based on 0 of 7 entries this week${prevWeekData ? ` · Baseline maintained from Week ${prevWeekData.week_number}` : ' · Awaiting next entry'}.`
+                              : `Based on ${entriesCompleted} of ${totalPossible} entries this week.`}
                           </div>
 
                         </div>
@@ -2712,11 +2906,11 @@ export default function ReportsPage({ user, profile, onSignOut }) {
 
                       <div className="cb mt-5">
                         <div className="cq">
-                          "{data.candidate_quote || 'Reflecting on your logs helps align focus.'}"
+                          "{data.candidate_quote || (prevWeekData?.candidate_quote || 'Taking time between reflections is a natural pause in the journey.')}"
                         </div>
                         <div className="carry-label">Carry Question</div>
                         <div className="co">
-                          {selectedReport.open_question || data.carry_question}
+                          {selectedReport.open_question || data.carry_question || 'What thoughts or reflections would you like to explore as you step into the coming week?'}
                         </div>
                       </div>
                     </div>

@@ -212,20 +212,103 @@ export async function processWeeklySummary(jobData: {
   }
 
   if (collectedData.entries.filter(e => e.content.trim().length > 0).length === 0) {
-    console.log(`[Weekly Summary Worker] No written entries found for week ${week_number}. Creating graceful READY summary.`);
+    console.log(`[Weekly Summary Worker] No written entries found for week ${week_number}. Creating graceful READY summary with baseline continuity.`);
+
+    let prevSummaryData: any = null;
+    let prevWords: string[] = [];
+    if (week_number > 1) {
+      try {
+        const { data: prevSummary } = await supabase
+          .from('weekly_summaries')
+          .select('*')
+          .eq('cycle_id', cycle_id)
+          .eq('week_number', week_number - 1)
+          .eq('user_id', user_id)
+          .maybeSingle();
+
+        if (prevSummary && prevSummary.report_data) {
+          const pData = typeof prevSummary.report_data === 'string' ? JSON.parse(prevSummary.report_data) : prevSummary.report_data;
+          prevSummaryData = {
+            week_number: prevSummary.week_number,
+            title: prevSummary.title || pData.week_tone || 'Baseline',
+            week_tone: pData.week_tone || prevSummary.title || 'Baseline',
+            top_focal_expression: pData.top_focal_expression || (pData.vocabThisWeek?.[0]?.word) || null,
+            top_focal_frequency: pData.vocabThisWeek?.[0]?.frequency || null,
+            vocabThisWeek: pData.vocabThisWeek || [],
+            emotion_clusters: pData.emotion_clusters || [],
+            candidate_quote: pData.candidate_quote || null
+          };
+          prevWords = (prevSummaryData.vocabThisWeek || []).slice(0, 3).map((v: any) => v.word);
+        }
+      } catch (prevErr: any) {
+        console.warn(`[Weekly Summary Worker] Could not fetch previous summary for baseline continuity:`, prevErr.message);
+      }
+    }
+
+    const weekTone = prevSummaryData?.week_tone
+      ? `Baseline Continuity (Same as Week ${prevSummaryData.week_number})`
+      : 'Rest & Integration';
+
+    const bodyText = prevSummaryData
+      ? `No journal entries were recorded for Week ${week_number}. Your reflection baseline, focal themes, and emotional patterns from Week ${prevSummaryData.week_number} remain active.\n\nTaking time between reflections is a natural pause. Your emotional continuity is preserved, carrying forward insights from your prior entries until you resume writing.`
+      : `No journal entries were recorded for Week ${week_number}. Your space is ready and waiting for whenever you choose to begin writing.\n\nYour first entry will establish your baseline tone, emotional vocabulary, and personal reflection arc.`;
+
+    const sinceLastWeek = prevWords.length > 0
+      ? `Last week: ${prevWords.join(', ')}. This week: No entries logged — continuity maintained from Week ${prevSummaryData.week_number}.`
+      : (week_number > 1
+          ? `Maintained baseline from Week ${week_number - 1}. No new entries logged this week.`
+          : `First week on record. No journal entries logged during this period; baseline remains open.`);
+
+    const openQuestion = 'What thoughts or reflections would you like to explore as you step into the coming week?';
+    const candidateQuote = prevSummaryData?.candidate_quote || 'Rest and pauses are a vital part of personal reflection.';
+
     await supabase
       .from('weekly_summaries')
       .update({
         status: 'READY',
-        body: 'No journal entries were recorded for this week. Your baseline psychological context remains active.',
-        open_question: 'What thoughts or reflections would you like to record for the coming week?',
+        title: weekTone,
+        why: prevSummaryData
+          ? `Continuity maintained from Week ${prevSummaryData.week_number}'s psychological baseline.`
+          : 'Baseline context open, awaiting your first entry.',
+        body: bodyText,
+        open_question: openQuestion,
         report_data: {
+          zero_entries: true,
           entriesCount: 0,
+          week_tone: weekTone,
+          what_we_saw: bodyText,
+          carry_question: openQuestion,
+          candidate_quote: candidateQuote,
+          top_focal_expression: prevSummaryData?.top_focal_expression || null,
+          weekly_stats: {
+            ...collectedData.weekly_stats,
+            entries_completed: 0,
+            total_possible: 7,
+            skipped_days: 7,
+            writing_streak: 0,
+            perfect_streak: false
+          },
+          writing_behaviour: {
+            ...collectedData.writing_behaviour,
+            consistency: 'A restful week with no journal entries recorded. Daily pacing will resume with your next entry.'
+          },
+          since_last_week: sinceLastWeek,
+          previous_week_data: prevSummaryData,
+          crisis_review: {
+            occurred: false,
+            summary: null
+          },
+          vocabThisWeek: [],
+          emotion_clusters: prevSummaryData?.emotion_clusters || [],
           averages: { ei: null, pr: null, sa: null },
-          key_developments: ['No entries recorded during this week.'],
-          open_questions: ['What thoughts or reflections would you like to record for the coming week?'],
-          vocabThisWeek: []
-        }
+          key_developments: prevSummaryData
+            ? [`Continuity maintained from Week ${prevSummaryData.week_number}`]
+            : ['No entries recorded during this week.'],
+          open_questions: [openQuestion]
+        },
+        engine_version: '2.0',
+        prompt_version: '1.0',
+        generated_at: new Date().toISOString()
       })
       .eq('id', actualSummaryId);
     return;
