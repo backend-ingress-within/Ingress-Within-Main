@@ -2438,6 +2438,9 @@ export default function TherapyPage({ user, profile, onSignOut }) {
         onRefreshRelationship={checkConnection}
         onSignOut={onSignOut}
         onStartRematch={() => setShowIntakeOverride(true)}
+        connectionStatus={connectionStatus}
+        pendingRequest={connectionData?.pendingRequest}
+        history={connectionData?.history}
       />
     );
   }
@@ -2459,6 +2462,9 @@ export default function TherapyPage({ user, profile, onSignOut }) {
           setJourney('guided');
         }}
         onExitHistory={() => setViewHistoryOnly(false)}
+        connectionStatus={connectionStatus}
+        pendingRequest={connectionData?.pendingRequest}
+        history={connectionData?.history}
       />
     );
   }

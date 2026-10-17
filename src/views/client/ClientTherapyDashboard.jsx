@@ -29,6 +29,7 @@ import {
   Lock,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
+import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
 import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
@@ -43,6 +44,9 @@ export default function ClientTherapyDashboard({
   isPastRelationship = false,
   onStartRematch,
   onExitHistory,
+  connectionStatus,
+  pendingRequest,
+  history = [],
 }) {
   const [activeTab, setActiveTab] = useState('overview'); // overview | sessions | therapist | journey | homework | billing | support
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -579,56 +583,54 @@ export default function ClientTherapyDashboard({
                       </div>
 
                       {/* Google Meet Action */}
-                      {(() => {
-                        const nextMeetingWindow = getSessionMeetingWindow(nextSession.scheduledStart, nextSession.scheduledEnd);
-                        if (!nextSession.googleMeetUrl) {
-                          return (
-                            <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-                              <Video size={14} className="text-amber-700 shrink-0" />
-                              <span>Google Meet room will be provided by your clinician prior to your session.</span>
-                            </div>
-                          );
-                        }
-
-                        if (nextMeetingWindow.canJoin) {
-                          return (
-                            <a
-                              href={nextSession.googleMeetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-3 w-full bg-emerald-800 text-white hover:bg-emerald-900 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
-                            >
-                              <Video size={15} /> Join Google Meet Consultation
-                            </a>
-                          );
-                        }
-
-                        if (nextMeetingWindow.isTooEarly) {
-                          return (
-                            <div className="mt-3 p-3 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                              <div className="flex items-center gap-2 text-xs text-gray-700">
-                                <Lock size={14} className="text-gray-500 shrink-0" />
-                                <span>Meeting room access opens 1 hour prior to session ({nextMeetingWindow.joinOpensAtFormatted})</span>
-                              </div>
-                              <button
-                                type="button"
-                                disabled
-                                className="py-1.5 px-3 rounded-lg bg-gray-200 text-gray-500 text-xs font-medium cursor-not-allowed inline-flex items-center gap-1.5 shrink-0"
-                                title={`Google Meet room becomes accessible at ${nextMeetingWindow.joinOpensAtFormatted}`}
+                      {nextSession.googleMeetUrl ? (
+                        (() => {
+                          const nextMeetingWindow = getSessionMeetingWindow(nextSession.scheduledStart, nextSession.scheduledEnd);
+                          if (nextMeetingWindow.canJoin) {
+                            return (
+                              <a
+                                href={nextSession.googleMeetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 w-full bg-emerald-800 text-white hover:bg-emerald-900 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
                               >
-                                <Lock size={12} /> Join Available 1h Prior
-                              </button>
+                                <Video size={15} /> Join Google Meet Consultation
+                              </a>
+                            );
+                          }
+
+                          if (nextMeetingWindow.isTooEarly) {
+                            return (
+                              <div className="mt-3 p-3 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 text-xs text-gray-700">
+                                  <Lock size={14} className="text-gray-500 shrink-0" />
+                                  <span>Meeting room access opens 1 hour prior to session ({nextMeetingWindow.joinOpensAtFormatted})</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="py-1.5 px-3 rounded-lg bg-gray-200 text-gray-500 text-xs font-medium cursor-not-allowed inline-flex items-center gap-1.5 shrink-0"
+                                  title={`Google Meet room becomes accessible at ${nextMeetingWindow.joinOpensAtFormatted}`}
+                                >
+                                  <Lock size={12} /> Join Available 1h Prior
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="mt-3 p-2.5 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-xs flex items-center gap-2">
+                              <Clock size={14} className="text-gray-500 shrink-0" />
+                              <span>This consultation session has ended.</span>
                             </div>
                           );
-                        }
-
-                        return (
-                          <div className="mt-3 p-2.5 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-xs flex items-center gap-2">
-                            <Clock size={14} className="text-gray-500 shrink-0" />
-                            <span>This consultation session has ended.</span>
-                          </div>
-                        );
-                      })()}
+                        })()
+                      ) : (
+                        <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                          <Video size={14} className="text-amber-700 shrink-0" />
+                          <span>Google Meet room will be provided by your clinician prior to your session.</span>
+                        </div>
+                      )}
 
                       {/* Reschedule & Policy Info */}
                       <div className="pt-2 flex items-center justify-between text-xs text-[#66747A]">
@@ -855,139 +857,22 @@ export default function ClientTherapyDashboard({
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: MY THERAPIST                                                       */}
+        {/* TAB 2: MY THERAPIST (STEP 3)                                              */}
         {/* ========================================================================= */}
         {activeTab === 'therapist' && (
-          <div className="space-y-6">
-            <div className="border-b border-[#263238]/10 pb-4">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-800">
-                Primary Care Clinician
-              </span>
-              <h1 className="font-serif text-2xl sm:text-3xl text-[#132A24] mt-1">My Therapist</h1>
-              <p className="text-xs text-[#66747A] mt-1">
-                Your assigned licensed mental healthcare provider on Ingress Within.
-              </p>
-            </div>
-
-            {/* Profile Card */}
-            <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                {therapist?.profileImageUrl ? (
-                  <img
-                    src={therapist.profileImageUrl}
-                    alt={clinicianName}
-                    className="w-24 h-24 rounded-2xl object-cover border border-[#263238]/10 shrink-0 shadow-xs"
-                  />
-                ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-[#132A24] text-white flex items-center justify-center font-serif text-3xl shrink-0 shadow-xs">
-                    {clinicianName.replace(/^Dr\.?\s*/i, '').charAt(0)}
-                  </div>
-                )}
-
-                <div className="space-y-1.5 flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-serif text-2xl text-[#132A24] font-medium">{clinicianName}</h2>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
-                      <CheckCircle2 size={12} className="text-emerald-700" /> Verified Practitioner
-                    </span>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-[#66747A]">{clinicianTitle}</p>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-[#66747A] pt-1">
-                    {therapist?.qualification && (
-                      <span className="flex items-center gap-1.5">
-                        <Award size={13} className="text-emerald-700" />
-                        <span>{therapist.qualification}</span>
-                      </span>
-                    )}
-                    {therapist?.experienceYears > 0 && (
-                      <span className="flex items-center gap-1.5">
-                        <Clock size={13} />
-                        <span>{therapist.experienceYears}+ years experience</span>
-                      </span>
-                    )}
-                    {therapist?.city && (
-                      <span className="flex items-center gap-1.5">
-                        <MapPin size={13} />
-                        <span>{therapist.city}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="shrink-0 pt-2 sm:pt-0">
-                  <button
-                    type="button"
-                    onClick={() => handleStartBooking(therapist)}
-                    className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
-                  >
-                    <CalendarIcon size={14} /> Book Consultation (₹{therapist?.fee || 1500})
-                  </button>
-                </div>
-              </div>
-
-              {/* Bio & Approach */}
-              {therapist?.bio && (
-                <div className="pt-4 border-t border-[#263238]/8 space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#132A24]">
-                    Clinical Bio &amp; Approach
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[#66747A] leading-relaxed whitespace-pre-line">
-                    {therapist.bio}
-                  </p>
-                </div>
-              )}
-
-              {/* Specializations & Languages */}
-              <div className="pt-4 border-t border-[#263238]/8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#132A24]">Specializations</h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(therapist?.specializations || []).length > 0 ? (
-                      therapist.specializations.map((spec) => (
-                        <span
-                          key={spec}
-                          className="px-2.5 py-1 rounded-lg bg-[#F4F1EC] text-xs font-medium text-[#263238] border border-[#263238]/8"
-                        >
-                          {spec}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-gray-400">Clinical psychology &amp; counseling</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#132A24]">Languages</h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(therapist?.languages || ['English', 'Hindi']).map((lang) => (
-                      <span
-                        key={lang}
-                        className="px-2.5 py-1 rounded-lg bg-[#F4F1EC] text-xs font-medium text-[#263238] border border-[#263238]/8"
-                      >
-                        {lang}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Confidentiality Shield Notice */}
-              <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 text-xs text-blue-900 flex items-start gap-3">
-                <Info size={16} className="shrink-0 text-blue-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-semibold">Confidentiality &amp; Ethics Standards</p>
-                  <p className="text-blue-800/80 leading-relaxed">
-                    All sessions and clinical communications are strictly protected under Ingress Within's
-                    healthcare governance. Your therapist's internal supervision case reflections and notes remain
-                    confidential to safeguard objective clinical integrity.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ClientTherapyMyTherapistView
+            initialTherapist={therapist}
+            initialRelationship={relationship}
+            initialStatus={connectionStatus || (isPastRelationship ? 'ended' : (therapist ? 'connected' : 'no_therapist'))}
+            isPastRelationship={isPastRelationship}
+            pendingRequest={pendingRequest}
+            history={history}
+            onStartBooking={(targetTherapist) => handleStartBooking(targetTherapist || therapist)}
+            onNavigateSessions={() => setActiveTab('sessions')}
+            onStartRematch={onStartRematch}
+            onNavigateSupport={() => setActiveTab('support')}
+            onRefresh={onRefreshRelationship}
+          />
         )}
 
         {/* ========================================================================= */}
