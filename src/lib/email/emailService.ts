@@ -30,7 +30,7 @@ export class EmailService {
 
   /**
    * Controlled smoke-test sending ONE real email via the real provider pipeline.
-   * Exercises: EmailService -> email_deliveries -> processEmailJob -> Resend API -> provider_message_id.
+   * Exercises: EmailService -> email_deliveries -> processEmailJob -> MSG91 Email API v5 -> provider_message_id.
    * Exposes diagnostic details without leaking any API keys or secrets.
    */
   static async sendSmokeTestEmail(options: {
@@ -38,7 +38,7 @@ export class EmailService {
     senderEmail?: string;
   }): Promise<{
     success: boolean;
-    provider: 'msg91' | 'resend' | 'mock';
+    provider: 'msg91' | 'mock';
     recipient?: string;
     messageId?: string;
     deliveryId?: string;

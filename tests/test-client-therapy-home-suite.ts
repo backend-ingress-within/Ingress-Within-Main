@@ -126,8 +126,7 @@ try {
 console.log('\n--- SECTION 7: Meeting Link Gating & Security ---');
 try {
   assert(dashboardCode.includes('nextSession.googleMeetUrl ?'), 'Checks for valid googleMeetUrl before displaying join action');
-  assert(dashboardCode.includes('Google Meet link generating...'), 'Displays generating/sync fallback when URL is absent');
-  assert(dashboardCode.includes('handleRetryCalendarSync(nextSession.id)'), 'Provides calendar sync retry');
+  assert(!dashboardCode.includes('handleRetryCalendarSync'), 'Calendar sync retry is strictly hidden for clients (therapist-only capability)');
   assert(sessionsRouteCode.includes('isValidGoogleMeetUrl'), 'Backend verifies Google Meet URL before returning to client');
   pass('Join meeting action is gated strictly to validated Google Meet links');
 } catch (e) {

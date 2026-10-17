@@ -15,7 +15,7 @@ export interface EmailSendOptions {
 
 export interface EmailSendResult {
   success: boolean;
-  provider: 'msg91' | 'resend' | 'mock';
+  provider: 'msg91' | 'mock';
   messageId?: string;
   crqid?: string;
   statusCode?: number;
@@ -127,6 +127,23 @@ export class Msg91EmailProvider implements IEmailProvider {
 
   async send(options: EmailSendOptions): Promise<EmailSendResult> {
     const maskedTo = maskEmailForLogs(options.to);
+
+    // Development / Mock key handler: if developer is testing locally with mock_developer_key,
+    // simulate successful dispatch without failing on real MSG91 API authentication
+    const isMockAuthKey = !this.authKey || this.authKey === 'mock_developer_key' || this.authKey.startsWith('mock_');
+    const isDevOrTest = process.env.NODE_ENV !== 'production' || process.env.ALLOW_MOCK_EMAIL === 'true';
+
+    if (isMockAuthKey && isDevOrTest) {
+      const devMsgId = `msg91_dev_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      console.log(`[Msg91EmailProvider:Development] Simulated MSG91 email dispatch (mock key active). to=${options.to} subject="${options.subject}" id=${devMsgId}`);
+      return {
+        success: true,
+        provider: 'msg91',
+        statusCode: 200,
+        messageId: devMsgId,
+        crqid: options.crqid,
+      };
+    }
 
     // 1. Resolve MSG91 Template ID (Single reusable template architecture)
     const templateKey = options.templateKey || '';
@@ -392,107 +409,6 @@ export class Msg91EmailProvider implements IEmailProvider {
 }
 
 /**
- * Legacy REST-based email provider communicating directly with Resend API.
- * Retained for explicit, monitored fallback during migration if EMAIL_PROVIDER=resend.
- */
-export class RestEmailProvider implements IEmailProvider {
-  private apiKey: string;
-  private endpoint: string;
-
-  constructor(apiKey: string, endpoint = 'https://api.resend.com/emails') {
-    this.apiKey = apiKey.trim();
-    this.endpoint = endpoint;
-  }
-
-  async send(options: EmailSendOptions): Promise<EmailSendResult> {
-    try {
-      const payload: Record<string, any> = {
-        from: options.from,
-        to: [options.to],
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      };
-
-      if (options.replyTo) {
-        payload.reply_to = options.replyTo;
-      }
-
-      const res = await fetch(this.endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseText = await res.text();
-      let responseJson: any = null;
-      try {
-        responseJson = JSON.parse(responseText);
-      } catch {}
-
-      if (!res.ok) {
-        const errorMsg =
-          responseJson?.message ||
-          responseJson?.error?.message ||
-          `HTTP ${res.status}: ${responseText || 'Unknown Resend error'}`;
-
-        let errorCategory = 'TRANSIENT_PROVIDER_ERROR';
-        if (res.status === 401) errorCategory = 'AUTHENTICATION_ERROR';
-        else if (res.status === 403) errorCategory = /domain|verify/i.test(errorMsg) ? 'DOMAIN_NOT_VERIFIED' : 'ACCESS_DENIED';
-        else if (res.status === 422) errorCategory = 'VALIDATION_ERROR';
-        else if (res.status === 429) errorCategory = 'RATE_LIMIT_EXCEEDED';
-        else if (res.status >= 500) errorCategory = 'PROVIDER_UNAVAILABLE';
-
-        const isPermanent =
-          errorCategory === 'AUTHENTICATION_ERROR' ||
-          errorCategory === 'DOMAIN_NOT_VERIFIED' ||
-          errorCategory === 'VALIDATION_ERROR' ||
-          errorCategory === 'ACCESS_DENIED';
-
-        return {
-          success: false,
-          provider: 'resend',
-          statusCode: res.status,
-          error: errorMsg,
-          errorCategory,
-          isPermanent,
-        };
-      }
-
-      const messageId = responseJson?.id;
-      if (!messageId) {
-        return {
-          success: false,
-          provider: 'resend',
-          statusCode: res.status,
-          error: 'Resend response missing provider message ID',
-          errorCategory: 'INVALID_PROVIDER_RESPONSE',
-          isPermanent: true,
-        };
-      }
-
-      return {
-        success: true,
-        provider: 'resend',
-        statusCode: res.status,
-        messageId,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        provider: 'resend',
-        error: err.message || 'Network exception communicating with Resend API',
-        errorCategory: 'NETWORK_ERROR',
-        isPermanent: false,
-      };
-    }
-  }
-}
-
-/**
  * Fallback provider that fails clearly when credentials are not configured in production.
  * Ensures the system never marks an email as 'sent' when no provider is configured.
  */
@@ -534,13 +450,7 @@ export function getEmailProvider(): IEmailProvider {
     return new Msg91EmailProvider(config.msg91EmailAuthKey, config.msg91EmailDomain);
   }
 
-  // 3. Explicit monitored Resend fallback if explicitly selected in environment
-  if (config.provider === 'resend' && config.resendApiKey) {
-    console.warn('[EmailProvider] Operating under explicit legacy fallback provider (Resend).');
-    return new RestEmailProvider(config.resendApiKey);
-  }
-
-  // 4. Secondary check: if MSG91 key is present regardless of default flag
+  // 3. Secondary check: if MSG91 key is present regardless of default flag
   if (config.msg91EmailAuthKey) {
     return new Msg91EmailProvider(config.msg91EmailAuthKey, config.msg91EmailDomain);
   }

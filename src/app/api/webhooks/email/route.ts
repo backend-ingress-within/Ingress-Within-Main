@@ -11,7 +11,7 @@ function getWebhookSecret(): string {
 /**
  * Validates incoming webhook authentication:
  * 1. Custom Secret Header (MSG91 standard: x-webhook-secret, x-msg91-secret, or Bearer auth)
- * 2. HMAC SHA-256 Signature (x-webhook-signature, legacy svix-signature or x-resend-signature)
+ * 2. HMAC SHA-256 Signature (x-webhook-signature or standard svix-signature)
  * 3. Query string token (?token= or ?secret=)
  */
 function verifyWebhookAuth(
@@ -53,11 +53,10 @@ function verifyWebhookAuth(
   // D. Check HMAC Signature (Svix, MSG91 HMAC or hex digest)
   const signature =
     request.headers.get('x-webhook-signature') ||
-    request.headers.get('svix-signature') ||
-    request.headers.get('x-resend-signature');
+    request.headers.get('svix-signature');
 
   if (signature) {
-    const svixId = request.headers.get('svix-id') || request.headers.get('x-resend-event-id');
+    const svixId = request.headers.get('svix-id');
     const svixTimestamp = request.headers.get('svix-timestamp');
 
     try {

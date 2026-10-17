@@ -27,7 +27,6 @@ import { EmailEvents } from '../src/lib/email/emailEvents';
 import {
   LoggedEmailProvider,
   Msg91EmailProvider,
-  RestEmailProvider,
   MissingCredentialsProvider,
   getEmailProvider,
 } from '../src/lib/email/emailProvider';
@@ -409,7 +408,6 @@ async function runTestSuite() {
     const prevMock = process.env.ALLOW_MOCK_EMAIL;
     const prevMsg91Key = process.env.MSG91_EMAIL_AUTH_KEY;
     const prevAuthKey = process.env.MSG91_AUTH_KEY;
-    const prevResend = process.env.RESEND_API_KEY;
     const prevNodeEnv = process.env.NODE_ENV;
     const prevTestMode = process.env.TEST_MODE;
     const prevForce = process.env.FORCE_MOCK_EMAIL;
@@ -420,7 +418,6 @@ async function runTestSuite() {
       process.env.FORCE_MOCK_EMAIL = 'false';
       delete process.env.MSG91_EMAIL_AUTH_KEY;
       delete process.env.MSG91_AUTH_KEY;
-      delete process.env.RESEND_API_KEY;
       process.env.NODE_ENV = 'production';
       delete process.env.TEST_MODE;
       const provider = getEmailProvider();
@@ -432,7 +429,6 @@ async function runTestSuite() {
       if (prevForce !== undefined) process.env.FORCE_MOCK_EMAIL = prevForce;
       if (prevMsg91Key !== undefined) process.env.MSG91_EMAIL_AUTH_KEY = prevMsg91Key;
       if (prevAuthKey !== undefined) process.env.MSG91_AUTH_KEY = prevAuthKey;
-      if (prevResend !== undefined) process.env.RESEND_API_KEY = prevResend;
       process.env.NODE_ENV = prevNodeEnv;
       if (prevTestMode !== undefined) process.env.TEST_MODE = prevTestMode;
     }
@@ -452,7 +448,6 @@ async function runTestSuite() {
       process.env.FORCE_MOCK_EMAIL = 'false';
       delete process.env.MSG91_EMAIL_AUTH_KEY;
       delete process.env.MSG91_AUTH_KEY;
-      delete process.env.RESEND_API_KEY;
       process.env.NODE_ENV = 'production';
       delete process.env.TEST_MODE;
       const provider = getEmailProvider();
@@ -799,7 +794,7 @@ async function runTestSuite() {
     const req = new NextRequest('http://localhost:3000/api/webhooks/email', {
       method: 'POST',
       headers: {
-        'x-resend-signature': validSig,
+        'x-webhook-signature': validSig,
         'svix-id': `msg_delivered_${Date.now()}`,
       },
       body: rawPayload,

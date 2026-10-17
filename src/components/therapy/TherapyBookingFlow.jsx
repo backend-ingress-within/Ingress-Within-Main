@@ -41,9 +41,6 @@ export default function TherapyBookingFlow({
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [confirmedData, setConfirmedData] = useState(null);
 
-  // Syncing Google Calendar retry
-  const [isRetryingSync, setIsRetryingSync] = useState(false);
-  const [syncMessage, setSyncMessage] = useState(null);
 
   // Reset when opened
   useEffect(() => {
@@ -257,41 +254,7 @@ export default function TherapyBookingFlow({
     }
   };
 
-  // Safe retry for Google Calendar sync
-  const handleRetryCalendarSync = async () => {
-    const apptId = confirmedData?.appointment?.id;
-    if (!apptId) return;
 
-    setIsRetryingSync(true);
-    setSyncMessage(null);
-    try {
-      const res = await fetch('/api/therapy/sessions/sync-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId: apptId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Calendar sync retry failed.');
-      }
-
-      setConfirmedData((prev) => ({
-        ...prev,
-        appointment: {
-          ...prev.appointment,
-          google_meet_url: data.googleMeetUrl || prev.appointment?.google_meet_url,
-          meeting_link: data.googleMeetUrl || prev.appointment?.meeting_link,
-          calendar_sync_status: data.calendarSyncStatus || 'synced',
-          google_meet_status: data.googleMeetUrl ? 'created' : prev.appointment?.google_meet_status,
-        },
-      }));
-      setSyncMessage('Google Calendar synced and Google Meet room ready!');
-    } catch (err) {
-      setSyncMessage(`Sync attempt: ${err.message}`);
-    } finally {
-      setIsRetryingSync(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -772,20 +735,8 @@ export default function TherapyBookingFlow({
                 ) : (
                   <div className="space-y-2">
                     <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-                      Calendar synchronization or Google Meet generation was not completed instantly. You can retry synchronization now.
+                      Google Meet consultation details are being prepared and will be sent directly to your registered email address.
                     </p>
-                    <button
-                      type="button"
-                      disabled={isRetryingSync}
-                      onClick={handleRetryCalendarSync}
-                      className="w-full py-2 px-3 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <RefreshCw size={13} className={isRetryingSync ? 'animate-spin' : ''} />
-                      {isRetryingSync ? 'Syncing with Google Calendar...' : 'Try Calendar Sync Again'}
-                    </button>
-                    {syncMessage && (
-                      <p className="text-[11px] text-emerald-700 font-medium text-center">{syncMessage}</p>
-                    )}
                   </div>
                 )}
               </div>

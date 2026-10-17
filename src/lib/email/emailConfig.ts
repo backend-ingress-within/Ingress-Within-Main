@@ -8,7 +8,7 @@ import path from 'path';
  */
 
 export interface EmailConfig {
-  provider: 'msg91' | 'resend' | 'mock';
+  provider: 'msg91' | 'mock';
   msg91EmailAuthKey: string | null;
   msg91EmailDomain: string;
   msg91EmailTemplateId: string | null;
@@ -22,7 +22,6 @@ export interface EmailConfig {
   dispatchMode: 'queue' | 'immediate';
   isProduction: boolean;
   allowMockEmail: boolean;
-  resendApiKey: string | null;
 }
 
 export const MSG91_TEMPLATE_ENV_KEYS: Record<string, string> = {
@@ -134,15 +133,9 @@ export function getEmailConfig(): EmailConfig {
   const webhookSecret =
     readFreshEnvKey('MSG91_WEBHOOK_SECRET') ||
     readFreshEnvKey('EMAIL_WEBHOOK_SECRET') ||
-    readFreshEnvKey('RESEND_WEBHOOK_SECRET') ||
     process.env.MSG91_WEBHOOK_SECRET?.trim() ||
     process.env.EMAIL_WEBHOOK_SECRET?.trim() ||
-    process.env.RESEND_WEBHOOK_SECRET?.trim() ||
     null;
-
-  // Legacy Resend key (for explicit monitored fallback if requested)
-  const fileResendKey = readFreshEnvKey('RESEND_API_KEY');
-  const resendApiKey = (fileResendKey || process.env.RESEND_API_KEY)?.trim() || null;
 
   // Destination addresses
   const adminNotificationEmail =
@@ -165,14 +158,12 @@ export function getEmailConfig(): EmailConfig {
 
   const allowMockEmail = isTest || process.env.ALLOW_MOCK_EMAIL === 'true';
 
-  // Active Provider Selection
+  // Active Provider Selection (Strictly MSG91 or mock in test/dev)
   const explicitProvider = (readFreshEnvKey('EMAIL_PROVIDER') || process.env.EMAIL_PROVIDER)?.toLowerCase();
-  let provider: 'msg91' | 'resend' | 'mock' = 'msg91';
+  let provider: 'msg91' | 'mock' = 'msg91';
 
   if (explicitProvider === 'mock' && allowMockEmail) {
     provider = 'mock';
-  } else if (explicitProvider === 'resend' && resendApiKey) {
-    provider = 'resend';
   } else {
     provider = 'msg91';
   }
@@ -199,7 +190,6 @@ export function getEmailConfig(): EmailConfig {
     dispatchMode,
     isProduction,
     allowMockEmail,
-    resendApiKey,
   };
 }
 

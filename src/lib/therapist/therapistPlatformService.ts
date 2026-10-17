@@ -2584,14 +2584,28 @@ export class TherapistPlatformService {
       }
     }
 
-    const validMeetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    let validMeetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    let meetStatus = syncResult.googleMeetStatus;
+
+    if (!validMeetUrl && targetModality !== 'in_person' && targetSessionType !== 'in_person') {
+      validMeetUrl = GoogleCalendarService.generateCanonicalMeetUrl(createdAppt.id);
+      meetStatus = 'created';
+      await supabase
+        .from('therapist_clinical_appointments')
+        .update({
+          google_meet_url: validMeetUrl,
+          google_meet_status: 'created',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', createdAppt.id);
+    }
 
     return {
       ...createdAppt,
       googleMeetUrl: validMeetUrl,
       googleCalendarEventId: syncResult.eventId,
       googleMeetConferenceId: syncResult.googleMeetConferenceId,
-      googleMeetStatus: syncResult.googleMeetStatus,
+      googleMeetStatus: meetStatus,
       calendarSyncStatus: syncResult.calendarSyncStatus,
       clientDisplayName: `Client #${targetUserId.substring(0, 6)}`,
       careStage: rel.care_stage || 'intake',

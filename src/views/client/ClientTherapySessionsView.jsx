@@ -28,7 +28,6 @@ export default function ClientTherapySessionsView() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
-  const [syncingAppointmentId, setSyncingAppointmentId] = useState(null);
 
   // Cancel state
   const [cancelModalAppt, setCancelModalAppt] = useState(null);
@@ -98,26 +97,7 @@ export default function ClientTherapySessionsView() {
   }, [rescheduleModalAppt]);
 
 
-  const handleRetryCalendarSync = async (appointmentId) => {
-    setSyncingAppointmentId(appointmentId);
-    try {
-      const res = await fetch('/api/therapy/sessions/sync-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Sync failed');
-      }
-      alert('Calendar synchronization successful! Google Meet generated.');
-      await fetchSessions();
-    } catch (err) {
-      alert(`Sync failed: ${err.message}`);
-    } finally {
-      setSyncingAppointmentId(null);
-    }
-  };
+
 
   const handleRescheduleSubmit = async (e) => {
     e.preventDefault();
@@ -265,11 +245,6 @@ export default function ClientTherapySessionsView() {
                         <CheckCircle2 size={10} /> Calendar Synced
                       </span>
                     )}
-                    {session.calendarSyncStatus === 'failed' && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 flex items-center gap-1">
-                        <AlertCircle size={10} /> Calendar Sync Failed
-                      </span>
-                    )}
                   </div>
 
                   <p className="text-xs text-gray-600">
@@ -291,25 +266,10 @@ export default function ClientTherapySessionsView() {
                     </a>
                   )}
 
-                  {isUpcoming && !session.googleMeetUrl && session.googleMeetStatus === 'generating' && (
-                    <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium inline-flex items-center gap-1.5">
-                      <RefreshCw size={12} className="animate-spin" /> Generating Meet...
+                  {isUpcoming && !session.googleMeetUrl && (
+                    <span className="px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium inline-flex items-center gap-1.5">
+                      <Video size={13} className="text-amber-700" /> Meet link pending
                     </span>
-                  )}
-
-                  {isUpcoming && (!session.googleMeetUrl || session.calendarSyncStatus === 'failed') && (
-                    <button
-                      onClick={() => handleRetryCalendarSync(session.id)}
-                      disabled={syncingAppointmentId === session.id}
-                      className="px-3 py-1.5 rounded-lg border border-amber-300 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                      title="Sync calendar and generate Google Meet"
-                    >
-                      <RefreshCw
-                        size={12}
-                        className={syncingAppointmentId === session.id ? 'animate-spin' : ''}
-                      />
-                      {syncingAppointmentId === session.id ? 'Syncing...' : 'Retry Calendar Sync'}
-                    </button>
                   )}
 
                   {isUpcoming && session.policy?.canReschedule && (

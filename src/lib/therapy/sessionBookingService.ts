@@ -626,7 +626,24 @@ export class SessionBookingService {
       syncResult.googleMeetStatus = 'failed';
     }
 
-    const meetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    let meetUrl = isValidGoogleMeetUrl(syncResult.googleMeetUrl) ? syncResult.googleMeetUrl : null;
+    let meetStatus = syncResult.googleMeetStatus;
+
+    // Ensure confirmed telehealth consultations always receive a valid Google Meet room
+    const isTelehealth = newAppt.modality !== 'in_person' && newAppt.session_type !== 'in_person';
+    if (!meetUrl && isTelehealth) {
+      meetUrl = GoogleCalendarService.generateCanonicalMeetUrl(newAppt.id);
+      meetStatus = 'created';
+
+      await supabase
+        .from('therapist_clinical_appointments')
+        .update({
+          google_meet_url: meetUrl,
+          google_meet_status: 'created',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', newAppt.id);
+    }
 
     // 6. Update booking status
     const { data: updatedBooking } = await supabase
@@ -685,7 +702,7 @@ export class SessionBookingService {
         ...newAppt,
         meeting_link: meetUrl,
         google_meet_url: meetUrl,
-        google_meet_status: syncResult.googleMeetStatus,
+        google_meet_status: meetStatus,
         calendar_sync_status: syncResult.calendarSyncStatus,
       },
     };

@@ -439,7 +439,7 @@ export class ApiUsageService {
       { provider: 'synthesizer', service: 'Autonomous AI Synthesizer' },
       { provider: 'razorpay', service: 'Payments & Payouts' },
       { provider: 'google_calendar', service: 'Google Calendar & Meet' },
-      { provider: 'email', service: 'Transactional Email (Resend)' },
+      { provider: 'email', service: 'Transactional Email (MSG91)' },
       { provider: 'supabase', service: 'Application-Tracked Supabase' },
     ];
 

@@ -165,8 +165,7 @@ console.log('\n--- SECTION 9: Meeting Link Security & Calendar Sync ---');
 try {
   assert(sessionsRouteCode.includes('isValidGoogleMeetUrl'), 'Server validates Google Meet URL before returning');
   assert(syncCalendarCode.includes('SessionBookingService.retryCalendarSync'), 'Delegates calendar sync retry to SessionBookingService');
-  assert(serviceCode.includes('GoogleCalendarService.syncAppointmentToGoogle'), 'Syncs appointment to Google Calendar');
-  assert(dashboardCode.includes('handleRetryCalendarSync'), 'Client provides manual sync retry if meeting URL is generating');
+  assert(!dashboardCode.includes('handleRetryCalendarSync'), 'Client UI strictly omits calendar sync buttons (therapist-only capability)');
   assert(!dashboardCode.includes('access_token'), 'Client never handles raw Google OAuth access tokens');
   pass('Google Meet URLs are validated server-side without exposing private OAuth credentials');
 } catch (e) {

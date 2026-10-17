@@ -58,7 +58,6 @@ export default function ClientTherapyDashboard({
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
-  const [syncingAppointmentId, setSyncingAppointmentId] = useState(null);
 
   const [cancelModalAppt, setCancelModalAppt] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -260,25 +259,7 @@ export default function ClientTherapyDashboard({
     }
   };
 
-  // Calendar sync retry
-  const handleRetryCalendarSync = async (appointmentId) => {
-    setSyncingAppointmentId(appointmentId);
-    try {
-      const res = await fetch('/api/therapy/sessions/sync-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Sync failed');
-      await fetchSessions();
-      alert('Google Meet link generated successfully!');
-    } catch (err) {
-      alert(`Sync failed: ${err.message}`);
-    } finally {
-      setSyncingAppointmentId(null);
-    }
-  };
+
 
   const handleStartBooking = (targetTherapist = therapist) => {
     setBookingTherapist(targetTherapist);
@@ -606,15 +587,9 @@ export default function ClientTherapyDashboard({
                           <Video size={15} /> Join Google Meet Consultation
                         </a>
                       ) : (
-                        <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2">
-                          <span>Google Meet link generating...</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRetryCalendarSync(nextSession.id)}
-                            className="text-xs underline font-semibold cursor-pointer"
-                          >
-                            Sync Calendar
-                          </button>
+                        <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                          <Video size={14} className="text-amber-700 shrink-0" />
+                          <span>Google Meet consultation link being prepared...</span>
                         </div>
                       )}
 
@@ -1177,15 +1152,9 @@ export default function ClientTherapyDashboard({
                           )}
 
                           {isUpcoming && !s.googleMeetUrl && (
-                            <button
-                              type="button"
-                              onClick={() => handleRetryCalendarSync(s.id)}
-                              disabled={syncingAppointmentId === s.id}
-                              className="text-xs px-2.5 py-1.5 rounded-lg border border-[#263238]/10 hover:bg-[#263238]/5 font-medium flex items-center gap-1 cursor-pointer"
-                            >
-                              <RefreshCw size={12} className={syncingAppointmentId === s.id ? 'animate-spin' : ''} />
-                              Sync Meet
-                            </button>
+                            <span className="text-xs text-amber-800 font-medium px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200 inline-flex items-center gap-1">
+                              <Video size={12} className="text-amber-700" /> Meet link pending
+                            </span>
                           )}
 
                           {isUpcoming && s.policy?.canReschedule && (
