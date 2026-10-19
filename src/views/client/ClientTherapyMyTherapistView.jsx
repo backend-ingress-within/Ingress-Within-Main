@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -22,6 +22,8 @@ import {
   Lock,
   FileText,
   MessageCircle,
+  Smartphone,
+  KeyRound,
 } from 'lucide-react';
 
 /**
@@ -60,9 +62,169 @@ export default function ClientTherapyMyTherapistView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Reassignment Modal state
-  const [showReassignModal, setShowReassignModal] = useState(false);
-  const [reassignReason, setReassignReason] = useState('fit');
+  // Transition Modal State (Change Therapist or Quit Therapy)
+  const [transitionModal, setTransitionModal] = useState({
+    isOpen: false,
+    action: 'change', // 'change' | 'quit'
+    step: 1, // 1: Reason & feedback, 2: OTP verification
+  });
+  const [transitionReason, setTransitionReason] = useState('fit');
+  const [transitionNotes, setTransitionNotes] = useState('');
+  const [maskedPhone, setMaskedPhone] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isSubmittingTransition, setIsSubmittingTransition] = useState(false);
+  const [transitionError, setTransitionError] = useState(null);
+  const [transitionSuccess, setTransitionSuccess] = useState(null);
+  const otpInputRefs = useRef([]);
+
+  // Resend OTP countdown
+  useEffect(() => {
+    let timer;
+    if (otpCooldown > 0) {
+      timer = setInterval(() => {
+        setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
+
+  const openTransitionModal = (action = 'change') => {
+    setTransitionModal({
+      isOpen: true,
+      action,
+      step: 1,
+    });
+    setTransitionReason(action === 'change' ? 'fit' : 'goals_reached');
+    setTransitionNotes('');
+    setOtpDigits(['', '', '', '', '', '']);
+    setTransitionError(null);
+    setTransitionSuccess(null);
+  };
+
+  // Backwards-compatible alias for Step 3 reassignment modal
+  const setShowReassignModal = (open) => {
+    if (open) openTransitionModal('change');
+    else closeTransitionModal();
+  };
+
+  const closeTransitionModal = () => {
+    setTransitionModal({ isOpen: false, action: 'change', step: 1 });
+    setTransitionError(null);
+    setTransitionSuccess(null);
+    setOtpDigits(['', '', '', '', '', '']);
+  };
+
+  const handleRequestOtp = async () => {
+    setTransitionError(null);
+    setIsSendingOtp(true);
+    try {
+      const res = await fetch('/api/therapy/client/relationship/send-otp', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMaskedPhone(data.maskedPhone || 'your registered number');
+        setOtpCooldown(data.resendInSeconds || 30);
+        setOtpDigits(['', '', '', '', '', '']);
+        setTransitionModal((prev) => ({ ...prev, step: 2 }));
+        setTimeout(() => {
+          otpInputRefs.current[0]?.focus();
+        }, 80);
+      } else {
+        setTransitionError(data.error?.message || 'Failed to send verification code. Please try again.');
+      }
+    } catch (err) {
+      setTransitionError('Network error while requesting verification code. Please check your connection.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleOtpDigitChange = (index, val) => {
+    const clean = val.replace(/\D/g, '');
+    if (!clean) {
+      const next = [...otpDigits];
+      next[index] = '';
+      setOtpDigits(next);
+      return;
+    }
+
+    if (clean.length > 1) {
+      const pasted = clean.slice(0, 6).split('');
+      const next = [...otpDigits];
+      pasted.forEach((ch, idx) => {
+        if (idx < 6) next[idx] = ch;
+      });
+      setOtpDigits(next);
+      const focusIdx = Math.min(pasted.length, 5);
+      otpInputRefs.current[focusIdx]?.focus();
+      return;
+    }
+
+    const next = [...otpDigits];
+    next[index] = clean.slice(-1);
+    setOtpDigits(next);
+    setTransitionError(null);
+
+    if (index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      const next = [...otpDigits];
+      next[index - 1] = '';
+      setOtpDigits(next);
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleConfirmTransition = async () => {
+    const code = otpDigits.join('').trim();
+    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+      setTransitionError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setTransitionError(null);
+    setIsSubmittingTransition(true);
+
+    try {
+      const res = await fetch('/api/therapy/client/relationship/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: transitionModal.action,
+          otpCode: code,
+          reason: transitionReason,
+          notes: transitionNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTransitionSuccess(data.message);
+        setTimeout(async () => {
+          closeTransitionModal();
+          await fetchTherapistDetails();
+          if (onRefresh) onRefresh();
+          if (transitionModal.action === 'change' && onStartRematch) {
+            // Continue to Rematch Intake
+            onStartRematch();
+          }
+        }, 1200);
+      } else {
+        setTransitionError(data.error?.message || 'Verification failed. Please check the code and try again.');
+      }
+    } catch (err) {
+      setTransitionError('Network error while processing transition. Please try again.');
+    } finally {
+      setIsSubmittingTransition(false);
+    }
+  };
 
   // Fetch authoritative connection details from the dedicated Step 3 endpoint
   const fetchTherapistDetails = async () => {
@@ -757,112 +919,356 @@ export default function ClientTherapyMyTherapistView({
           </div>
         </div>
 
-        {/* Relationship Actions / Reassignment Footer */}
-        <div className="pt-4 border-t border-[#263238]/8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#66747A]">
-          <span>
-            Need assistance or feel this match isn't optimal? You can request a reassignment with full
-            continuity.
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowReassignModal(true)}
-            className="text-amber-800 hover:text-amber-950 font-medium underline underline-offset-2 shrink-0 cursor-pointer"
-          >
-            Request Therapist Change / Rematch
-          </button>
+        {/* Relationship Actions / Care Management Footer */}
+        <div className="pt-5 border-t border-[#263238]/10 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#66747A]">
+            <div className="space-y-0.5">
+              <span className="font-semibold text-[#132A24] block">Care Relationship &amp; Autonomy</span>
+              <span>
+                Need a different clinical approach or wish to conclude care? You retain full autonomy with continuous history.
+              </span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowReassignModal(true)}
+                className="text-amber-800 hover:text-amber-950 font-medium underline underline-offset-2 shrink-0 cursor-pointer"
+              >
+                Change Therapist / Rematch
+              </button>
+              <span className="text-[#263238]/20">•</span>
+              <button
+                type="button"
+                onClick={() => openTransitionModal('quit')}
+                className="text-red-700 hover:text-red-900 font-medium underline underline-offset-2 shrink-0 cursor-pointer"
+              >
+                Quit Therapy
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* REASSIGNMENT CONFIRMATION MODAL                                           */}
+      {/* RELATIONSHIP TRANSITION MODAL (OTP-GATED CHANGE & QUIT)                   */}
       {/* ========================================================================= */}
-      {showReassignModal && (
+      {transitionModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#263238]/15 shadow-xl max-w-lg w-full p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10.5px] uppercase font-bold tracking-wider text-amber-800">
-                  Care Reassignment Request
+                <span
+                  className={`text-[10.5px] uppercase font-bold tracking-wider ${
+                    transitionModal.action === 'change' ? 'text-amber-800' : 'text-red-800'
+                  }`}
+                >
+                  {transitionModal.action === 'change'
+                    ? 'Therapist Reassignment & Rematch'
+                    : 'Conclude Therapy Care'}
                 </span>
                 <h3 className="font-serif text-xl text-[#132A24] mt-0.5">
-                  Requesting a Therapist Change
+                  {transitionModal.step === 1
+                    ? transitionModal.action === 'change'
+                      ? 'Requesting a Therapist Change'
+                      : 'Conclude Your Therapy Cycle'
+                    : 'Verify with Security Code'}
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowReassignModal(false)}
+                onClick={closeTransitionModal}
                 className="text-[#66747A] hover:text-[#132A24] p-1 rounded-lg"
+                disabled={isSubmittingTransition}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <p className="text-xs sm:text-sm text-[#4A5568] leading-relaxed">
-              At Ingress Within, therapeutic rapport and personal comfort are paramount. If you feel
-              your current practitioner isn't the right fit, our care coordination team ensures a
-              supportive, seamless transition without losing your account history or completed
-              intake.
-            </p>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-[#132A24] block">
-                What is the primary reason for requesting a change?
-              </label>
-              <div className="space-y-1.5 text-xs text-[#263238]">
-                <label className="flex items-center gap-2 p-2 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reassignReason"
-                    value="modality"
-                    checked={reassignReason === 'modality'}
-                    onChange={(e) => setReassignReason(e.target.value)}
-                  />
-                  <span>Looking for a different therapeutic modality (e.g. CBT, psychodynamic)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reassignReason"
-                    value="availability"
-                    checked={reassignReason === 'availability'}
-                    onChange={(e) => setReassignReason(e.target.value)}
-                  />
-                  <span>Scheduling or availability timing conflicts</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reassignReason"
-                    value="fit"
-                    checked={reassignReason === 'fit'}
-                    onChange={(e) => setReassignReason(e.target.value)}
-                  />
-                  <span>Personal fit / prefer a fresh clinical perspective</span>
-                </label>
+            {/* Error & Success Banners */}
+            {transitionError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2">
+                <AlertCircle size={15} className="shrink-0 text-red-600 mt-0.5" />
+                <span className="leading-relaxed">{transitionError}</span>
               </div>
-            </div>
+            )}
+            {transitionSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
+                <CheckCircle2 size={15} className="shrink-0 text-emerald-600 mt-0.5" />
+                <span className="leading-relaxed">{transitionSuccess}</span>
+              </div>
+            )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-[#263238]/8">
-              <button
-                type="button"
-                onClick={() => setShowReassignModal(false)}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              {onStartRematch && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowReassignModal(false);
-                    onStartRematch();
-                  }}
-                  className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#1C3E35] transition-all cursor-pointer shadow-2xs"
-                >
-                  Continue to Rematch Intake →
-                </button>
-              )}
-            </div>
+            {/* STEP 1: Reason Selection & Guidance */}
+            {transitionModal.step === 1 && (
+              <div className="space-y-4">
+                <p className="text-xs sm:text-sm text-[#4A5568] leading-relaxed">
+                  {transitionModal.action === 'change'
+                    ? "At Ingress Within, therapeutic rapport and personal comfort are paramount. If you feel your current practitioner isn't the right fit, our care coordination team ensures a supportive, seamless transition without losing your account history or completed intake."
+                    : 'You have full autonomy over your therapeutic journey. If you wish to conclude or pause therapy, your previous consultations, reflections, and care milestones will remain securely archived for whenever you choose to resume.'}
+                </p>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-[#132A24] block">
+                    {transitionModal.action === 'change'
+                      ? 'What is the primary reason for requesting a change?'
+                      : 'What is the primary reason for concluding therapy?'}
+                  </label>
+
+                  <div className="space-y-1.5 text-xs text-[#263238]">
+                    {transitionModal.action === 'change' ? (
+                      <>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="reassignReason"
+                            value="fit"
+                            checked={transitionReason === 'fit'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Personal fit / prefer a fresh clinical perspective</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="reassignReason"
+                            value="modality"
+                            checked={transitionReason === 'modality'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Looking for a different therapeutic modality (e.g. CBT, psychodynamic)</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="reassignReason"
+                            value="availability"
+                            checked={transitionReason === 'availability'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Scheduling or availability timing conflicts</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="reassignReason"
+                            value="other"
+                            checked={transitionReason === 'other'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Other personal reason</span>
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="transitionReason"
+                            value="goals_reached"
+                            checked={transitionReason === 'goals_reached'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Achieved my current therapy goals</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="transitionReason"
+                            value="taking_break"
+                            checked={transitionReason === 'taking_break'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Taking a personal pause or break from therapy</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="transitionReason"
+                            value="schedule_or_cost"
+                            checked={transitionReason === 'schedule_or_cost'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Scheduling constraints or financial pause</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="transitionReason"
+                            value="alternative_support"
+                            checked={transitionReason === 'alternative_support'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Exploring alternative wellness resources</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#FAF9F7] border border-[#263238]/8 cursor-pointer hover:bg-[#F4F1EC]/60 transition-colors">
+                          <input
+                            type="radio"
+                            name="transitionReason"
+                            value="other"
+                            checked={transitionReason === 'other'}
+                            onChange={(e) => setTransitionReason(e.target.value)}
+                          />
+                          <span>Other personal reason</span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#132A24] block">
+                    Additional notes or feedback for our clinical care team (optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={transitionNotes}
+                    onChange={(e) => setTransitionNotes(e.target.value)}
+                    placeholder="Share any details that can help us support you better..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#263238]/15 focus:outline-hidden focus:border-[#132A24] text-[#263238] resize-none"
+                  />
+                </div>
+
+                {/* Security Verification Notice */}
+                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2.5">
+                  <Lock size={15} className="shrink-0 text-amber-700 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong>Security Verification Required:</strong> To protect your therapy care
+                    from accidental or unauthorized changes, a 6-digit OTP will be sent to your
+                    registered phone number.
+                  </p>
+                </div>
+
+                {/* Step 1 Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-[#263238]/8">
+                  <button
+                    type="button"
+                    onClick={closeTransitionModal}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRequestOtp}
+                    disabled={isSendingOtp}
+                    className={`w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 ${
+                      transitionModal.action === 'change'
+                        ? 'bg-[#132A24] hover:bg-[#1C3E35]'
+                        : 'bg-red-800 hover:bg-red-900'
+                    }`}
+                  >
+                    {isSendingOtp ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Sending Code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Request OTP to Continue</span>
+                        <ArrowRight size={13} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: OTP Verification & Final Execution */}
+            {transitionModal.step === 2 && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950 flex items-start gap-2.5">
+                  <Smartphone size={16} className="shrink-0 text-emerald-700 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-emerald-900">Verification Code Sent</p>
+                    <p className="text-emerald-800 leading-relaxed mt-0.5">
+                      Enter the 6-digit code sent to <strong>{maskedPhone || 'your registered mobile'}</strong>{' '}
+                      to authorize {transitionModal.action === 'change' ? 'changing your therapist' : 'concluding therapy'}.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 6-Digit Code Inputs */}
+                <div className="space-y-2 py-2">
+                  <label className="text-xs font-semibold text-[#132A24] block text-center">
+                    Enter 6-Digit OTP Code
+                  </label>
+                  <div className="flex items-center justify-center gap-2">
+                    {otpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => (otpInputRefs.current[idx] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        className="w-11 h-12 text-center text-lg font-mono font-bold text-[#132A24] bg-[#FAF9F7] border border-[#263238]/20 rounded-xl focus:border-[#132A24] focus:bg-white focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    ))}
+                  </div>
+
+                  {/* Resend Cooldown */}
+                  <div className="text-center pt-1 text-xs text-[#66747A]">
+                    {otpCooldown > 0 ? (
+                      <span>Resend code in {otpCooldown}s</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestOtp}
+                        disabled={isSendingOtp}
+                        className="text-[#132A24] font-semibold underline underline-offset-2 hover:text-emerald-800 cursor-pointer"
+                      >
+                        {isSendingOtp ? 'Sending...' : 'Didn’t receive code? Resend OTP'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2 Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-[#263238]/8">
+                  <button
+                    type="button"
+                    onClick={() => setTransitionModal((prev) => ({ ...prev, step: 1 }))}
+                    disabled={isSubmittingTransition}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] transition-all cursor-pointer"
+                  >
+                    ← Back to Reason
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmTransition}
+                    disabled={otpDigits.join('').trim().length !== 6 || isSubmittingTransition}
+                    className={`w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 ${
+                      otpDigits.join('').trim().length !== 6 || isSubmittingTransition
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : transitionModal.action === 'change'
+                        ? 'bg-[#132A24] hover:bg-[#1C3E35]'
+                        : 'bg-red-800 hover:bg-red-900'
+                    }`}
+                  >
+                    {isSubmittingTransition ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Verifying &amp; Updating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound size={13} />
+                        <span>
+                          {transitionModal.action === 'change'
+                            ? 'Verify & Change Therapist'
+                            : 'Verify & Conclude Therapy'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

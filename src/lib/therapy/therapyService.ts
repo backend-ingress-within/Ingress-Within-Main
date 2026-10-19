@@ -1031,7 +1031,7 @@ export async function getClientTherapyDashboardSummary(userId: string) {
   }
 
   // If relationship was ended/completed and no pending requests
-  if (latestHistorical && (latestHistorical.status === 'completed' || latestHistorical.status === 'terminated')) {
+  if (latestHistorical && (latestHistorical.status === 'completed' || latestHistorical.status === 'terminated' || latestHistorical.status === 'ended')) {
     return {
       status: 'ended' as ClientRelationshipLifecycleStatus,
       connection: {
@@ -1296,4 +1296,167 @@ export async function getClientCareJourney(userId: string) {
     },
     timeline,
   };
+}
+
+/**
+ * Client-initiated action to end / conclude active care relationship.
+ * Marks relationship as 'ended', records ending timestamp and reason in metadata.
+ */
+export async function quitClientTherapyRelationship(
+  userId: string,
+  reason: string = 'Client requested to conclude therapy',
+  feedback: string = ''
+) {
+  if (!userId) {
+    const err: any = new Error('User ID is required');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+
+  // 1. Locate active relationship
+  const { data: relationship, error: fetchErr } = await supabase
+    .from('therapy_care_relationships')
+    .select('id, therapist_account_id, status, care_stage, metadata')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (fetchErr || !relationship) {
+    const err: any = new Error('No active therapy relationship found to conclude.');
+    err.code = 'RELATIONSHIP_NOT_FOUND';
+    err.status = 404;
+    throw err;
+  }
+
+  const nowIso = new Date().toISOString();
+  const currentMeta = (relationship.metadata as Record<string, any>) || {};
+
+  // 2. Update relationship to ended
+  const { data: updated, error: updErr } = await supabase
+    .from('therapy_care_relationships')
+    .update({
+      status: 'ended',
+      ended_at: nowIso,
+      updated_at: nowIso,
+      metadata: {
+        ...currentMeta,
+        ended_by: 'client',
+        end_reason: reason,
+        end_feedback: feedback || null,
+        ended_at: nowIso,
+      },
+    })
+    .eq('id', relationship.id)
+    .select('*')
+    .single();
+
+  if (updErr) {
+    console.error('[quitClientTherapyRelationship] Error ending relationship:', updErr);
+    throw new Error('Failed to conclude therapy relationship');
+  }
+
+  // 3. Optional: Notify therapist in-app
+  try {
+    await supabase.from('therapist_notifications').insert({
+      therapist_account_id: relationship.therapist_account_id,
+      user_id: userId,
+      notification_type: 'relationship_concluded',
+      title: 'Client Concluded Therapy',
+      body: `Client concluded therapy care cycle. Reason: ${reason}.`,
+      action_url: `/therapist/clients`,
+      is_read: false,
+      created_at: nowIso,
+    });
+  } catch (notifErr) {
+    console.warn('[quitClientTherapyRelationship] Failed to notify therapist:', notifErr);
+  }
+
+  return { success: true, relationship: updated };
+}
+
+/**
+ * Client-initiated action to request therapist change / rematch.
+ * Transitions current relationship to 'transferred' and allows immediate rematch intake.
+ */
+export async function changeClientTherapistRelationship(
+  userId: string,
+  reason: string = 'Personal fit / prefer a fresh clinical perspective',
+  notes: string = ''
+) {
+  if (!userId) {
+    const err: any = new Error('User ID is required');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+
+  // 1. Locate active relationship
+  const { data: relationship, error: fetchErr } = await supabase
+    .from('therapy_care_relationships')
+    .select('id, therapist_account_id, status, care_stage, metadata')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (fetchErr || !relationship) {
+    const err: any = new Error('No active therapy relationship found to change.');
+    err.code = 'RELATIONSHIP_NOT_FOUND';
+    err.status = 404;
+    throw err;
+  }
+
+  const nowIso = new Date().toISOString();
+  const currentMeta = (relationship.metadata as Record<string, any>) || {};
+
+  // 2. Update relationship to transferred
+  const { data: updated, error: updErr } = await supabase
+    .from('therapy_care_relationships')
+    .update({
+      status: 'transferred',
+      ended_at: nowIso,
+      updated_at: nowIso,
+      metadata: {
+        ...currentMeta,
+        transferred_by: 'client',
+        transfer_reason: reason,
+        transfer_notes: notes || null,
+        transferred_at: nowIso,
+      },
+    })
+    .eq('id', relationship.id)
+    .select('*')
+    .single();
+
+  if (updErr) {
+    console.error('[changeClientTherapistRelationship] Error transferring relationship:', updErr);
+    throw new Error('Failed to update therapist relationship for transfer');
+  }
+
+  // 3. Invalidate active matches to allow rematching
+  try {
+    await supabase
+      .from('therapy_matches')
+      .update({ status: 'transferred', updated_at: nowIso })
+      .eq('user_id', userId)
+      .eq('status', 'accepted');
+  } catch (matchErr) {
+    console.warn('[changeClientTherapistRelationship] Match cleanup notice:', matchErr);
+  }
+
+  // 4. Notify therapist in-app
+  try {
+    await supabase.from('therapist_notifications').insert({
+      therapist_account_id: relationship.therapist_account_id,
+      user_id: userId,
+      notification_type: 'client_reassigned',
+      title: 'Client Requested Rematch',
+      body: `Client requested rematch / clinician change. Reason: ${reason}.`,
+      action_url: `/therapist/clients`,
+      is_read: false,
+      created_at: nowIso,
+    });
+  } catch (notifErr) {
+    console.warn('[changeClientTherapistRelationship] Failed to notify therapist:', notifErr);
+  }
+
+  return { success: true, relationship: updated };
 }
