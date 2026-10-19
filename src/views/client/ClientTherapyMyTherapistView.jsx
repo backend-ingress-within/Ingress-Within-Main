@@ -79,6 +79,33 @@ export default function ClientTherapyMyTherapistView({
   const [transitionSuccess, setTransitionSuccess] = useState(null);
   const otpInputRefs = useRef([]);
 
+  // Available therapists for post-change clinician selection
+  const [availableTherapists, setAvailableTherapists] = useState([]);
+  const [loadingTherapists, setLoadingTherapists] = useState(false);
+  const [therapistsError, setTherapistsError] = useState(null);
+
+  const fetchAvailableTherapists = async () => {
+    setLoadingTherapists(true);
+    setTherapistsError(null);
+    try {
+      const res = await fetch('/api/therapy/therapists');
+      if (res.ok) {
+        const data = await res.json();
+        const currentId = connectionData?.therapist?.id;
+        const filtered = (data.therapists || []).filter(
+          (t) => !currentId || String(t.id) !== String(currentId)
+        );
+        setAvailableTherapists(filtered);
+      } else {
+        setTherapistsError('Unable to load available therapists.');
+      }
+    } catch (err) {
+      setTherapistsError('Network error loading therapists.');
+    } finally {
+      setLoadingTherapists(false);
+    }
+  };
+
   // Resend OTP countdown
   useEffect(() => {
     let timer;
@@ -207,15 +234,24 @@ export default function ClientTherapyMyTherapistView({
       const data = await res.json();
       if (res.ok && data.success) {
         setTransitionSuccess(data.message);
-        setTimeout(async () => {
-          closeTransitionModal();
+        if (transitionModal.action === 'change') {
+          // Immediately load other available therapists with their full details and proceed to Step 3
+          await fetchAvailableTherapists();
+          setTransitionModal((prev) => ({ ...prev, step: 3 }));
           await fetchTherapistDetails();
           if (onRefresh) onRefresh();
-          if (transitionModal.action === 'change' && onStartRematch) {
-            // Continue to Rematch Intake
-            onStartRematch();
-          }
-        }, 1200);
+        } else {
+          // For quit: conclude care and take client to the matching engine
+          setTimeout(async () => {
+            closeTransitionModal();
+            await fetchTherapistDetails();
+            if (onRefresh) onRefresh();
+            if (onStartRematch) {
+              // Continue to Rematch Intake / Matching Engine
+              onStartRematch('guided');
+            }
+          }, 900);
+        }
       } else {
         setTransitionError(data.error?.message || 'Verification failed. Please check the code and try again.');
       }
@@ -954,16 +990,26 @@ export default function ClientTherapyMyTherapistView({
       {/* ========================================================================= */}
       {transitionModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#263238]/15 shadow-xl max-w-lg w-full p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+          <div
+            className={`bg-white rounded-2xl border border-[#263238]/15 shadow-xl w-full p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-150 ${
+              transitionModal.step === 3 ? 'max-w-2xl max-h-[88vh] overflow-y-auto' : 'max-w-lg'
+            }`}
+          >
             {/* Modal Header */}
             <div className="flex items-start justify-between">
               <div>
                 <span
                   className={`text-[10.5px] uppercase font-bold tracking-wider ${
-                    transitionModal.action === 'change' ? 'text-amber-800' : 'text-red-800'
+                    transitionModal.step === 3
+                      ? 'text-emerald-800'
+                      : transitionModal.action === 'change'
+                      ? 'text-amber-800'
+                      : 'text-red-800'
                   }`}
                 >
-                  {transitionModal.action === 'change'
+                  {transitionModal.step === 3
+                    ? 'Practitioner Selection'
+                    : transitionModal.action === 'change'
                     ? 'Therapist Reassignment & Rematch'
                     : 'Conclude Therapy Care'}
                 </span>
@@ -972,7 +1018,9 @@ export default function ClientTherapyMyTherapistView({
                     ? transitionModal.action === 'change'
                       ? 'Requesting a Therapist Change'
                       : 'Conclude Your Therapy Cycle'
-                    : 'Verify with Security Code'}
+                    : transitionModal.step === 2
+                    ? 'Verify with Security Code'
+                    : 'Available Practitioners'}
                 </h3>
               </div>
               <button
@@ -1265,6 +1313,187 @@ export default function ClientTherapyMyTherapistView({
                         </span>
                       </>
                     )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Available Therapists (Post-Change Clinician Selection) */}
+            {transitionModal.step === 3 && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950 flex items-start gap-2.5">
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-700 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-emerald-900">Therapist Change Authorized</p>
+                    <p className="text-emerald-800 leading-relaxed mt-0.5">
+                      Your previous assignment has been updated. Explore other licensed practitioners below to book a consultation, or launch our guided matching engine.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Guided Matching CTA Banner */}
+                <div className="p-4 rounded-xl bg-[#FAF9F7] border border-[#263238]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-[#132A24] block">Prefer Algorithmic Matching?</span>
+                    <span className="text-[#66747A]">Our clinical triage engine can recommend matches based on your updated focus.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeTransitionModal();
+                      if (onStartRematch) onStartRematch('guided');
+                    }}
+                    className="bg-[#132A24] hover:bg-[#1C3E35] text-white font-semibold px-4 py-2 rounded-xl transition-all shadow-2xs shrink-0 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Launch Matching Engine</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+
+                {/* Available Therapists Cards */}
+                <div className="space-y-3 pt-1">
+                  <h4 className="font-serif text-base text-[#132A24] font-semibold flex items-center justify-between">
+                    <span>Available Practitioners &amp; Modalities</span>
+                    <span className="text-xs font-sans text-[#66747A] font-normal">
+                      {availableTherapists.length} clinician{availableTherapists.length === 1 ? '' : 's'} available
+                    </span>
+                  </h4>
+
+                  {loadingTherapists ? (
+                    <div className="py-12 text-center space-y-2">
+                      <div className="w-5 h-5 border-2 border-[#132A24] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs text-[#66747A]">Loading available practitioners...</p>
+                    </div>
+                  ) : therapistsError ? (
+                    <div className="p-4 rounded-xl bg-red-50 text-xs text-red-800 text-center space-y-2">
+                      <p>{therapistsError}</p>
+                      <button
+                        type="button"
+                        onClick={fetchAvailableTherapists}
+                        className="text-[#132A24] font-semibold underline underline-offset-2 hover:text-emerald-800"
+                      >
+                        Retry Loading
+                      </button>
+                    </div>
+                  ) : availableTherapists.length === 0 ? (
+                    <div className="py-8 text-center space-y-3 bg-[#FAF9F7] rounded-xl border border-[#263238]/8 p-4">
+                      <p className="text-xs text-[#66747A]">
+                        No other practitioners currently available in open directory. You can launch our matching engine to request care coordination.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeTransitionModal();
+                          if (onStartRematch) onStartRematch('guided');
+                        }}
+                        className="bg-[#132A24] text-white text-xs font-semibold px-4 py-2 rounded-xl"
+                      >
+                        Go to Matching Engine →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                      {availableTherapists.map((t) => (
+                        <div
+                          key={t.id}
+                          className="p-4 sm:p-5 rounded-xl bg-[#FAF9F7] border border-[#263238]/10 hover:border-[#132A24]/30 transition-all space-y-3"
+                        >
+                          <div className="flex items-start gap-3.5">
+                            {t.profileImageUrl ? (
+                              <img
+                                src={t.profileImageUrl}
+                                alt={t.displayName || t.name}
+                                className="w-13 h-13 rounded-xl object-cover border border-[#263238]/10 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-13 h-13 rounded-xl bg-[#132A24] text-white flex items-center justify-center font-serif text-lg shrink-0">
+                                {(t.displayName || t.name || 'T').charAt(0)}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="font-serif text-base text-[#132A24] font-semibold truncate">
+                                  {t.displayName || t.name}
+                                </h5>
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                                  <ShieldCheck size={11} /> Verified
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#66747A] mt-0.5">
+                                {t.credentials || t.title || 'Consultant Psychologist'}
+                                {t.experienceYears ? ` · ${t.experienceYears}+ yrs experience` : ''}
+                              </p>
+                              {(t.fee || t.per_session_fee) && (
+                                <span className="text-xs font-semibold text-[#132A24] mt-1 block">
+                                  ₹{t.fee || t.per_session_fee}{' '}
+                                  <span className="text-[11px] font-normal text-[#66747A]">/ 50-min consultation</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {t.bio && (
+                            <p className="text-xs text-[#4A5568] line-clamp-2 leading-relaxed">
+                              {t.bio}
+                            </p>
+                          )}
+
+                          {/* Specializations & Languages */}
+                          <div className="space-y-1 pt-1">
+                            {t.specializations && t.specializations.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {t.specializations.slice(0, 4).map((spec, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-[#263238]/8 text-[#263238]"
+                                  >
+                                    {spec}
+                                  </span>
+                                ))}
+                                {t.specializations.length > 4 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 text-[#66747A]">
+                                    +{t.specializations.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {t.languages && t.languages.length > 0 && (
+                              <div className="flex items-center gap-1 text-[11px] text-[#66747A] pt-0.5">
+                                <Languages size={12} className="shrink-0" />
+                                <span>{t.languages.join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Booking CTA */}
+                          <div className="pt-2 border-t border-[#263238]/8 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                closeTransitionModal();
+                                if (onStartBooking) onStartBooking(t);
+                              }}
+                              className="bg-[#132A24] hover:bg-[#1C3E35] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <CalendarIcon size={13} />
+                              <span>Book Consultation →</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Close / Return Footer */}
+                <div className="pt-3 border-t border-[#263238]/8 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={closeTransitionModal}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] transition-all cursor-pointer"
+                  >
+                    Close &amp; Return to Dashboard
                   </button>
                 </div>
               </div>

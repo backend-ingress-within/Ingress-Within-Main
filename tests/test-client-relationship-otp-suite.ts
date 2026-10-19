@@ -6,16 +6,16 @@ import path from 'path';
  * INGRESS WITHIN — CLIENT RELATIONSHIP OTP TRANSITION TEST SUITE
  * ==============================================================
  * Tests the security, OTP verification, and lifecycle transitions for:
- * 1. Quitting therapy (care cycle conclusion)
- * 2. Changing therapist (reassignment and rematch)
+ * 1. Quitting therapy (care cycle conclusion) -> Takes back to matching engine
+ * 2. Changing therapist (reassignment) -> Shows other available therapists with details
  *
  * Verifies:
  * - Session-based authentication & ownership enforcement
  * - Mandatory 6-digit OTP dispatch and rate-limiting
  * - Transition action verification ('quit' vs 'change')
- * - Atomic database status updates ('ended', 'transferred')
- * - Preserving client notes, sessions, and homework reflections in archive
- * - Front-end 2-step modal UI and OTP entry workflow
+ * - Resilient database queries that never throw 404 RELATIONSHIP_NOT_FOUND
+ * - Front-end post-change view displaying other available therapists with full details
+ * - Front-end post-quit navigation returning client to guided matching engine
  */
 
 console.log('================================================================');
@@ -39,11 +39,13 @@ const SEND_OTP_ROUTE = path.resolve(process.cwd(), 'src/app/api/therapy/client/r
 const TRANSITION_ROUTE = path.resolve(process.cwd(), 'src/app/api/therapy/client/relationship/transition/route.ts');
 const THERAPY_SERVICE = path.resolve(process.cwd(), 'src/lib/therapy/therapyService.ts');
 const MY_THERAPIST_VIEW = path.resolve(process.cwd(), 'src/views/client/ClientTherapyMyTherapistView.jsx');
+const THERAPY_PAGE = path.resolve(process.cwd(), 'src/views/TherapyPage.jsx');
 
 const sendOtpCode = fs.readFileSync(SEND_OTP_ROUTE, 'utf8');
 const transitionCode = fs.readFileSync(TRANSITION_ROUTE, 'utf8');
 const serviceCode = fs.readFileSync(THERAPY_SERVICE, 'utf8');
 const myTherapistCode = fs.readFileSync(MY_THERAPIST_VIEW, 'utf8');
+const therapyPageCode = fs.readFileSync(THERAPY_PAGE, 'utf8');
 
 // --- SECTION 1: Send OTP Route Security & Invariants ---
 console.log('--- SECTION 1: Send OTP Endpoint Security & Validation ---');
@@ -73,10 +75,11 @@ try {
   fail('Transition Endpoint Verification', e);
 }
 
-// --- SECTION 3: Service Layer Transition Logic ---
-console.log('\n--- SECTION 3: Therapy Service Layer Transitions & Archiving ---');
+// --- SECTION 3: Service Layer Transition Logic (Resilient & Non-Crashing) ---
+console.log('\n--- SECTION 3: Therapy Service Layer Transitions & Resiliency ---');
 try {
   assert(serviceCode.includes('quitClientTherapyRelationship'), 'Exports quitClientTherapyRelationship service function');
+  assert(!serviceCode.includes("RELATIONSHIP_NOT_FOUND"), 'Does not throw 404 RELATIONSHIP_NOT_FOUND when user wants to quit or change');
   assert(serviceCode.includes("status: 'ended'"), 'Sets relationship status to ended on quit');
   assert(serviceCode.includes("ended_by: 'client'"), 'Logs ended_by: client in relationship metadata');
   assert(serviceCode.includes('changeClientTherapistRelationship'), 'Exports changeClientTherapistRelationship service function');
@@ -84,7 +87,7 @@ try {
   assert(serviceCode.includes("transferred_by: 'client'"), 'Logs transferred_by: client in relationship metadata');
   assert(serviceCode.includes("therapist_notifications"), 'Dispatches in-app notification to therapist');
   assert(serviceCode.includes("status === 'ended'"), 'getClientTherapyDashboardSummary classifies ended relationships into care history archive');
-  pass('Service layer performs atomic updates, records metadata, notifies clinicians, and preserves care history');
+  pass('Service layer performs resilient updates, metadata logging, and clean match invalidation');
 } catch (e) {
   fail('Service Layer Transition Logic', e);
 }
@@ -100,10 +103,31 @@ try {
   assert(myTherapistCode.includes('/api/therapy/client/relationship/transition'), 'Submits verified OTP and reason to transition endpoint');
   assert(myTherapistCode.includes('otpDigits'), 'Manages individual OTP digit input boxes');
   assert(myTherapistCode.includes('otpCooldown'), 'Implements resend OTP countdown timer');
-  assert(myTherapistCode.includes('onStartRematch'), 'Routes client to rematch intake after therapist change');
   pass('Client UI renders seamless 2-step OTP transition dialog with resend cooldown and error recovery');
 } catch (e) {
   fail('Client UI Integration', e);
+}
+
+// --- SECTION 5: Change Shows Available Therapists & Quit Returns to Matching Engine ---
+console.log('\n--- SECTION 5: Change Shows Other Therapists & Quit Launches Matching Engine ---');
+try {
+  // 1. Therapist change renders Step 3 with other available therapists and their details
+  assert(myTherapistCode.includes('fetchAvailableTherapists'), 'Fetches available therapists upon change confirmation');
+  assert(myTherapistCode.includes('transitionModal.step === 3'), 'Renders Step 3 for post-change clinician selection');
+  assert(myTherapistCode.includes('/api/therapy/therapists'), 'Queries canonical /api/therapy/therapists endpoint');
+  assert(myTherapistCode.includes('availableTherapists.map'), 'Maps available therapists in directory cards');
+  assert(myTherapistCode.includes('t.credentials') || myTherapistCode.includes('t.title'), 'Displays clinician credentials and title');
+  assert(myTherapistCode.includes('t.specializations'), 'Displays therapist specializations');
+  assert(myTherapistCode.includes('t.languages'), 'Displays therapist languages');
+  assert(myTherapistCode.includes('t.bio'), 'Displays therapist professional bio');
+  assert(myTherapistCode.includes('onStartBooking(t)'), 'Provides one-click action to book with chosen clinician');
+
+  // 2. Quitting takes client back to matching engine
+  assert(myTherapistCode.includes("onStartRematch('guided')"), 'Takes client back to guided matching engine on quit');
+  assert(therapyPageCode.includes("setJourney(targetJourney)"), 'TherapyPage activates guided matching engine when requested');
+  pass('Change therapist displays full available therapist details and quit returns client to matching engine');
+} catch (e) {
+  fail('Change Shows Other Therapists & Quit Launches Matching Engine', e);
 }
 
 console.log('\n================================================================');

@@ -2437,7 +2437,12 @@ export default function TherapyPage({ user, profile, onSignOut }) {
         therapist={connectionData?.therapist}
         onRefreshRelationship={checkConnection}
         onSignOut={onSignOut}
-        onStartRematch={() => setShowIntakeOverride(true)}
+        onStartRematch={(targetJourney = 'guided') => {
+          setShowIntakeOverride(true);
+          if (targetJourney) {
+            setJourney(targetJourney);
+          }
+        }}
         connectionStatus={connectionStatus}
         pendingRequest={connectionData?.pendingRequest}
         history={connectionData?.history}

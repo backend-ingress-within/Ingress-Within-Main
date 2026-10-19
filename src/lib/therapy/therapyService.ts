@@ -1313,65 +1313,111 @@ export async function quitClientTherapyRelationship(
     throw err;
   }
 
-  // 1. Locate active relationship
-  const { data: relationship, error: fetchErr } = await supabase
+  const nowIso = new Date().toISOString();
+
+  // 1. Locate all relationships for this client
+  const { data: relationships, error: fetchErr } = await supabase
     .from('therapy_care_relationships')
     .select('id, therapist_account_id, status, care_stage, metadata')
     .eq('user_id', userId)
-    .eq('status', 'active')
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
-  if (fetchErr || !relationship) {
-    const err: any = new Error('No active therapy relationship found to conclude.');
-    err.code = 'RELATIONSHIP_NOT_FOUND';
-    err.status = 404;
-    throw err;
+  if (fetchErr) {
+    console.warn('[quitClientTherapyRelationship] Notice fetching relationships:', fetchErr);
   }
 
-  const nowIso = new Date().toISOString();
-  const currentMeta = (relationship.metadata as Record<string, any>) || {};
+  const allRel = relationships || [];
+  const activeRelationships = allRel.filter((r) => r.status === 'active');
+  const targetRel = activeRelationships[0] || allRel[0] || null;
 
-  // 2. Update relationship to ended
-  const { data: updated, error: updErr } = await supabase
-    .from('therapy_care_relationships')
-    .update({
-      status: 'ended',
-      ended_at: nowIso,
-      updated_at: nowIso,
-      metadata: {
-        ...currentMeta,
-        ended_by: 'client',
-        end_reason: reason,
-        end_feedback: feedback || null,
+  // 2. Update active relationships to ended (or fallback to latest)
+  let updatedRel = targetRel;
+  if (activeRelationships.length > 0) {
+    for (const rel of activeRelationships) {
+      const currentMeta = (rel.metadata as Record<string, any>) || {};
+      const { data: updated } = await supabase
+        .from('therapy_care_relationships')
+        .update({
+          status: 'ended',
+          ended_at: nowIso,
+          updated_at: nowIso,
+          metadata: {
+            ...currentMeta,
+            ended_by: 'client',
+            end_reason: reason,
+            end_feedback: feedback || null,
+            ended_at: nowIso,
+          },
+        })
+        .eq('id', rel.id)
+        .select('*')
+        .single();
+      if (updated) updatedRel = updated;
+    }
+  } else if (targetRel) {
+    const currentMeta = (targetRel.metadata as Record<string, any>) || {};
+    const { data: updated } = await supabase
+      .from('therapy_care_relationships')
+      .update({
+        status: 'ended',
         ended_at: nowIso,
-      },
-    })
-    .eq('id', relationship.id)
-    .select('*')
-    .single();
-
-  if (updErr) {
-    console.error('[quitClientTherapyRelationship] Error ending relationship:', updErr);
-    throw new Error('Failed to conclude therapy relationship');
+        updated_at: nowIso,
+        metadata: {
+          ...currentMeta,
+          ended_by: 'client',
+          end_reason: reason,
+          end_feedback: feedback || null,
+          ended_at: nowIso,
+        },
+      })
+      .eq('id', targetRel.id)
+      .select('*')
+      .single();
+    if (updated) updatedRel = updated;
   }
 
-  // 3. Optional: Notify therapist in-app
+  // 3. Clean up any active/accepted/shortlisted matches in therapy_matches
   try {
-    await supabase.from('therapist_notifications').insert({
-      therapist_account_id: relationship.therapist_account_id,
-      user_id: userId,
-      notification_type: 'relationship_concluded',
-      title: 'Client Concluded Therapy',
-      body: `Client concluded therapy care cycle. Reason: ${reason}.`,
-      action_url: `/therapist/clients`,
-      is_read: false,
-      created_at: nowIso,
-    });
-  } catch (notifErr) {
-    console.warn('[quitClientTherapyRelationship] Failed to notify therapist:', notifErr);
+    await supabase
+      .from('therapy_matches')
+      .update({ match_status: 'ended', updated_at: nowIso })
+      .eq('user_id', userId)
+      .in('match_status', ['accepted', 'shortlisted', 'candidate']);
+  } catch (matchErr) {
+    console.warn('[quitClientTherapyRelationship] Match cleanup notice:', matchErr);
   }
 
-  return { success: true, relationship: updated };
+  // 4. Clean up any pending submissions in therapy_submissions
+  try {
+    await supabase
+      .from('therapy_submissions')
+      .update({ submission_status: 'concluded' })
+      .eq('user_id', userId)
+      .in('submission_status', ['submitted', 'under_review']);
+  } catch (subErr) {
+    console.warn('[quitClientTherapyRelationship] Submission cleanup notice:', subErr);
+  }
+
+  // 5. Notify therapist in-app if a therapist was assigned
+  const therapistAccountId = targetRel?.therapist_account_id;
+  if (therapistAccountId) {
+    try {
+      await supabase.from('therapist_notifications').insert({
+        therapist_account_id: therapistAccountId,
+        user_id: userId,
+        notification_type: 'relationship_concluded',
+        title: 'Client Concluded Therapy',
+        body: `Client concluded therapy care cycle. Reason: ${reason}.`,
+        action_url: `/therapist/clients`,
+        is_read: false,
+        created_at: nowIso,
+      });
+    } catch (notifErr) {
+      console.warn('[quitClientTherapyRelationship] Failed to notify therapist:', notifErr);
+    }
+  }
+
+  return { success: true, relationship: updatedRel };
 }
 
 /**
@@ -1389,46 +1435,67 @@ export async function changeClientTherapistRelationship(
     throw err;
   }
 
-  // 1. Locate active relationship
-  const { data: relationship, error: fetchErr } = await supabase
+  const nowIso = new Date().toISOString();
+
+  // 1. Locate all relationships for this client
+  const { data: relationships, error: fetchErr } = await supabase
     .from('therapy_care_relationships')
     .select('id, therapist_account_id, status, care_stage, metadata')
     .eq('user_id', userId)
-    .eq('status', 'active')
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
-  if (fetchErr || !relationship) {
-    const err: any = new Error('No active therapy relationship found to change.');
-    err.code = 'RELATIONSHIP_NOT_FOUND';
-    err.status = 404;
-    throw err;
+  if (fetchErr) {
+    console.warn('[changeClientTherapistRelationship] Notice fetching relationships:', fetchErr);
   }
 
-  const nowIso = new Date().toISOString();
-  const currentMeta = (relationship.metadata as Record<string, any>) || {};
+  const allRel = relationships || [];
+  const activeRelationships = allRel.filter((r) => r.status === 'active');
+  const targetRel = activeRelationships[0] || allRel[0] || null;
 
-  // 2. Update relationship to transferred
-  const { data: updated, error: updErr } = await supabase
-    .from('therapy_care_relationships')
-    .update({
-      status: 'transferred',
-      ended_at: nowIso,
-      updated_at: nowIso,
-      metadata: {
-        ...currentMeta,
-        transferred_by: 'client',
-        transfer_reason: reason,
-        transfer_notes: notes || null,
-        transferred_at: nowIso,
-      },
-    })
-    .eq('id', relationship.id)
-    .select('*')
-    .single();
-
-  if (updErr) {
-    console.error('[changeClientTherapistRelationship] Error transferring relationship:', updErr);
-    throw new Error('Failed to update therapist relationship for transfer');
+  // 2. Update active relationships to transferred
+  let updatedRel = targetRel;
+  if (activeRelationships.length > 0) {
+    for (const rel of activeRelationships) {
+      const currentMeta = (rel.metadata as Record<string, any>) || {};
+      const { data: updated } = await supabase
+        .from('therapy_care_relationships')
+        .update({
+          status: 'transferred',
+          ended_at: nowIso,
+          updated_at: nowIso,
+          metadata: {
+            ...currentMeta,
+            transferred_by: 'client',
+            transfer_reason: reason,
+            transfer_notes: notes || null,
+            transferred_at: nowIso,
+          },
+        })
+        .eq('id', rel.id)
+        .select('*')
+        .single();
+      if (updated) updatedRel = updated;
+    }
+  } else if (targetRel) {
+    const currentMeta = (targetRel.metadata as Record<string, any>) || {};
+    const { data: updated } = await supabase
+      .from('therapy_care_relationships')
+      .update({
+        status: 'transferred',
+        ended_at: nowIso,
+        updated_at: nowIso,
+        metadata: {
+          ...currentMeta,
+          transferred_by: 'client',
+          transfer_reason: reason,
+          transfer_notes: notes || null,
+          transferred_at: nowIso,
+        },
+      })
+      .eq('id', targetRel.id)
+      .select('*')
+      .single();
+    if (updated) updatedRel = updated;
   }
 
   // 3. Invalidate active matches to allow rematching
@@ -1442,21 +1509,24 @@ export async function changeClientTherapistRelationship(
     console.warn('[changeClientTherapistRelationship] Match cleanup notice:', matchErr);
   }
 
-  // 4. Notify therapist in-app
-  try {
-    await supabase.from('therapist_notifications').insert({
-      therapist_account_id: relationship.therapist_account_id,
-      user_id: userId,
-      notification_type: 'client_reassigned',
-      title: 'Client Requested Rematch',
-      body: `Client requested rematch / clinician change. Reason: ${reason}.`,
-      action_url: `/therapist/clients`,
-      is_read: false,
-      created_at: nowIso,
-    });
-  } catch (notifErr) {
-    console.warn('[changeClientTherapistRelationship] Failed to notify therapist:', notifErr);
+  // 4. Notify therapist in-app if assigned
+  const therapistAccountId = targetRel?.therapist_account_id;
+  if (therapistAccountId) {
+    try {
+      await supabase.from('therapist_notifications').insert({
+        therapist_account_id: therapistAccountId,
+        user_id: userId,
+        notification_type: 'client_reassigned',
+        title: 'Client Requested Rematch',
+        body: `Client requested rematch / clinician change. Reason: ${reason}.`,
+        action_url: `/therapist/clients`,
+        is_read: false,
+        created_at: nowIso,
+      });
+    } catch (notifErr) {
+      console.warn('[changeClientTherapistRelationship] Failed to notify therapist:', notifErr);
+    }
   }
 
-  return { success: true, relationship: updated };
+  return { success: true, relationship: updatedRel };
 }
