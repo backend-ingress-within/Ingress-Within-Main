@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
 import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
+import ClientTherapyHomeworkView from './ClientTherapyHomeworkView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
 import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
@@ -1291,148 +1292,13 @@ export default function ClientTherapyDashboard({
         {/* TAB 5: HOMEWORK & PROGRAMS                                                */}
         {/* ========================================================================= */}
         {activeTab === 'homework' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#263238]/10 pb-4">
-              <div>
-                <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-800">
-                  Client Self-Work &amp; Tools
-                </span>
-                <h1 className="font-serif text-2xl sm:text-3xl text-[#132A24] mt-1">
-                  Homework &amp; Practice
-                </h1>
-                <p className="text-xs text-[#66747A] mt-1">
-                  Therapist-assigned exercises, worksheets, and thought records to practice between sessions.
-                </p>
-              </div>
-
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-2">
-                {[
-                  { id: 'all', label: 'All' },
-                  { id: 'pending', label: 'To Do' },
-                  { id: 'completed', label: 'Submitted & Reviewed' },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setHomeworkFilter(f.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      homeworkFilter === f.id
-                        ? 'bg-[#132A24] text-white font-semibold'
-                        : 'text-[#66747A] hover:bg-white'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {loadingHomework ? (
-              <div className="py-12 text-center text-xs text-[#66747A]">Loading assignments...</div>
-            ) : (() => {
-              const filtered = homeworkList.filter((h) => {
-                if (homeworkFilter === 'pending') {
-                  return ['assigned', 'viewed', 'in_progress'].includes(h.status);
-                }
-                if (homeworkFilter === 'completed') {
-                  return ['submitted', 'reviewed'].includes(h.status);
-                }
-                return true;
-              });
-
-              if (filtered.length === 0) {
-                return (
-                  <div className="bg-white border border-[#263238]/10 rounded-2xl p-10 text-center space-y-3">
-                    <BookOpen size={32} className="mx-auto text-gray-300" />
-                    <h3 className="font-serif text-base text-[#132A24]">
-                      No assignments found
-                    </h3>
-                    <p className="text-xs text-[#66747A] max-w-sm mx-auto">
-                      {homeworkFilter === 'pending'
-                        ? 'You have completed all current assignments. New self-work will be assigned after your next consultation.'
-                        : 'Your assigned clinical tools will appear here.'}
-                    </p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filtered.map((h) => {
-                    const isSubmitted = ['submitted', 'reviewed'].includes(h.status);
-
-                    return (
-                      <div
-                        key={h.id}
-                        className="bg-white border border-[#263238]/10 rounded-xl p-5 shadow-2xs flex flex-col justify-between space-y-4 hover:border-[#263238]/20 transition-all"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#F4F1EC] text-[#263238] border border-[#263238]/8">
-                              {h.exerciseType.replace('_', ' ')}
-                            </span>
-                            <span
-                              className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                                h.status === 'reviewed'
-                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                  : h.status === 'submitted'
-                                  ? 'bg-blue-50 text-blue-800'
-                                  : 'bg-amber-50 text-amber-800'
-                              }`}
-                            >
-                              {h.status.replace('_', ' ')}
-                            </span>
-                          </div>
-
-                          <h3 className="font-serif text-base text-[#132A24] font-medium">{h.title}</h3>
-                          <p className="text-xs text-[#66747A] line-clamp-3 leading-relaxed">
-                            {h.instructions}
-                          </p>
-
-                          {/* Clinician Feedback Callout if reviewed */}
-                          {h.feedback && (
-                            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 space-y-1">
-                              <span className="font-bold flex items-center gap-1 text-[11px] text-emerald-900">
-                                <CheckCircle2 size={12} /> Clinician Feedback
-                              </span>
-                              <p className="italic text-[#263238]">"{h.feedback}"</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="pt-3 border-t border-[#263238]/8 flex items-center justify-between">
-                          <div className="text-[11px] text-[#66747A] flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <Clock size={11} /> ~{h.estimatedMinutes}m
-                            </span>
-                            {h.dueAt && (
-                              <span className="flex items-center gap-1">
-                                <CalendarIcon size={11} />{' '}
-                                {new Date(h.dueAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}
-                              </span>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setSelectedHomeworkId(h.id)}
-                            className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                          >
-                            <FileText size={12} />
-                            <span>{isSubmitted ? 'View Submission' : 'Open Exercise'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
+          <ClientTherapyHomeworkView
+            homeworkList={homeworkList}
+            loading={loadingHomework}
+            error={homeworkError}
+            onRefresh={fetchHomework}
+            onOpenAssignment={(id) => setSelectedHomeworkId(id)}
+          />
         )}
 
         {/* ========================================================================= */}
