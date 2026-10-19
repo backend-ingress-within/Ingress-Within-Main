@@ -1149,7 +1149,6 @@ function Guided({ exit, onBookSession, user, profile }) {
   }, [safety]);
 
   const matches = useMemo(() => {
-    if (triageTier !== 'standard') return [];
     if (!normalizedTherapists.length) return [];
 
     const maxBudget = {
@@ -1343,7 +1342,6 @@ function Guided({ exit, onBookSession, user, profile }) {
   };
 
   const saveGuidedMatches = async (sessionId) => {
-    if (triageTier !== 'standard') return;
 
     const payload = matches.map((therapist, index) => ({
       therapistAccountId: therapist.id,
@@ -1428,10 +1426,7 @@ function Guided({ exit, onBookSession, user, profile }) {
 
     await saveGuidedIntake(sessionId);
     await saveGuidedSafety(sessionId);
-
-    if (triageTier === 'standard') {
-      await saveGuidedMatches(sessionId);
-    }
+    await saveGuidedMatches(sessionId);
 
     const response = await fetch('/api/therapy/submission', {
       method: 'POST',
@@ -1483,14 +1478,9 @@ function Guided({ exit, onBookSession, user, profile }) {
         await saveGuidedSafety(sessionId);
       }
 
-      // Persist the prototype shortlist when the user enters the matching step.
-      if (step === 15 && triageTier === 'standard') {
+      // Persist matches when the user enters the matching step.
+      if (step === 15) {
         await saveGuidedMatches(sessionId);
-      }
-
-      if (step === 15 && triageTier !== 'standard') {
-        setStep(17);
-        return;
       }
 
       setStep((value) => Math.min(total - 1, value + 1));

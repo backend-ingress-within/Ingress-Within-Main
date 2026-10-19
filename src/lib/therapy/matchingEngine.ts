@@ -406,7 +406,7 @@ export function capacityBonus(t: TherapistRecord): number {
 export function hardFilter(
   profile: ClientProfile,
   t: TherapistRecord,
-  relax: { language?: boolean; clientType?: boolean; floor?: boolean } = {}
+  relax: { language?: boolean; clientType?: boolean; floor?: boolean; city?: boolean } = {}
 ): string[] {
   const fails: string[] = [];
 
@@ -440,7 +440,7 @@ export function hardFilter(
     }
   }
 
-  if (profile.city && citiesMatch(profile.city, t.city)) {
+  if (!relax.city && profile.city && citiesMatch(profile.city, t.city)) {
     fails.push('Same city as you — excluded to avoid a dual relationship, not a quality issue');
   }
 
@@ -462,7 +462,7 @@ export function hardFilter(
 export function matchTherapists(
   profile: ClientProfile,
   roster: TherapistRecord[],
-  relax: { language?: boolean; clientType?: boolean; floor?: boolean } = {}
+  relax: { language?: boolean; clientType?: boolean; floor?: boolean; city?: boolean } = {}
 ): ScoredMatch[] {
   return roster
     .map((t) => {
@@ -508,7 +508,10 @@ export function matchTherapists(
 
 export const RELAX_TIERS = [
   { relax: {}, label: null },
-  { relax: { language: true }, label: 'including some therapists outside your stated language preference' },
+  { relax: { floor: true }, label: 'widening therapeutic approach fit' },
+  { relax: { city: true }, label: 'including practitioners in your city offering telehealth' },
+  { relax: { floor: true, city: true }, label: 'widening search parameters' },
+  { relax: { language: true, floor: true, city: true }, label: 'including some therapists outside your stated language preference' },
 ] as const;
 
 export function getGuaranteedMatches(

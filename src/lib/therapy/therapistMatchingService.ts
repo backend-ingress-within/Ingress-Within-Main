@@ -200,15 +200,29 @@ export async function runIntakeMatching(
   let guaranteedHandoff = false;
 
   if (routing.useAcuityPool) {
-    // Priority or immediate: match only from the admin-cleared acuity pool
+    // Priority or immediate: check the admin-cleared acuity pool first
     const acuity = matchTherapistsForAcuityCase(
       triage.tier === 'immediate' ? 'immediate' : 'priority',
       profile,
       roster
     );
     const top = acuity.ranked.find((r) => r.passesHard) || null;
-    matchResults = top ? [top] : [];
-    guaranteedHandoff = !top;
+    if (top) {
+      matchResults = [top];
+      guaranteedHandoff = false;
+    } else if (triage.tier === 'priority') {
+      // For priority cases, allow matched verified practitioners while notifying the care team
+      const verifiedRoster = roster.filter((t) => t.verificationStatus === 'verified');
+      const outcome = getGuaranteedMatches(profile, verifiedRoster);
+      matchResults = outcome.results.filter((r) => r.qualifies);
+      relaxed = outcome.relaxed;
+      relaxLabel = outcome.relaxLabel;
+      guaranteedHandoff = outcome.guaranteedHandoff;
+    } else {
+      // For immediate cases without an on-call cleared clinician, require direct human handoff
+      matchResults = [];
+      guaranteedHandoff = true;
+    }
   } else {
     // Standard matching: strict -> language widening -> human handoff
     const verifiedRoster = roster.filter((t) => t.verificationStatus === 'verified');
