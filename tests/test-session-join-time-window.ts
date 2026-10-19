@@ -55,16 +55,24 @@ function runSuite() {
   assert.strictEqual(windowInProgress.isEnded, false, 'In-progress session is not ended');
   console.log('  ✓ [PASS] Session in-progress: Join is ENABLED (canJoin = true)');
 
-  // Test 7: Session ended 10 minutes ago
-  const sessionEndedStart = new Date(now - 60 * 60 * 1000).toISOString();
-  const sessionEndedEnd = new Date(now - 10 * 60 * 1000).toISOString();
-  const windowEnded = getSessionMeetingWindow(sessionEndedStart, sessionEndedEnd);
-  assert.strictEqual(windowEnded.canJoin, false, 'Ended session CANNOT be joined');
-  assert.strictEqual(windowEnded.isEnded, true, 'Ended session is marked as ended');
-  console.log('  ✓ [PASS] Session ended: Join is disabled (isEnded = true, canJoin = false)');
+  // Test 7: Session whose scheduled end time passed 10 minutes ago (within 20 min buffer for late joins)
+  const sessionEnded10MinsAgoStart = new Date(now - 60 * 60 * 1000).toISOString();
+  const sessionEnded10MinsAgoEnd = new Date(now - 10 * 60 * 1000).toISOString();
+  const windowWithinBuffer = getSessionMeetingWindow(sessionEnded10MinsAgoStart, sessionEnded10MinsAgoEnd);
+  assert.strictEqual(windowWithinBuffer.canJoin, true, 'Session ended 10 mins ago CAN still be joined (within 20m buffer)');
+  assert.strictEqual(windowWithinBuffer.isEnded, false, 'Session within 20m buffer is not marked as ended');
+  console.log('  ✓ [PASS] Session 10 mins past end time: Join is ENABLED (within 20m grace period buffer)');
+
+  // Test 8: Session ended 25 minutes ago (past 20-minute buffer window)
+  const sessionEnded25MinsAgoStart = new Date(now - 75 * 60 * 1000).toISOString();
+  const sessionEnded25MinsAgoEnd = new Date(now - 25 * 60 * 1000).toISOString();
+  const windowPastBuffer = getSessionMeetingWindow(sessionEnded25MinsAgoStart, sessionEnded25MinsAgoEnd);
+  assert.strictEqual(windowPastBuffer.canJoin, false, 'Session ended 25 mins ago CANNOT be joined (past 20m buffer)');
+  assert.strictEqual(windowPastBuffer.isEnded, true, 'Session ended 25 mins ago is marked as ended');
+  console.log('  ✓ [PASS] Session 25 mins past end time: Join is disabled (past 20m grace period buffer, isEnded = true)');
 
   console.log('\n================================================================');
-  console.log('  SUMMARY: All 7 Time Window Boundary Tests Passed!             ');
+  console.log('  SUMMARY: All 8 Time Window & Buffer Boundary Tests Passed!    ');
   console.log('================================================================\n');
 }
 

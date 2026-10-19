@@ -31,9 +31,10 @@ import {
 import ClientHomeworkModal from './ClientHomeworkModal';
 import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
 import ClientTherapyHomeworkView from './ClientTherapyHomeworkView';
+import ClientTherapyCareJourneyView from './ClientTherapyCareJourneyView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
-import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
+import { getSessionMeetingWindow, MEETING_POST_SESSION_BUFFER_MS } from '../../utils/sessionMeetingUtils';
 
 export default function ClientTherapyDashboard({
   user,
@@ -273,10 +274,15 @@ export default function ClientTherapyDashboard({
     setBookingFlowOpen(true);
   };
 
-  // Derived next session
+  // Derived next session (active until session end time + 20-minute late join buffer)
   const now = Date.now();
   const upcomingSessionsList = sessions
-    .filter((s) => ['scheduled', 'confirmed', 'rescheduled'].includes(s.status) && new Date(s.scheduledStart).getTime() > now)
+    .filter((s) => {
+      if (!['scheduled', 'confirmed', 'rescheduled'].includes(s.status)) return false;
+      const startMs = new Date(s.scheduledStart).getTime();
+      const endMs = s.scheduledEnd ? new Date(s.scheduledEnd).getTime() : startMs + 50 * 60 * 1000;
+      return endMs + MEETING_POST_SESSION_BUFFER_MS > now;
+    })
     .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
   const nextSession = upcomingSessionsList[0] || null;
 
@@ -960,7 +966,9 @@ export default function ClientTherapyDashboard({
               </div>
             ) : (() => {
               const filtered = sessions.filter((s) => {
-                const isUpcoming = ['scheduled', 'confirmed', 'rescheduled'].includes(s.status) && new Date(s.scheduledStart).getTime() > now;
+                const startMs = new Date(s.scheduledStart).getTime();
+                const endMs = s.scheduledEnd ? new Date(s.scheduledEnd).getTime() : startMs + 50 * 60 * 1000;
+                const isUpcoming = ['scheduled', 'confirmed', 'rescheduled'].includes(s.status) && (endMs + MEETING_POST_SESSION_BUFFER_MS > now);
                 const isCancelled = s.status === 'cancelled';
                 if (sessionFilter === 'upcoming') return isUpcoming;
                 if (sessionFilter === 'cancelled') return isCancelled;
@@ -998,7 +1006,9 @@ export default function ClientTherapyDashboard({
                 <div className="space-y-3.5">
                   {filtered.map((s) => {
                     const startDate = new Date(s.scheduledStart);
-                    const isUpcoming = ['scheduled', 'confirmed', 'rescheduled'].includes(s.status) && startDate.getTime() > now;
+                    const startMs = startDate.getTime();
+                    const endMs = s.scheduledEnd ? new Date(s.scheduledEnd).getTime() : startMs + 50 * 60 * 1000;
+                    const isUpcoming = ['scheduled', 'confirmed', 'rescheduled'].includes(s.status) && (endMs + MEETING_POST_SESSION_BUFFER_MS > now);
 
                     return (
                       <div
@@ -1131,161 +1141,19 @@ export default function ClientTherapyDashboard({
         {/* TAB 4: MY JOURNEY                                                         */}
         {/* ========================================================================= */}
         {activeTab === 'journey' && (
-          <div className="space-y-6">
-            <div className="border-b border-[#263238]/10 pb-4">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-800">
-                Longitudinal Care Model
-              </span>
-              <h1 className="font-serif text-2xl sm:text-3xl text-[#132A24] mt-1">My Therapy Journey</h1>
-              <p className="text-xs text-[#66747A] mt-1">
-                Your longitudinal clinical progression, care stage transitions, and treatment milestones.
-              </p>
-            </div>
-
-            {/* Care Stage Header Card */}
-            <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                    Current Stage
-                  </div>
-                  <h2 className="font-serif text-2xl text-[#132A24] mt-0.5">
-                    {STAGE_LABELS[careStage]}
-                  </h2>
-                  <p className="text-xs text-[#66747A] mt-1 max-w-lg">
-                    {STAGE_DESCRIPTIONS[careStage]}
-                  </p>
-                </div>
-
-                {journeyData?.sessionMetrics && (
-                  <div className="flex items-center gap-4 bg-[#F4F1EC] p-3 rounded-xl border border-[#263238]/8">
-                    <div className="text-center">
-                      <div className="font-serif text-xl text-[#132A24]">
-                        {journeyData.sessionMetrics.completed}
-                      </div>
-                      <div className="text-[10px] text-[#66747A] uppercase font-bold">Completed</div>
-                    </div>
-                    <div className="h-8 w-px bg-[#263238]/10" />
-                    <div className="text-center">
-                      <div className="font-serif text-xl text-emerald-800">
-                        {journeyData.sessionMetrics.upcoming}
-                      </div>
-                      <div className="text-[10px] text-[#66747A] uppercase font-bold">Upcoming</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Four Stage Model Breakdown */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-[#263238]/8">
-                {[
-                  {
-                    stage: 'intake',
-                    title: '1. Intake',
-                    desc: 'Initial assessment, rapport, and collaborative goal setting.',
-                  },
-                  {
-                    stage: 'active_care',
-                    title: '2. Active Care',
-                    desc: 'Consistent consultations, cognitive reframing, and self-work.',
-                  },
-                  {
-                    stage: 'maintenance',
-                    title: '3. Maintenance',
-                    desc: 'Spaced check-ins, autonomous reflection, and habit integration.',
-                  },
-                  {
-                    stage: 'completed',
-                    title: '4. Concluded',
-                    desc: 'Formal discharge with long-term emotional resilience mastery.',
-                  },
-                ].map((s) => {
-                  const isCurrent = s.stage === careStage;
-                  return (
-                    <div
-                      key={s.stage}
-                      className={`p-3 rounded-xl border transition-all ${
-                        isCurrent
-                          ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-200'
-                          : 'bg-white border-[#263238]/8 opacity-80'
-                      }`}
-                    >
-                      <div
-                        className={`text-xs font-semibold ${
-                          isCurrent ? 'text-emerald-900' : 'text-[#263238]'
-                        }`}
-                      >
-                        {s.title}
-                        {isCurrent && (
-                          <span className="ml-1.5 text-[9px] uppercase px-1.5 py-0.2 rounded bg-emerald-700 text-white font-bold">
-                            Current
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[#66747A] mt-1 leading-snug">{s.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Stage Milestones Timeline */}
-            <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
-              <h3 className="font-serif text-lg text-[#132A24]">Care Stage Transition Log</h3>
-
-              {loadingJourney ? (
-                <div className="py-6 text-center text-xs text-[#66747A]">Loading journey history...</div>
-              ) : (journeyData?.stageHistory || []).length === 0 ? (
-                <div className="py-6 text-center text-xs text-[#66747A]">
-                  Care relationship commenced on{' '}
-                  {relationship?.startedAt
-                    ? new Date(relationship.startedAt).toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : 'intake confirmation'}
-                  . Formal transition milestones will be logged by your clinician as you progress.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {journeyData.stageHistory.map((h, idx) => (
-                    <div
-                      key={h.id || idx}
-                      className="p-3.5 rounded-xl bg-[#F4F1EC]/60 border border-[#263238]/8 flex items-start justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="text-xs font-semibold text-[#132A24]">
-                          Transitioned to {STAGE_LABELS[h.newStage] || h.newStage}
-                        </div>
-                        {h.note && (
-                          <p className="text-xs text-[#66747A] leading-relaxed">
-                            "{h.note}"
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-[#A0AAB0] shrink-0 font-medium">
-                        {new Date(h.changedAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Privacy Shield Guard */}
-              <div className="pt-3 border-t border-[#263238]/8 flex items-center gap-2 text-[11px] text-[#66747A]">
-                <ShieldCheck size={14} className="text-emerald-700 shrink-0" />
-                <span>
-                  Privacy Boundary Enforced: Clinical SOAP formulation and diagnostic assessments remain
-                  restricted to licensed clinician supervisory records.
-                </span>
-              </div>
-            </div>
-          </div>
+          <ClientTherapyCareJourneyView
+            journeyData={journeyData}
+            careStage={careStage}
+            clinicianName={clinicianName}
+            loading={loadingJourney}
+            error={journeyError}
+            onRefresh={fetchJourney}
+            onNavigateSessions={() => setActiveTab('sessions')}
+            onNavigateHomework={() => setActiveTab('homework')}
+            onOpenHomework={(homeworkId) => {
+              setSelectedHomeworkId(homeworkId);
+            }}
+          />
         )}
 
         {/* ========================================================================= */}

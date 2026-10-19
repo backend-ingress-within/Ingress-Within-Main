@@ -16,6 +16,8 @@ export interface SessionMeetingWindow {
   minutesUntilJoin: number;
 }
 
+export const MEETING_POST_SESSION_BUFFER_MS = 20 * 60 * 1000; // 20-minute buffer for late joins
+
 export function getSessionMeetingWindow(
   scheduledStart: string | Date | null | undefined,
   scheduledEnd?: string | Date | null | undefined
@@ -35,10 +37,11 @@ export function getSessionMeetingWindow(
   const startMs = new Date(scheduledStart).getTime();
   const endMs = scheduledEnd ? new Date(scheduledEnd).getTime() : startMs + 50 * 60 * 1000;
   const joinOpensMs = startMs - 60 * 60 * 1000; // 1 hour prior
+  const bufferEndMs = endMs + MEETING_POST_SESSION_BUFFER_MS; // 20-minute post-session grace period buffer
   const now = Date.now();
 
   const isTooEarly = now < joinOpensMs;
-  const isEnded = now > endMs;
+  const isEnded = now > bufferEndMs;
   const canJoin = !isTooEarly && !isEnded;
 
   const joinOpensAt = new Date(joinOpensMs);

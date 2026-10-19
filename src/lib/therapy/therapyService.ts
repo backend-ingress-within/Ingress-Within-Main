@@ -1118,10 +1118,10 @@ export async function getClientCareJourney(userId: string) {
     .eq('relationship_id', relationship.id)
     .order('changed_at', { ascending: true });
 
-  // 3. Fetch appointment metrics
+  // 3. Fetch appointment metrics & items
   const { data: appointments } = await supabase
     .from('therapist_clinical_appointments')
-    .select('id, scheduled_start, status, attendance_status')
+    .select('id, scheduled_start, scheduled_end, status, attendance_status, session_type')
     .eq('relationship_id', relationship.id)
     .eq('user_id', userId)
     .order('scheduled_start', { ascending: false });
@@ -1132,9 +1132,135 @@ export async function getClientCareJourney(userId: string) {
   const completedSessions = appts.filter(
     (a) => a.status === 'completed' && a.attendance_status !== 'client_no_show'
   ).length;
+  const attendedSessions = appts.filter(
+    (a) => a.attendance_status === 'attended' || (a.status === 'completed' && a.attendance_status !== 'client_no_show')
+  ).length;
   const upcomingSessions = appts.filter(
     (a) => ['scheduled', 'confirmed', 'in_progress'].includes(a.status) && new Date(a.scheduled_start) >= now
   ).length;
+  const cancelledSessions = appts.filter((a) => a.status === 'cancelled').length;
+
+  // 4. Fetch client self-work / homework assignments
+  const { data: homeworkAssignments } = await supabase
+    .from('client_homework_assignments')
+    .select(`
+      id,
+      title,
+      exercise_type,
+      status,
+      assigned_at,
+      submitted_at,
+      reviewed_at,
+      submission:client_homework_submissions (
+        id,
+        is_draft,
+        submitted_at,
+        therapist_feedback,
+        feedback_added_at
+      )
+    `)
+    .eq('relationship_id', relationship.id)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  const hwList = homeworkAssignments || [];
+  const totalHomework = hwList.length;
+  const submittedHomework = hwList.filter((h) => ['submitted', 'reviewed'].includes(h.status)).length;
+  const reviewedHomework = hwList.filter((h) => h.status === 'reviewed').length;
+
+  // 5. Construct unified chronological timeline of real milestones
+  const timeline: Array<{
+    id: string;
+    type: 'relationship_started' | 'care_stage_transition' | 'session_attended' | 'session_scheduled' | 'homework_submitted' | 'homework_reviewed' | 'care_concluded';
+    title: string;
+    description?: string;
+    timestamp: string;
+    metadata?: Record<string, any>;
+  }> = [];
+
+  // Milestone: Care started
+  if (relationship.started_at) {
+    timeline.push({
+      id: `rel_start_${relationship.id}`,
+      type: 'relationship_started',
+      title: 'Therapeutic Care Commenced',
+      description: `Matched and partnered with ${profile?.full_name || 'your clinician'} for personalized care.`,
+      timestamp: relationship.started_at,
+    });
+  }
+
+  // Milestones: Care Stage Transitions
+  (stageHistory || []).forEach((h) => {
+    timeline.push({
+      id: `stage_${h.id}`,
+      type: 'care_stage_transition',
+      title: `Transitioned to Care Stage: ${h.new_stage.replace('_', ' ').toUpperCase()}`,
+      description: h.reason || undefined,
+      timestamp: h.changed_at,
+      metadata: { previousStage: h.previous_stage, newStage: h.new_stage },
+    });
+  });
+
+  // Milestones: Sessions
+  appts.forEach((a) => {
+    if (a.status === 'completed' && a.attendance_status !== 'client_no_show') {
+      timeline.push({
+        id: `session_${a.id}`,
+        type: 'session_attended',
+        title: 'Clinical Consultation Attended',
+        description: `Completed 1-on-1 therapy session (${(a.session_type || 'telehealth').replace('_', ' ')}).`,
+        timestamp: a.scheduled_start,
+        metadata: { appointmentId: a.id, attendanceStatus: a.attendance_status || 'attended' },
+      });
+    } else if (a.status === 'cancelled') {
+      // Intentionally not polluting primary achievement timeline with cancelled sessions, but available in metrics
+    }
+  });
+
+  // Milestones: Completed Homework & Clinical Feedback
+  hwList.forEach((h: any) => {
+    const sub = Array.isArray(h.submission) ? h.submission[0] : h.submission;
+    if (h.status === 'reviewed' && (h.reviewed_at || sub?.feedback_added_at)) {
+      timeline.push({
+        id: `hw_rev_${h.id}`,
+        type: 'homework_reviewed',
+        title: `Self-Work Reviewed: "${h.title}"`,
+        description: sub?.therapist_feedback
+          ? `Clinician feedback provided: "${sub.therapist_feedback}"`
+          : 'Clinician reviewed your practice reflection and integrated it into your care plan.',
+        timestamp: h.reviewed_at || sub?.feedback_added_at || h.assigned_at,
+        metadata: {
+          homeworkId: h.id,
+          exerciseType: h.exercise_type,
+          hasFeedback: Boolean(sub?.therapist_feedback),
+          feedback: sub?.therapist_feedback || null,
+        },
+      });
+    } else if (['submitted', 'reviewed'].includes(h.status) && (h.submitted_at || sub?.submitted_at)) {
+      timeline.push({
+        id: `hw_sub_${h.id}`,
+        type: 'homework_submitted',
+        title: `Practice Exercise Submitted: "${h.title}"`,
+        description: `Completed and submitted ${(h.exercise_type || 'clinical exercise').replace('_', ' ')} reflection.`,
+        timestamp: h.submitted_at || sub?.submitted_at || h.assigned_at,
+        metadata: { homeworkId: h.id, exerciseType: h.exercise_type },
+      });
+    }
+  });
+
+  // Milestone: Care concluded (if relationship ended)
+  if (relationship.ended_at && ['ended', 'completed'].includes(relationship.status)) {
+    timeline.push({
+      id: `rel_end_${relationship.id}`,
+      type: 'care_concluded',
+      title: 'Therapeutic Journey Concluded',
+      description: 'Care cycle concluded. Longitudinal notes and self-work records remain archived.',
+      timestamp: relationship.ended_at,
+    });
+  }
+
+  // Sort timeline newest first
+  timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return {
     relationshipId: relationship.id,
@@ -1159,7 +1285,15 @@ export async function getClientCareJourney(userId: string) {
     sessionMetrics: {
       total: totalSessions,
       completed: completedSessions,
+      attended: attendedSessions,
       upcoming: upcomingSessions,
+      cancelled: cancelledSessions,
     },
+    homeworkMetrics: {
+      total: totalHomework,
+      submitted: submittedHomework,
+      reviewed: reviewedHomework,
+    },
+    timeline,
   };
 }
