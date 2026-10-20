@@ -451,7 +451,6 @@ export default function ClientTherapyDashboard({
               { id: 'journey', label: 'My Journey' },
               { id: 'homework', label: 'Self-Work', count: pendingHomeworkList.length },
               { id: 'billing', label: 'Billing' },
-              { id: 'notifications', label: 'Notifications', count: unreadNotificationsCount },
               { id: 'support', label: 'Support' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
