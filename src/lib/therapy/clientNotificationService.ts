@@ -170,11 +170,10 @@ export class ClientNotificationService {
           status,
           due_at,
           reviewed_at,
-          clinician_feedback,
           created_at,
           updated_at
         `)
-        .eq('client_user_id', userId)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -302,7 +301,21 @@ export class ClientNotificationService {
         .limit(15);
 
       if (deliveries && deliveries.length > 0) {
+        // Collect existing target IDs to prevent duplicate alerts for the same underlying event
+        const coveredTargetIds = new Set(notifications.map((n) => n.targetId).filter(Boolean));
+
         for (const d of deliveries) {
+          // If this delivery corresponds to a booking or homework assignment already surfaced, skip duplicate
+          if (d.entity_id && coveredTargetIds.has(d.entity_id)) {
+            continue;
+          }
+
+          // If subject references a session confirmation or cancellation within 5 minutes of a primary booking event
+          const isSessionEmail = d.event_type?.startsWith('therapy.session_') || (d.subject && d.subject.toLowerCase().includes('therapy session'));
+          if (isSessionEmail && notifications.some((n) => n.type.startsWith('session_') && Math.abs(new Date(n.createdAt).getTime() - new Date(d.created_at).getTime()) < 300000)) {
+            continue;
+          }
+
           const notifEmailId = `notif_email_${d.id}`;
           const linkTab: ClientNotification['linkTab'] =
             d.entity_type === 'homework' ? 'homework' : 'sessions';

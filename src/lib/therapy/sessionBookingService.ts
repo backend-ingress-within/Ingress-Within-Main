@@ -820,13 +820,13 @@ export class SessionBookingService {
     }
 
     // Ownership check
-    if (requestedBy === 'client' && params.userId && appt.user_id !== params.userId) {
+    if (requestedBy === 'client' && (!params.userId || appt.user_id !== params.userId)) {
       const err: any = new Error('Unauthorized to reschedule this appointment.');
       err.code = 'UNAUTHORIZED';
       err.status = 403;
       throw err;
     }
-    if (requestedBy === 'therapist' && params.therapistAccountId && appt.therapist_account_id !== params.therapistAccountId) {
+    if (requestedBy === 'therapist' && (!params.therapistAccountId || appt.therapist_account_id !== params.therapistAccountId)) {
       const err: any = new Error('Unauthorized to reschedule this appointment.');
       err.code = 'UNAUTHORIZED';
       err.status = 403;
@@ -980,6 +980,20 @@ export class SessionBookingService {
         const err: any = new Error('Appointment not found.');
         err.code = 'SESSION_NOT_FOUND';
         err.status = 404;
+        throw err;
+      }
+
+      // Ownership check
+      if (cancelledBy === 'client' && (!params.userId || appt.user_id !== params.userId)) {
+        const err: any = new Error('Unauthorized to cancel this appointment.');
+        err.code = 'UNAUTHORIZED';
+        err.status = 403;
+        throw err;
+      }
+      if (cancelledBy === 'therapist' && (!params.therapistAccountId || appt.therapist_account_id !== params.therapistAccountId)) {
+        const err: any = new Error('Unauthorized to cancel this appointment.');
+        err.code = 'UNAUTHORIZED';
+        err.status = 403;
         throw err;
       }
 

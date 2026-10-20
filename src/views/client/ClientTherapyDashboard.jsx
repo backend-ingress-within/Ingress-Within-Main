@@ -199,8 +199,23 @@ export default function ClientTherapyDashboard({
       const res = await fetch('/api/therapy/client/notifications');
       if (res.ok) {
         const json = await res.json();
-        setNotifications(json.notifications || []);
-        setUnreadNotificationsCount(json.unreadCount || 0);
+        const rawNotifs = json.notifications || [];
+        let localReadIds = new Set();
+        try {
+          if (typeof window !== 'undefined') {
+            const storageKey = `ingress_read_notifs_${user?.id || 'client'}`;
+            const saved = localStorage.getItem(storageKey);
+            if (saved) localReadIds = new Set(JSON.parse(saved));
+          }
+        } catch {}
+
+        const reconciled = rawNotifs.map((n) => ({
+          ...n,
+          isRead: n.isRead || localReadIds.has(n.id),
+        }));
+
+        setNotifications(reconciled);
+        setUnreadNotificationsCount(reconciled.filter((n) => !n.isRead).length);
       } else {
         const errJson = await res.json().catch(() => ({}));
         setNotificationsError(errJson.error?.message || 'Unable to load notifications');
@@ -239,6 +254,16 @@ export default function ClientTherapyDashboard({
     setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
 
     try {
+      if (typeof window !== 'undefined') {
+        const storageKey = `ingress_read_notifs_${user?.id || 'client'}`;
+        const saved = localStorage.getItem(storageKey);
+        const set = saved ? new Set(JSON.parse(saved)) : new Set();
+        set.add(id);
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(set)));
+      }
+    } catch {}
+
+    try {
       await fetch(`/api/therapy/client/notifications/${id}/read`, {
         method: 'POST',
       });
@@ -251,6 +276,16 @@ export default function ClientTherapyDashboard({
   const handleMarkAllNotificationsAsRead = async (ids) => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnreadNotificationsCount(0);
+
+    try {
+      if (typeof window !== 'undefined') {
+        const storageKey = `ingress_read_notifs_${user?.id || 'client'}`;
+        const saved = localStorage.getItem(storageKey);
+        const set = saved ? new Set(JSON.parse(saved)) : new Set();
+        ids.forEach((id) => set.add(id));
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(set)));
+      }
+    } catch {}
 
     try {
       await fetch('/api/therapy/client/notifications/read-all', {
