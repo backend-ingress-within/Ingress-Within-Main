@@ -27,11 +27,14 @@ import {
   MapPin,
   Check,
   Lock,
+  Bell,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
 import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
 import ClientTherapyHomeworkView from './ClientTherapyHomeworkView';
 import ClientTherapyCareJourneyView from './ClientTherapyCareJourneyView';
+import ClientTherapyBillingView from './ClientTherapyBillingView';
+import ClientTherapyNotificationsView from './ClientTherapyNotificationsView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
 import { getSessionMeetingWindow, MEETING_POST_SESSION_BUFFER_MS } from '../../utils/sessionMeetingUtils';
@@ -87,6 +90,18 @@ export default function ClientTherapyDashboard({
   const [billingData, setBillingData] = useState(null);
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [billingError, setBillingError] = useState(null);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [notificationsError, setNotificationsError] = useState(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    smsReminders: true,
+    whatsappReminders: false,
+    digestFrequency: 'daily',
+  });
+  const [loadingNotificationPreferences, setLoadingNotificationPreferences] = useState(false);
 
   // Booking flow modal state
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
@@ -176,11 +191,103 @@ export default function ClientTherapyDashboard({
     }
   };
 
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    setLoadingNotifications(true);
+    setNotificationsError(null);
+    try {
+      const res = await fetch('/api/therapy/client/notifications');
+      if (res.ok) {
+        const json = await res.json();
+        setNotifications(json.notifications || []);
+        setUnreadNotificationsCount(json.unreadCount || 0);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setNotificationsError(errJson.error?.message || 'Unable to load notifications');
+      }
+    } catch (err) {
+      console.warn('Failed to load notifications:', err);
+      setNotificationsError('Network error loading notifications.');
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Fetch notification preferences
+  const fetchNotificationPreferences = async () => {
+    setLoadingNotificationPreferences(true);
+    try {
+      const res = await fetch('/api/therapy/client/notifications/preferences');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.preferences) {
+          setNotificationPreferences(json.preferences);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load notification preferences:', err);
+    } finally {
+      setLoadingNotificationPreferences(false);
+    }
+  };
+
+  // Mark single notification as read
+  const handleMarkNotificationAsRead = async (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      await fetch(`/api/therapy/client/notifications/${id}/read`, {
+        method: 'POST',
+      });
+    } catch (err) {
+      console.warn('Failed to mark notification read:', err);
+    }
+  };
+
+  // Mark all notifications as read
+  const handleMarkAllNotificationsAsRead = async (ids) => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadNotificationsCount(0);
+
+    try {
+      await fetch('/api/therapy/client/notifications/read-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: ids }),
+      });
+    } catch (err) {
+      console.warn('Failed to mark all notifications read:', err);
+    }
+  };
+
+  // Update notification preferences
+  const handleUpdateNotificationPreferences = async (newPrefs) => {
+    const res = await fetch('/api/therapy/client/notifications/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPrefs),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.preferences) {
+        setNotificationPreferences(json.preferences);
+      }
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error?.message || 'Failed to update preferences');
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
     fetchHomework();
     fetchJourney();
     fetchBilling();
+    fetchNotifications();
+    fetchNotificationPreferences();
   }, []);
 
   // Fetch availability slots when reschedule modal opens
@@ -344,6 +451,7 @@ export default function ClientTherapyDashboard({
               { id: 'journey', label: 'My Journey' },
               { id: 'homework', label: 'Self-Work', count: pendingHomeworkList.length },
               { id: 'billing', label: 'Billing' },
+              { id: 'notifications', label: 'Notifications', count: unreadNotificationsCount },
               { id: 'support', label: 'Support' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
@@ -373,8 +481,27 @@ export default function ClientTherapyDashboard({
             })}
           </nav>
 
-          {/* Right Action: Book Session CTA & Mobile Menu Toggle */}
+          {/* Right Action: Notifications Bell, Book Session CTA & Mobile Menu Toggle */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('notifications')}
+              className={`p-2 rounded-lg border transition-all relative cursor-pointer ${
+                activeTab === 'notifications'
+                  ? 'bg-[#132A24] text-white border-[#132A24]'
+                  : 'bg-white border-[#263238]/10 text-[#263238] hover:bg-[#263238]/5'
+              }`}
+              title="Notifications"
+              aria-label={`Notifications ${unreadNotificationsCount > 0 ? `(${unreadNotificationsCount} unread)` : ''}`}
+            >
+              <Bell size={16} />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-white text-[9px] font-bold flex items-center justify-center">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => handleStartBooking(therapist)}
@@ -407,6 +534,7 @@ export default function ClientTherapyDashboard({
               { id: 'journey', label: 'My Journey' },
               { id: 'homework', label: 'Self-Work / Homework', count: pendingHomeworkList.length },
               { id: 'billing', label: 'Billing & Invoices' },
+              { id: 'notifications', label: 'Notifications', count: unreadNotificationsCount },
               { id: 'support', label: 'Care & Emergency Helplines' },
             ].map((tab) => (
               <button
@@ -1173,96 +1301,39 @@ export default function ClientTherapyDashboard({
         {/* TAB 6: BILLING & RECEIPTS                                                 */}
         {/* ========================================================================= */}
         {activeTab === 'billing' && (
-          <div className="space-y-6">
-            <div className="border-b border-[#263238]/10 pb-4">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-800">
-                Financial Ledger &amp; Invoices
-              </span>
-              <h1 className="font-serif text-2xl sm:text-3xl text-[#132A24] mt-1">
-                Billing &amp; Payments
-              </h1>
-              <p className="text-xs text-[#66747A] mt-1">
-                Verified Razorpay transactions, session payments, and official receipts.
-              </p>
-            </div>
-
-            {/* Session Transactions Card */}
-            <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
-              <h3 className="font-serif text-lg text-[#132A24]">Therapy Session Bookings</h3>
-
-              {loadingBilling ? (
-                <div className="py-6 text-center text-xs text-[#66747A]">Loading billing records...</div>
-              ) : (billingData?.sessionBookings || []).length === 0 ? (
-                <div className="py-6 text-center text-xs text-[#66747A]">
-                  No session payments recorded yet. Invoices will populate automatically upon booking confirmation.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-[#263238]/10 text-[10px] uppercase font-bold text-[#66747A]">
-                        <th className="pb-2.5">Reference</th>
-                        <th className="pb-2.5">Date</th>
-                        <th className="pb-2.5">Clinician</th>
-                        <th className="pb-2.5">Amount</th>
-                        <th className="pb-2.5">Status</th>
-                        <th className="pb-2.5">Payment Method</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#263238]/6">
-                      {billingData.sessionBookings.map((b) => (
-                        <tr key={b.id} className="hover:bg-[#F4F1EC]/40">
-                          <td className="py-3 font-mono font-medium text-[#132A24]">
-                            {b.bookingReference}
-                          </td>
-                          <td className="py-3 text-[#66747A]">
-                            {new Date(b.slotStart).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td className="py-3 font-medium text-[#263238]">{b.therapistName}</td>
-                          <td className="py-3 font-semibold text-[#132A24]">₹{b.amountRupees}</td>
-                          <td className="py-3">
-                            <span
-                              className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                                b.paymentStatus === 'paid'
-                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                  : b.paymentStatus === 'refunded'
-                                  ? 'bg-blue-50 text-blue-800'
-                                  : 'bg-amber-50 text-amber-800'
-                              }`}
-                            >
-                              {b.paymentStatus}
-                            </span>
-                          </td>
-                          <td className="py-3 text-[#66747A]">{b.paymentMethod}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Refund & Invoicing Policy Notice */}
-            <div className="bg-[#F4F1EC] border border-[#263238]/8 rounded-xl p-4 text-xs text-[#263238] flex items-start gap-3">
-              <CreditCard size={16} className="shrink-0 text-emerald-800 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-semibold">Automatic Refund Execution</span>
-                <p className="text-[#66747A] leading-relaxed">
-                  Cancellations initiated at least 48 hours in advance are immediately credited back to
-                  the original payment method via Razorpay. For official insurance or medical claim receipts,
-                  contact our finance desk.
-                </p>
-              </div>
-            </div>
-          </div>
+          <ClientTherapyBillingView
+            billingData={billingData}
+            loading={loadingBilling}
+            error={billingError}
+            onRefresh={fetchBilling}
+          />
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 7: SUPPORT & PREFERENCES                                              */}
+        {/* TAB 7: NOTIFICATIONS & ACTIVITY                                           */}
+        {/* ========================================================================= */}
+        {activeTab === 'notifications' && (
+          <ClientTherapyNotificationsView
+            notifications={notifications}
+            unreadCount={unreadNotificationsCount}
+            loading={loadingNotifications}
+            error={notificationsError}
+            preferences={notificationPreferences}
+            loadingPreferences={loadingNotificationPreferences}
+            onRefresh={fetchNotifications}
+            onMarkAsRead={handleMarkNotificationAsRead}
+            onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+            onUpdatePreferences={handleUpdateNotificationPreferences}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            onOpenHomework={(homeworkId) => {
+              setActiveTab('homework');
+              setSelectedHomeworkId(homeworkId);
+            }}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 8: SUPPORT & CARE COORDINATION                                        */}
         {/* ========================================================================= */}
         {activeTab === 'support' && (
           <div className="space-y-6">

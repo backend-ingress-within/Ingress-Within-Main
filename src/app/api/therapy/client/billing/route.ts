@@ -56,11 +56,36 @@ export async function GET(request: NextRequest) {
       console.warn('[Client Billing GET] bookings lookup warning:', bookingsError);
     }
 
+    const now = Date.now();
+    const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
     const formattedBookings = (bookings || []).map((b: any) => {
       const acc = b.therapist_accounts as any;
       const prof = Array.isArray(acc?.therapist_profiles)
         ? acc.therapist_profiles[0]
         : acc?.therapist_profiles;
+
+      const slotStartTime = new Date(b.slot_start).getTime();
+      const isOver48HoursAway = slotStartTime - now >= FORTY_EIGHT_HOURS_MS;
+      const isPaid = b.payment_status === 'paid' || b.payment_status === 'captured';
+      const isAlreadyRefunded = b.refund_status === 'full' || b.refund_status === 'partial';
+
+      let refundEligible = false;
+      let refundPolicyText = 'Consultation concluded or non-refundable.';
+
+      if (isAlreadyRefunded) {
+        refundEligible = false;
+        refundPolicyText = 'Refund already executed to original payment source.';
+      } else if (b.booking_status === 'cancelled') {
+        refundEligible = false;
+        refundPolicyText = 'Booking already cancelled.';
+      } else if (isPaid && isOver48HoursAway) {
+        refundEligible = true;
+        refundPolicyText = 'Eligible for 100% automated refund (cancelled >48 hrs before session).';
+      } else if (isPaid && !isOver48HoursAway) {
+        refundEligible = false;
+        refundPolicyText = 'Non-refundable under platform policy (within 48 hrs of appointment).';
+      }
 
       return {
         id: b.id,
@@ -79,6 +104,8 @@ export async function GET(request: NextRequest) {
         paymentMethod: b.payment_method || 'Online (Razorpay)',
         refundStatus: b.refund_status || 'none',
         refundAmountRupees: b.refund_amount_paise ? Math.round(b.refund_amount_paise / 100) : 0,
+        refundEligible,
+        refundPolicyText,
         createdAt: b.created_at,
         therapistName: prof?.full_name || 'Assigned Therapist',
         therapistTitle: prof?.title || 'Consultant Psychologist',
@@ -101,13 +128,19 @@ export async function GET(request: NextRequest) {
       .filter((b: any) => b.paymentStatus === 'pending')
       .reduce((sum: number, b: any) => sum + b.amountRupees, 0);
 
+    const totalRefunded = formattedBookings
+      .filter((b: any) => b.refundStatus === 'full' || b.refundStatus === 'partial')
+      .reduce((sum: number, b: any) => sum + b.refundAmountRupees, 0);
+
     return NextResponse.json({
       success: true,
       sessionBookings: formattedBookings,
       transactions: formattedBookings,
+      invoices: generalBilling?.invoices || [],
       summary: {
         totalPaid,
         outstanding,
+        totalRefunded,
         currency: 'INR',
       },
       generalBilling: generalBilling || null,
