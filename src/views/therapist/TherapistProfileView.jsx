@@ -119,6 +119,7 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
     city: '',
     state: '',
     timezone: 'Asia/Kolkata',
+    perSessionFee: '1500',
     notificationPreferences: {
       email_appointment_reminders: true,
       email_booking_notifications: true,
@@ -176,6 +177,7 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
           city: json.profile?.city || '',
           state: json.profile?.state || '',
           timezone: json.profile?.timezone || 'Asia/Kolkata',
+          perSessionFee: json.account?.per_session_fee ? String(json.account.per_session_fee) : '1500',
           notificationPreferences: json.profile?.notification_preferences || {
             email_appointment_reminders: true,
             email_booking_notifications: true,
@@ -297,6 +299,7 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
           city: formData.city.trim(),
           state: formData.state.trim(),
           timezone: formData.timezone,
+          per_session_fee: Number(formData.perSessionFee || account?.per_session_fee || 1500),
           notification_preferences: formData.notificationPreferences,
         }),
       });
@@ -307,6 +310,10 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
       }
 
       setProfile(data.profile);
+      setAccount((prev) => ({
+        ...prev,
+        per_session_fee: Number(formData.perSessionFee || prev?.per_session_fee || 1500),
+      }));
       const syncedForm = { ...formData, sessionFormats: finalFormats };
       setFormData(syncedForm);
       setInitialFormData(syncedForm);
@@ -999,14 +1006,38 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
             </p>
           </div>
 
+          {/* Per-Session Consultation Fee */}
+          <div className="text-xs space-y-1.5 max-w-md">
+            <label className="block font-semibold text-[#132A24]">
+              Per-Session Consultation Fee (₹) <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-[#132A24]/50 font-mono">₹</span>
+              <input
+                type="number"
+                min="100"
+                max="100000"
+                step="50"
+                value={formData.perSessionFee}
+                onChange={(e) => setFormData({ ...formData, perSessionFee: e.target.value })}
+                className="w-full border border-[#132A24]/15 rounded-xl pl-8 pr-3.5 py-2.5 outline-hidden focus:border-[#4E7A66] bg-white font-mono"
+                placeholder="1500"
+                required
+              />
+            </div>
+            <p className="text-[11px] text-[#132A24]/55">
+              Standard fee charged per individual 50-minute clinical session.
+            </p>
+          </div>
+
           {/* Financial Breakdown Summary */}
           <div className="p-5 rounded-xl bg-[#FAFAF8] border border-[#132A24]/10 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-xs text-[#132A24]">Standard Session Financial Breakdown</span>
-              <span className="text-[10px] text-[#4E7A66] font-bold uppercase tracking-wider">Governed Rate</span>
+              <span className="text-[10px] text-[#4E7A66] font-bold uppercase tracking-wider">Dynamic Payout</span>
             </div>
             {(() => {
-              const grossFee = Number(account?.per_session_fee || 1500);
+              const grossFee = Number(formData.perSessionFee || account?.per_session_fee || 1500);
               const commPct = Number(account?.commission_rate || 20);
               const baseComm = (grossFee * commPct) / 100;
               const gstOnComm = baseComm * 0.18;

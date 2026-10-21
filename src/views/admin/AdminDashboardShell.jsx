@@ -48,6 +48,7 @@ import {
   TrendingUp,
   MessageSquare,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
@@ -115,6 +116,40 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
   // Therapist Deletion States
   const [therapistToDelete, setTherapistToDelete] = useState(null);
   const [isDeletingTherapist, setIsDeletingTherapist] = useState(false);
+
+  // Therapist Fee Editing States
+  const [editingFeeTherapist, setEditingFeeTherapist] = useState(null);
+  const [editingFeeValue, setEditingFeeValue] = useState('');
+  const [isUpdatingFee, setIsUpdatingFee] = useState(false);
+
+  const handleUpdateTherapistFee = async () => {
+    if (!editingFeeTherapist) return;
+    const feeNum = Number(editingFeeValue);
+    if (isNaN(feeNum) || feeNum < 0) {
+      showToast('Please enter a valid positive fee.', true);
+      return;
+    }
+    setIsUpdatingFee(true);
+    try {
+      const res = await fetch(`/api/admin/therapists/${editingFeeTherapist.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ per_session_fee: feeNum }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Updated session fee to ₹${feeNum} for ${editingFeeTherapist.full_name}.`);
+        setEditingFeeTherapist(null);
+        fetchTabData();
+      } else {
+        showToast(data.error?.message || 'Failed to update fee.', true);
+      }
+    } catch (err) {
+      showToast(err.message || 'Network error updating fee.', true);
+    } finally {
+      setIsUpdatingFee(false);
+    }
+  };
 
   const showToast = (msg, isError = false) => {
     setToastMessage({ text: msg, isError });
@@ -1067,7 +1102,21 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                                   <span className="text-rose-600 font-medium">Restricted</span>
                                 )}
                               </td>
-                              <td className="py-3.5 px-4 font-mono font-medium">₹{t.per_session_fee}</td>
+                              <td className="py-3.5 px-4 font-mono font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <span>₹{t.per_session_fee}</span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingFeeTherapist(t);
+                                      setEditingFeeValue(String(t.per_session_fee || 1500));
+                                    }}
+                                    className="p-1 rounded-md text-[#132A24]/30 hover:text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                                    title={`Edit session fee (Current: ₹${t.per_session_fee})`}
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </td>
                               <td className="py-3.5 px-4 text-right">
                                 {isRejected ? (
                                   <button
@@ -1161,6 +1210,80 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                           <>
                             <Trash2 className="w-3.5 h-3.5" />
                             Confirm Permanent Delete
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Session Fee Adjustment Modal */}
+              {editingFeeTherapist && (
+                <div className="fixed inset-0 z-50 bg-[#132A24]/50 backdrop-blur-xs flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-sm w-full border border-[#132A24]/10 shadow-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#4E7A66]/10 border border-[#4E7A66]/20 flex items-center justify-center shrink-0">
+                        <Banknote className="w-5 h-5 text-[#4E7A66]" />
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-lg font-bold text-[#132A24]">
+                          Update Session Fee
+                        </h3>
+                        <p className="text-xs text-[#132A24]/60">
+                          {editingFeeTherapist.full_name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-[#132A24] mb-1">
+                          Per-Session Fee (₹)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-2.5 text-[#132A24]/50 font-mono">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={editingFeeValue}
+                            onChange={(e) => setEditingFeeValue(e.target.value)}
+                            className="w-full border border-[#132A24]/15 rounded-xl pl-8 pr-3.5 py-2.5 outline-hidden focus:border-[#4E7A66] bg-white font-mono text-sm"
+                            placeholder="1500"
+                            autoFocus
+                          />
+                        </div>
+                        <p className="text-[11px] text-[#132A24]/50 mt-1">
+                          This fee applies to all new client bookings and matching engine estimates.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingFeeTherapist(null)}
+                        disabled={isUpdatingFee}
+                        className="px-4 py-2 rounded-xl border border-[#132A24]/15 hover:bg-[#132A24]/5 text-xs text-[#132A24] font-medium transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleUpdateTherapistFee}
+                        disabled={isUpdatingFee}
+                        className="px-4 py-2 rounded-xl bg-[#132A24] hover:bg-[#132A24]/90 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUpdatingFee ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            Save Fee
                           </>
                         )}
                       </button>

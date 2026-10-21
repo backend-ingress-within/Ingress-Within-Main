@@ -61,8 +61,6 @@ export async function PATCH(request: NextRequest) {
       'rciRegistered',
       'commission_rate',
       'commissionRate',
-      'per_session_fee',
-      'perSessionFee',
       'role',
     ];
 
@@ -76,6 +74,26 @@ export async function PATCH(request: NextRequest) {
             },
           },
           { status: 403 }
+        );
+      }
+    }
+
+    // Input Validation: Per-session fee amount bounds
+    const rawFee = body.per_session_fee !== undefined
+      ? body.per_session_fee
+      : (body.perSessionFee !== undefined ? body.perSessionFee : body.feePerSession);
+
+    if (rawFee !== undefined && rawFee !== null && String(rawFee).trim() !== '') {
+      const parsedFee = Number(rawFee);
+      if (isNaN(parsedFee) || parsedFee < 100 || parsedFee > 100000) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'INVALID_PER_SESSION_FEE',
+              message: 'Per-session fee must be a valid amount between ₹100 and ₹100,000.',
+            },
+          },
+          { status: 400 }
         );
       }
     }

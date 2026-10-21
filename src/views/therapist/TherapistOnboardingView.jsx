@@ -68,6 +68,9 @@ function normaliseInitial(initialData) {
   merged.primaryCertificates = merged.primaryCertificates && typeof merged.primaryCertificates === 'object' ? merged.primaryCertificates : {};
   merged.secondaryCertificates = merged.secondaryCertificates && typeof merged.secondaryCertificates === 'object' ? merged.secondaryCertificates : {};
   merged.supervision = { ...DEFAULTS.supervision, ...(merged.supervision || {}) };
+  if (!merged.feePerSession && initialData?.account?.per_session_fee) {
+    merged.feePerSession = String(initialData.account.per_session_fee);
+  }
   return merged;
 }
 

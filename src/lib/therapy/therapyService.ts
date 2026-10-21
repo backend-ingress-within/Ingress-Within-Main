@@ -570,6 +570,12 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
   }
 
   const eligible: PublicTherapistProfile[] = [];
+  const eligibleAccountIds = accounts.map((a: any) => a.id);
+  const { data: apps } = await supabase
+    .from('therapist_applications')
+    .select('therapist_account_id, answers')
+    .in('therapist_account_id', eligibleAccountIds);
+  const appMap = new Map((apps || []).map((app: any) => [app.therapist_account_id, app]));
 
   for (const acc of accounts) {
     const profile = Array.isArray(acc.therapist_profiles)
@@ -578,6 +584,15 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
 
     if (!profile || !profile.full_name) {
       continue;
+    }
+
+    const app: any = appMap.get(acc.id);
+    const appFee = Number(app?.answers?.feePerSession || app?.answers?.per_session_fee);
+    let resolvedFee = Number(acc.per_session_fee);
+    if ((!resolvedFee || resolvedFee === 1500) && Number.isFinite(appFee) && appFee > 0) {
+      resolvedFee = appFee;
+    } else if (!resolvedFee) {
+      resolvedFee = 1500;
     }
 
     let availabilityText = 'Flexible hours';
@@ -604,8 +619,8 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
       profileImageUrl: profile.profile_image_url || null,
       city: profile.city || null,
       state: profile.state || null,
-      fee: acc.per_session_fee ? Number(acc.per_session_fee) : 1500,
-      per_session_fee: acc.per_session_fee ? Number(acc.per_session_fee) : 1500,
+      fee: resolvedFee,
+      per_session_fee: resolvedFee,
       availability: availabilityText,
       gender: (profile as any).gender || 'Not specified',
     });

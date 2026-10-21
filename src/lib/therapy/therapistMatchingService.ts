@@ -108,9 +108,10 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
       ? profile.session_formats
       : ['Telehealth'];
 
-    const fee = account.per_session_fee
+    const appFee = Number(appAnswers.feePerSession || appAnswers.fee);
+    const fee = (account.per_session_fee && Number(account.per_session_fee) !== 1500)
       ? Number(account.per_session_fee)
-      : Number(appAnswers.fee) || 1200;
+      : (Number.isFinite(appFee) && appFee > 0 ? appFee : (Number(account.per_session_fee) || 1500));
 
     const experienceYears = Number(profile.experience_years) || Number(appAnswers.experienceYears) || 0;
 

@@ -150,6 +150,22 @@ export class TherapistPlatformService {
       }
     }
 
+    const rawDraftFee = mergedAnswers.feePerSession !== undefined ? mergedAnswers.feePerSession : mergedAnswers.per_session_fee;
+    const parsedDraftFee = Number(rawDraftFee);
+    if (Number.isFinite(parsedDraftFee) && parsedDraftFee > 0) {
+      try {
+        await supabase
+          .from('therapist_accounts')
+          .update({
+            per_session_fee: parsedDraftFee,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', therapistAccountId);
+      } catch (feeSyncErr) {
+        console.warn('[TherapistPlatformService] saveOnboardingDraft fee sync notice:', feeSyncErr);
+      }
+    }
+
     return data;
   }
 
@@ -257,17 +273,26 @@ export class TherapistPlatformService {
       }
     }
 
-    // 2. Update therapist_accounts status
+    // 2. Update therapist_accounts status & session fee
+    const rawSubmitFee = mergedAnswers.feePerSession !== undefined ? mergedAnswers.feePerSession : mergedAnswers.per_session_fee;
+    const parsedSubmitFee = Number(rawSubmitFee);
+
+    const accountUpdatePayload: Record<string, any> = {
+      application_status: 'submitted',
+      can_practice: false,
+      verification_status: 'pending',
+      rci_registered: String(mergedAnswers.issuingBody || '').trim().toLowerCase().includes('rehabilitation council of india') || String(mergedAnswers.issuingBody || '').trim().toLowerCase() === 'rci',
+      rci_number: mergedAnswers.licenseNumber || null,
+      updated_at: now,
+    };
+
+    if (Number.isFinite(parsedSubmitFee) && parsedSubmitFee > 0) {
+      accountUpdatePayload.per_session_fee = parsedSubmitFee;
+    }
+
     await supabase
       .from('therapist_accounts')
-      .update({
-        application_status: 'submitted',
-        can_practice: false,
-        verification_status: 'pending',
-        rci_registered: String(mergedAnswers.issuingBody || '').trim().toLowerCase().includes('rehabilitation council of india') || String(mergedAnswers.issuingBody || '').trim().toLowerCase() === 'rci',
-        rci_number: mergedAnswers.licenseNumber || null,
-        updated_at: now,
-      })
+      .update(accountUpdatePayload)
       .eq('id', therapistAccountId);
 
     // 3. Update therapist_profiles with basic identity/credential details from application
@@ -414,16 +439,39 @@ export class TherapistPlatformService {
       throw err;
     }
 
-    // 2. Atomic update of therapist_accounts
+    // 2. Atomic update of therapist_accounts (including authoritative application session fee)
+    let appFee: number | null = null;
+    if (isApproved) {
+      try {
+        const { data: appData } = await supabase
+          .from('therapist_applications')
+          .select('answers')
+          .eq('therapist_account_id', therapistAccountId)
+          .maybeSingle();
+        const rawFee = appData?.answers?.feePerSession ?? appData?.answers?.per_session_fee;
+        const numFee = Number(rawFee);
+        if (Number.isFinite(numFee) && numFee > 0) {
+          appFee = numFee;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const accountUpdatePayload: Record<string, any> = {
+      status: isApproved ? 'active' : 'pending',
+      application_status: isApproved ? 'approved' : 'rejected',
+      can_practice: isApproved,
+      verification_status: isApproved ? 'verified' : 'rejected',
+      updated_at: now,
+    };
+    if (appFee !== null) {
+      accountUpdatePayload.per_session_fee = appFee;
+    }
+
     const { error: accountError } = await supabase
       .from('therapist_accounts')
-      .update({
-        status: isApproved ? 'active' : 'pending',
-        application_status: isApproved ? 'approved' : 'rejected',
-        can_practice: isApproved,
-        verification_status: isApproved ? 'verified' : 'rejected',
-        updated_at: now,
-      })
+      .update(accountUpdatePayload)
       .eq('id', therapistAccountId);
 
     if (accountError) {
@@ -614,15 +662,22 @@ export class TherapistPlatformService {
       .eq('therapist_account_id', therapistAccountId);
 
     // 2. Update therapist_accounts
+    const rawResubmitFee = mergedAnswers.feePerSession !== undefined ? mergedAnswers.feePerSession : mergedAnswers.per_session_fee;
+    const parsedResubmitFee = Number(rawResubmitFee);
+    const resubmitAccountUpdate: Record<string, any> = {
+      status: 'pending',
+      application_status: 'submitted',
+      verification_status: 'pending',
+      can_practice: false,
+      updated_at: now,
+    };
+    if (Number.isFinite(parsedResubmitFee) && parsedResubmitFee > 0) {
+      resubmitAccountUpdate.per_session_fee = parsedResubmitFee;
+    }
+
     await supabase
       .from('therapist_accounts')
-      .update({
-        status: 'pending',
-        application_status: 'submitted',
-        verification_status: 'pending',
-        can_practice: false,
-        updated_at: now,
-      })
+      .update(resubmitAccountUpdate)
       .eq('id', therapistAccountId);
 
     // 3. Record in review history
@@ -3656,6 +3711,54 @@ export class TherapistPlatformService {
       'timezone',
       'notification_preferences',
     ]);
+
+    // Handle fee updates if passed in payload
+    const rawFee = payload.per_session_fee !== undefined
+      ? payload.per_session_fee
+      : (payload.perSessionFee !== undefined ? payload.perSessionFee : payload.feePerSession);
+
+    if (rawFee !== undefined && rawFee !== null && String(rawFee).trim() !== '') {
+      const parsedFee = Number(rawFee);
+      if (isNaN(parsedFee) || parsedFee < 100 || parsedFee > 100000) {
+        const err: any = new Error('Per-session fee must be a valid amount between ₹100 and ₹100,000.');
+        err.code = 'INVALID_PER_SESSION_FEE';
+        err.status = 400;
+        throw err;
+      }
+
+      await supabase
+        .from('therapist_accounts')
+        .update({
+          per_session_fee: parsedFee,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', therapistAccountId);
+
+      try {
+        const { data: existingApp } = await supabase
+          .from('therapist_applications')
+          .select('answers')
+          .eq('therapist_account_id', therapistAccountId)
+          .maybeSingle();
+
+        if (existingApp) {
+          const updatedAnswers = {
+            ...(existingApp.answers || {}),
+            feePerSession: parsedFee,
+            per_session_fee: parsedFee,
+          };
+          await supabase
+            .from('therapist_applications')
+            .update({
+              answers: updatedAnswers,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('therapist_account_id', therapistAccountId);
+        }
+      } catch (appFeeSyncErr) {
+        console.warn('[TherapistPlatformService] updateProfile fee sync notice:', appFeeSyncErr);
+      }
+    }
 
     // Normalize email field if passed as 'email'
     if (payload.contact_email === undefined && payload.email !== undefined) {

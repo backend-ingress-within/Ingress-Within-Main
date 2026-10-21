@@ -392,10 +392,33 @@ export class AdminPlatformService {
         .select('*')
         .in('therapist_account_id', accountIds);
 
+      const { data: apps } = await supabase
+        .from('therapist_applications')
+        .select('therapist_account_id, answers')
+        .in('therapist_account_id', accountIds);
+
       const profileMap = new Map((profiles || []).map((p: any) => [p.therapist_account_id, p]));
+      const appMap = new Map((apps || []).map((app: any) => [app.therapist_account_id, app]));
 
       for (const a of accounts) {
         const p: any = profileMap.get(a.id) || {};
+        const app: any = appMap.get(a.id);
+        const appFee = Number(app?.answers?.feePerSession || app?.answers?.per_session_fee);
+
+        let fee = Number(a.per_session_fee);
+        // If account fee is unset or 1500 (default) but application answers specified a custom fee, use application fee
+        if ((!fee || fee === 1500) && Number.isFinite(appFee) && appFee > 0) {
+          fee = appFee;
+          // Auto-sync therapist_accounts in database so subsequent queries directly reflect the therapist's chosen fee
+          supabase
+            .from('therapist_accounts')
+            .update({ per_session_fee: fee, updated_at: new Date().toISOString() })
+            .eq('id', a.id)
+            .then(() => {});
+        } else if (!fee) {
+          fee = 1500;
+        }
+
         safeList.push({
           id: a.id,
           phone_number: a.phone_number,
@@ -407,7 +430,7 @@ export class AdminPlatformService {
           rci_registered: !!a.rci_registered,
           rci_number: a.rci_number || null,
           commission_rate: Number(a.commission_rate || 0.20),
-          per_session_fee: Number(a.per_session_fee || 1500),
+          per_session_fee: fee,
           full_name: p.full_name || 'Therapist',
           title: p.title || null,
           qualification: p.qualification || null,
@@ -1325,6 +1348,106 @@ export class AdminPlatformService {
     return {
       success: true,
       message: `Therapist "${therapistName}" was successfully removed from the roster.`,
+    };
+  }
+
+  /**
+   * Updates administrative settings for a therapist account (e.g. per_session_fee, commission_rate, can_practice).
+   */
+  static async updateTherapist(
+    therapistAccountId: string,
+    updates: { per_session_fee?: number; commission_rate?: number; can_practice?: boolean },
+    adminId: string = 'system'
+  ) {
+    if (!therapistAccountId) {
+      const err: any = new Error('Therapist account ID is required.');
+      err.code = 'INVALID_ID';
+      err.status = 400;
+      throw err;
+    }
+
+    const payload: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.per_session_fee !== undefined) {
+      const fee = Number(updates.per_session_fee);
+      if (isNaN(fee) || fee < 0) {
+        const err: any = new Error('Per-session fee must be a valid non-negative number.');
+        err.code = 'INVALID_FEE';
+        err.status = 400;
+        throw err;
+      }
+      payload.per_session_fee = fee;
+    }
+
+    if (updates.commission_rate !== undefined) {
+      const comm = Number(updates.commission_rate);
+      if (isNaN(comm) || comm < 0 || comm > 100) {
+        const err: any = new Error('Commission rate must be between 0 and 100.');
+        err.code = 'INVALID_COMMISSION';
+        err.status = 400;
+        throw err;
+      }
+      payload.commission_rate = comm;
+    }
+
+    if (updates.can_practice !== undefined) {
+      payload.can_practice = Boolean(updates.can_practice);
+    }
+
+    const { data, error } = await supabase
+      .from('therapist_accounts')
+      .update(payload)
+      .eq('id', therapistAccountId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Also sync application answers if fee was updated
+    if (updates.per_session_fee !== undefined) {
+      try {
+        const { data: existingApp } = await supabase
+          .from('therapist_applications')
+          .select('answers')
+          .eq('therapist_account_id', therapistAccountId)
+          .maybeSingle();
+
+        if (existingApp) {
+          const updatedAnswers = {
+            ...(existingApp.answers || {}),
+            feePerSession: Number(updates.per_session_fee),
+            per_session_fee: Number(updates.per_session_fee),
+          };
+          await supabase
+            .from('therapist_applications')
+            .update({
+              answers: updatedAnswers,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('therapist_account_id', therapistAccountId);
+        }
+      } catch (appSyncErr) {
+        console.warn('[AdminPlatformService] updateTherapist app fee sync notice:', appSyncErr);
+      }
+    }
+
+    await AdminAuditService.logAction({
+      actorId: adminId,
+      actorType: 'admin_user',
+      action: 'therapist_updated',
+      entityType: 'therapist',
+      entityId: therapistAccountId,
+      metadata: updates,
+    });
+
+    return {
+      success: true,
+      therapist: data,
+      message: 'Therapist record updated successfully.',
     };
   }
 
