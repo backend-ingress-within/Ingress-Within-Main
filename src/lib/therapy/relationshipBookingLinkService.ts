@@ -402,7 +402,7 @@ export class RelationshipBookingLinkService {
     // Verify relationship
     const { data: rel, error: relErr } = await supabase
       .from('therapy_care_relationships')
-      .select('id, therapist_account_id, user_id, status, care_stage, first_session_completed')
+      .select('id, therapist_account_id, user_id, therapy_session_id, status, care_stage, first_session_completed')
       .eq('id', linkRecord.relationship_id)
       .maybeSingle();
 
@@ -418,18 +418,36 @@ export class RelationshipBookingLinkService {
       };
     }
 
-    // Verify therapist
+    // Verify therapist standing & practice clearance
     const { data: thAcc, error: thErr } = await supabase
       .from('therapist_accounts')
-      .select('id, status, can_practice')
+      .select('id, status, is_active, can_practice, application_status, verification_status')
       .eq('id', rel.therapist_account_id)
       .maybeSingle();
 
-    if (thErr || !thAcc || !thAcc.can_practice || thAcc.status !== 'active') {
+    if (
+      thErr ||
+      !thAcc ||
+      !thAcc.can_practice ||
+      thAcc.is_active === false ||
+      thAcc.status !== 'active' ||
+      (thAcc.application_status && thAcc.application_status !== 'approved') ||
+      (thAcc.verification_status && thAcc.verification_status !== 'verified')
+    ) {
       return {
         valid: false,
         errorCode: 'THERAPIST_UNAVAILABLE',
         errorMessage: 'Assigned therapist is not available for bookings',
+      };
+    }
+
+    // Verify authoritative therapy-specific consent
+    const consentCheck = await verifyClientConsent(rel.user_id, rel.therapy_session_id);
+    if (!consentCheck.verified) {
+      return {
+        valid: false,
+        errorCode: 'CONSENT_REQUIRED',
+        errorMessage: `Required therapy consent is not verified: ${consentCheck.reason}`,
       };
     }
 
