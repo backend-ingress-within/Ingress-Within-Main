@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '../../../../lib/db';
 import { getAuthenticatedUser } from '../../../../lib/auth-helper';
 import {
   getTherapySession,
@@ -141,6 +142,24 @@ export async function POST(request: NextRequest) {
           ? body.answers
           : {},
     });
+
+    // If affirmative consent provided in intake, log audit trail into consents table
+    if (body.consents && typeof body.consents === 'object') {
+      const isAffirmative = Array.isArray(body.consents)
+        ? body.consents.length >= 3 && body.consents.every(Boolean)
+        : Boolean(body.consents.intake || body.consents.informedConsent || body.consents.teamContact || body.consents.dataSharing);
+
+      if (isAffirmative) {
+        await supabase
+          .from('consents')
+          .insert({
+            user_id: authUser.userId,
+            consent_type: 'therapy_consent',
+            version: 'v1.0.0',
+            consented_at: new Date().toISOString(),
+          });
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -8,7 +8,7 @@ export interface BookingActor {
 
 export interface ConsentValidationResult {
   verified: boolean;
-  source?: 'intake_array' | 'intake_object' | 'consents_table';
+  source?: 'intake_array' | 'intake_object' | 'consents_table' | 'profiles_table';
   details?: Record<string, any>;
   reason?: string;
 }
@@ -143,8 +143,23 @@ export async function verifyClientConsent(
 
     const { data: intakeData, error: intakeError } = await intakeQuery.maybeSingle();
 
-    if (!intakeError && intakeData && intakeData.consents) {
-      const consents = intakeData.consents;
+    // If intake query with therapySessionId didn't find affirmative consent, fallback to checking user's latest intake
+    let intakeDataToEvaluate = (!intakeError && intakeData) ? intakeData : null;
+    if (!intakeDataToEvaluate || !intakeDataToEvaluate.consents || Object.keys(intakeDataToEvaluate.consents).length === 0) {
+      const { data: userIntake } = await supabase
+        .from('therapy_intakes')
+        .select('id, consents, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (userIntake && userIntake.consents && Object.keys(userIntake.consents).length > 0) {
+        intakeDataToEvaluate = userIntake;
+      }
+    }
+
+    if (intakeDataToEvaluate && intakeDataToEvaluate.consents) {
+      const consents = intakeDataToEvaluate.consents;
 
       // Case A: Array format (guided therapy intake step 3: [summary, assessment, sharing, nonCrisis])
       if (Array.isArray(consents)) {
@@ -194,10 +209,10 @@ export async function verifyClientConsent(
   try {
     const { data: consentLog, error: logError } = await supabase
       .from('consents')
-      .select('id, consent_type, version, created_at')
+      .select('id, consent_type, version, consented_at')
       .eq('user_id', userId)
       .in('consent_type', ['terms_and_privacy', 'therapy_consent', 'informed_consent'])
-      .order('created_at', { ascending: false })
+      .order('consented_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -206,6 +221,21 @@ export async function verifyClientConsent(
     }
   } catch (err: any) {
     console.error('[verifyClientConsent] Error inspecting consents table:', err?.message);
+  }
+
+  // 3. Check public.profiles table (onboarding completion status)
+  try {
+    const { data: profile, error: profError } = await supabase
+      .from('profiles')
+      .select('id, consent_completed, onboarding_completed')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profError && profile && (profile.consent_completed || profile.onboarding_completed)) {
+      return { verified: true, source: 'profiles_table', details: profile };
+    }
+  } catch (err: any) {
+    console.error('[verifyClientConsent] Error inspecting profiles table:', err?.message);
   }
 
   return {

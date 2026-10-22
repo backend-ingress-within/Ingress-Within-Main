@@ -23,18 +23,40 @@ export async function POST(request: NextRequest) {
 
     const ipAddress = getClientIp(request);
 
-    // 3. Log consent to audit trail
-    await supabase.from('consents').insert({
-      user_id: user.userId,
-      consent_type: 'terms_and_privacy',
-      version: `${termsVer}:${privacyVer}`,
-      ip_address: ipAddress
-    });
+    const nowIso = new Date().toISOString();
+
+    // 3. Log consent to audit trail (terms, privacy, and informed consent)
+    await supabase.from('consents').insert([
+      {
+        user_id: user.userId,
+        consent_type: 'terms_and_privacy',
+        version: `${termsVer}:${privacyVer}`,
+        ip_address: ipAddress,
+        consented_at: nowIso
+      },
+      {
+        user_id: user.userId,
+        consent_type: 'informed_consent',
+        version: 'v1.0.0',
+        ip_address: ipAddress,
+        consented_at: nowIso
+      },
+      {
+        user_id: user.userId,
+        consent_type: 'therapy_consent',
+        version: 'v1.0.0',
+        ip_address: ipAddress,
+        consented_at: nowIso
+      }
+    ]);
 
     // 4. Update onboarding profile progress
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ consent_completed: true })
+      .update({
+        consent_completed: true,
+        updated_at: nowIso
+      })
       .eq('id', user.userId);
 
     if (updateError) {

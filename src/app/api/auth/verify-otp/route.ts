@@ -115,12 +115,12 @@ export async function POST(request: NextRequest) {
           id: existingUser.id,
           phone_number: canonicalPhone,
           account_status: 'active',
-          onboarding_status: 'completed',
-          consent_completed: true,
+          onboarding_status: 'pending',
+          consent_completed: false,
           profile_completed: false,
           orientation_completed: false,
           assessment_completed: false,
-          onboarding_completed: true,
+          onboarding_completed: false,
           notifications_completed: false
         })
         .select()

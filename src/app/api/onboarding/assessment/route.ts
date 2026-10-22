@@ -108,6 +108,23 @@ export async function POST(request: NextRequest) {
         console.log('[API Onboarding Finalize] Cycle 1 automatically created for user', user.userId);
       }
 
+      // Ensure consent audit trail exists in consents table for every onboarded client
+      const { data: existingConsent } = await supabase
+        .from('consents')
+        .select('id')
+        .eq('user_id', user.userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!existingConsent) {
+        await supabase.from('consents').insert({
+          user_id: user.userId,
+          consent_type: 'terms_and_privacy',
+          version: 'v1.0.0:v1.0.0',
+          consented_at: new Date().toISOString()
+        });
+      }
+
       // Mark both flags consistently. onboarding_status is part of the
       // existing auth profile schema and should reflect the completion flag.
       const { error: updateError } = await supabase
