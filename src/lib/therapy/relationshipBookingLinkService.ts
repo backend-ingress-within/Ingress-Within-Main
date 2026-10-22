@@ -270,7 +270,7 @@ export class RelationshipBookingLinkService {
     // 4. Validate assigned therapist standing
     const { data: therapistAcc, error: thErr } = await supabase
       .from('therapist_accounts')
-      .select('id, status, can_practice, is_active')
+      .select('id, status, can_practice')
       .eq('id', rel.therapist_account_id)
       .maybeSingle();
 
@@ -421,7 +421,7 @@ export class RelationshipBookingLinkService {
     // Verify therapist standing & practice clearance
     const { data: thAcc, error: thErr } = await supabase
       .from('therapist_accounts')
-      .select('id, status, is_active, can_practice, application_status, verification_status')
+      .select('id, status, can_practice, application_status, verification_status')
       .eq('id', rel.therapist_account_id)
       .maybeSingle();
 
@@ -429,7 +429,6 @@ export class RelationshipBookingLinkService {
       thErr ||
       !thAcc ||
       !thAcc.can_practice ||
-      thAcc.is_active === false ||
       thAcc.status !== 'active' ||
       (thAcc.application_status && thAcc.application_status !== 'approved') ||
       (thAcc.verification_status && thAcc.verification_status !== 'verified')
