@@ -1473,6 +1473,47 @@ export class AdminPlatformService {
 
     const { data, count } = await query;
 
+    // Fetch active care relationships for these clients
+    const clientIds = (data || []).map((c: any) => c.id).filter(Boolean);
+    const relationshipsByUserId: Record<string, any> = {};
+
+    if (clientIds.length > 0) {
+      try {
+        const { data: rels } = await supabase
+          .from('therapy_care_relationships')
+          .select(`
+            id,
+            user_id,
+            status,
+            care_stage,
+            therapist_account_id,
+            therapist_accounts (
+              id,
+              therapist_profiles (
+                full_name
+              )
+            )
+          `)
+          .in('user_id', clientIds)
+          .eq('status', 'active');
+
+        if (rels) {
+          for (const r of rels) {
+            relationshipsByUserId[r.user_id] = {
+              id: r.id,
+              status: r.status,
+              care_stage: r.care_stage,
+              therapist_account_id: r.therapist_account_id,
+              therapist_name:
+                (r.therapist_accounts as any)?.therapist_profiles?.full_name || 'Assigned Therapist',
+            };
+          }
+        }
+      } catch (relErr) {
+        console.error('[AdminPlatformService.getClients] Failed to load care relationships:', relErr);
+      }
+    }
+
     // Strict data minimization: Return only operational identity
     const safeClients = (data || []).map((c: any) => ({
       id: c.id,
@@ -1482,6 +1523,7 @@ export class AdminPlatformService {
       is_active: c.is_active ?? true,
       created_at: c.created_at,
       last_login_at: c.last_login_at || null,
+      relationship: relationshipsByUserId[c.id] || null,
     }));
 
     return {

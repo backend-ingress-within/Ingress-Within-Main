@@ -49,6 +49,7 @@ import {
   MessageSquare,
   Trash2,
   Pencil,
+  Link2,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
@@ -442,10 +443,44 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     }
   };
 
+  const [generatingLinkId, setGeneratingLinkId] = useState(null);
+  const [copiedLinkId, setCopiedLinkId] = useState(null);
+
   const copyToClipboard = (text, label = 'Text') => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     showToast(`${label} copied to clipboard!`);
+  };
+
+  const handleGenerateBookingLink = async (relationshipId) => {
+    if (!relationshipId || generatingLinkId) return;
+    setGeneratingLinkId(relationshipId);
+    try {
+      const res = await fetch(`/api/therapy/relationships/${relationshipId}/booking-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || 'Failed to issue booking link');
+      }
+      if (data.bookingLink) {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(data.bookingLink);
+        }
+        setCopiedLinkId(relationshipId);
+        showToast(
+          data.isNew
+            ? 'New persistent booking link generated and copied to clipboard!'
+            : 'Active persistent booking link copied to clipboard!'
+        );
+        setTimeout(() => setCopiedLinkId(null), 3000);
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to generate booking link', true);
+    } finally {
+      setGeneratingLinkId(null);
+    }
   };
 
   // Generate secure 1-hour signed URL to view uploaded document or open preview lightbox
@@ -2538,13 +2573,14 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                       <th className="py-3.5 px-4">Name</th>
                       <th className="py-3.5 px-4">Phone Number</th>
                       <th className="py-3.5 px-4">Account Status</th>
-                      <th className="py-3.5 px-4">Registered Date</th>
+                      <th className="py-3.5 px-4">Active Relationship</th>
+                      <th className="py-3.5 px-4 text-right">Booking Link Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#132A24]/5 text-[#132A24]">
                     {clientsData.clients.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="py-12 text-center text-[#132A24]/40 italic">
+                        <td colSpan="6" className="py-12 text-center text-[#132A24]/40 italic">
                           No client records found.
                         </td>
                       </tr>
@@ -2561,8 +2597,57 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                               {c.account_status}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-[#132A24]/60">
-                            {new Date(c.created_at).toLocaleDateString()}
+                          <td className="py-3.5 px-4">
+                            {c.relationship?.id ? (
+                              <div>
+                                <span className="font-medium text-[#132A24] block">
+                                  {c.relationship.therapist_name}
+                                </span>
+                                <span className="text-[10px] text-[#4E7A66] capitalize">
+                                  Stage: {c.relationship.care_stage || 'active'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[#132A24]/40 italic text-[11px]">
+                                No active relationship
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            {c.relationship?.id ? (
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateBookingLink(c.relationship.id)}
+                                disabled={generatingLinkId === c.relationship.id}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                                  copiedLinkId === c.relationship.id
+                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                    : 'bg-white border-[#132A24]/20 text-[#132A24] hover:bg-[#132A24]/5'
+                                }`}
+                                title="Generate or copy persistent booking link for this care relationship"
+                              >
+                                {copiedLinkId === c.relationship.id ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-white" />
+                                    <span>Copied Link!</span>
+                                  </>
+                                ) : generatingLinkId === c.relationship.id ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#132A24]/60" />
+                                    <span>Generating...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Link2 className="w-3.5 h-3.5 text-[#4E7A66]" />
+                                    <span>Generate / Copy Link</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-[#132A24]/30 uppercase tracking-wider font-semibold">
+                                Unavailable
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))

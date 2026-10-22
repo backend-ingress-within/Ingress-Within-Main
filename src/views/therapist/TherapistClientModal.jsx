@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Lock,
   Plus,
-  Milestone
+  Milestone,
+  Link2,
+  Check,
 } from 'lucide-react';
 import TherapistCareJourneyView from './TherapistCareJourneyView';
 
@@ -28,6 +30,48 @@ export default function TherapistClientModal({
   const [loading, setLoading] = useState(true);
   const [updatingStage, setUpdatingStage] = useState(false);
   const [stageNotice, setStageNotice] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkNotice, setLinkNotice] = useState(null);
+
+  const handleGenerateBookingLink = async () => {
+    if (!profile?.relationship?.id || isGeneratingLink) return;
+    setIsGeneratingLink(true);
+    setLinkNotice(null);
+
+    try {
+      const res = await fetch(`/api/therapy/relationships/${profile.relationship.id}/booking-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error?.message || 'Failed to issue booking link');
+      }
+
+      if (data.bookingLink) {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(data.bookingLink);
+        }
+        setLinkCopied(true);
+        setLinkNotice({
+          type: 'success',
+          message: data.isNew
+            ? 'New persistent booking link created and copied to clipboard!'
+            : 'Active persistent booking link copied to clipboard!',
+        });
+        setTimeout(() => setLinkCopied(false), 3000);
+      }
+    } catch (err) {
+      setLinkNotice({
+        type: 'error',
+        message: err.message || 'Unable to generate booking link.',
+      });
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
 
   const fetchClientProfile = async () => {
     try {
@@ -117,13 +161,79 @@ export default function TherapistClientModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-[#132A24]/40 hover:text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            {profile?.relationship?.id && (
+              <button
+                type="button"
+                onClick={handleGenerateBookingLink}
+                disabled={isGeneratingLink || profile.relationship?.status !== 'active'}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all border ${
+                  linkCopied
+                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                    : profile.relationship?.status !== 'active'
+                    ? 'bg-stone-100 border-stone-200 text-stone-400 cursor-not-allowed'
+                    : 'bg-white border-[#132A24]/20 text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer shadow-xs'
+                }`}
+                title={
+                  profile.relationship?.status !== 'active'
+                    ? `Cannot issue booking link: relationship is ${profile.relationship?.status}`
+                    : 'Generate or copy persistent booking link for this client'
+                }
+              >
+                {linkCopied ? (
+                  <>
+                    <Check size={14} className="text-white" />
+                    <span>Copied Booking Link!</span>
+                  </>
+                ) : isGeneratingLink ? (
+                  <>
+                    <Clock size={14} className="animate-spin text-[#132A24]/60" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Link2 size={14} className="text-[#4E7A66]" />
+                    <span>Generate / Copy Booking Link</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg text-[#132A24]/40 hover:text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
+
+        {/* Persistent Booking Link Feedback Banner */}
+        {linkNotice && (
+          <div
+            className={`px-6 py-2.5 text-xs flex items-center justify-between border-b ${
+              linkNotice.type === 'error'
+                ? 'bg-red-50 text-red-800 border-red-200'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {linkNotice.type === 'error' ? (
+                <AlertCircle size={14} className="text-red-600 shrink-0" />
+              ) : (
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+              )}
+              <span>{linkNotice.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLinkNotice(null)}
+              className="text-stone-400 hover:text-stone-700 ml-4 cursor-pointer text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Workspace Tab Navigation */}
         <div className="px-6 border-b border-[#132A24]/10 bg-white flex items-center gap-1 overflow-x-auto">
