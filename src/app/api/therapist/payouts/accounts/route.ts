@@ -56,3 +56,57 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { account } = await requireAuthorizedTherapist(request);
+    const body = await request.json();
+    const { accountId } = body;
+
+    if (!accountId) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'accountId is required.' } },
+        { status: 400 }
+      );
+    }
+
+    const updated = await TherapistPayoutAccountService.setDefaultAccount(account.id, accountId);
+
+    return NextResponse.json({
+      success: true,
+      account: updated,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: { code: err.code || 'PAYOUT_ACCOUNT_ERROR', message: err.message } },
+      { status: err.status || 400 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { account } = await requireAuthorizedTherapist(request);
+    const { searchParams } = new URL(request.url);
+    const accountId = searchParams.get('id');
+
+    if (!accountId) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Payout account id is required.' } },
+        { status: 400 }
+      );
+    }
+
+    await TherapistPayoutAccountService.deletePayoutAccount(account.id, accountId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Payout account deleted successfully.',
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: { code: err.code || 'PAYOUT_ACCOUNT_ERROR', message: err.message } },
+      { status: err.status || 400 }
+    );
+  }
+}

@@ -96,9 +96,11 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
       ? appAnswers.primaryModalities
       : [];
 
-    const specialties = Array.isArray(profile.specializations)
+    const specialties = Array.isArray(profile.specializations) && profile.specializations.length > 0
       ? profile.specializations
-      : [];
+      : (Array.isArray(appAnswers.specialties) && appAnswers.specialties.length > 0
+        ? appAnswers.specialties
+        : ['General Clinical Psychology']);
 
     const languages = Array.isArray(profile.languages)
       ? profile.languages

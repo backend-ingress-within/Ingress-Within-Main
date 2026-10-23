@@ -340,6 +340,28 @@ export class TherapistPayoutAccountService {
   }
 
   /**
+   * Deletes a payout account.
+   */
+  static async deletePayoutAccount(therapistAccountId: string, accountId: string): Promise<boolean> {
+    const account = await this.getPayoutAccountById(accountId, therapistAccountId);
+    if (!account) {
+      const err: any = new Error('Payout account not found or does not belong to this therapist.');
+      err.code = 'ACCOUNT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    await supabase
+      .from('therapist_payout_accounts')
+      .delete()
+      .eq('id', accountId)
+      .eq('therapist_account_id', therapistAccountId);
+
+    this.inMemoryAccounts.delete(accountId);
+    return true;
+  }
+
+  /**
    * Helper to clear default flag for a therapist's payout accounts.
    */
   private static async clearDefaultAccounts(therapistAccountId: string): Promise<void> {

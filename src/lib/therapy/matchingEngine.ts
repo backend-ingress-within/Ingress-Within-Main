@@ -297,6 +297,16 @@ export function tagsMatch(a?: string | null, b?: string | null): boolean {
   if (!na || !nb) return false;
   if (na === nb) return true;
   if (na.includes(nb) || nb.includes(na)) return true;
+
+  // Clinical synonym bridges
+  if ((na.includes('mood') || na.includes('depression')) && (nb.includes('mood') || nb.includes('depression'))) return true;
+  if ((na.includes('stress') || na.includes('burnout')) && (nb.includes('stress') || nb.includes('burnout'))) return true;
+  if ((na.includes('trauma') || na.includes('ptsd')) && (nb.includes('trauma') || nb.includes('ptsd'))) return true;
+  if ((na.includes('anxiety') || na.includes('panic')) && (nb.includes('anxiety') || nb.includes('panic'))) return true;
+  if ((na.includes('grief') || na.includes('bereavement')) && (nb.includes('grief') || nb.includes('bereavement'))) return true;
+  if ((na.includes('cbt') || na.includes('cognitive behavioral')) && (nb.includes('cbt') || nb.includes('cognitive behavioral'))) return true;
+  if ((na.includes('act') || na.includes('acceptance & commitment') || na.includes('acceptance and commitment')) && (nb.includes('act') || nb.includes('acceptance & commitment') || nb.includes('acceptance and commitment'))) return true;
+
   const wa = significantWords(na);
   const wb = significantWords(nb);
   if (wa.length && wb.length && wa.some((w) => wb.includes(w))) return true;

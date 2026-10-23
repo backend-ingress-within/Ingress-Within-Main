@@ -82,10 +82,12 @@ export default function TherapistPlatformView() {
   const canPractice = Boolean(
     account?.can_practice ||
     appStatusData?.account?.canPractice ||
-    (account?.status === 'active' && (account?.application_status === 'approved' || account?.verification_status === 'verified'))
+    account?.status === 'active' ||
+    account?.application_status === 'approved' ||
+    account?.verification_status === 'verified'
   );
 
-  // 1. Approved practitioner with practice authorization -> FULL WORKSPACE
+  // 1. Active practitioner with practice authorization -> FULL WORKSPACE
   if (canPractice && account?.status === 'active') {
     return (
       <TherapistDashboardShell

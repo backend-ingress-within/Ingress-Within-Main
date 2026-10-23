@@ -163,11 +163,30 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
   }
 
   // 2. Fetch therapist profile (foreign key is therapist_account_id)
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from('therapist_profiles')
     .select('*')
     .eq('therapist_account_id', authTherapist.therapistId)
     .maybeSingle();
+
+  if (!profile) {
+    try {
+      const { data: newProfile } = await supabase
+        .from('therapist_profiles')
+        .insert({
+          therapist_account_id: authTherapist.therapistId,
+          phone: account.phone_number,
+          full_name: 'Practitioner',
+        })
+        .select('*')
+        .maybeSingle();
+      if (newProfile) {
+        profile = newProfile;
+      }
+    } catch (backfillErr) {
+      console.warn('[therapistAuthHelper] Profile backfill notice:', backfillErr);
+    }
+  }
 
   const isAccountActive = account.status !== 'suspended' && account.status !== 'rejected';
 

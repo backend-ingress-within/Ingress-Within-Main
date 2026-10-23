@@ -3924,15 +3924,51 @@ export class TherapistPlatformService {
       }
     }
 
-    const { data: updated, error } = await supabase
+    let { data: updated, error } = await supabase
       .from('therapist_profiles')
       .update(sanitizedUpdates)
       .eq('therapist_account_id', therapistAccountId)
       .select('*')
       .single();
 
-    if (error) {
-      console.warn('[TherapistPlatformService] updateProfile DB notice, using fallback:', error.message);
+    if (error || !updated) {
+      // Check if profile exists; if not, insert with fallback
+      const { data: existingProf } = await supabase
+        .from('therapist_profiles')
+        .select('id')
+        .eq('therapist_account_id', therapistAccountId)
+        .maybeSingle();
+
+      if (!existingProf) {
+        const { data: acc } = await supabase
+          .from('therapist_accounts')
+          .select('phone_number')
+          .eq('id', therapistAccountId)
+          .maybeSingle();
+
+        const insertPayload: Record<string, any> = {
+          therapist_account_id: therapistAccountId,
+          phone: acc?.phone_number || '',
+          full_name: sanitizedUpdates.full_name || 'Practitioner',
+          ...sanitizedUpdates,
+        };
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('therapist_profiles')
+          .insert(insertPayload)
+          .select('*')
+          .maybeSingle();
+
+        if (!insertError && inserted) {
+          updated = inserted;
+        } else {
+          console.warn('[TherapistPlatformService] updateProfile insert fallback notice:', insertError?.message);
+        }
+      }
+    }
+
+    if (!updated) {
+      console.warn('[TherapistPlatformService] updateProfile DB notice, using fallback:', error?.message);
       // Fallback for test environments without live DB
       return {
         therapist_account_id: therapistAccountId,

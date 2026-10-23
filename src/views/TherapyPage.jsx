@@ -1174,17 +1174,24 @@ function Guided({ exit, onBookSession, user, profile }) {
         return t.gender.toLowerCase() === d.therapistGender.toLowerCase();
       })
       .map((t) => {
+        const specialtiesList = Array.isArray(t.specialties) ? t.specialties : [];
         const concernHits = selectedConcerns.filter((c) =>
-          t.specialties.some((s) => {
+          specialtiesList.some((s) => {
             const sLower = typeof s === 'string' ? s.toLowerCase() : '';
             const cLower = typeof c === 'string' ? c.toLowerCase() : '';
+            if (!sLower || !cLower) return false;
             return (
               sLower === cLower ||
-              (cLower.includes('mood') && sLower.includes('depression')) ||
-              (cLower.includes('depression') && sLower.includes('mood')) ||
+              sLower.includes(cLower) ||
+              cLower.includes(sLower) ||
+              (cLower.includes('mood') && (sLower.includes('depression') || sLower.includes('mood'))) ||
+              (cLower.includes('depression') && (sLower.includes('mood') || sLower.includes('depression'))) ||
               (cLower.includes('stress') && (sLower.includes('burnout') || sLower.includes('stress'))) ||
-              (cLower.includes('burnout') && sLower.includes('stress')) ||
-              (cLower.includes('trauma') && (sLower.includes('ptsd') || sLower.includes('trauma')))
+              (cLower.includes('burnout') && (sLower.includes('stress') || sLower.includes('burnout'))) ||
+              (cLower.includes('trauma') && (sLower.includes('ptsd') || sLower.includes('trauma'))) ||
+              (cLower.includes('grief') && (sLower.includes('bereavement') || sLower.includes('grief'))) ||
+              (cLower.includes('anxiety') && (sLower.includes('panic') || sLower.includes('anxiety'))) ||
+              (cLower.includes('relation') && sLower.includes('relation'))
             );
           })
         ).length;

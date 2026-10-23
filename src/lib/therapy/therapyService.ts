@@ -613,7 +613,11 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
       bio: profile.bio || '',
       qualification: profile.qualification || '',
       experienceYears: profile.experience_years || 0,
-      specializations: Array.isArray(profile.specializations) ? profile.specializations : [],
+      specializations: Array.isArray(profile.specializations) && profile.specializations.length > 0
+        ? profile.specializations
+        : (Array.isArray(app?.answers?.specialties) && app.answers.specialties.length > 0
+          ? app.answers.specialties
+          : ['General Clinical Psychology']),
       languages: Array.isArray(profile.languages) ? profile.languages : ['English', 'Hindi'],
       sessionFormats: Array.isArray(profile.session_formats) ? profile.session_formats : ['telehealth'],
       profileImageUrl: profile.profile_image_url || null,

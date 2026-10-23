@@ -1376,6 +1376,11 @@ export default function SettingsPage({ user, profile, onSignOut }) {
               <p className="text-xs text-mid max-w-sm mx-auto leading-relaxed">
                 A secure recurring payment method will be linked automatically upon completing your first subscription payment.
               </p>
+              <div className="pt-2">
+                <p className="text-[11px] text-[#4E7A66] bg-[#4E7A66]/5 p-2.5 rounded-lg max-w-sm mx-auto border border-[#4E7A66]/20 leading-relaxed text-left">
+                  <strong>Practitioner Note:</strong> Are you an Ingress Within therapist? Therapists do not have subscriptions or subscription fees. Please manage your consultation schedule and direct bank payout details at your <a href="/therapist/profile" className="underline font-semibold text-[#132A24]">Practitioner Profile</a>.
+                </p>
+              </div>
             </div>
           )}
         </div>
