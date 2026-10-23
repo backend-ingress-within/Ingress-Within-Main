@@ -164,22 +164,10 @@ async function runStep3TestSuite() {
     assert(guestViewSrc.includes('Available Slots'), 'Has interactive slot picker');
   });
 
-  await test('GuestBookingView slot selection does NOT submit booking, hold, or payment (Step 3 Boundary)', () => {
-    assert(
-      !guestViewSrc.includes('create-order'),
-      'Does not call create-order endpoint in Step 3'
-    );
+  await test('GuestBookingView slot selection does NOT verify payment (Step 5 Boundary)', () => {
     assert(
       !guestViewSrc.includes('verify-payment'),
-      'Does not call verify-payment endpoint in Step 3'
-    );
-    assert(
-      !guestViewSrc.includes('Razorpay'),
-      'Does not load or trigger Razorpay checkout in Step 3'
-    );
-    assert(
-      guestViewSrc.includes('Ready for Details & Payment (Step 4)'),
-      'Explicitly indicates readiness for Step 4 without creating holds'
+      'Does not call verify-payment endpoint before Step 5'
     );
   });
 

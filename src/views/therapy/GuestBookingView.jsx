@@ -15,6 +15,9 @@ import {
   ChevronRight,
   ArrowLeft,
   User,
+  CreditCard,
+  Lock,
+  Hourglass,
 } from 'lucide-react';
 
 export default function GuestBookingView({ token }) {
@@ -25,6 +28,21 @@ export default function GuestBookingView({ token }) {
   // Slot Selection State
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+
+  // Guest Details & Checkout State (Step 4)
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [clientNotes, setClientNotes] = useState('');
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [orderError, setOrderError] = useState(null);
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [holdExpiresAt, setHoldExpiresAt] = useState(null);
+  const [timeLeftStr, setTimeLeftStr] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState(
+    () => `iw_hold_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  );
 
   const fetchBookingData = async () => {
     if (!token) {
@@ -80,6 +98,38 @@ export default function GuestBookingView({ token }) {
     fetchBookingData();
   }, [token]);
 
+  // Hold expiration countdown timer
+  useEffect(() => {
+    if (!holdExpiresAt) return;
+    const interval = setInterval(() => {
+      const msLeft = new Date(holdExpiresAt).getTime() - Date.now();
+      if (msLeft <= 0) {
+        setTimeLeftStr('00:00');
+        setOrderError('Your 15-minute slot hold has expired. Please select a time slot again to proceed.');
+        setCreatedOrder(null);
+        setHoldExpiresAt(null);
+        clearInterval(interval);
+      } else {
+        const mins = Math.floor(msLeft / 60000);
+        const secs = Math.floor((msLeft % 60000) / 1000);
+        setTimeLeftStr(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [holdExpiresAt]);
+
+  // Reset order state when user picks a different slot
+  const handleSelectSlot = (slot) => {
+    if (selectedSlot?.start !== slot.start) {
+      setSelectedSlot(slot);
+      setCreatedOrder(null);
+      setHoldExpiresAt(null);
+      setOrderError(null);
+      // Fresh idempotency key for distinct slot attempts
+      setIdempotencyKey(`iw_hold_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    }
+  };
+
   // Group slots by date
   const groupedSlots = useMemo(() => {
     const groups = {};
@@ -111,6 +161,122 @@ export default function GuestBookingView({ token }) {
       });
     } catch {
       return '';
+    }
+  };
+
+  // Launch Razorpay Modal
+  const launchRazorpay = async (orderPayload) => {
+    try {
+      if (typeof window !== 'undefined' && !window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise((resolve) => {
+          script.onload = resolve;
+        });
+      }
+
+      const options = {
+        key: orderPayload.keyId,
+        order_id: orderPayload.razorpayOrderId,
+        amount: orderPayload.amountPaise,
+        currency: orderPayload.currency || 'INR',
+        name: 'Ingress Within',
+        description: `Therapy Consultation with ${bookingData?.practitioner?.name || 'Practitioner'}`,
+        prefill: {
+          name: guestName.trim(),
+          email: guestEmail.trim(),
+          contact: guestPhone.trim(),
+        },
+        theme: { color: '#064e3b' },
+        handler: function () {
+          // In Step 4, we do not finalize payment or confirm sessions;
+          // Step 5 will handle authorization callback and signature verification.
+          setOrderError(null);
+        },
+        modal: {
+          ondismiss: function () {
+            // Modal closed; hold remains active for 15 minutes
+          },
+        },
+      };
+
+      if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (resp) {
+          setOrderError(resp.error?.description || 'Payment was declined or failed.');
+        });
+        rzp.open();
+      }
+    } catch (err) {
+      console.warn('Razorpay checkout initialization notice:', err);
+    }
+  };
+
+  // Submit Guest Order & Temporary Slot Hold
+  const handleCreateOrder = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedSlot || isSubmittingOrder) return;
+
+    setOrderError(null);
+    const errors = {};
+
+    if (!guestName.trim() || guestName.trim().length < 2) {
+      errors.name = 'Please provide your full name (at least 2 characters).';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!guestEmail.trim() || !emailRegex.test(guestEmail.trim())) {
+      errors.email = 'Please provide a valid email address.';
+    }
+    const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
+    if (!guestPhone.trim() || !phoneRegex.test(guestPhone.trim())) {
+      errors.phone = 'Please provide a valid phone number (at least 7 digits).';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    setIsSubmittingOrder(true);
+
+    try {
+      const res = await fetch(`/api/therapy/book/${encodeURIComponent(token)}/order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({
+          fullName: guestName.trim(),
+          email: guestEmail.trim(),
+          phoneNumber: guestPhone.trim(),
+          slotStart: selectedSlot.start,
+          slotEnd: selectedSlot.end,
+          clientNotes: clientNotes.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOrderError(data.error?.message || 'Unable to reserve slot. Please select another time or retry.');
+        setIsSubmittingOrder(false);
+        return;
+      }
+
+      const orderData = data.order;
+      setCreatedOrder(orderData);
+      setHoldExpiresAt(orderData.expiresAt);
+
+      // Open Razorpay Checkout modal
+      await launchRazorpay(orderData);
+    } catch (err) {
+      setOrderError(err.message || 'Network error while reserving slot. Please try again.');
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -289,78 +455,62 @@ export default function GuestBookingView({ token }) {
                   <span>₹{pricing.gstInr.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="pt-2 border-t border-[#132A24]/10 flex justify-between font-semibold text-sm text-[#132A24]">
-                  <span>Total Amount:</span>
-                  <span className="font-serif">₹{pricing.totalInr.toLocaleString('en-IN')}</span>
+                  <span>Total Payable:</span>
+                  <span className="text-emerald-800">
+                    ₹{pricing.totalInr.toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
 
-              {/* Clinical Session Instructions */}
-              <div className="bg-[#FAFAF8] border border-[#132A24]/10 rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#132A24]">
-                  <Info className="w-3.5 h-3.5 text-[#4E7A66]" />
-                  <span>Session Guidelines</span>
+              <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#132A24]/5 space-y-1.5 text-[11px] text-[#132A24]/60">
+                <div className="flex items-center gap-1.5 text-[#132A24]/80 font-medium">
+                  <Clock className="w-3.5 h-3.5 text-[#4E7A66]" />
+                  <span>Timezone Display</span>
                 </div>
-                <ul className="text-[11px] text-[#132A24]/70 space-y-1 list-disc list-inside">
-                  {session.instructions.map((inst, i) => (
-                    <li key={i}>{inst}</li>
-                  ))}
-                </ul>
+                <p>
+                  All times shown in your local timezone ({availability?.timezone || 'IST'}).
+                </p>
               </div>
+
+              {practitioner.instructions && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-[#132A24]/80 space-y-1">
+                  <strong className="block text-amber-950 font-medium">
+                    Practitioner Booking Instructions
+                  </strong>
+                  <p>{practitioner.instructions}</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right Column: Interactive Slot Selection (7 cols) */}
-          <div className="lg:col-span-7 space-y-6">
+          {/* Right Column: Slot Selection & Guest Checkout (7 cols) */}
+          <div className="lg:col-span-7">
             <div className="bg-white border border-[#132A24]/10 rounded-2xl p-6 shadow-xs space-y-6">
-              <div className="flex items-center justify-between border-b border-[#132A24]/10 pb-4">
-                <div>
-                  <h2 className="font-serif text-lg font-medium text-[#132A24]">
-                    Select Appointment Time
-                  </h2>
-                  <p className="text-xs text-[#132A24]/60 mt-0.5">
-                    Live schedule &bull; Times displayed in {availability.timezone}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={fetchBookingData}
-                  className="p-2 text-[#132A24]/60 hover:text-[#132A24] rounded-lg hover:bg-[#132A24]/5 transition-colors cursor-pointer"
-                  title="Refresh availability"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+              <div>
+                <h2 className="font-serif text-lg font-medium text-[#132A24]">
+                  Select Consultation Time
+                </h2>
+                <p className="text-xs text-[#132A24]/60 mt-0.5">
+                  Choose a date and time slot for your session with {practitioner.name}.
+                </p>
               </div>
 
-              {/* No Slots Available Alert */}
               {dateKeys.length === 0 ? (
-                <div className="py-12 px-6 text-center space-y-3">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
-                    <Clock className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-serif text-base font-medium text-[#132A24]">
-                      No Open Consultation Slots
-                    </h3>
-                    <p className="text-xs text-[#132A24]/60 max-w-sm mx-auto">
-                      All consultation slots for the next 14 days are currently booked. Please check back soon or contact your practitioner.
-                    </p>
-                  </div>
-                  <button
-                    onClick={fetchBookingData}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#132A24]/20 text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Check Again</span>
-                  </button>
+                <div className="p-8 text-center bg-[#FAFAF8] rounded-xl border border-[#132A24]/5 space-y-2">
+                  <CalendarIcon className="w-8 h-8 mx-auto text-[#132A24]/30" />
+                  <h3 className="text-sm font-medium text-[#132A24]">No Open Consultation Slots</h3>
+                  <p className="text-xs text-[#132A24]/60 max-w-sm mx-auto">
+                    The practitioner has no bookable slots in the next two weeks. Please check back later or contact your therapist directly.
+                  </p>
                 </div>
               ) : (
                 <>
-                  {/* Date Selector Chips */}
+                  {/* Date Selector Carousel / List */}
                   <div>
                     <span className="text-[11px] font-semibold text-[#132A24]/60 uppercase tracking-wider block mb-2">
                       Available Dates
                     </span>
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
                       {dateKeys.map((dateKey) => {
                         const isSelected = selectedDateKey === dateKey;
                         const count = groupedSlots[dateKey]?.length || 0;
@@ -368,14 +518,12 @@ export default function GuestBookingView({ token }) {
                           <button
                             key={dateKey}
                             type="button"
-                            onClick={() => {
-                              setSelectedDateKey(dateKey);
-                              setSelectedSlot(null); // Reset slot selection when date changes
-                            }}
-                            className={`px-3.5 py-2.5 rounded-xl text-xs font-medium border flex flex-col items-center min-w-[90px] transition-all cursor-pointer ${
+                            onClick={() => setSelectedDateKey(dateKey)}
+                            aria-pressed={isSelected}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all border shrink-0 cursor-pointer flex flex-col items-center ${
                               isSelected
-                                ? 'bg-[#132A24] border-[#132A24] text-white shadow-xs'
-                                : 'bg-white border-[#132A24]/10 text-[#132A24]/70 hover:border-[#132A24]/30 hover:text-[#132A24]'
+                                ? 'bg-[#132A24] text-white border-[#132A24] shadow-xs'
+                                : 'bg-[#FAFAF8] text-[#132A24]/80 border-[#132A24]/10 hover:border-[#132A24]/30'
                             }`}
                           >
                             <span className="font-semibold">{dateKey}</span>
@@ -404,7 +552,7 @@ export default function GuestBookingView({ token }) {
                           <button
                             key={slot.start}
                             type="button"
-                            onClick={() => setSelectedSlot(slot)}
+                            onClick={() => handleSelectSlot(slot)}
                             aria-pressed={isSelected}
                             className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between transition-all cursor-pointer ${
                               isSelected
@@ -427,33 +575,210 @@ export default function GuestBookingView({ token }) {
                     </div>
                   </div>
 
-                  {/* Selected Slot Confirmation & Next Step Readiness Banner */}
+                  {/* Step 4: Guest Contact Details & Temporary Slot Hold Checkout */}
                   {selectedSlot ? (
-                    <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-2 animate-fadeIn">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-emerald-950">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span>
-                          Selected Slot: {new Date(selectedSlot.start).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                          })}{' '}
-                          at {formatTime(selectedSlot.start)} – {formatTime(selectedSlot.end)}
+                    <div className="pt-4 border-t border-[#132A24]/10 space-y-4 animate-fadeIn">
+                      {/* Selected Slot Summary Card */}
+                      <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <div>
+                            <span className="text-xs font-semibold text-emerald-950 block">
+                              {new Date(selectedSlot.start).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })}{' '}
+                              at {formatTime(selectedSlot.start)} – {formatTime(selectedSlot.end)}
+                            </span>
+                            <span className="text-[11px] text-emerald-900/70">
+                              {session.durationMinutes} mins &bull; Telehealth Video Consultation
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold text-emerald-800">
+                          ₹{pricing.totalInr.toLocaleString('en-IN')}
                         </span>
                       </div>
-                      <p className="text-[11px] text-emerald-900/80 leading-relaxed">
-                        Your time slot is selected and ready. In Step 4, you will provide basic contact information and finalize the booking.
-                      </p>
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-medium opacity-90 cursor-default flex items-center justify-center gap-2"
-                        >
-                          <span>Slot Selected &bull; Ready for Details & Payment (Step 4)</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
+
+                      {/* Active Slot Hold Banner (if hold already acquired) */}
+                      {createdOrder && (
+                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-semibold text-amber-950">
+                            <div className="flex items-center gap-2">
+                              <Hourglass className="w-4 h-4 text-amber-700 animate-pulse" />
+                              <span>Temporary Slot Hold Active</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md bg-amber-200/70 font-mono text-amber-900 text-[11px]">
+                              {timeLeftStr || '15:00'} remaining
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                            This time slot is temporarily reserved for you for 15 minutes while payment is completed.
+                          </p>
+                          <div className="pt-2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => launchRazorpay(createdOrder)}
+                              className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              <span>Re-open Razorpay Checkout</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Order / Checkout Error Display */}
+                      {orderError && (
+                        <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-900">
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <span className="font-semibold block">Checkout Notice</span>
+                            <p>{orderError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Guest Details Form */}
+                      {!createdOrder && (
+                        <form onSubmit={handleCreateOrder} className="space-y-3.5" noValidate>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Full Name */}
+                            <div>
+                              <label
+                                htmlFor="guest-name"
+                                className="block text-[11px] font-semibold text-[#132A24]/70 uppercase tracking-wider mb-1"
+                              >
+                                Full Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                id="guest-name"
+                                type="text"
+                                value={guestName}
+                                onChange={(e) => setGuestName(e.target.value)}
+                                placeholder="Your full name"
+                                required
+                                disabled={isSubmittingOrder}
+                                className={`w-full px-3 py-2 text-xs rounded-xl border bg-white focus:outline-hidden focus:ring-1 focus:ring-emerald-700 transition-colors ${
+                                  formErrors.name
+                                    ? 'border-red-400 bg-red-50/20'
+                                    : 'border-[#132A24]/15'
+                                }`}
+                              />
+                              {formErrors.name && (
+                                <p className="text-[10px] text-red-600 mt-1">{formErrors.name}</p>
+                              )}
+                            </div>
+
+                            {/* Email Address */}
+                            <div>
+                              <label
+                                htmlFor="guest-email"
+                                className="block text-[11px] font-semibold text-[#132A24]/70 uppercase tracking-wider mb-1"
+                              >
+                                Email Address <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                id="guest-email"
+                                type="email"
+                                value={guestEmail}
+                                onChange={(e) => setGuestEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                required
+                                disabled={isSubmittingOrder}
+                                className={`w-full px-3 py-2 text-xs rounded-xl border bg-white focus:outline-hidden focus:ring-1 focus:ring-emerald-700 transition-colors ${
+                                  formErrors.email
+                                    ? 'border-red-400 bg-red-50/20'
+                                    : 'border-[#132A24]/15'
+                                }`}
+                              />
+                              {formErrors.email && (
+                                <p className="text-[10px] text-red-600 mt-1">{formErrors.email}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Phone Number */}
+                          <div>
+                            <label
+                              htmlFor="guest-phone"
+                              className="block text-[11px] font-semibold text-[#132A24]/70 uppercase tracking-wider mb-1"
+                            >
+                              Phone Number <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              id="guest-phone"
+                              type="tel"
+                              value={guestPhone}
+                              onChange={(e) => setGuestPhone(e.target.value)}
+                              placeholder="+91 98765 43210"
+                              required
+                              disabled={isSubmittingOrder}
+                              className={`w-full px-3 py-2 text-xs rounded-xl border bg-white focus:outline-hidden focus:ring-1 focus:ring-emerald-700 transition-colors ${
+                                formErrors.phone
+                                  ? 'border-red-400 bg-red-50/20'
+                                  : 'border-[#132A24]/15'
+                              }`}
+                            />
+                            {formErrors.phone && (
+                              <p className="text-[10px] text-red-600 mt-1">{formErrors.phone}</p>
+                            )}
+                          </div>
+
+                          {/* Client Notes (Optional) */}
+                          <div>
+                            <label
+                              htmlFor="guest-notes"
+                              className="block text-[11px] font-semibold text-[#132A24]/70 uppercase tracking-wider mb-1"
+                            >
+                              Session Notes <span className="text-[#132A24]/40 font-normal">(Optional)</span>
+                            </label>
+                            <textarea
+                              id="guest-notes"
+                              value={clientNotes}
+                              onChange={(e) => setClientNotes(e.target.value)}
+                              placeholder="Any specific topic or focus you would like to discuss..."
+                              rows={2}
+                              maxLength={1000}
+                              disabled={isSubmittingOrder}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-[#132A24]/15 bg-white focus:outline-hidden focus:ring-1 focus:ring-emerald-700 transition-colors"
+                            />
+                          </div>
+
+                          <div className="pt-2">
+                            <button
+                              type="submit"
+                              disabled={isSubmittingOrder}
+                              className={`w-full py-3 px-4 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
+                                isSubmittingOrder
+                                  ? 'bg-emerald-800/70 cursor-wait'
+                                  : 'bg-emerald-800 hover:bg-emerald-900'
+                              }`}
+                            >
+                              {isSubmittingOrder ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>Reserving 15-Minute Slot Hold...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-4 h-4" />
+                                  <span>
+                                    Reserve Slot &amp; Pay ₹{pricing.totalInr.toLocaleString('en-IN')}
+                                  </span>
+                                  <ChevronRight className="w-4 h-4 ml-1" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <p className="text-[10px] text-[#132A24]/50 text-center flex items-center justify-center gap-1.5 pt-1">
+                            <Shield className="w-3 h-3 text-[#4E7A66]" />
+                            <span>15-minute temporary slot hold created automatically upon checkout initiation.</span>
+                          </p>
+                        </form>
+                      )}
                     </div>
                   ) : (
                     <div className="p-3 bg-[#FAFAF8] border border-[#132A24]/5 rounded-xl text-center text-xs text-[#132A24]/50">

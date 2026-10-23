@@ -6,6 +6,46 @@ import { EmailService } from '../email/emailService';
 import { EmailEvents } from '../email/emailEvents';
 import { TherapistPayoutService } from '../therapist/therapistPayoutService';
 import { AdminAuditService } from '../admin/adminAuditService';
+import {
+  RelationshipBookingLinkService,
+  verifyClientConsent,
+} from './relationshipBookingLinkService';
+
+export interface CreateGuestBookingOrderInput {
+  token: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  slotStart: string;
+  slotEnd: string;
+  sessionType?: string;
+  modality?: string;
+  clientNotes?: string | null;
+  idempotencyKey?: string | null;
+}
+
+export interface GuestBookingOrderResult {
+  success: boolean;
+  bookingId: string;
+  bookingReference: string;
+  razorpayOrderId: string;
+  amountPaise: number;
+  currency: string;
+  keyId: string;
+  expiresAt: string;
+  isIdempotentReplay?: boolean;
+  slot: {
+    start: string;
+    end: string;
+    durationMinutes: number;
+  };
+  pricing: {
+    baseFee: number;
+    gstAmount: number;
+    totalAmount: number;
+  };
+}
+
 
 export interface AuthoritativePricing {
   subtotalInr: number;
@@ -21,6 +61,7 @@ export class SessionBookingService {
   private static activeCancellationLocks: Set<string> = new Set();
   private static activeNoShowLocks: Set<string> = new Set();
   private static activeRefundLocks: Set<string> = new Set();
+  private static activeSlotHoldLocks: Set<string> = new Set();
   /**
    * Calculates platform authoritative pricing for a therapist's session.
    * Client-side pricing is strictly prohibited and discarded.
@@ -572,6 +613,371 @@ export class SessionBookingService {
       bypassPayment: isPaymentBypassed,
     };
   }
+
+  /**
+   * Creates a temporary slot hold (15 minutes) and Razorpay Order for guest checkout.
+   * Enforces server-side token resolution, relationship and consent validation,
+   * therapist practice verification, slot availability revalidation, and concurrency locking.
+   */
+  static async createGuestBookingOrder(input: CreateGuestBookingOrderInput): Promise<GuestBookingOrderResult> {
+    // 1. Validate and sanitize inputs
+    const token = typeof input.token === 'string' ? input.token.trim() : '';
+    if (!token) {
+      const err: any = new Error('Booking link unavailable or invalid.');
+      err.code = 'BOOKING_LINK_UNAVAILABLE';
+      err.status = 404;
+      throw err;
+    }
+
+    const fullName = typeof input.fullName === 'string' ? input.fullName.trim() : '';
+    if (!fullName || fullName.length < 2 || fullName.length > 100) {
+      const err: any = new Error('Please provide a valid full name between 2 and 100 characters.');
+      err.code = 'INVALID_INPUT';
+      err.status = 400;
+      throw err;
+    }
+
+    const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || email.length > 150 || !emailRegex.test(email)) {
+      const err: any = new Error('Please provide a valid email address.');
+      err.code = 'INVALID_INPUT';
+      err.status = 400;
+      throw err;
+    }
+
+    const phoneNumber = typeof input.phoneNumber === 'string' ? input.phoneNumber.trim() : '';
+    const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
+    if (!phoneNumber || !phoneRegex.test(phoneNumber)) {
+      const err: any = new Error('Please provide a valid phone number (at least 7 digits).');
+      err.code = 'INVALID_INPUT';
+      err.status = 400;
+      throw err;
+    }
+
+    const slotStartMs = Date.parse(input.slotStart);
+    const slotEndMs = Date.parse(input.slotEnd);
+    if (isNaN(slotStartMs) || isNaN(slotEndMs) || slotEndMs <= slotStartMs) {
+      const err: any = new Error('Invalid slot start or end time specified.');
+      err.code = 'INVALID_INPUT';
+      err.status = 400;
+      throw err;
+    }
+
+    if (slotStartMs < Date.now()) {
+      const err: any = new Error('Cannot reserve a time slot in the past.');
+      err.code = 'SLOT_IN_PAST';
+      err.status = 400;
+      throw err;
+    }
+
+    const durationMinutes = Math.round((slotEndMs - slotStartMs) / 60000);
+    if (durationMinutes < 15 || durationMinutes > 180) {
+      const err: any = new Error('Invalid session slot duration.');
+      err.code = 'INVALID_INPUT';
+      err.status = 400;
+      throw err;
+    }
+
+    const clientNotes = typeof input.clientNotes === 'string' && input.clientNotes.trim().length > 0
+      ? input.clientNotes.trim().substring(0, 1000)
+      : null;
+
+    const idempotencyKey = typeof input.idempotencyKey === 'string' && input.idempotencyKey.trim().length > 0
+      ? input.idempotencyKey.trim().substring(0, 128)
+      : null;
+
+    // 2. Authoritative Token Resolution & Relationship/Therapist/Consent Validation
+    const resolved = await RelationshipBookingLinkService.resolveBookingLinkByToken(token);
+    if (!resolved.valid || !resolved.relationshipId || !resolved.therapistAccountId || !resolved.userId) {
+      if (resolved.errorCode === 'CONSENT_REQUIRED') {
+        const err: any = new Error(resolved.errorMessage || 'Required therapy consent has not been verified.');
+        err.code = 'CONSENT_REQUIRED';
+        err.status = 422;
+        throw err;
+      }
+      const err: any = new Error('This booking link is invalid, expired, or unavailable.');
+      err.code = 'BOOKING_LINK_UNAVAILABLE';
+      err.status = 404;
+      throw err;
+    }
+
+    const therapistAccountId = resolved.therapistAccountId;
+    const relationshipId = resolved.relationshipId;
+    const userId = resolved.userId;
+
+    // 3. Concurrency Control: In-Memory Lock for therapist and slot start
+    const lockKey = `${therapistAccountId}:${input.slotStart}`;
+    if (this.activeSlotHoldLocks.has(lockKey)) {
+      const err: any = new Error('This time slot is currently being held or checked out by another client.');
+      err.code = 'SLOT_ON_HOLD';
+      err.status = 409;
+      throw err;
+    }
+    this.activeSlotHoldLocks.add(lockKey);
+
+    try {
+      const nowIso = new Date().toISOString();
+
+      // 4. Idempotency Check: Replay existing unexpired hold if idempotency key matches
+      if (idempotencyKey) {
+        const { data: existingHolds } = await supabase
+          .from('therapy_session_bookings')
+          .select('*')
+          .eq('therapist_account_id', therapistAccountId)
+          .eq('booking_status', 'pending_payment')
+          .gt('expires_at', nowIso)
+          .order('created_at', { ascending: false });
+
+        const matchingHold = existingHolds?.find(
+          (b: any) => b.metadata && b.metadata.idempotency_key === idempotencyKey
+        );
+
+        if (matchingHold) {
+          const pricing = await this.getAuthoritativePricing(therapistAccountId);
+          const holdDuration = Math.round(
+            (new Date(matchingHold.slot_end).getTime() - new Date(matchingHold.slot_start).getTime()) / 60000
+          );
+          return {
+            success: true,
+            bookingId: matchingHold.id,
+            bookingReference: matchingHold.booking_reference,
+            razorpayOrderId: matchingHold.razorpay_order_id,
+            amountPaise: matchingHold.amount_paise,
+            currency: matchingHold.currency || 'INR',
+            keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_key',
+            expiresAt: matchingHold.expires_at,
+            isIdempotentReplay: true,
+            slot: {
+              start: matchingHold.slot_start,
+              end: matchingHold.slot_end,
+              durationMinutes: holdDuration,
+            },
+            pricing: {
+              baseFee: pricing.subtotalInr,
+              gstAmount: pricing.gstPaise / 100,
+              totalAmount: pricing.totalInr,
+            },
+          };
+        }
+      }
+
+      // 5. Authoritative Conflict Checks
+      // Check 5a: Confirmed/scheduled clinical appointments
+      const { data: apptConflict } = await supabase
+        .from('therapist_clinical_appointments')
+        .select('id')
+        .eq('therapist_account_id', therapistAccountId)
+        .in('status', ['scheduled', 'confirmed', 'in_progress', 'rescheduled'])
+        .lt('scheduled_start', input.slotEnd)
+        .gt('scheduled_end', input.slotStart)
+        .maybeSingle();
+
+      if (apptConflict) {
+        const err: any = new Error('Selected time slot conflicts with an existing appointment.');
+        err.code = 'SLOT_UNAVAILABLE';
+        err.status = 409;
+        throw err;
+      }
+
+      // Check 5b: Google Calendar Busy Periods
+      const googleBusy = await GoogleCalendarService.getBusySlots(
+        therapistAccountId,
+        input.slotStart,
+        input.slotEnd
+      );
+      const hasGoogleConflict = googleBusy.some((gb) => {
+        const bStart = new Date(gb.start).getTime();
+        const bEnd = new Date(gb.end).getTime();
+        return slotStartMs < bEnd && slotEndMs > bStart;
+      });
+
+      if (hasGoogleConflict) {
+        const err: any = new Error('Selected time slot conflicts with therapist Google Calendar.');
+        err.code = 'SLOT_UNAVAILABLE';
+        err.status = 409;
+        throw err;
+      }
+
+      // Check 5c: Therapist Manual Blocked Windows
+      const { data: availBlocks } = await supabase
+        .from('therapist_availability_blocks')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('is_blocked', true);
+
+      const slotStartDate = new Date(input.slotStart);
+      const slotEndDate = new Date(input.slotEnd);
+      const dateStr = slotStartDate.toLocaleDateString('en-CA');
+      const dayOfWeek = slotStartDate.getDay();
+      const slotStartFmt = `${String(slotStartDate.getHours()).padStart(2, '0')}:${String(slotStartDate.getMinutes()).padStart(2, '0')}`;
+      const slotEndFmt = `${String(slotEndDate.getHours()).padStart(2, '0')}:${String(slotEndDate.getMinutes()).padStart(2, '0')}`;
+
+      const isTherapistBlocked = availBlocks?.some((b: any) => {
+        if (b.specific_date) {
+          if (b.specific_date !== dateStr) return false;
+          const bStart = (b.start_time || '00:00:00').substring(0, 5);
+          const bEnd = (b.end_time || '23:59:59').substring(0, 5);
+          return slotStartFmt < bEnd && slotEndFmt > bStart;
+        }
+        if (b.is_recurring && b.day_of_week === dayOfWeek) {
+          const bStart = (b.start_time || '00:00:00').substring(0, 5);
+          const bEnd = (b.end_time || '23:59:59').substring(0, 5);
+          return slotStartFmt < bEnd && slotEndFmt > bStart;
+        }
+        return false;
+      });
+
+      if (isTherapistBlocked) {
+        const err: any = new Error('Selected time slot is blocked by the therapist.');
+        err.code = 'SLOT_UNAVAILABLE';
+        err.status = 409;
+        throw err;
+      }
+
+      // Check 5d: Active Unexpired Slot Holds
+      const { data: heldBooking } = await supabase
+        .from('therapy_session_bookings')
+        .select('id')
+        .eq('therapist_account_id', therapistAccountId)
+        .eq('booking_status', 'pending_payment')
+        .gt('expires_at', nowIso)
+        .lt('slot_start', input.slotEnd)
+        .gt('slot_end', input.slotStart)
+        .maybeSingle();
+
+      if (heldBooking) {
+        const err: any = new Error('Selected time slot is currently on hold for another checkout.');
+        err.code = 'SLOT_ON_HOLD';
+        err.status = 409;
+        throw err;
+      }
+
+      // 6. Authoritative Pricing Calculation
+      const pricing = await this.getAuthoritativePricing(therapistAccountId);
+
+      // 7. Generate Booking Reference and Expiry (15 minutes)
+      const bookingReference = `IW-GUEST-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const bookingType = resolved.firstSessionCompleted ? 'subsequent' : 'first_session';
+
+      // 8. Insert Pending Slot Hold Record
+      const { data: booking, error: insertErr } = await supabase
+        .from('therapy_session_bookings')
+        .insert({
+          booking_reference: bookingReference,
+          user_id: userId,
+          therapist_account_id: therapistAccountId,
+          relationship_id: relationshipId,
+          slot_start: input.slotStart,
+          slot_end: input.slotEnd,
+          session_type: input.sessionType || 'video',
+          modality: input.modality || 'telehealth',
+          booking_type: bookingType,
+          booking_status: 'pending_payment',
+          amount_paise: pricing.totalPaise,
+          currency: 'INR',
+          payment_status: 'pending',
+          expires_at: expiresAt,
+          metadata: {
+            guest_name: fullName,
+            guest_email: email,
+            guest_phone: phoneNumber,
+            client_notes: clientNotes,
+            idempotency_key: idempotencyKey,
+            pricing,
+            booking_source: 'relationship_link',
+          },
+        })
+        .select('*')
+        .single();
+
+      if (insertErr || !booking) {
+        console.error('[SessionBookingService] Failed to create guest booking slot hold:', insertErr);
+        const err: any = new Error('Failed to create session slot hold.');
+        err.code = 'BOOKING_CREATION_FAILED';
+        err.status = 500;
+        throw err;
+      }
+
+      // 9. Razorpay Order Creation
+      const isPaymentBypassed =
+        process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+        process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true';
+
+      let razorpayOrderId = isPaymentBypassed
+        ? `order_test_bypass_${Date.now()}`
+        : `order_mock_${Date.now()}`;
+
+      const rzp = !isPaymentBypassed ? BillingService.getRazorpayClient() : null;
+      if (rzp) {
+        try {
+          const order = await rzp.orders.create({
+            amount: pricing.totalPaise,
+            currency: 'INR',
+            receipt: bookingReference,
+            notes: {
+              booking_reference: bookingReference,
+              booking_id: booking.id,
+              therapist_account_id: therapistAccountId,
+              relationship_id: relationshipId,
+            },
+          });
+          razorpayOrderId = order.id;
+        } catch (rzpErr: any) {
+          console.error('[SessionBookingService] Razorpay order creation failed for guest hold:', rzpErr);
+          // Safely release/expire the hold immediately so slot is not blocked
+          await supabase
+            .from('therapy_session_bookings')
+            .update({
+              booking_status: 'expired',
+              cancellation_reason: 'RAZORPAY_ORDER_FAILED',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', booking.id);
+
+          const err: any = new Error('Payment gateway error. Unable to create checkout order.');
+          err.code = 'PAYMENT_GATEWAY_ERROR';
+          err.status = 502;
+          throw err;
+        }
+      }
+
+      // 10. Update booking record with razorpay_order_id
+      await supabase
+        .from('therapy_session_bookings')
+        .update({
+          razorpay_order_id: razorpayOrderId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.id);
+
+      // 11. Return Sanitized Order DTO
+      return {
+        success: true,
+        bookingId: booking.id,
+        bookingReference,
+        razorpayOrderId,
+        amountPaise: pricing.totalPaise,
+        currency: 'INR',
+        keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_key',
+        expiresAt,
+        slot: {
+          start: input.slotStart,
+          end: input.slotEnd,
+          durationMinutes,
+        },
+        pricing: {
+          baseFee: pricing.subtotalInr,
+          gstAmount: pricing.gstPaise / 100,
+          totalAmount: pricing.totalInr,
+        },
+      };
+    } finally {
+      this.activeSlotHoldLocks.delete(lockKey);
+    }
+  }
+
 
   /**
    * Confirms payment and promotes booking to a confirmed clinical appointment.
