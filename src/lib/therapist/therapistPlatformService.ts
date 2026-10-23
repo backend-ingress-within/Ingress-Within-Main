@@ -3726,8 +3726,8 @@ export class TherapistPlatformService {
 
     if (rawFee !== undefined && rawFee !== null && String(rawFee).trim() !== '') {
       const parsedFee = Number(rawFee);
-      if (isNaN(parsedFee) || parsedFee < 100 || parsedFee > 100000) {
-        const err: any = new Error('Per-session fee must be a valid amount between ₹100 and ₹100,000.');
+      if (isNaN(parsedFee) || parsedFee < 1 || parsedFee > 100000) {
+        const err: any = new Error('Per-session fee must be a valid amount between ₹1 and ₹100,000.');
         err.code = 'INVALID_PER_SESSION_FEE';
         err.status = 400;
         throw err;

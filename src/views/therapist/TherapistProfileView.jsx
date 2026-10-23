@@ -1015,9 +1015,9 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
               <span className="absolute left-3.5 top-2.5 text-[#132A24]/50 font-mono">₹</span>
               <input
                 type="number"
-                min="100"
+                min="1"
                 max="100000"
-                step="50"
+                step="1"
                 value={formData.perSessionFee}
                 onChange={(e) => setFormData({ ...formData, perSessionFee: e.target.value })}
                 className="w-full border border-[#132A24]/15 rounded-xl pl-8 pr-3.5 py-2.5 outline-hidden focus:border-[#4E7A66] bg-white font-mono"
