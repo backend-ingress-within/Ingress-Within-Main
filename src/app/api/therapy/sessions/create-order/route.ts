@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
     });
 
     const isBypass =
-      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
-      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true';
+      process.env.NODE_ENV !== 'production' &&
+      (process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+        process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true');
 
     if (isBypass) {
       const confirmation = await SessionBookingService.confirmSessionPayment({

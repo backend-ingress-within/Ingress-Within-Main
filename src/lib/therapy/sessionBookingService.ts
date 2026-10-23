@@ -1137,12 +1137,13 @@ export class SessionBookingService {
 
     // 4. Verify Razorpay Payment Signature
     const isPaymentBypassed =
-      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
-      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
-      razorpayPaymentId.startsWith('pay_test_bypass_');
+      process.env.NODE_ENV !== 'production' &&
+      (process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+        process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true') &&
+      Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_'));
 
     if (!isPaymentBypassed) {
-      if (!razorpaySignature) {
+      if (!razorpaySignature || !razorpayOrderId) {
         const err: any = new Error('Payment signature is required for verification.');
         err.code = 'INVALID_SIGNATURE';
         err.status = 400;
@@ -1485,13 +1486,20 @@ export class SessionBookingService {
       };
     }
 
-    // 2. Verify signature if provided
+    // 2. Verify Razorpay Payment Signature
     const isPaymentBypassed =
-      process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
-      process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
-      razorpayPaymentId?.startsWith('pay_test_bypass_');
+      process.env.NODE_ENV !== 'production' &&
+      (process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
+        process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true') &&
+      Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_'));
 
-    if (!isPaymentBypassed && razorpaySignature && razorpayOrderId && razorpayPaymentId) {
+    if (!isPaymentBypassed) {
+      if (!razorpaySignature || !razorpayOrderId) {
+        const err: any = new Error('Payment signature is required for verification.');
+        err.code = 'INVALID_SIGNATURE';
+        err.status = 400;
+        throw err;
+      }
       const isValid = BillingService.verifyPaymentSignature(
         razorpayOrderId,
         razorpayPaymentId,

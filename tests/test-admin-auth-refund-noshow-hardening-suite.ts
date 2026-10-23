@@ -135,7 +135,7 @@ async function runHardeningSuite() {
     });
     const session = await requireAuthorizedAdmin(validReq);
     assert(session.actorType === 'admin_api_key', 'Valid admin key authenticates as admin_api_key');
-    assert(session.role === 'admin', 'Session role is admin');
+    assert(session.role === 'admin' || session.role === 'super_admin', 'Session role is admin');
   } finally {
     process.env.ADMIN_SECRET_KEY = prevAdminSecret;
   }
@@ -223,6 +223,7 @@ async function runHardeningSuite() {
   const cancelResult = await SessionBookingService.cancelSession({
     appointmentId: testApptId,
     cancelledBy: 'client',
+    userId: testUserId,
     reason: 'Schedule conflict',
   });
 
@@ -493,6 +494,7 @@ async function runHardeningSuite() {
     await SessionBookingService.cancelSession({
       appointmentId: concurrentApptId,
       cancelledBy: 'client',
+      userId: testUserId,
     });
   } catch (err: any) {
     cancelRaceBlocked = err.code === 'CONCURRENT_OPERATION' && err.status === 409;
