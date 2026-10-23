@@ -18,6 +18,8 @@ import {
   CreditCard,
   Lock,
   Hourglass,
+  ExternalLink,
+  Mail,
 } from 'lucide-react';
 
 export default function GuestBookingView({ token }) {
@@ -43,6 +45,13 @@ export default function GuestBookingView({ token }) {
   const [idempotencyKey, setIdempotencyKey] = useState(
     () => `iw_hold_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
+
+  // Payment Verification & Confirmation State (Step 5)
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [verificationError, setVerificationError] = useState(null);
+  const [confirmedAppointment, setConfirmedAppointment] = useState(null);
+  const [reconciliationNotice, setReconciliationNotice] = useState(null);
+  const [lastPaymentPayload, setLastPaymentPayload] = useState(null);
 
   const fetchBookingData = async () => {
     if (!token) {
@@ -100,7 +109,7 @@ export default function GuestBookingView({ token }) {
 
   // Hold expiration countdown timer
   useEffect(() => {
-    if (!holdExpiresAt) return;
+    if (!holdExpiresAt || confirmedAppointment) return;
     const interval = setInterval(() => {
       const msLeft = new Date(holdExpiresAt).getTime() - Date.now();
       if (msLeft <= 0) {
@@ -116,7 +125,7 @@ export default function GuestBookingView({ token }) {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [holdExpiresAt]);
+  }, [holdExpiresAt, confirmedAppointment]);
 
   // Reset order state when user picks a different slot
   const handleSelectSlot = (slot) => {
@@ -125,6 +134,8 @@ export default function GuestBookingView({ token }) {
       setCreatedOrder(null);
       setHoldExpiresAt(null);
       setOrderError(null);
+      setVerificationError(null);
+      setReconciliationNotice(null);
       // Fresh idempotency key for distinct slot attempts
       setIdempotencyKey(`iw_hold_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
     }
@@ -164,6 +175,52 @@ export default function GuestBookingView({ token }) {
     }
   };
 
+  // Step 5: Verify Payment with Server
+  const verifyPayment = async (paymentResponse, bookingId) => {
+    setIsVerifyingPayment(true);
+    setVerificationError(null);
+    setLastPaymentPayload(paymentResponse);
+
+    try {
+      const res = await fetch(`/api/therapy/book/${encodeURIComponent(token)}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          razorpayPaymentId: paymentResponse.razorpay_payment_id,
+          razorpayOrderId: paymentResponse.razorpay_order_id,
+          razorpaySignature: paymentResponse.razorpay_signature,
+          bookingId: bookingId || createdOrder?.bookingId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setVerificationError(data.error?.message || 'Payment verification failed. Please try again or contact support.');
+        setIsVerifyingPayment(false);
+        return;
+      }
+
+      if (data.requiresReconciliation) {
+        setReconciliationNotice(data);
+        setIsVerifyingPayment(false);
+        return;
+      }
+
+      if (data.success && data.appointment) {
+        setConfirmedAppointment(data.appointment);
+        setCreatedOrder(null);
+        setHoldExpiresAt(null);
+      }
+    } catch (err) {
+      setVerificationError(err.message || 'Network error while verifying payment. Please retry.');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
   // Launch Razorpay Modal
   const launchRazorpay = async (orderPayload) => {
     try {
@@ -190,10 +247,8 @@ export default function GuestBookingView({ token }) {
           contact: guestPhone.trim(),
         },
         theme: { color: '#064e3b' },
-        handler: function () {
-          // In Step 4, we do not finalize payment or confirm sessions;
-          // Step 5 will handle authorization callback and signature verification.
-          setOrderError(null);
+        handler: async function (response) {
+          await verifyPayment(response, orderPayload.bookingId);
         },
         modal: {
           ondismiss: function () {
@@ -220,6 +275,7 @@ export default function GuestBookingView({ token }) {
     if (!selectedSlot || isSubmittingOrder) return;
 
     setOrderError(null);
+    setVerificationError(null);
     const errors = {};
 
     if (!guestName.trim() || guestName.trim().length < 2) {
@@ -270,6 +326,19 @@ export default function GuestBookingView({ token }) {
       const orderData = data.order;
       setCreatedOrder(orderData);
       setHoldExpiresAt(orderData.expiresAt);
+
+      // Check if test bypass order was generated
+      if (orderData.razorpayOrderId?.startsWith('order_test_bypass_')) {
+        await verifyPayment(
+          {
+            razorpay_payment_id: `pay_test_bypass_${Date.now()}`,
+            razorpay_order_id: orderData.razorpayOrderId,
+            razorpay_signature: 'test_bypass_signature',
+          },
+          orderData.bookingId
+        );
+        return;
+      }
 
       // Open Razorpay Checkout modal
       await launchRazorpay(orderData);
@@ -338,8 +407,195 @@ export default function GuestBookingView({ token }) {
   const { practitioner, session, pricing, availability } = bookingData;
   const activeDaySlots = (selectedDateKey && groupedSlots[selectedDateKey]) || [];
 
+  // 3. Post-Payment State: Booking Confirmed (Step 5)
+  if (confirmedAppointment) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF8] text-[#132A24] font-sans antialiased">
+        <header className="border-b border-[#132A24]/10 bg-white/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <span className="font-serif text-lg tracking-tight font-medium text-[#132A24]">
+              Ingress Within
+            </span>
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+              Booking Confirmed
+            </span>
+          </div>
+        </header>
+
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+          <div className="bg-white border border-[#132A24]/10 rounded-2xl p-8 shadow-xs space-y-6 text-center animate-fadeIn">
+            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-serif font-medium text-[#132A24]">
+                Your Consultation is Confirmed
+              </h1>
+              <p className="text-xs text-[#132A24]/70 mt-1.5 max-w-md mx-auto leading-relaxed">
+                Thank you, {guestName || 'Valued Client'}. Your session with {practitioner.name} has been securely scheduled and your payment verified.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-[#FAFAF8] border border-[#132A24]/10 text-left space-y-3">
+              <div className="flex justify-between items-center border-b border-[#132A24]/5 pb-3">
+                <span className="text-xs font-semibold text-[#132A24]">Booking Reference</span>
+                <span className="font-mono text-xs font-bold text-emerald-800">
+                  {confirmedAppointment.bookingReference}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                <div>
+                  <span className="text-[11px] text-[#132A24]/50 block">Practitioner</span>
+                  <span className="font-medium text-[#132A24]">{practitioner.name}</span>
+                  <span className="text-[11px] text-[#4E7A66] block">{practitioner.title}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#132A24]/50 block">Date &amp; Time</span>
+                  <span className="font-medium text-[#132A24]">
+                    {new Date(confirmedAppointment.scheduledStart).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                  <span className="text-[11px] text-[#132A24]/70 block">
+                    {formatTime(confirmedAppointment.scheduledStart)} – {formatTime(confirmedAppointment.scheduledEnd)} ({availability?.timezone || 'IST'})
+                  </span>
+                </div>
+              </div>
+
+              {confirmedAppointment.googleMeetUrl && (
+                <div className="pt-3 border-t border-[#132A24]/5">
+                  <a
+                    href={confirmedAppointment.googleMeetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span>Join Video Session (Google Meet)</span>
+                    <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-70" />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/60 text-xs text-emerald-900 flex items-center gap-2.5 text-left">
+              <Mail className="w-4 h-4 text-emerald-700 shrink-0" />
+              <p className="text-[11px] leading-relaxed">
+                A calendar invitation with meeting details and an official payment receipt have been sent to <strong>{guestEmail || 'your email'}</strong>.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmedAppointment(null);
+                  setSelectedSlot(null);
+                  fetchBookingData();
+                }}
+                className="text-xs text-[#4E7A66] hover:text-[#132A24] underline transition-colors cursor-pointer"
+              >
+                Schedule another consultation
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 4. Post-Payment State: Reconciliation Required (Step 5 Late-Payment Edge Case)
+  if (reconciliationNotice) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF8] text-[#132A24] font-sans antialiased">
+        <header className="border-b border-[#132A24]/10 bg-white/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <span className="font-serif text-lg tracking-tight font-medium text-[#132A24]">
+              Ingress Within
+            </span>
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-medium">
+              Review Required
+            </span>
+          </div>
+        </header>
+
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+          <div className="bg-white border border-amber-200 rounded-2xl p-8 shadow-xs space-y-6 text-center animate-fadeIn">
+            <div className="w-16 h-16 mx-auto rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-serif font-medium text-[#132A24]">
+                Payment Received — Booking Under Review
+              </h1>
+              <p className="text-xs text-[#132A24]/80 max-w-md mx-auto leading-relaxed">
+                {reconciliationNotice.message || 'Your payment was successfully received, but your selected time slot is no longer available. Our care team has been notified to reschedule your session or issue an immediate full refund.'}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#FAFAF8] border border-[#132A24]/10 text-xs text-left space-y-2">
+              <div className="flex justify-between">
+                <span className="text-[#132A24]/60">Booking Reference:</span>
+                <span className="font-mono font-semibold">{reconciliationNotice.booking?.bookingReference || 'Pending'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#132A24]/60">Payment Status:</span>
+                <span className="text-emerald-700 font-medium">Paid (Securely Recorded)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#132A24]/60">Support Contact:</span>
+                <a href="mailto:support@ingresswithin.com" className="text-[#4E7A66] underline">
+                  support@ingresswithin.com
+                </a>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReconciliationNotice(null);
+                  setSelectedSlot(null);
+                  fetchBookingData();
+                }}
+                className="w-full py-2.5 px-4 bg-[#132A24] hover:bg-[#132A24]/90 text-white text-xs font-medium rounded-xl transition-colors cursor-pointer"
+              >
+                Choose Another Available Slot
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#132A24] font-sans antialiased">
+      {/* Verification Overlay */}
+      {isVerifyingPayment && (
+        <div className="fixed inset-0 z-50 bg-[#132A24]/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#132A24]/10 rounded-2xl p-6 max-w-sm w-full shadow-lg text-center space-y-4 animate-scaleUp">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-800">
+              <RefreshCw className="w-6 h-6 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#132A24]">
+                Verifying Payment &amp; Scheduling Session
+              </h3>
+              <p className="text-xs text-[#132A24]/60 mt-1">
+                Please keep this window open while we authenticate your transaction and configure your Google Meet invite...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
       <header className="border-b border-[#132A24]/10 bg-white/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -353,7 +609,7 @@ export default function GuestBookingView({ token }) {
           </div>
           <div className="flex items-center gap-2 text-xs text-[#132A24]/60">
             <Shield className="w-4 h-4 text-[#4E7A66]" />
-            <span>Private & Confidential</span>
+            <span>Private &amp; Confidential</span>
           </div>
         </div>
       </header>
@@ -575,7 +831,7 @@ export default function GuestBookingView({ token }) {
                     </div>
                   </div>
 
-                  {/* Step 4: Guest Contact Details & Temporary Slot Hold Checkout */}
+                  {/* Step 4 & 5: Guest Contact Details & Temporary Slot Hold Checkout */}
                   {selectedSlot ? (
                     <div className="pt-4 border-t border-[#132A24]/10 space-y-4 animate-fadeIn">
                       {/* Selected Slot Summary Card */}
@@ -626,6 +882,28 @@ export default function GuestBookingView({ token }) {
                               <span>Re-open Razorpay Checkout</span>
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Verification Error Display with Safe Retry Button */}
+                      {verificationError && (
+                        <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 space-y-2 text-xs text-red-900">
+                          <div className="flex items-start gap-2.5">
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <span className="font-semibold block">Verification Notice</span>
+                              <p>{verificationError}</p>
+                            </div>
+                          </div>
+                          {lastPaymentPayload && (
+                            <button
+                              type="button"
+                              onClick={() => verifyPayment(lastPaymentPayload, createdOrder?.bookingId)}
+                              className="py-1.5 px-3 rounded-lg bg-red-800 text-white text-[11px] font-medium hover:bg-red-900 transition-colors cursor-pointer"
+                            >
+                              Retry Verification
+                            </button>
+                          )}
                         </div>
                       )}
 
