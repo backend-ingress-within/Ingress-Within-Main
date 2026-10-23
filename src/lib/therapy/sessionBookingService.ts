@@ -1137,10 +1137,10 @@ export class SessionBookingService {
 
     // 4. Verify Razorpay Payment Signature
     const isPaymentBypassed =
-      process.env.NODE_ENV !== 'production' &&
       (process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
         process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true') &&
-      Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_'));
+      (Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_')) ||
+        Boolean(razorpayOrderId?.startsWith('order_test_bypass_')));
 
     if (!isPaymentBypassed) {
       if (!razorpaySignature || !razorpayOrderId) {
@@ -1488,10 +1488,10 @@ export class SessionBookingService {
 
     // 2. Verify Razorpay Payment Signature
     const isPaymentBypassed =
-      process.env.NODE_ENV !== 'production' &&
       (process.env.DISABLE_BOOKING_PAYMENTS === 'true' ||
         process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true') &&
-      Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_'));
+      (Boolean(razorpayPaymentId?.startsWith('pay_test_bypass_')) ||
+        Boolean(razorpayOrderId?.startsWith('order_test_bypass_')));
 
     if (!isPaymentBypassed) {
       if (!razorpaySignature || !razorpayOrderId) {
