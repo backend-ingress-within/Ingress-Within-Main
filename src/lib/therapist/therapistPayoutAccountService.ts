@@ -568,9 +568,9 @@ export class TherapistPayoutAccountService {
       throw err;
     }
 
-    // Minimum withdrawal threshold (₹100)
-    if (amount < 100) {
-      const err: any = new Error('Minimum withdrawal amount is ₹100.00.');
+    // Minimum withdrawal threshold (₹1.00)
+    if (amount < 1) {
+      const err: any = new Error('Minimum withdrawal amount is ₹1.00.');
       err.code = 'MINIMUM_WITHDRAWAL_THRESHOLD';
       err.status = 400;
       throw err;

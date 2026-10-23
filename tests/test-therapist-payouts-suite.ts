@@ -219,19 +219,19 @@ async function runTestSuite() {
     assert(threw, 'Should reject excessive withdrawal');
   });
 
-  await test('Rejects withdrawal below minimum threshold (< ₹100)', async () => {
+  await test('Rejects withdrawal below minimum threshold (< ₹1)', async () => {
     let threw = false;
     try {
       await TherapistPayoutAccountService.requestWithdrawal({
         therapistAccountId: testTherapistId,
         payoutAccountId: bankAccountRecord.id,
-        amount: 50,
+        amount: 0.5,
       });
     } catch (err: any) {
       threw = true;
       assert.strictEqual(err.code, 'MINIMUM_WITHDRAWAL_THRESHOLD');
     }
-    assert(threw, 'Should reject withdrawal < ₹100');
+    assert(threw, 'Should reject withdrawal < ₹1');
   });
 
   let createdWithdrawal: any;

@@ -871,7 +871,7 @@ export default function TherapistEarningsView() {
                     <input
                       type="number"
                       step="any"
-                      min="100"
+                      min="1"
                       max={balance.availableToWithdraw}
                       required
                       value={withdrawAmount}
@@ -881,7 +881,7 @@ export default function TherapistEarningsView() {
                     />
                   </div>
                   <p className="text-[10px] text-[#132A24]/40 mt-1">
-                    Minimum withdrawal amount: ₹100.00
+                    Minimum withdrawal amount: ₹1.00
                   </p>
                 </div>
 
@@ -912,7 +912,7 @@ export default function TherapistEarningsView() {
                   </button>
                   <button
                     type="submit"
-                    disabled={withdrawSubmitting || balance.availableToWithdraw < 100}
+                    disabled={withdrawSubmitting || balance.availableToWithdraw < 1}
                     className="px-5 py-2 bg-[#132A24] text-white rounded-xl font-medium hover:bg-[#132A24]/90 cursor-pointer shadow-xs disabled:opacity-40 inline-flex items-center gap-1.5"
                   >
                     {withdrawSubmitting ? (
