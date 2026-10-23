@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthorizedAdmin } from '../../../../../lib/auth/adminAuthHelper';
 import { supabase } from '../../../../../lib/db';
+import { AdminAuthService, AdminRole } from '../../../../../lib/admin/adminAuthService';
+import { COOKIE_ADMIN_ACCESS_NAME, getCookieOptions } from '../../../../../utils/cookies';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +15,7 @@ export async function GET(request: NextRequest) {
       .eq('id', admin.adminId)
       .maybeSingle();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       admin: {
         id: admin.adminId,
@@ -25,6 +27,23 @@ export async function GET(request: NextRequest) {
         actorType: admin.actorType,
       },
     });
+
+    // Rolling session: If authenticated via admin cookie, refresh the 7-day token & cookie so active sessions stay valid
+    const adminCookieToken = request.cookies?.get(COOKIE_ADMIN_ACCESS_NAME)?.value;
+    if (adminCookieToken && admin.actorType === 'admin_user') {
+      const refreshedToken = AdminAuthService.generateAccessToken({
+        adminId: admin.adminId,
+        email: dbAdmin?.email || admin.email || 'admin@ingresswithin.com',
+        role: (dbAdmin?.role || admin.role) as AdminRole,
+      });
+      response.cookies.set(
+        COOKIE_ADMIN_ACCESS_NAME,
+        refreshedToken,
+        getCookieOptions(AdminAuthService.getAccessTokenExpirySeconds())
+      );
+    }
+
+    return response;
   } catch (err: any) {
     return NextResponse.json(
       { error: { code: err.code || 'ADMIN_UNAUTHORIZED', message: err.message } },

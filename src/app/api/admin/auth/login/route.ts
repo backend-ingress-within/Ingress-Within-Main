@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       expiresIn: result.expiresIn,
     });
 
-    // Set secure HttpOnly cookies
+    // Set secure HttpOnly cookies (7 days for access token, 30 days for refresh token)
     response.cookies.set(COOKIE_ADMIN_ACCESS_NAME, result.accessToken, getCookieOptions(result.expiresIn));
-    response.cookies.set(COOKIE_ADMIN_REFRESH_NAME, result.refreshToken, getCookieOptions(7 * 24 * 60 * 60));
+    response.cookies.set(COOKIE_ADMIN_REFRESH_NAME, result.refreshToken, getCookieOptions(30 * 24 * 60 * 60));
 
     return response;
   } catch (err: any) {

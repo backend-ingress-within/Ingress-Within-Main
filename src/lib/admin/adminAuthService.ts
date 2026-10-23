@@ -52,8 +52,35 @@ export interface AdminAuthResult {
 export class AdminAuthService {
   private static readonly MAX_FAILED_ATTEMPTS = 5;
   private static readonly LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-  private static readonly ACCESS_TOKEN_EXPIRY_SECONDS = 8 * 60 * 60; // 8 hours for high-security admin session
-  private static readonly REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
+  private static readonly ACCESS_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days (1 week)
+  private static readonly REFRESH_TOKEN_EXPIRY_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
+  static getAccessTokenExpirySeconds(): number {
+    return this.ACCESS_TOKEN_EXPIRY_SECONDS;
+  }
+
+  /**
+   * Generates a signed access token for an admin account (lasts 7 days / 1 week).
+   */
+  static generateAccessToken(params: {
+    adminId: string;
+    email: string;
+    role: AdminRole;
+    deviceId?: string;
+  }): string {
+    const jwtSecret = process.env.JWT_SECRET || 'jwt_default_secret_dev';
+    return signJwt(
+      {
+        aid: params.adminId,
+        email: params.email,
+        role: params.role,
+        scope: 'admin',
+        did: params.deviceId || 'adm_default_device',
+      },
+      jwtSecret,
+      this.ACCESS_TOKEN_EXPIRY_SECONDS
+    );
+  }
 
   // In-memory fallback stores for tests / environments without live DB
   private static inMemoryAdmins: Map<string, AdminAccountRecord> = new Map();
@@ -251,19 +278,13 @@ export class AdminAuthService {
     this.inMemoryAdmins.set(adminRecord.id, adminRecord);
     this.inMemoryAdmins.set(normalizedEmail, adminRecord);
 
-    // 6. Generate Tokens
-    const jwtSecret = process.env.JWT_SECRET || 'jwt_default_secret_dev';
-    const accessToken = signJwt(
-      {
-        aid: adminRecord.id,
-        email: adminRecord.email,
-        role: adminRecord.role,
-        scope: 'admin',
-        did: deviceId,
-      },
-      jwtSecret,
-      this.ACCESS_TOKEN_EXPIRY_SECONDS
-    );
+    // 6. Generate Tokens (7-day access token for 1-week continuous admin sessions)
+    const accessToken = this.generateAccessToken({
+      adminId: adminRecord.id,
+      email: adminRecord.email,
+      role: adminRecord.role,
+      deviceId,
+    });
 
     const refreshToken = generateToken(32);
     const tokenHash = this.hashToken(refreshToken);

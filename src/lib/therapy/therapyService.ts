@@ -735,6 +735,7 @@ export async function getClientConnectedTherapist(userId: string) {
         id,
         status,
         can_practice,
+        per_session_fee,
         therapist_profiles (
           full_name,
           title,

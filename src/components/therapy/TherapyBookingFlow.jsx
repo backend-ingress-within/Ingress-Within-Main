@@ -47,6 +47,7 @@ export default function TherapyBookingFlow({
   // Checkout & Order
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [bookingOrder, setBookingOrder] = useState(null);
+  const [authoritativePricing, setAuthoritativePricing] = useState(null);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [confirmedData, setConfirmedData] = useState(null);
 
@@ -65,6 +66,7 @@ export default function TherapyBookingFlow({
       setError(null);
       setBookingOrder(null);
       setConfirmedData(null);
+      setAuthoritativePricing(null);
     }
   }, [isOpen, initialTherapist]);
 
@@ -83,23 +85,29 @@ export default function TherapyBookingFlow({
     }
   };
 
-  // Fetch slots whenever therapist changes or step 2 is active
+  // Fetch slots and authoritative pricing whenever therapist changes or modal opens
   useEffect(() => {
-    if (step === 2 && selectedTherapist?.id) {
+    if (selectedTherapist?.id) {
       setLoadingSlots(true);
       setError(null);
       fetch(`/api/therapy/therapists/${selectedTherapist.id}/availability`)
         .then((res) => res.json())
         .then((data) => {
           setAvailableSlots(data.slots || []);
+          if (data.pricing) {
+            setAuthoritativePricing(data.pricing);
+          }
         })
         .catch((err) => {
           setError('Failed to fetch real-time availability. Please try again.');
           setAvailableSlots([]);
         })
         .finally(() => setLoadingSlots(false));
+    } else {
+      setAuthoritativePricing(null);
+      setAvailableSlots([]);
     }
-  }, [step, selectedTherapist]);
+  }, [selectedTherapist?.id]);
 
   // Group slots by date string
   const groupedSlots = useMemo(() => {
@@ -122,9 +130,13 @@ export default function TherapyBookingFlow({
     process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
     process.env.DISABLE_BOOKING_PAYMENTS === 'true';
 
-  const baseFee = Number(selectedTherapist?.fee || selectedTherapist?.per_session_fee || 1500);
+  const baseFee = authoritativePricing?.subtotalInr != null
+    ? authoritativePricing.subtotalInr
+    : Number(selectedTherapist?.fee || selectedTherapist?.per_session_fee || 1500);
   const gstAmount = Math.round(baseFee * 0.18);
-  const totalAmount = baseFee + gstAmount;
+  const totalAmount = authoritativePricing?.totalPaise != null
+    ? Math.round(authoritativePricing.totalPaise / 100)
+    : baseFee + gstAmount;
 
   // Handle Order Creation and Razorpay Checkout
   const handleProceedToPayment = async () => {
@@ -164,6 +176,9 @@ export default function TherapyBookingFlow({
       }
 
       setBookingOrder(orderData);
+      if (orderData.pricing) {
+        setAuthoritativePricing(orderData.pricing);
+      }
 
       // If developer testing mode automatically confirmed the booking
       if (orderData.confirmed && orderData.appointment) {
