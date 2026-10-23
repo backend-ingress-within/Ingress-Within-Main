@@ -374,29 +374,61 @@ export class TherapistPayoutAccountService {
 
     let allEarnings: TherapistEarningRecord[] = [];
 
-    // 1. Fetch from DB
+    // 1. Fetch from DB with appointment status validation to prevent phantom or cancelled session earnings
     const { data: dbEarnings } = await supabase
       .from('therapist_earnings')
-      .select('*')
-      .eq('therapist_account_id', therapistAccountId);
+      .select(`
+        id,
+        therapist_account_id,
+        appointment_id,
+        gross_amount,
+        platform_fee,
+        net_earnings,
+        payment_status,
+        collected_at,
+        payout_batch_id,
+        payout_date,
+        created_at,
+        updated_at,
+        therapist_clinical_appointments (
+          id,
+          status,
+          attendance_status
+        )
+      `)
+      .eq('therapist_account_id', therapistAccountId)
+      .not('appointment_id', 'is', null);
 
     if (dbEarnings && dbEarnings.length > 0) {
-      allEarnings = dbEarnings.map((r: any) => ({
-        id: r.id,
-        therapist_account_id: r.therapist_account_id,
-        appointment_id: r.appointment_id,
-        gross_amount: Number(r.gross_amount),
-        platform_fee: Number(r.platform_fee),
-        net_earnings: Number(r.net_earnings || r.net_amount || 0),
-        payment_status: (r.payment_status || r.status || 'collected') as any,
-        collected_at: r.collected_at,
-        payout_batch_id: r.payout_batch_id,
-        payout_date: r.payout_date,
-        created_at: r.created_at,
-        updated_at: r.updated_at || r.created_at,
-      }));
+      allEarnings = dbEarnings
+        .filter((r: any) => {
+          if (!r.appointment_id) return false;
+          const appt = Array.isArray(r.therapist_clinical_appointments)
+            ? r.therapist_clinical_appointments[0]
+            : r.therapist_clinical_appointments;
+          // Invariant: Cancelled appointments without client_no_show are non-billable and must not yield earnings
+          if (appt && appt.status === 'cancelled' && appt.attendance_status !== 'client_no_show') {
+            return false;
+          }
+          return true;
+        })
+        .map((r: any) => ({
+          id: r.id,
+          therapist_account_id: r.therapist_account_id,
+          appointment_id: r.appointment_id,
+          gross_amount: Number(r.gross_amount),
+          platform_fee: Number(r.platform_fee),
+          net_earnings: Number(r.net_earnings || r.net_amount || 0),
+          payment_status: (r.payment_status || r.status || 'collected') as any,
+          collected_at: r.collected_at,
+          payout_batch_id: r.payout_batch_id,
+          payout_date: r.payout_date,
+          created_at: r.created_at,
+          updated_at: r.updated_at || r.created_at,
+        }));
     } else {
-      allEarnings = TherapistPayoutService.getInMemoryEarningsForTherapist(therapistAccountId);
+      allEarnings = TherapistPayoutService.getInMemoryEarningsForTherapist(therapistAccountId)
+        .filter((e) => Boolean(e.appointment_id));
     }
 
     // 2. Fetch withdrawal requests from DB & memory
@@ -452,20 +484,23 @@ export class TherapistPayoutAccountService {
       }
     }
 
-    let completedWithdrawalsPaise = 0;
+    let directCompletedWithdrawalsPaise = 0;
     let inFlightWithdrawalsPaise = 0;
     for (const w of withdrawals) {
       const wPaise = Math.round(Number(w.amount || 0) * 100);
       if (w.status === 'completed') {
-        completedWithdrawalsPaise += wPaise;
+        // Exclude withdrawals tied to batches to prevent double-counting totalPaidFromBatchesPaise
+        if (!w.batch_id) {
+          directCompletedWithdrawalsPaise += wPaise;
+        }
       } else if (w.status === 'requested' || w.status === 'processing') {
         inFlightWithdrawalsPaise += wPaise;
       }
     }
 
-    const totalWithdrawnPaise = totalPaidFromBatchesPaise + completedWithdrawalsPaise;
+    const totalWithdrawnPaise = totalPaidFromBatchesPaise + directCompletedWithdrawalsPaise;
     const totalNetEarnedPaise = totalNetCollectedPaise + totalPaidFromBatchesPaise;
-    const pendingPayoutPaise = Math.max(0, unbatchedCollectedPaise - completedWithdrawalsPaise);
+    const pendingPayoutPaise = Math.max(0, unbatchedCollectedPaise - directCompletedWithdrawalsPaise);
     const availableToWithdrawPaise = Math.max(0, pendingPayoutPaise - inFlightWithdrawalsPaise);
 
     return {

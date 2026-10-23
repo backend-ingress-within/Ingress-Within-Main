@@ -211,6 +211,7 @@ export class TherapistEarningsService {
           user_id,
           attendance_status,
           refund_status,
+          status,
           users (
             id,
             name
@@ -218,6 +219,7 @@ export class TherapistEarningsService {
         )
       `)
       .eq('therapist_account_id', therapistAccountId)
+      .not('appointment_id', 'is', null)
       .order('collected_at', { ascending: false });
 
     if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
@@ -275,15 +277,22 @@ export class TherapistEarningsService {
     const dailyMap: Map<string, { earnings: number; gross: number; sessions: number }> = new Map();
 
     for (const e of allEarnings) {
-      const gross = Number(e.gross_amount) || 0;
-      const fee = Number(e.platform_fee) || 0;
-      const net = Number(e.net_earnings) || (gross - fee);
-      const status = (e.payment_status || 'collected') as 'collected' | 'paid' | 'cancelled' | 'reversed' | 'pending';
-      const eventDate = e.collected_at || e.created_at;
+      if (!e.appointment_id) continue;
 
       const appt = Array.isArray(e.therapist_clinical_appointments)
         ? e.therapist_clinical_appointments[0]
         : e.therapist_clinical_appointments;
+
+      const isCancelledSession = appt && appt.status === 'cancelled' && appt.attendance_status !== 'client_no_show';
+      let status = (e.payment_status || 'collected') as 'collected' | 'paid' | 'cancelled' | 'reversed' | 'pending';
+      if (isCancelledSession && status === 'collected') {
+        status = 'cancelled';
+      }
+
+      const gross = Number(e.gross_amount) || 0;
+      const fee = Number(e.platform_fee) || 0;
+      const net = (status === 'cancelled' || status === 'reversed') ? 0 : (Number(e.net_earnings) || (gross - fee));
+      const eventDate = e.collected_at || e.created_at;
 
       // Privacy-safe client label
       const rawName = appt?.users?.full_name || appt?.users?.name;
@@ -424,8 +433,8 @@ export class TherapistEarningsService {
         grossRevenue: Math.round(totalGrossInRange * 100) / 100,
         platformFees: Math.round(totalPlatformFeesInRange * 100) / 100,
         refunds: Math.round(totalRefundsInRange * 100) / 100,
-        pendingPayout: Math.round(totalPendingPayout * 100) / 100,
-        paidOut: Math.round(totalPaidOut * 100) / 100,
+        pendingPayout: availableBalance ? availableBalance.pendingPayout : Math.round(totalPendingPayout * 100) / 100,
+        paidOut: availableBalance ? availableBalance.withdrawn : Math.round(totalPaidOut * 100) / 100,
         sessionCount: sessionCountInRange,
         averagePerSession,
         currency: 'INR',

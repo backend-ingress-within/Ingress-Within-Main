@@ -104,7 +104,7 @@ export class AdminPlatformService {
       .from('therapist_clinical_appointments')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'scheduled')
-      .gte('session_time', nowIso);
+      .gte('scheduled_start', nowIso);
 
     let completedSessionsQuery = supabase
       .from('therapist_clinical_appointments')
@@ -120,10 +120,23 @@ export class AdminPlatformService {
       completedSessionsQuery,
     ]);
 
-    // Financial calculations strictly in integer paise
+    // Financial calculations strictly in integer paise (excluding orphaned rows and unbillable cancelled sessions)
     let earningsQuery = supabase
       .from('therapist_earnings')
-      .select('gross_amount, platform_fee, net_earnings, payment_status, created_at');
+      .select(`
+        gross_amount,
+        platform_fee,
+        net_earnings,
+        payment_status,
+        appointment_id,
+        created_at,
+        therapist_clinical_appointments (
+          id,
+          status,
+          attendance_status
+        )
+      `)
+      .not('appointment_id', 'is', null);
 
     if (startIso) {
       earningsQuery = earningsQuery.gte('created_at', startIso);
@@ -137,6 +150,14 @@ export class AdminPlatformService {
 
     if (earningsData && earningsData.length > 0) {
       for (const e of earningsData) {
+        if (!e.appointment_id) continue;
+        const appt = Array.isArray(e.therapist_clinical_appointments)
+          ? e.therapist_clinical_appointments[0]
+          : e.therapist_clinical_appointments;
+        if (appt && appt.status === 'cancelled' && appt.attendance_status !== 'client_no_show') {
+          continue;
+        }
+
         if (e.payment_status === 'collected' || e.payment_status === 'paid') {
           grossPaise += Math.round(Number(e.gross_amount || 0) * 100);
           feePaise += Math.round(Number(e.platform_fee || 0) * 100);
@@ -170,17 +191,28 @@ export class AdminPlatformService {
       }
     }
 
-    // Failed payments from billing
-    let failedPaymentsQuery = supabase
-      .from('billing_orders')
+    // Failed payments across session bookings and digital orders
+    let failedBookingsQuery = supabase
+      .from('therapy_session_bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('payment_status', 'failed');
+
+    let failedOrdersQuery = supabase
+      .from('orders')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'failed');
 
     if (startIso) {
-      failedPaymentsQuery = failedPaymentsQuery.gte('created_at', startIso);
+      failedBookingsQuery = failedBookingsQuery.gte('created_at', startIso);
+      failedOrdersQuery = failedOrdersQuery.gte('created_at', startIso);
     }
 
-    const { count: failedPayments } = await failedPaymentsQuery;
+    const [{ count: failedBookings }, { count: failedOrders }] = await Promise.all([
+      failedBookingsQuery,
+      failedOrdersQuery,
+    ]);
+
+    const failedPayments = (failedBookings || 0) + (failedOrders || 0);
 
     return {
       totalUsers: totalUsers || 0,
@@ -210,7 +242,22 @@ export class AdminPlatformService {
 
     let earningsQuery = supabase
       .from('therapist_earnings')
-      .select('*')
+      .select(`
+        id,
+        appointment_id,
+        gross_amount,
+        platform_fee,
+        net_earnings,
+        payment_status,
+        collected_at,
+        created_at,
+        therapist_clinical_appointments (
+          id,
+          status,
+          attendance_status
+        )
+      `)
+      .not('appointment_id', 'is', null)
       .order('created_at', { ascending: true });
 
     if (startIso) {
@@ -228,6 +275,14 @@ export class AdminPlatformService {
 
     if (earnings && earnings.length > 0) {
       for (const e of earnings) {
+        if (!e.appointment_id) continue;
+        const appt = Array.isArray(e.therapist_clinical_appointments)
+          ? e.therapist_clinical_appointments[0]
+          : e.therapist_clinical_appointments;
+        if (appt && appt.status === 'cancelled' && appt.attendance_status !== 'client_no_show') {
+          continue;
+        }
+
         if (e.payment_status === 'collected' || e.payment_status === 'paid') {
           const g = Math.round(Number(e.gross_amount || 0) * 100);
           const f = Math.round(Number(e.platform_fee || 0) * 100);
@@ -263,11 +318,11 @@ export class AdminPlatformService {
       }
     }
 
-    // Refunds
+    // Authoritative Refunds from session bookings and appointments
     let refundsQuery = supabase
-      .from('therapist_clinical_appointments')
-      .select('id, refund_status')
-      .in('refund_status', ['full', 'partial']);
+      .from('therapy_session_bookings')
+      .select('id, amount_paise, refund_amount_paise, refund_status')
+      .or('refund_status.in.(full,partial),refund_amount_paise.gt.0');
 
     if (startIso) {
       refundsQuery = refundsQuery.gte('created_at', startIso);
@@ -275,7 +330,12 @@ export class AdminPlatformService {
 
     const { data: refunds } = await refundsQuery;
     const refundsCount = refunds ? refunds.length : 0;
-    const refundsPaise = refundsCount * 150000; // Estimated baseline if refund amount isn't explicit
+    let refundsPaise = 0;
+    if (refunds && refunds.length > 0) {
+      for (const r of refunds) {
+        refundsPaise += r.refund_amount_paise || r.amount_paise || 0;
+      }
+    }
 
     const dailyBreakdown = Object.entries(dailyMap).map(([date, d]) => ({
       date,
@@ -1557,19 +1617,19 @@ export class AdminPlatformService {
       query = query.eq('status', params.status);
     }
 
-    query = query.order('session_time', { ascending: false }).range(offset, offset + limit - 1);
+    query = query.order('scheduled_start', { ascending: false }).range(offset, offset + limit - 1);
 
     const { data, count } = await query;
 
     const safeSessions = (data || []).map((s: any) => ({
       id: s.id,
       therapist_account_id: s.therapist_account_id,
-      client_id: s.client_id,
-      session_time: s.session_time,
+      client_id: s.user_id,
+      session_time: s.scheduled_start,
       status: s.status,
-      payment_status: s.payment_status || 'paid',
+      payment_status: s.payment_id ? 'paid' : 'pending',
       refund_status: s.refund_status || 'none',
-      meet_link: s.meet_link || null,
+      meet_link: s.google_meet_url || s.meeting_link || null,
       created_at: s.created_at,
     }));
 
@@ -1592,34 +1652,74 @@ export class AdminPlatformService {
     const limit = Math.min(100, Math.max(1, params.limit || 20));
     const offset = (page - 1) * limit;
 
-    let query = supabase.from('billing_orders').select('*', { count: 'exact' });
+    // 1. Fetch therapy session bookings
+    let bookingsQuery = supabase
+      .from('therapy_session_bookings')
+      .select('id, user_id, amount_paise, currency, payment_status, razorpay_order_id, razorpay_payment_id, created_at');
 
     if (params.status && params.status !== 'all') {
-      query = query.eq('status', params.status);
+      bookingsQuery = bookingsQuery.eq('payment_status', params.status);
     }
 
-    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    // 2. Fetch digital product orders
+    let ordersQuery = supabase
+      .from('orders')
+      .select('id, user_id, amount_total, currency, status, gateway_order_id, gateway_payment_id, created_at');
 
-    const { data, count } = await query;
+    if (params.status && params.status !== 'all') {
+      ordersQuery = ordersQuery.eq('status', params.status);
+    }
 
-    const safePayments = (data || []).map((p: any) => ({
-      id: p.id,
-      user_id: p.user_id,
-      amount_total_paise: Math.round(Number(p.amount_total || 0) * 100),
-      currency: p.currency || 'INR',
-      status: p.status,
-      provider_order_id: p.gateway_order_id ? `${p.gateway_order_id.substring(0, 10)}...` : null,
-      provider_payment_id: p.gateway_payment_id ? `${p.gateway_payment_id.substring(0, 10)}...` : null,
-      created_at: p.created_at,
-    }));
+    const [{ data: bookings }, { data: orders }] = await Promise.all([
+      bookingsQuery,
+      ordersQuery,
+    ]);
+
+    const combined: any[] = [];
+
+    if (bookings) {
+      for (const b of bookings) {
+        combined.push({
+          id: b.id,
+          user_id: b.user_id,
+          amount_total_paise: Number(b.amount_paise || 0),
+          currency: b.currency || 'INR',
+          status: b.payment_status || 'pending',
+          provider_order_id: b.razorpay_order_id ? `${b.razorpay_order_id.substring(0, 10)}...` : null,
+          provider_payment_id: b.razorpay_payment_id ? `${b.razorpay_payment_id.substring(0, 10)}...` : null,
+          created_at: b.created_at,
+        });
+      }
+    }
+
+    if (orders) {
+      for (const o of orders) {
+        combined.push({
+          id: o.id,
+          user_id: o.user_id,
+          amount_total_paise: Number(o.amount_total || 0),
+          currency: o.currency || 'INR',
+          status: o.status || 'pending',
+          provider_order_id: o.gateway_order_id ? `${o.gateway_order_id.substring(0, 10)}...` : null,
+          provider_payment_id: o.gateway_payment_id ? `${o.gateway_payment_id.substring(0, 10)}...` : null,
+          created_at: o.created_at,
+        });
+      }
+    }
+
+    // Sort combined by created_at descending
+    combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const total = combined.length;
+    const paginated = combined.slice(offset, offset + limit);
 
     return {
-      payments: safePayments,
+      payments: paginated,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

@@ -2872,6 +2872,13 @@ export class TherapistPlatformService {
       }
     }
 
+    // Cancel / reverse therapist earning record to prevent phantom payout accumulation
+    try {
+      await TherapistPayoutService.handleAppointmentRefund(appointmentId);
+    } catch (earningErr) {
+      console.warn('[TherapistPlatformService] Earning reversal note on appointment cancellation:', earningErr);
+    }
+
     return updated;
   }
 

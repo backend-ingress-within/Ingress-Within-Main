@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const secret = BillingService.getWebhookSecret();
+    const secret = process.env.RAZORPAYX_WEBHOOK_SECRET || process.env.RAZORPAY_WEBHOOK_SECRET || BillingService.getWebhookSecret();
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(rawBody)
