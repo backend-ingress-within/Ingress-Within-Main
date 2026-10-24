@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: result.settledCount > 0
-        ? `Successfully expedited and settled ${result.settledCount} withdrawal(s).`
-        : 'All withdrawals are settled and up to date.',
+        ? `Status updated: ${result.settledCount} withdrawal(s) confirmed settled by provider.`
+        : 'Status refreshed with payment provider.',
       settledCount: result.settledCount,
       withdrawals: history,
     });

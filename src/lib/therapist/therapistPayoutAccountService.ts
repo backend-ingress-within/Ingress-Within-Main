@@ -95,6 +95,78 @@ export class TherapistPayoutAccountService {
   }
 
   /**
+   * Helper: Connects to live Razorpay API to register a Contact and Fund Account.
+   * Returns genuine Razorpay Fund Account ID (fa_...).
+   */
+  static async registerRazorpayFundAccount(params: {
+    therapistAccountId: string;
+    beneficiaryName: string;
+    accountType: PayoutAccountType;
+    accountNumber?: string;
+    ifsc?: string;
+    upiId?: string;
+  }): Promise<string | null> {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return null;
+
+    try {
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const refId = `th_${params.therapistAccountId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32)}`;
+
+      const contactRes = await fetch('https://api.razorpay.com/v1/contacts', {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: params.beneficiaryName.trim(),
+          type: 'vendor',
+          reference_id: refId,
+          notes: { role: 'therapist', therapist_id: params.therapistAccountId },
+        }),
+      });
+
+      const contactData = await contactRes.json();
+      const contactId = contactData?.id;
+      if (!contactId) {
+        return null;
+      }
+
+      let faPayload: any = { contact_id: contactId };
+      if (params.accountType === 'upi' && params.upiId) {
+        faPayload.account_type = 'vpa';
+        faPayload.vpa = { address: params.upiId.trim() };
+      } else if (params.accountType === 'bank' && params.accountNumber && params.ifsc) {
+        faPayload.account_type = 'bank_account';
+        faPayload.bank_account = {
+          name: params.beneficiaryName.trim(),
+          ifsc: params.ifsc.trim().toUpperCase(),
+          account_number: params.accountNumber.trim(),
+        };
+      } else {
+        return null;
+      }
+
+      const faRes = await fetch('https://api.razorpay.com/v1/fund_accounts', {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(faPayload),
+      });
+
+      const faData = await faRes.json();
+      return faData?.id || null;
+    } catch (err) {
+      console.warn('[TherapistPayoutAccountService] Live Razorpay fund account creation notice:', err);
+      return null;
+    }
+  }
+
+  /**
    * Onboards a secure payout account for a therapist.
    * PRIVACY INVARIANT: NEVER stores raw bank account numbers, IFSC codes, or PINs in database.
    */
@@ -173,8 +245,24 @@ export class TherapistPayoutAccountService {
       throw err;
     }
 
-    // Tokenized Provider Reference (e.g. RazorpayX Fund Account ID fa_xxx)
-    const providerAccountId = `fa_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+    // Register on live Razorpay Fund Accounts API if available
+    let providerAccountId: string | null = null;
+    try {
+      providerAccountId = await this.registerRazorpayFundAccount({
+        therapistAccountId,
+        beneficiaryName,
+        accountType,
+        accountNumber,
+        ifsc,
+        upiId,
+      });
+    } catch {
+      // Fallback below
+    }
+
+    if (!providerAccountId) {
+      providerAccountId = `fa_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+    }
     const accountId = crypto.randomUUID();
     const nowIso = new Date().toISOString();
 
@@ -674,7 +762,63 @@ export class TherapistPayoutAccountService {
 
       // 4. Create Withdrawal Request
       const withdrawalId = crypto.randomUUID();
-      const providerPayoutId = `pout_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+      let providerPayoutId = `pout_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+      let initialStatus: WithdrawalRequestStatus = 'processing';
+      let realUtr: string | null = null;
+      let failureReason: string | null = null;
+      let processedAt: string | null = null;
+
+      // Live RazorpayX Payout Execution (if RazorpayX Account Number is configured)
+      const rzpAccountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+      if (rzpAccountNumber && keyId && keySecret && account.provider_account_id?.startsWith('fa_')) {
+        try {
+          const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+          const payoutRes = await fetch('https://api.razorpay.com/v1/payouts', {
+            method: 'POST',
+            headers: {
+              Authorization: authHeader,
+              'Content-Type': 'application/json',
+              'X-Payout-Idempotency': safeIdempotencyKey,
+            },
+            body: JSON.stringify({
+              account_number: rzpAccountNumber,
+              fund_account_id: account.provider_account_id,
+              amount: Math.round(amount * 100),
+              currency: 'INR',
+              mode: account.account_type === 'upi' ? 'UPI' : 'IMPS',
+              purpose: 'payout',
+              queue_if_low_balance: true,
+              reference_id: safeIdempotencyKey.slice(0, 40),
+              narration: 'Therapist Withdrawal',
+            }),
+          });
+
+          const payoutData = await payoutRes.json();
+          if (payoutRes.ok && payoutData?.id) {
+            providerPayoutId = payoutData.id;
+            if (payoutData.status === 'processed') {
+              initialStatus = 'completed';
+              realUtr = payoutData.utr || null;
+              processedAt = new Date().toISOString();
+            } else if (payoutData.status === 'rejected' || payoutData.status === 'failed') {
+              initialStatus = 'failed';
+              failureReason = payoutData.failure_reason || 'Disbursement rejected by RazorpayX';
+            } else {
+              initialStatus = 'processing';
+            }
+          } else {
+            console.warn('[TherapistPayoutAccountService] Live RazorpayX payout notice:', payoutData?.error?.description || payoutData);
+            initialStatus = 'processing';
+          }
+        } catch (apiErr: any) {
+          console.warn('[TherapistPayoutAccountService] RazorpayX API call error:', apiErr.message);
+          initialStatus = 'processing';
+        }
+      }
+
       const nowIso = new Date().toISOString();
 
       const withdrawalRecord: TherapistWithdrawalRequest = {
@@ -683,14 +827,14 @@ export class TherapistPayoutAccountService {
         payout_account_id: payoutAccountId,
         amount: Math.round(amount * 100) / 100,
         currency: 'INR',
-        status: 'processing',
+        status: initialStatus,
         provider_payout_id: providerPayoutId,
         idempotency_key: safeIdempotencyKey,
         batch_id: null,
-        failure_reason: null,
+        failure_reason: failureReason,
         reversal_reason: null,
-        utr_number: null,
-        processed_at: null,
+        utr_number: realUtr,
+        processed_at: processedAt,
         created_at: nowIso,
         updated_at: nowIso,
       };
@@ -830,9 +974,13 @@ export class TherapistPayoutAccountService {
       return target;
     }
 
+    if (!customUtr || customUtr.trim().length < 6) {
+      console.warn(`[TherapistPayoutAccountService] Refusing to settle withdrawal ${withdrawalId} without authentic bank UTR reference.`);
+      return null;
+    }
+
     const nowIso = new Date().toISOString();
-    const datePrefix = nowIso.slice(2, 10).replace(/-/g, '');
-    const utr = customUtr || `UTR${datePrefix}${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const utr = customUtr.trim();
 
     target.status = 'completed';
     target.utr_number = utr;
@@ -848,42 +996,6 @@ export class TherapistPayoutAccountService {
         updated_at: nowIso,
       })
       .eq('id', target.id);
-
-    // Mark unbatched collected earnings as paid for this therapist up to withdrawal amount
-    try {
-      const { data: earnings } = await supabase
-        .from('therapist_earnings')
-        .select('id, net_earnings, payment_status, payout_batch_id')
-        .eq('therapist_account_id', target.therapist_account_id)
-        .eq('payment_status', 'collected')
-        .is('payout_batch_id', null)
-        .order('created_at', { ascending: true });
-
-      if (earnings && earnings.length > 0) {
-        let remainingPaise = Math.round(target.amount * 100);
-        const earningsToMarkPaid: string[] = [];
-
-        for (const e of earnings) {
-          if (remainingPaise <= 0) break;
-          const netPaise = Math.round(Number(e.net_earnings || 0) * 100);
-          earningsToMarkPaid.push(e.id);
-          remainingPaise -= netPaise;
-        }
-
-        if (earningsToMarkPaid.length > 0) {
-          await supabase
-            .from('therapist_earnings')
-            .update({
-              payment_status: 'paid',
-              payout_date: nowIso,
-              updated_at: nowIso,
-            })
-            .in('id', earningsToMarkPaid);
-        }
-      }
-    } catch (eErr) {
-      console.warn('[TherapistPayoutAccountService] Warning updating earnings status:', eErr);
-    }
 
     // In-app notification to therapist
     try {
@@ -903,14 +1015,22 @@ export class TherapistPayoutAccountService {
   }
 
   /**
-   * Auto-reconciles any in-flight or pending withdrawals that were left in 'processing' or 'requested'.
-   * Settles them immediately to prevent delays.
+   * Auto-reconciles pending withdrawals with RazorpayX if active.
+   * NEVER marks a withdrawal settled without verified confirmation from the provider.
    */
   static async autoReconcilePendingWithdrawals(therapistAccountId?: string): Promise<{
     settledCount: number;
     settledIds: string[];
   }> {
     const settledIds: string[] = [];
+    const rzpAccountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!rzpAccountNumber || !keyId || !keySecret) {
+      // RazorpayX automated payouts not configured; pending withdrawals remain queued for admin disbursement
+      return { settledCount: 0, settledIds: [] };
+    }
 
     let query = supabase
       .from('therapist_withdrawal_requests')
@@ -923,31 +1043,29 @@ export class TherapistPayoutAccountService {
 
     const { data } = await query;
     if (data && data.length > 0) {
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
       for (const w of data) {
+        if (!w.provider_payout_id || !w.provider_payout_id.startsWith('pout_')) continue;
         try {
-          const settled = await this.settleWithdrawal(w.id, w.therapist_account_id);
-          if (settled && settled.status === 'completed') {
-            settledIds.push(w.id);
+          const res = await fetch(`https://api.razorpay.com/v1/payouts/${w.provider_payout_id}`, {
+            headers: { Authorization: authHeader },
+          });
+          if (res.ok) {
+            const pData = await res.json();
+            if (pData?.status === 'processed' && pData.utr) {
+              const settled = await this.settleWithdrawal(w.id, w.therapist_account_id, pData.utr);
+              if (settled && settled.status === 'completed') {
+                settledIds.push(w.id);
+              }
+            } else if (pData?.status === 'rejected' || pData?.status === 'failed') {
+              await this.handlePayoutWebhookEvent({
+                event: 'payout.failed',
+                payload: { payout: { entity: pData } },
+              });
+            }
           }
-        } catch (err) {
-          console.warn(`[TherapistPayoutAccountService] Auto-reconciliation failed for ${w.id}:`, err);
-        }
-      }
-    }
-
-    // In-memory fallback
-    for (const [id, w] of this.inMemoryWithdrawals.entries()) {
-      if (
-        (w.status === 'processing' || w.status === 'requested') &&
-        (!therapistAccountId || w.therapist_account_id === therapistAccountId)
-      ) {
-        try {
-          const settled = await this.settleWithdrawal(id, w.therapist_account_id);
-          if (settled && settled.status === 'completed' && !settledIds.includes(id)) {
-            settledIds.push(id);
-          }
-        } catch (err) {
-          console.warn(`[TherapistPayoutAccountService] In-memory auto-reconcile failed for ${id}:`, err);
+        } catch (pollErr) {
+          console.warn(`[TherapistPayoutAccountService] Payout poll check error for ${w.id}:`, pollErr);
         }
       }
     }

@@ -123,6 +123,46 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
   const [editingFeeValue, setEditingFeeValue] = useState('');
   const [isUpdatingFee, setIsUpdatingFee] = useState(false);
 
+  // Payout Disburse Modal States
+  const [selectedPayoutToDisburse, setSelectedPayoutToDisburse] = useState(null);
+  const [disburseUtrInput, setDisburseUtrInput] = useState('');
+  const [isDisbursingPayout, setIsDisbursingPayout] = useState(false);
+
+  const handleDisbursePayout = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedPayoutToDisburse) return;
+    if (!disburseUtrInput || disburseUtrInput.trim().length < 6) {
+      showToast('Please enter an authentic Bank/UPI UTR transaction reference (min 6 characters).', true);
+      return;
+    }
+    setIsDisbursingPayout(true);
+    try {
+      const res = await fetch('/api/admin/payouts/settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId: selectedPayoutToDisburse.id,
+          utrNumber: disburseUtrInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || 'Failed to settle payout.');
+      }
+      showToast(data.message || 'Withdrawal successfully disbursed!');
+      setSelectedPayoutToDisburse(null);
+      setDisburseUtrInput('');
+      // Refresh payouts list
+      const pRes = await fetch(`/api/admin/payouts?page=${currentPage}&limit=20`);
+      const pData = await pRes.json();
+      if (pData.success) setPayoutsData(pData);
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      setIsDisbursingPayout(false);
+    }
+  };
+
   const handleUpdateTherapistFee = async () => {
     if (!editingFeeTherapist) return;
     const feeNum = Number(editingFeeValue);
@@ -2787,58 +2827,229 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
           {activeTab === 'payouts' && (
             <div className="space-y-4">
               <div className="bg-white border border-[#132A24]/10 rounded-2xl overflow-hidden shadow-xs">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#132A24]/[0.02] border-b border-[#132A24]/10 text-[#132A24]/60 font-semibold uppercase tracking-wider text-[11px]">
-                    <tr>
-                      <th className="py-3.5 px-4">Request ID</th>
-                      <th className="py-3.5 px-4">Therapist ID</th>
-                      <th className="py-3.5 px-4">Amount</th>
-                      <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 px-4">UTR Number</th>
-                      <th className="py-3.5 px-4">Requested Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#132A24]/5 text-[#132A24]">
-                    {payoutsData.payouts.length === 0 ? (
+                <div className="p-4 border-b border-[#132A24]/10 bg-[#FAF9F5] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-serif text-base font-semibold text-[#132A24]">
+                      Therapist Withdrawals & Disbursements
+                    </h3>
+                    <p className="text-xs text-[#132A24]/50">
+                      Disburse verified earnings and record authentic bank/UPI UTR numbers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      try {
+                        const res = await fetch(`/api/admin/payouts?page=${currentPage}&limit=20`);
+                        const data = await res.json();
+                        if (data.success) setPayoutsData(data);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-[#132A24]/20 bg-white text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer inline-flex items-center gap-1.5 self-start sm:self-auto"
+                  >
+                    <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
+                    Refresh
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#132A24]/[0.02] border-b border-[#132A24]/10 text-[#132A24]/60 font-semibold uppercase tracking-wider text-[11px]">
                       <tr>
-                        <td colSpan="6" className="py-12 text-center text-[#132A24]/40 italic">
-                          No therapist withdrawal requests recorded.
-                        </td>
+                        <th className="py-3.5 px-4">Therapist</th>
+                        <th className="py-3.5 px-4">Payout Destination</th>
+                        <th className="py-3.5 px-4">Amount</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Bank UTR / Ref</th>
+                        <th className="py-3.5 px-4">Requested Date</th>
+                        <th className="py-3.5 px-4 text-right">Action</th>
                       </tr>
-                    ) : (
-                      payoutsData.payouts.map((w) => (
-                        <tr key={w.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-medium text-[#132A24]">{w.id}</td>
-                          <td className="py-3.5 px-4 font-mono text-[11px] text-[#132A24]/50">
-                            {w.therapist_account_id?.substring(0, 12)}...
-                          </td>
-                          <td className="py-3.5 px-4 font-serif font-bold text-[#132A24]">
-                            ₹{w.amount_inr}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium capitalize border ${
-                                w.status === 'completed'
-                                  ? 'bg-[#4E7A66]/10 border-[#4E7A66]/20 text-[#2D5A46]'
-                                  : w.status === 'failed'
-                                  ? 'bg-rose-50 border-rose-200 text-rose-700'
-                                  : 'bg-amber-50 border-amber-200 text-amber-800'
-                              }`}
-                            >
-                              {w.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-[#132A24]/60">
-                            {w.utr_number || 'Pending'}
-                          </td>
-                          <td className="py-3.5 px-4 text-[#132A24]/60">
-                            {new Date(w.created_at).toLocaleDateString()}
+                    </thead>
+                    <tbody className="divide-y divide-[#132A24]/5 text-[#132A24]">
+                      {payoutsData.payouts.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="py-12 text-center text-[#132A24]/40 italic">
+                            No therapist withdrawal requests recorded.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        payoutsData.payouts.map((w) => {
+                          const isPending = w.status === 'processing' || w.status === 'requested';
+                          const isCompleted = w.status === 'completed';
+
+                          return (
+                            <tr key={w.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-[#132A24]">{w.therapist_name || 'Therapist'}</div>
+                                {w.therapist_phone && (
+                                  <div className="font-mono text-[10px] text-[#132A24]/50">{w.therapist_phone}</div>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-mono font-medium text-[#132A24]">
+                                  {w.resolved_destination || w.masked_identifier || 'UPI Destination'}
+                                </div>
+                                <div className="text-[10px] text-[#132A24]/50">
+                                  {w.beneficiary_name} • <span className="uppercase">{w.account_type || 'UPI'}</span>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4 font-serif font-bold text-[#132A24]">
+                                ₹{w.amount_inr?.toFixed(2)}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium capitalize border ${
+                                    isCompleted
+                                      ? 'bg-[#4E7A66]/10 border-[#4E7A66]/20 text-[#2D5A46]'
+                                      : w.status === 'failed'
+                                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                                  }`}
+                                >
+                                  {isCompleted ? '✓ Disbursed' : isPending ? 'Pending Transfer' : w.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-[#132A24]/70">
+                                {w.utr_number ? (
+                                  <span className="bg-[#FAF9F5] px-2 py-0.5 rounded border border-[#132A24]/10 text-[11px]">
+                                    {w.utr_number}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#132A24]/40 italic">Awaiting Transfer</span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 text-[#132A24]/60">
+                                {new Date(w.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-3.5 px-4 text-right">
+                                {isPending ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedPayoutToDisburse(w);
+                                      setDisburseUtrInput('');
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-[#4E7A66] hover:bg-[#3D6352] text-white text-[11px] font-semibold cursor-pointer shadow-2xs"
+                                  >
+                                    Disburse (Enter UTR)
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-[#4E7A66] font-medium">✓ Settled</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL: MANUAL PAYOUT DISBURSEMENT */}
+          {selectedPayoutToDisburse && (
+            <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#132A24]/10">
+                <div className="flex items-center justify-between pb-3 border-b border-[#132A24]/10">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="w-5 h-5 text-[#4E7A66]" />
+                    <h3 className="font-serif text-lg font-semibold text-[#132A24]">
+                      Disburse Therapist Withdrawal
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedPayoutToDisburse(null);
+                      setDisburseUtrInput('');
+                    }}
+                    className="p-1 text-[#132A24]/40 hover:text-[#132A24] rounded-lg cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="bg-[#FAF9F5] border border-[#132A24]/10 rounded-xl p-4 space-y-3 text-xs">
+                  <div className="flex justify-between items-center py-1 border-b border-[#132A24]/5">
+                    <span className="text-[#132A24]/60">Therapist:</span>
+                    <span className="font-semibold text-[#132A24]">{selectedPayoutToDisburse.therapist_name}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-[#132A24]/5">
+                    <span className="text-[#132A24]/60">Amount to Send:</span>
+                    <span className="font-serif text-base font-bold text-[#4E7A66]">₹{selectedPayoutToDisburse.amount_inr?.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-start py-1 border-b border-[#132A24]/5">
+                    <span className="text-[#132A24]/60">Destination ({selectedPayoutToDisburse.account_type?.toUpperCase()}):</span>
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-[#132A24] flex items-center gap-1.5 justify-end">
+                        <span>{selectedPayoutToDisburse.resolved_destination}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedPayoutToDisburse.resolved_destination);
+                            showToast('Payout address copied to clipboard!');
+                          }}
+                          className="p-1 hover:bg-[#132A24]/10 rounded text-[#132A24]/50 hover:text-[#132A24] cursor-pointer"
+                          title="Copy destination"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+                      <div className="text-[10px] text-[#132A24]/50">
+                        Beneficiary: {selectedPayoutToDisburse.beneficiary_name}
+                      </div>
+                    </div>
+                  </div>
+                  {selectedPayoutToDisburse.therapist_phone && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-[#132A24]/60">Phone:</span>
+                      <span className="font-mono text-[#132A24]">{selectedPayoutToDisburse.therapist_phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={handleDisbursePayout} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#132A24] mb-1.5">
+                      Bank Transaction UTR / UPI Reference ID <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 529817293810 or UTR..."
+                      value={disburseUtrInput}
+                      onChange={(e) => setDisburseUtrInput(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#132A24]/20 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#4E7A66]/30 focus:border-[#4E7A66]"
+                    />
+                    <p className="text-[11px] text-[#132A24]/50 mt-1">
+                      Transfer ₹{selectedPayoutToDisburse.amount_inr?.toFixed(2)} via your UPI app (GPay / PhonePe / Paytm / NetBanking) to the destination above, then paste the authentic bank UTR here.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPayoutToDisburse(null);
+                        setDisburseUtrInput('');
+                      }}
+                      className="px-4 py-2 rounded-xl border border-[#132A24]/20 text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isDisbursingPayout || !disburseUtrInput.trim()}
+                      className="px-5 py-2 rounded-xl bg-[#4E7A66] hover:bg-[#3D6352] text-white text-xs font-semibold disabled:opacity-50 cursor-pointer shadow-xs"
+                    >
+                      {isDisbursingPayout ? 'Recording Settlement...' : 'Confirm Disbursement'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

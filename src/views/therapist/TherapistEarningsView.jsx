@@ -198,14 +198,14 @@ export default function TherapistEarningsView() {
         throw new Error(json.error?.message || 'Withdrawal request failed.');
       }
 
-      const isQuickSettled = json.quickSettled || json.withdrawal?.status === 'completed';
+      const isSettled = json.withdrawal?.status === 'completed';
       const utrMsg = json.withdrawal?.utr_number ? ` (UTR: ${json.withdrawal.utr_number})` : '';
 
       setWithdrawFeedback({
         type: 'success',
-        message: isQuickSettled
-          ? `⚡ Quick Withdrawal of ₹${amountNum.toLocaleString('en-IN')} successfully settled to your account${utrMsg}!`
-          : `Withdrawal request for ₹${amountNum.toLocaleString('en-IN')} submitted successfully.`,
+        message: isSettled
+          ? `Withdrawal of ₹${amountNum.toLocaleString('en-IN')} successfully disbursed${utrMsg}!`
+          : `Withdrawal request for ₹${amountNum.toLocaleString('en-IN')} submitted. Processing bank disbursement to your account.`,
       });
       setWithdrawAmount('');
       // Refresh earnings and withdrawals immediately
@@ -746,11 +746,11 @@ export default function TherapistEarningsView() {
                 <h3 className="font-serif text-lg font-normal text-[#132A24] flex items-center gap-2">
                   <span>Bank Payout Batches & Direct Withdrawals</span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    <Zap size={11} className="text-[#4E7A66]" /> Quick Payout Active
+                    <Zap size={11} className="text-[#4E7A66]" /> Verified Payout Engine
                   </span>
                 </h3>
                 <p className="text-xs text-[#132A24]/50">
-                  Track completed payouts and therapist-initiated instant withdrawals to verified accounts.
+                  Track completed payouts and therapist-initiated withdrawals to verified accounts.
                 </p>
               </div>
 
@@ -759,10 +759,10 @@ export default function TherapistEarningsView() {
                 onClick={handleExpediteWithdrawals}
                 disabled={expediting}
                 className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-xs font-semibold text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer inline-flex items-center gap-1.5 shrink-0 self-start sm:self-auto shadow-2xs"
-                title="Force refresh & auto-reconcile all pending withdrawals"
+                title="Refresh withdrawal status"
               >
                 <RefreshCw size={12} className={expediting ? 'animate-spin' : ''} />
-                {expediting ? 'Reconciling...' : '⚡ Expedite / Refresh Status'}
+                {expediting ? 'Refreshing...' : 'Refresh Status'}
               </button>
             </div>
 
@@ -801,7 +801,7 @@ export default function TherapistEarningsView() {
                             <td className="py-3 px-4">
                               <div className="font-medium text-[#132A24] flex items-center gap-1.5">
                                 <Zap size={12} className="text-[#4E7A66]" />
-                                <span>Direct Quick Withdrawal</span>
+                                <span>Direct Bank/UPI Withdrawal</span>
                               </div>
                               <span className="text-[10px] text-[#132A24]/50">
                                 {matchedAccount ? `${matchedAccount.bank_name || 'Destination'} (${matchedAccount.masked_identifier})` : 'Verified Destination'}
@@ -811,28 +811,15 @@ export default function TherapistEarningsView() {
                               ₹{w.amount.toLocaleString('en-IN')}
                             </td>
                             <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                                  isCompleted
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : isProcessing
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : getStatusBadge(w.status)
-                                }`}>
-                                  {isCompleted ? '✓ Settled' : w.status}
-                                </span>
-                                {isProcessing && (
-                                  <button
-                                    type="button"
-                                    onClick={handleExpediteWithdrawals}
-                                    disabled={expediting}
-                                    className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 hover:bg-amber-200 text-[10px] font-bold cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                                    title="Settle this processing withdrawal immediately"
-                                  >
-                                    <Zap size={10} /> Settle Now
-                                  </button>
-                                )}
-                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                                isCompleted
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : isProcessing
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                  : getStatusBadge(w.status)
+                              }`}>
+                                {isCompleted ? '✓ Settled' : isProcessing ? 'Processing Transfer' : w.status}
+                              </span>
                             </td>
                             <td className="py-3 px-4">
                               {w.utr_number ? (
@@ -848,9 +835,7 @@ export default function TherapistEarningsView() {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="font-mono text-[#132A24]/60 text-[11px]">
-                                  {w.provider_payout_id || 'Pending execution'}
-                                </span>
+                                <span className="text-[11px] text-[#132A24]/40 italic">Awaiting Bank Transfer Reference</span>
                               )}
                             </td>
                           </tr>

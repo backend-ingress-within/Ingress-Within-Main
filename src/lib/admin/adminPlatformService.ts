@@ -1741,19 +1741,83 @@ export class AdminPlatformService {
     query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
 
     const { data, count } = await query;
+    const withdrawals = data || [];
+    const therapistIds = [...new Set(withdrawals.map((w: any) => w.therapist_account_id).filter(Boolean))];
+    const payoutAccountIds = [...new Set(withdrawals.map((w: any) => w.payout_account_id).filter(Boolean))];
 
-    const safePayouts = (data || []).map((w: any) => ({
-      id: w.id,
-      therapist_account_id: w.therapist_account_id,
-      payout_account_id: w.payout_account_id,
-      amount_inr: Number(w.amount),
-      currency: w.currency || 'INR',
-      status: w.status,
-      provider_payout_id: w.provider_payout_id,
-      utr_number: w.utr_number || null,
-      failure_reason: w.failure_reason || null,
-      created_at: w.created_at,
-      processed_at: w.processed_at || null,
+    const accountMap = new Map<string, any>();
+    const profileMap = new Map<string, any>();
+    const thAccountMap = new Map<string, any>();
+
+    if (payoutAccountIds.length > 0) {
+      const { data: accounts } = await supabase
+        .from('therapist_payout_accounts')
+        .select('*')
+        .in('id', payoutAccountIds);
+      (accounts || []).forEach((a: any) => accountMap.set(a.id, a));
+    }
+
+    if (therapistIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('therapist_profiles')
+        .select('therapist_account_id, full_name, contact_email, phone')
+        .in('therapist_account_id', therapistIds);
+      (profiles || []).forEach((p: any) => profileMap.set(p.therapist_account_id, p));
+
+      const { data: thAccounts } = await supabase
+        .from('therapist_accounts')
+        .select('id, phone_number')
+        .in('id', therapistIds);
+      (thAccounts || []).forEach((ta: any) => thAccountMap.set(ta.id, ta));
+    }
+
+    const safePayouts = await Promise.all(withdrawals.map(async (w: any) => {
+      const acc = accountMap.get(w.payout_account_id) || {};
+      const prof = profileMap.get(w.therapist_account_id) || {};
+      const thAcc = thAccountMap.get(w.therapist_account_id) || {};
+
+      let resolvedDestination = acc.masked_identifier || 'UPI / Bank';
+      if (acc.provider_account_id && acc.provider_account_id.startsWith('fa_') && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        try {
+          const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+          const faRes = await fetch(`https://api.razorpay.com/v1/fund_accounts/${acc.provider_account_id}`, {
+            headers: { Authorization: authHeader }
+          });
+          if (faRes.ok) {
+            const faData = await faRes.json();
+            if (faData?.vpa?.address) {
+              resolvedDestination = faData.vpa.address;
+            } else if (faData?.bank_account) {
+              resolvedDestination = `${faData.bank_account.name} (A/C: ${faData.bank_account.account_number}, IFSC: ${faData.bank_account.ifsc})`;
+            }
+          }
+        } catch {
+          // fallback to masked
+        }
+      }
+
+      return {
+        id: w.id,
+        therapist_account_id: w.therapist_account_id,
+        therapist_name: prof.full_name || acc.beneficiary_name || 'Therapist',
+        therapist_email: prof.contact_email || null,
+        therapist_phone: prof.phone || thAcc.phone_number || null,
+        payout_account_id: w.payout_account_id,
+        beneficiary_name: acc.beneficiary_name || 'Beneficiary',
+        account_type: acc.account_type || 'upi',
+        bank_name: acc.bank_name || null,
+        masked_identifier: acc.masked_identifier || null,
+        resolved_destination: resolvedDestination,
+        provider_account_id: acc.provider_account_id || null,
+        amount_inr: Number(w.amount),
+        currency: w.currency || 'INR',
+        status: w.status,
+        provider_payout_id: w.provider_payout_id,
+        utr_number: w.utr_number || null,
+        failure_reason: w.failure_reason || null,
+        created_at: w.created_at,
+        processed_at: w.processed_at || null,
+      };
     }));
 
     return {
