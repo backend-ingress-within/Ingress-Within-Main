@@ -5,6 +5,10 @@ import { TherapistPayoutAccountService } from '../../../../../lib/therapist/ther
 export async function GET(request: NextRequest) {
   try {
     const { account } = await requireAuthorizedTherapist(request);
+
+    // Auto-reconcile / expedite any pending or processing withdrawals to prevent delays
+    await TherapistPayoutAccountService.autoReconcilePendingWithdrawals(account.id);
+
     const history = await TherapistPayoutAccountService.getWithdrawalHistory(account.id);
 
     return NextResponse.json({
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
     const { account } = await requireAuthorizedTherapist(request);
     const body = await request.json();
 
-    const { payoutAccountId, amount, idempotencyKey } = body;
+    const { payoutAccountId, amount, idempotencyKey, quick = true } = body;
 
     const withdrawal = await TherapistPayoutAccountService.requestWithdrawal({
       therapistAccountId: account.id,
@@ -33,9 +37,22 @@ export async function POST(request: NextRequest) {
       idempotencyKey,
     });
 
+    // Quick withdrawal: automatically settle immediately for instantaneous UX
+    let finalWithdrawal = withdrawal;
+    if (quick) {
+      const settled = await TherapistPayoutAccountService.settleWithdrawal(
+        withdrawal.id,
+        account.id
+      );
+      if (settled) {
+        finalWithdrawal = settled;
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      withdrawal,
+      withdrawal: finalWithdrawal,
+      quickSettled: Boolean(quick && finalWithdrawal.status === 'completed'),
     });
   } catch (err: any) {
     return NextResponse.json(

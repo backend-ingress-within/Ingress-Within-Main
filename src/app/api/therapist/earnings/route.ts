@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthorizedTherapist } from '../../../../lib/therapist/therapistAuthHelper';
 import { TherapistEarningsService } from '../../../../lib/therapist/therapistEarningsService';
+import { TherapistPayoutAccountService } from '../../../../lib/therapist/therapistPayoutAccountService';
 
 export async function GET(request: NextRequest) {
   try {
     const { account } = await requireAuthorizedTherapist(request);
+
+    // Auto-reconcile in-flight withdrawals so balance metrics are always fresh
+    await TherapistPayoutAccountService.autoReconcilePendingWithdrawals(account.id);
+
     const { searchParams } = new URL(request.url);
 
     const range = (searchParams.get('range') as any) || undefined;

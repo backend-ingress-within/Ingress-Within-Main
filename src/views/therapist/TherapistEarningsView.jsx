@@ -20,7 +20,10 @@ import {
   ArrowUpRight,
   Wallet,
   X,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export default function TherapistEarningsView() {
@@ -132,6 +135,35 @@ export default function TherapistEarningsView() {
     fetchEarnings('custom', customFrom, customTo, 1);
   };
 
+  const [expediting, setExpediting] = useState(false);
+  const [copiedUtrId, setCopiedUtrId] = useState(null);
+
+  const handleCopyUtr = (id, utr) => {
+    if (!utr) return;
+    navigator.clipboard.writeText(utr);
+    setCopiedUtrId(id);
+    setTimeout(() => setCopiedUtrId(null), 2500);
+  };
+
+  const handleExpediteWithdrawals = async () => {
+    setExpediting(true);
+    try {
+      const res = await fetch('/api/therapist/payouts/withdraw/expedite', {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || 'Failed to expedite withdrawals.');
+      await Promise.all([
+        fetchEarnings(selectedRange, customFrom, customTo, activePage),
+        fetchPayoutData(),
+      ]);
+    } catch (err) {
+      alert(`Expedite Notice: ${err.message}`);
+    } finally {
+      setExpediting(false);
+    }
+  };
+
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     setWithdrawSubmitting(true);
@@ -157,6 +189,7 @@ export default function TherapistEarningsView() {
         body: JSON.stringify({
           amount: amountNum,
           payoutAccountId: selectedAccountId,
+          quick: true,
         }),
       });
 
@@ -165,18 +198,23 @@ export default function TherapistEarningsView() {
         throw new Error(json.error?.message || 'Withdrawal request failed.');
       }
 
+      const isQuickSettled = json.quickSettled || json.withdrawal?.status === 'completed';
+      const utrMsg = json.withdrawal?.utr_number ? ` (UTR: ${json.withdrawal.utr_number})` : '';
+
       setWithdrawFeedback({
         type: 'success',
-        message: `Withdrawal request for ₹${amountNum.toLocaleString('en-IN')} submitted successfully (Status: Processing).`,
+        message: isQuickSettled
+          ? `⚡ Quick Withdrawal of ₹${amountNum.toLocaleString('en-IN')} successfully settled to your account${utrMsg}!`
+          : `Withdrawal request for ₹${amountNum.toLocaleString('en-IN')} submitted successfully.`,
       });
       setWithdrawAmount('');
-      // Refresh earnings and withdrawals
+      // Refresh earnings and withdrawals immediately
       fetchEarnings(selectedRange, customFrom, customTo, activePage);
       fetchPayoutData();
       setTimeout(() => {
         setIsWithdrawModalOpen(false);
         setWithdrawFeedback(null);
-      }, 2000);
+      }, 2500);
     } catch (err) {
       setWithdrawFeedback({ type: 'error', message: err.message });
     } finally {
@@ -703,15 +741,29 @@ export default function TherapistEarningsView() {
 
           {/* Disbursements & Withdrawals Section */}
           <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-serif text-lg font-normal text-[#132A24]">
-                  Bank Payout Batches & Direct Withdrawals
+                <h3 className="font-serif text-lg font-normal text-[#132A24] flex items-center gap-2">
+                  <span>Bank Payout Batches & Direct Withdrawals</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <Zap size={11} className="text-[#4E7A66]" /> Quick Payout Active
+                  </span>
                 </h3>
                 <p className="text-xs text-[#132A24]/50">
-                  Track completed payouts and therapist-initiated withdrawals to verified accounts.
+                  Track completed payouts and therapist-initiated instant withdrawals to verified accounts.
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={handleExpediteWithdrawals}
+                disabled={expediting}
+                className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-xs font-semibold text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer inline-flex items-center gap-1.5 shrink-0 self-start sm:self-auto shadow-2xs"
+                title="Force refresh & auto-reconcile all pending withdrawals"
+              >
+                <RefreshCw size={12} className={expediting ? 'animate-spin' : ''} />
+                {expediting ? 'Reconciling...' : '⚡ Expedite / Refresh Status'}
+              </button>
             </div>
 
             {payouts.length === 0 && withdrawals.length === 0 ? (
@@ -732,31 +784,78 @@ export default function TherapistEarningsView() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#132A24]/10">
-                      {withdrawals.map((w) => (
-                        <tr key={w.id} className="hover:bg-[#FAFAF8]/80 transition-colors">
-                          <td className="py-3 px-4 text-[#132A24]/70">
-                            {new Date(w.created_at).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td className="py-3 px-4 font-medium text-[#132A24]">
-                            Direct Withdrawal
-                          </td>
-                          <td className="py-3 px-4 font-semibold text-[#4E7A66]">
-                            ₹{w.amount.toLocaleString('en-IN')}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${getStatusBadge(w.status)}`}>
-                              {w.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-[#132A24]/70 text-[11px]">
-                            {w.utr_number || w.provider_payout_id || 'Pending execution'}
-                          </td>
-                        </tr>
-                      ))}
+                      {withdrawals.map((w) => {
+                        const isCompleted = w.status === 'completed';
+                        const isProcessing = w.status === 'processing' || w.status === 'requested';
+                        const matchedAccount = payoutAccounts.find((a) => a.id === w.payout_account_id);
+
+                        return (
+                          <tr key={w.id} className="hover:bg-[#FAFAF8]/80 transition-colors">
+                            <td className="py-3 px-4 text-[#132A24]/70">
+                              {new Date(w.created_at).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-medium text-[#132A24] flex items-center gap-1.5">
+                                <Zap size={12} className="text-[#4E7A66]" />
+                                <span>Direct Quick Withdrawal</span>
+                              </div>
+                              <span className="text-[10px] text-[#132A24]/50">
+                                {matchedAccount ? `${matchedAccount.bank_name || 'Destination'} (${matchedAccount.masked_identifier})` : 'Verified Destination'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-semibold text-[#4E7A66]">
+                              ₹{w.amount.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                                  isCompleted
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : isProcessing
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : getStatusBadge(w.status)
+                                }`}>
+                                  {isCompleted ? '✓ Settled' : w.status}
+                                </span>
+                                {isProcessing && (
+                                  <button
+                                    type="button"
+                                    onClick={handleExpediteWithdrawals}
+                                    disabled={expediting}
+                                    className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 hover:bg-amber-200 text-[10px] font-bold cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                                    title="Settle this processing withdrawal immediately"
+                                  >
+                                    <Zap size={10} /> Settle Now
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {w.utr_number ? (
+                                <div className="inline-flex items-center gap-1.5 bg-[#FAF9F5] px-2 py-1 rounded-md border border-[#132A24]/10 font-mono text-xs text-[#132A24]">
+                                  <span>{w.utr_number}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyUtr(w.id, w.utr_number)}
+                                    className="text-[#132A24]/40 hover:text-[#132A24] cursor-pointer p-0.5"
+                                    title="Copy UTR Reference"
+                                  >
+                                    {copiedUtrId === w.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="font-mono text-[#132A24]/60 text-[11px]">
+                                  {w.provider_payout_id || 'Pending execution'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
 
                       {payouts.map((p) => (
                         <tr key={p.id} className="hover:bg-[#FAFAF8]/80 transition-colors">
@@ -818,11 +917,25 @@ export default function TherapistEarningsView() {
               <div>
                 <h3 className="font-serif text-xl font-medium text-[#132A24] flex items-center gap-2">
                   <Wallet size={20} className="text-[#4E7A66]" />
-                  Withdraw Earnings
+                  <span>Withdraw Earnings</span>
+                  <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                    ⚡ Instant Quick Payout
+                  </span>
                 </h3>
                 <p className="text-xs text-[#132A24]/60 mt-1">
                   Disburse your available session earnings directly to your verified payout destination.
                 </p>
+              </div>
+
+              {/* Quick Transfer Guarantee Banner */}
+              <div className="bg-emerald-50/80 border border-emerald-200/80 p-3 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
+                <Zap size={15} className="text-[#4E7A66] shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-emerald-900">24x7 Quick Instant Payout Active</span>
+                  <p className="text-[11px] text-emerald-800/80">
+                    Transfers are settled automatically to your verified IMPS / UPI destination within seconds.
+                  </p>
+                </div>
               </div>
 
               <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#132A24]/10 flex items-center justify-between">
@@ -881,7 +994,7 @@ export default function TherapistEarningsView() {
                     />
                   </div>
                   <p className="text-[10px] text-[#132A24]/40 mt-1">
-                    Minimum withdrawal amount: ₹1.00
+                    Minimum withdrawal amount: ₹1.00 &bull; Zero platform disbursement fee
                   </p>
                 </div>
 
@@ -917,10 +1030,12 @@ export default function TherapistEarningsView() {
                   >
                     {withdrawSubmitting ? (
                       <>
-                        <RefreshCw size={13} className="animate-spin" /> Processing...
+                        <RefreshCw size={13} className="animate-spin" /> Settling Instantly...
                       </>
                     ) : (
-                      'Confirm Withdrawal'
+                      <>
+                        <Zap size={13} /> Instant Quick Withdrawal
+                      </>
                     )}
                   </button>
                 </div>

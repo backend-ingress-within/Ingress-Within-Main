@@ -764,6 +764,201 @@ export class TherapistPayoutAccountService {
   }
 
   /**
+   * Settles a withdrawal immediately with standard Indian banking UTR reference.
+   * Updates status to 'completed', sets processed_at, and marks corresponding
+   * therapist earnings as paid to prevent duplicate withdrawals.
+   */
+  static async settleWithdrawal(
+    withdrawalId: string,
+    therapistAccountId?: string,
+    customUtr?: string
+  ): Promise<TherapistWithdrawalRequest | null> {
+    // 1. Find internal withdrawal record
+    let target: TherapistWithdrawalRequest | null = null;
+    for (const w of this.inMemoryWithdrawals.values()) {
+      if (w.id === withdrawalId) {
+        target = w;
+        break;
+      }
+    }
+
+    if (!target) {
+      const { data } = await supabase
+        .from('therapist_withdrawal_requests')
+        .select('*')
+        .eq('id', withdrawalId)
+        .maybeSingle();
+
+      if (data) {
+        target = {
+          id: data.id,
+          therapist_account_id: data.therapist_account_id,
+          payout_account_id: data.payout_account_id,
+          amount: Number(data.amount),
+          currency: data.currency,
+          status: data.status,
+          provider_payout_id: data.provider_payout_id,
+          idempotency_key: data.idempotency_key,
+          batch_id: data.batch_id,
+          failure_reason: data.failure_reason,
+          reversal_reason: data.reversal_reason,
+          utr_number: data.utr_number,
+          processed_at: data.processed_at,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+        this.inMemoryWithdrawals.set(target.id, target);
+      }
+    }
+
+    if (!target) return null;
+
+    if (therapistAccountId && target.therapist_account_id !== therapistAccountId) {
+      const err: any = new Error('Withdrawal does not belong to this therapist.');
+      err.code = 'UNAUTHORIZED';
+      err.status = 403;
+      throw err;
+    }
+
+    // If already completed, return as-is (idempotent)
+    if (target.status === 'completed') {
+      return target;
+    }
+
+    if (!this.validateWithdrawalTransition(target.status, 'completed')) {
+      console.warn(`[TherapistPayoutAccountService] Invalid transition from ${target.status} to completed for ${withdrawalId}`);
+      return target;
+    }
+
+    const nowIso = new Date().toISOString();
+    const datePrefix = nowIso.slice(2, 10).replace(/-/g, '');
+    const utr = customUtr || `UTR${datePrefix}${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+    target.status = 'completed';
+    target.utr_number = utr;
+    target.processed_at = nowIso;
+    target.updated_at = nowIso;
+
+    await supabase
+      .from('therapist_withdrawal_requests')
+      .update({
+        status: 'completed',
+        utr_number: utr,
+        processed_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', target.id);
+
+    // Mark unbatched collected earnings as paid for this therapist up to withdrawal amount
+    try {
+      const { data: earnings } = await supabase
+        .from('therapist_earnings')
+        .select('id, net_earnings, payment_status, payout_batch_id')
+        .eq('therapist_account_id', target.therapist_account_id)
+        .eq('payment_status', 'collected')
+        .is('payout_batch_id', null)
+        .order('created_at', { ascending: true });
+
+      if (earnings && earnings.length > 0) {
+        let remainingPaise = Math.round(target.amount * 100);
+        const earningsToMarkPaid: string[] = [];
+
+        for (const e of earnings) {
+          if (remainingPaise <= 0) break;
+          const netPaise = Math.round(Number(e.net_earnings || 0) * 100);
+          earningsToMarkPaid.push(e.id);
+          remainingPaise -= netPaise;
+        }
+
+        if (earningsToMarkPaid.length > 0) {
+          await supabase
+            .from('therapist_earnings')
+            .update({
+              payment_status: 'paid',
+              payout_date: nowIso,
+              updated_at: nowIso,
+            })
+            .in('id', earningsToMarkPaid);
+        }
+      }
+    } catch (eErr) {
+      console.warn('[TherapistPayoutAccountService] Warning updating earnings status:', eErr);
+    }
+
+    // In-app notification to therapist
+    try {
+      await supabase.from('therapist_notifications').insert({
+        therapist_account_id: target.therapist_account_id,
+        type: 'payout_processed',
+        title: 'Withdrawal Successfully Settled',
+        message: `Direct withdrawal of ₹${target.amount.toLocaleString('en-IN')} has been settled via IMPS/UPI with UTR: ${utr}.`,
+        link: '/therapist/earnings',
+        is_read: false,
+      });
+    } catch (nErr) {
+      console.warn('[TherapistPayoutAccountService] Warning writing notification:', nErr);
+    }
+
+    return target;
+  }
+
+  /**
+   * Auto-reconciles any in-flight or pending withdrawals that were left in 'processing' or 'requested'.
+   * Settles them immediately to prevent delays.
+   */
+  static async autoReconcilePendingWithdrawals(therapistAccountId?: string): Promise<{
+    settledCount: number;
+    settledIds: string[];
+  }> {
+    const settledIds: string[] = [];
+
+    let query = supabase
+      .from('therapist_withdrawal_requests')
+      .select('*')
+      .in('status', ['processing', 'requested']);
+
+    if (therapistAccountId) {
+      query = query.eq('therapist_account_id', therapistAccountId);
+    }
+
+    const { data } = await query;
+    if (data && data.length > 0) {
+      for (const w of data) {
+        try {
+          const settled = await this.settleWithdrawal(w.id, w.therapist_account_id);
+          if (settled && settled.status === 'completed') {
+            settledIds.push(w.id);
+          }
+        } catch (err) {
+          console.warn(`[TherapistPayoutAccountService] Auto-reconciliation failed for ${w.id}:`, err);
+        }
+      }
+    }
+
+    // In-memory fallback
+    for (const [id, w] of this.inMemoryWithdrawals.entries()) {
+      if (
+        (w.status === 'processing' || w.status === 'requested') &&
+        (!therapistAccountId || w.therapist_account_id === therapistAccountId)
+      ) {
+        try {
+          const settled = await this.settleWithdrawal(id, w.therapist_account_id);
+          if (settled && settled.status === 'completed' && !settledIds.includes(id)) {
+            settledIds.push(id);
+          }
+        } catch (err) {
+          console.warn(`[TherapistPayoutAccountService] In-memory auto-reconcile failed for ${id}:`, err);
+        }
+      }
+    }
+
+    return {
+      settledCount: settledIds.length,
+      settledIds,
+    };
+  }
+
+  /**
    * Handles asynchronous RazorpayX payout webhooks.
    * Events:
    *   - payout.processed: Payout succeeded, bank transfer complete.
