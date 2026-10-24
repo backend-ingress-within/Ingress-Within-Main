@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
         status,
         session_type,
         modality,
-        meeting_link,
         google_meet_url,
         google_meet_status,
         calendar_sync_status,
@@ -76,11 +75,9 @@ export async function GET(request: NextRequest) {
       const therapist = therapistsMap[appt.therapist_account_id];
       const validMeetUrl = isValidGoogleMeetUrl(appt.google_meet_url)
         ? appt.google_meet_url
-        : (isValidGoogleMeetUrl(appt.meeting_link)
-            ? appt.meeting_link
-            : (appt.modality !== 'in_person' && appt.session_type !== 'in_person'
-                ? GoogleCalendarService.getFallbackMeetUrl()
-                : null));
+        : (appt.modality !== 'in_person' && appt.session_type !== 'in_person'
+            ? GoogleCalendarService.getFallbackMeetUrl()
+            : null);
 
       const meetingWindow = getSessionMeetingWindow(appt.scheduled_start, appt.scheduled_end);
 

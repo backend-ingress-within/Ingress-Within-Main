@@ -1742,6 +1742,64 @@ export class SessionBookingService {
       throw err;
     }
 
+    // 3b. Check Google Calendar conflict on new time
+    const googleBusy = await GoogleCalendarService.getBusySlots(
+      appt.therapist_account_id,
+      newStart,
+      newEnd
+    );
+    const nStartMs = new Date(newStart).getTime();
+    const nEndMs = new Date(newEnd).getTime();
+    const hasGoogleConflict = googleBusy.some((gb) => {
+      const bStart = new Date(gb.start).getTime();
+      const bEnd = new Date(gb.end).getTime();
+      return nStartMs < bEnd && nEndMs > bStart;
+    });
+
+    if (hasGoogleConflict) {
+      const err: any = new Error('New time slot conflicts with therapist Google Calendar.');
+      err.code = 'SLOT_UNAVAILABLE';
+      err.status = 409;
+      throw err;
+    }
+
+    // 3c. Check therapist manual blocked availability windows on new time
+    const { data: availBlocks } = await supabase
+      .from('therapist_availability_blocks')
+      .select('*')
+      .eq('therapist_account_id', appt.therapist_account_id)
+      .eq('is_blocked', true);
+
+    const slotStartDate = new Date(newStart);
+    const slotEndDate = new Date(newEnd);
+    const dateStr = slotStartDate.toLocaleDateString('en-CA');
+    const dayOfWeek = slotStartDate.getDay();
+    const slotStartFmt = `${String(slotStartDate.getHours()).padStart(2, '0')}:${String(slotStartDate.getMinutes()).padStart(2, '0')}`;
+    const slotEndFmt = `${String(slotEndDate.getHours()).padStart(2, '0')}:${String(slotEndDate.getMinutes()).padStart(2, '0')}`;
+
+    const isTherapistBlocked = availBlocks?.some((b: any) => {
+      if (!b.is_blocked) return false;
+      if (b.specific_date) {
+        if (b.specific_date !== dateStr) return false;
+        const bStart = (b.start_time || '00:00:00').substring(0, 5);
+        const bEnd = (b.end_time || '23:59:59').substring(0, 5);
+        return slotStartFmt < bEnd && slotEndFmt > bStart;
+      }
+      if (b.is_recurring && b.day_of_week === dayOfWeek) {
+        const bStart = (b.start_time || '00:00:00').substring(0, 5);
+        const bEnd = (b.end_time || '23:59:59').substring(0, 5);
+        return slotStartFmt < bEnd && slotEndFmt > bStart;
+      }
+      return false;
+    });
+
+    if (isTherapistBlocked) {
+      const err: any = new Error('Selected time slot falls within therapist blocked leave/time-off.');
+      err.code = 'SLOT_UNAVAILABLE';
+      err.status = 409;
+      throw err;
+    }
+
     // 4. Insert audit record in therapist_session_reschedules
     await supabase.from('therapist_session_reschedules').insert({
       appointment_id: appointmentId,

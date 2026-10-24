@@ -31,6 +31,7 @@ export default function TherapistCalendarView({
 }) {
   const [sessions, setSessions] = useState([]);
   const [externalBusy, setExternalBusy] = useState([]);
+  const [externalEvents, setExternalEvents] = useState([]);
   const [blockedSlots, setBlockedSlots] = useState([]);
   const [googleCalendarStatus, setGoogleCalendarStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +102,7 @@ export default function TherapistCalendarView({
       const list = json.sessions || json.appointments || [];
       setSessions(list);
       setExternalBusy(json.externalBusy || []);
+      setExternalEvents(json.externalEvents || []);
       const blocks = (json.availabilityBlocks || []).filter(b => b.is_blocked);
       setBlockedSlots(blocks);
       setGoogleCalendarStatus(json.googleCalendarStatus || null);
@@ -270,6 +272,9 @@ export default function TherapistCalendarView({
 
       const dayBlocks = blockedSlotsByDay.get(dayKey) || [];
       const isDayBlocked = dayBlocks.length > 0;
+      const dayExtEvents = externalEventsByDay.get(dayKey) || [];
+      const dayExtBusy = externalBusyByDay.get(dayKey) || [];
+      const externalCount = dayExtEvents.length || dayExtBusy.length;
 
       days.push({
         dayNumber: day,
@@ -281,15 +286,35 @@ export default function TherapistCalendarView({
         cancelledCount,
         blockedSlots: dayBlocks,
         isBlocked: isDayBlocked,
+        externalCount,
       });
     }
     return days;
-  }, [currentMonth, sessionsByDay, blockedSlotsByDay]);
+  }, [currentMonth, sessionsByDay, blockedSlotsByDay, externalEventsByDay, externalBusyByDay]);
 
   const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
   const selectedDaySessions = useMemo(() => {
     return sessionsByDay.get(selectedDayKey) || [];
   }, [sessionsByDay, selectedDayKey]);
+
+  // Group external events by day (YYYY-MM-DD)
+  const externalEventsByDay = useMemo(() => {
+    const map = new Map();
+    externalEvents.forEach((ev) => {
+      const start = ev.startTime || ev.start_time;
+      if (!start) return;
+      const dayKey = new Date(start).toLocaleDateString('en-CA');
+      if (!map.has(dayKey)) {
+        map.set(dayKey, []);
+      }
+      map.get(dayKey).push(ev);
+    });
+    return map;
+  }, [externalEvents]);
+
+  const selectedDayExternalEvents = useMemo(() => {
+    return externalEventsByDay.get(selectedDayKey) || [];
+  }, [externalEventsByDay, selectedDayKey]);
 
   // Group external busy periods by day (YYYY-MM-DD)
   const externalBusyByDay = useMemo(() => {
@@ -664,6 +689,12 @@ export default function TherapistCalendarView({
                           {cell.cancelledCount} cancelled
                         </div>
                       )}
+                      {cell.externalCount > 0 && (
+                        <div className="text-[9px] text-[#132A24]/60 font-medium truncate flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#132A24]/40 shrink-0" />
+                          <span>{cell.externalCount} external</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -728,15 +759,15 @@ export default function TherapistCalendarView({
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#132A24]/5 text-[#132A24]/70">
                 {selectedDaySessions.length} {selectedDaySessions.length === 1 ? 'session' : 'sessions'}
               </span>
-              {selectedDayExternalBusy.length > 0 && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800">
-                  {selectedDayExternalBusy.length} external busy
+              {(selectedDayExternalEvents.length > 0 || selectedDayExternalBusy.length > 0) && (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#132A24]/10 text-[#132A24]/80">
+                  {selectedDayExternalEvents.length || selectedDayExternalBusy.length} external
                 </span>
               )}
             </div>
           </div>
 
-          {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalBusy.length === 0 ? (
+          {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalEvents.length === 0 && selectedDayExternalBusy.length === 0 ? (
             <div className="bg-white border border-[#132A24]/10 rounded-2xl p-12 text-center space-y-3">
               <CalendarIcon size={36} className="mx-auto text-[#132A24]/30" />
               <h3 className="font-serif text-xl font-normal text-[#132A24]">
@@ -750,7 +781,9 @@ export default function TherapistCalendarView({
             <div className="space-y-3">
               {selectedDayBlockedSlots.map(renderBlockedSlotCard)}
               {selectedDaySessions.map(renderSessionCard)}
-              {selectedDayExternalBusy.map(renderExternalBusyCard)}
+              {selectedDayExternalEvents.length > 0
+                ? selectedDayExternalEvents.map(renderExternalEventCard)
+                : selectedDayExternalBusy.map(renderExternalBusyCard)}
             </div>
           )}
         </div>
@@ -827,6 +860,59 @@ export default function TherapistCalendarView({
           <Trash2 size={13} />
           {unblockingId === block.id ? 'Removing...' : 'Unblock'}
         </button>
+      </div>
+    );
+  }
+
+  // Render external Google Calendar event card (minimal sanitized title, time interval, distinct badge)
+  function renderExternalEventCard(eventItem, idx) {
+    const startTime = eventItem.startTime || eventItem.start_time;
+    const endTime = eventItem.endTime || eventItem.end_time;
+    const isAllDay = Boolean(eventItem.isAllDay ?? eventItem.is_all_day);
+
+    const startStr = isAllDay
+      ? 'All Day'
+      : new Date(startTime).toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+    const endStr = isAllDay
+      ? ''
+      : new Date(endTime).toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+
+    const timeLabel = isAllDay ? 'All Day Event' : `${startStr} – ${endStr}`;
+    const displaySummary = eventItem.summary || 'Busy';
+
+    return (
+      <div
+        key={`external-event-${eventItem.googleEventId || idx}-${startTime}`}
+        className="bg-[#FAFAF8] border border-dashed border-[#132A24]/20 rounded-xl p-4 flex items-center justify-between gap-4 transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[#132A24]/5 border border-[#132A24]/10 flex flex-col items-center justify-center shrink-0 text-[#132A24]/70">
+            <CalendarIcon size={16} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[#132A24]">
+                {displaySummary}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#132A24]/10 text-[#132A24]/80 uppercase tracking-wider">
+                External Calendar Event
+              </span>
+            </div>
+            <p className="text-xs text-[#132A24]/60 mt-0.5 flex items-center gap-2">
+              <span className="font-semibold">{timeLabel}</span>
+              <span>&bull;</span>
+              <span>Client booking unavailable during this period</span>
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

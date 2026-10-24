@@ -2200,6 +2200,28 @@ export class TherapistPlatformService {
       }
     }
 
+    // 6. Authoritative Google Calendar External Event Conflict Check
+    const googleBusy = await GoogleCalendarService.getBusySlots(
+      therapistAccountId,
+      scheduledStartIso,
+      scheduledEndIso
+    );
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const hasGoogleConflict = googleBusy.some((gb) => {
+      const bStart = new Date(gb.start).getTime();
+      const bEnd = new Date(gb.end).getTime();
+      return startMs < bEnd && endMs > bStart;
+    });
+
+    if (hasGoogleConflict) {
+      return {
+        hasConflict: true,
+        reason: 'Requested session time conflicts with therapist Google Calendar commitment.',
+        code: 'GOOGLE_CALENDAR_CONFLICT',
+      };
+    }
+
     return { hasConflict: false };
   }
 
@@ -3408,23 +3430,31 @@ export class TherapistPlatformService {
       .select('*')
       .eq('therapist_account_id', therapistAccountId);
 
-    // 3. Google Calendar busy slots
-    const externalBusy = await GoogleCalendarService.getBusySlots(
-      therapistAccountId,
-      startDateIso,
-      endDateIso
-    );
+    // 3. Google Calendar external events and busy slots
+    const [externalBusy, externalEvents, googleCalendarStatus] = await Promise.all([
+      GoogleCalendarService.getBusySlots(
+        therapistAccountId,
+        startDateIso,
+        endDateIso
+      ),
+      GoogleCalendarService.getExternalEvents(
+        therapistAccountId,
+        startDateIso,
+        endDateIso
+      ),
+      GoogleAuthService.getConnectionStatus('therapist', therapistAccountId),
+    ]);
 
-    // 4. Google Calendar connection status
-    const googleCalendarStatus = await GoogleAuthService.getConnectionStatus(
-      'therapist',
-      therapistAccountId
-    );
+    // If connected, trigger non-blocking incremental sync in background to refresh freshness
+    if (googleCalendarStatus?.connected) {
+      GoogleCalendarService.syncExternalEvents(therapistAccountId).catch(() => {});
+    }
 
     return {
       sessions: appointments,
       appointments,
       availabilityBlocks: blocks || [],
+      externalEvents: externalEvents || [],
       externalBusy,
       googleCalendarStatus,
     };

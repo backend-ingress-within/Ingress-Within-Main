@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const { account } = await requireAuthorizedTherapist(request);
 
-    // Fetch upcoming active appointments for this therapist
+    // 1. Inbound Two-Way Sync: Synchronize external Google Calendar events into Ingress Within
+    const externalSyncResult = await GoogleCalendarService.syncExternalEvents(account.id);
+
+    // 2. Outbound Sync: Fetch upcoming active appointments for this therapist and sync to Google
     const nowIso = new Date().toISOString();
     const { data: upcomingAppts, error } = await supabase
       .from('therapist_clinical_appointments')
@@ -43,6 +46,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       syncedCount,
+      externalSync: {
+        success: externalSyncResult.success,
+        syncedCount: externalSyncResult.syncedCount,
+        deletedCount: externalSyncResult.deletedCount,
+      },
       totalUpcoming: (upcomingAppts || []).length,
       results,
     });
