@@ -250,6 +250,35 @@ export default function TherapistCalendarView({
     return map;
   }, [blockedSlots]);
 
+  // Group external events by day (YYYY-MM-DD)
+  const externalEventsByDay = useMemo(() => {
+    const map = new Map();
+    externalEvents.forEach((ev) => {
+      const start = ev.startTime || ev.start_time;
+      if (!start) return;
+      const dayKey = new Date(start).toLocaleDateString('en-CA');
+      if (!map.has(dayKey)) {
+        map.set(dayKey, []);
+      }
+      map.get(dayKey).push(ev);
+    });
+    return map;
+  }, [externalEvents]);
+
+  // Group external busy periods by day (YYYY-MM-DD)
+  const externalBusyByDay = useMemo(() => {
+    const map = new Map();
+    externalBusy.forEach((b) => {
+      if (!b.start) return;
+      const dayKey = new Date(b.start).toLocaleDateString('en-CA');
+      if (!map.has(dayKey)) {
+        map.set(dayKey, []);
+      }
+      map.get(dayKey).push(b);
+    });
+    return map;
+  }, [externalBusy]);
+
   // Build calendar matrix for month
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -297,38 +326,9 @@ export default function TherapistCalendarView({
     return sessionsByDay.get(selectedDayKey) || [];
   }, [sessionsByDay, selectedDayKey]);
 
-  // Group external events by day (YYYY-MM-DD)
-  const externalEventsByDay = useMemo(() => {
-    const map = new Map();
-    externalEvents.forEach((ev) => {
-      const start = ev.startTime || ev.start_time;
-      if (!start) return;
-      const dayKey = new Date(start).toLocaleDateString('en-CA');
-      if (!map.has(dayKey)) {
-        map.set(dayKey, []);
-      }
-      map.get(dayKey).push(ev);
-    });
-    return map;
-  }, [externalEvents]);
-
   const selectedDayExternalEvents = useMemo(() => {
     return externalEventsByDay.get(selectedDayKey) || [];
   }, [externalEventsByDay, selectedDayKey]);
-
-  // Group external busy periods by day (YYYY-MM-DD)
-  const externalBusyByDay = useMemo(() => {
-    const map = new Map();
-    externalBusy.forEach((b) => {
-      if (!b.start) return;
-      const dayKey = new Date(b.start).toLocaleDateString('en-CA');
-      if (!map.has(dayKey)) {
-        map.set(dayKey, []);
-      }
-      map.get(dayKey).push(b);
-    });
-    return map;
-  }, [externalBusy]);
 
   const selectedDayExternalBusy = useMemo(() => {
     return externalBusyByDay.get(selectedDayKey) || [];
