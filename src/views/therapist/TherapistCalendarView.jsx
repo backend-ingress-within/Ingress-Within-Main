@@ -727,7 +727,7 @@ export default function TherapistCalendarView({
               </span>
             </div>
 
-            {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalBusy.length === 0 ? (
+            {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalEvents.length === 0 && selectedDayExternalBusy.length === 0 ? (
               <div className="bg-white border border-[#132A24]/10 rounded-xl p-8 text-center space-y-2">
                 <p className="text-sm font-medium text-[#132A24]">No sessions scheduled for this day.</p>
                 <p className="text-xs text-[#132A24]/50 max-w-sm mx-auto">
@@ -738,7 +738,9 @@ export default function TherapistCalendarView({
               <div className="space-y-3">
                 {selectedDayBlockedSlots.map(renderBlockedSlotCard)}
                 {selectedDaySessions.map(renderSessionCard)}
-                {selectedDayExternalBusy.map(renderExternalBusyCard)}
+                {selectedDayExternalEvents.length > 0
+                  ? selectedDayExternalEvents.map(renderExternalEventCard)
+                  : selectedDayExternalBusy.map(renderExternalBusyCard)}
               </div>
             )}
           </div>
@@ -817,36 +819,81 @@ export default function TherapistCalendarView({
     </div>
   );
 
+  // Format duration into readable text (e.g. "50 mins", "1 hr 30 mins", "All Day")
+  function formatDurationLabel(startIso, endIso, isAllDay = false, fallbackMinutes = 50) {
+    if (isAllDay) return 'All Day';
+    if (!startIso || !endIso) return `${fallbackMinutes} mins`;
+    const startMs = new Date(startIso).getTime();
+    const endMs = new Date(endIso).getTime();
+    if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) return `${fallbackMinutes} mins`;
+    const diffMinutes = Math.round((endMs - startMs) / 60000);
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    if (hours > 0 && mins > 0) return `${hours} hr ${mins} mins`;
+    if (hours > 0) return `${hours} hr${hours > 1 ? 's' : ''}`;
+    return `${mins} mins`;
+  }
+
+  function formatTimeIST(dateIso) {
+    if (!dateIso) return '';
+    const d = new Date(dateIso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+
   // Render therapist manual blocked slot card (e.g. Leave, Time off)
   function renderBlockedSlotCard(block) {
     const isAllDay =
       (!block.start_time || block.start_time.startsWith('00:00')) &&
       (!block.end_time || block.end_time.startsWith('23:59') || block.end_time.startsWith('24:00'));
 
+    let durationLabel = 'All Day';
+    if (!isAllDay && block.start_time && block.end_time) {
+      const [sH, sM = 0] = block.start_time.split(':').map(Number);
+      const [eH, eM = 0] = block.end_time.split(':').map(Number);
+      const diff = (eH * 60 + eM) - (sH * 60 + sM);
+      if (diff > 0) {
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
+        durationLabel = h > 0 && m > 0 ? `${h} hr ${m} mins` : h > 0 ? `${h} hr${h > 1 ? 's' : ''}` : `${m} mins`;
+      }
+    }
+
     const timeLabel = isAllDay
       ? 'All Day / On Leave'
-      : `${(block.start_time || '00:00').substring(0, 5)} – ${(block.end_time || '23:59').substring(0, 5)}`;
+      : `${(block.start_time || '00:00').substring(0, 5)} – ${(block.end_time || '23:59').substring(0, 5)} (IST)`;
 
     return (
       <div
         key={`blocked-${block.id}`}
-        className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 flex items-center justify-between gap-4 transition-all"
+        className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-2xs"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-300/40 flex flex-col items-center justify-center shrink-0 text-amber-800">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-300/50 flex flex-col items-center justify-center shrink-0 text-amber-800">
             <Ban size={18} />
+            <span className="text-[9px] font-bold mt-0.5">{durationLabel}</span>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#132A24]">
-                {timeLabel}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-[#132A24]">
+                {block.reason || 'Personal Leave / Not Taking Cases'}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 text-amber-900 uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200/80 text-amber-900 uppercase tracking-wider">
                 Blocked / Leave
               </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800/80">
+                <Clock size={11} /> {durationLabel}
+              </span>
             </div>
-            <p className="text-[11px] text-[#132A24]/70 mt-0.5 font-medium">
-              {block.reason || 'Personal Leave / Not Taking Cases'} &bull; Client booking prevented during this window
+            <p className="text-xs text-[#132A24]/70 mt-1 flex flex-wrap items-center gap-2 font-medium">
+              <span className="font-semibold text-[#132A24]">{timeLabel}</span>
+              <span>&bull;</span>
+              <span>Client booking unavailable during this period</span>
             </p>
           </div>
         </div>
@@ -854,102 +901,106 @@ export default function TherapistCalendarView({
         <button
           onClick={() => handleUnblockSlot(block.id)}
           disabled={unblockingId === block.id}
-          className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 shadow-2xs"
+          className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 shadow-2xs self-end sm:self-center"
           title="Remove this block and reopen availability"
         >
           <Trash2 size={13} />
-          {unblockingId === block.id ? 'Removing...' : 'Unblock'}
+          {unblockingId === block.id ? 'Removing...' : 'Unblock Time'}
         </button>
       </div>
     );
   }
 
-  // Render external Google Calendar event card (minimal sanitized title, time interval, distinct badge)
+  // Render external Google Calendar event card (shows event name, time in IST, duration, Google Cal badge)
   function renderExternalEventCard(eventItem, idx) {
     const startTime = eventItem.startTime || eventItem.start_time;
     const endTime = eventItem.endTime || eventItem.end_time;
     const isAllDay = Boolean(eventItem.isAllDay ?? eventItem.is_all_day);
 
-    const startStr = isAllDay
-      ? 'All Day'
-      : new Date(startTime).toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
-    const endStr = isAllDay
-      ? ''
-      : new Date(endTime).toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
-
-    const timeLabel = isAllDay ? 'All Day Event' : `${startStr} – ${endStr}`;
-    const displaySummary = eventItem.summary || 'Busy';
+    const startStr = isAllDay ? 'All Day' : formatTimeIST(startTime);
+    const endStr = isAllDay ? '' : formatTimeIST(endTime);
+    const timeLabel = isAllDay ? 'All Day Event' : `${startStr} – ${endStr} (IST)`;
+    const durationLabel = formatDurationLabel(startTime, endTime, isAllDay);
+    const displaySummary = eventItem.summary || 'Busy Commitment';
+    const htmlLink = eventItem.html_link || eventItem.htmlLink;
 
     return (
       <div
-        key={`external-event-${eventItem.googleEventId || idx}-${startTime}`}
-        className="bg-[#FAFAF8] border border-dashed border-[#132A24]/20 rounded-xl p-4 flex items-center justify-between gap-4 transition-all"
+        key={`external-event-${eventItem.googleEventId || eventItem.id || idx}-${startTime}`}
+        className="bg-[#FAF9F5] border border-[#132A24]/15 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-2xs"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#132A24]/5 border border-[#132A24]/10 flex flex-col items-center justify-center shrink-0 text-[#132A24]/70">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-[#4E7A66]/10 border border-[#4E7A66]/20 flex flex-col items-center justify-center shrink-0 text-[#4E7A66]">
             <CalendarIcon size={16} />
+            <span className="text-[9px] font-bold mt-0.5">{durationLabel}</span>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#132A24]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-[#132A24]">
                 {displaySummary}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#132A24]/10 text-[#132A24]/80 uppercase tracking-wider">
-                External Calendar Event
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#4E7A66]/10 text-[#4E7A66] uppercase tracking-wider flex items-center gap-1">
+                <CheckCircle2 size={10} /> External Google Calendar
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#132A24]/60">
+                <Clock size={11} /> {durationLabel}
               </span>
             </div>
-            <p className="text-xs text-[#132A24]/60 mt-0.5 flex items-center gap-2">
-              <span className="font-semibold">{timeLabel}</span>
+            <p className="text-xs text-[#132A24]/70 mt-1 flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-[#132A24]">{timeLabel}</span>
               <span>&bull;</span>
-              <span>Client booking unavailable during this period</span>
+              <span className="text-amber-800 font-medium">Blocks client booking & availability</span>
             </p>
           </div>
         </div>
+
+        {htmlLink && (
+          <a
+            href={htmlLink}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-xs font-medium text-[#132A24] hover:bg-[#132A24]/5 transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 self-end sm:self-center"
+            title="View in Google Calendar"
+          >
+            <ExternalLink size={12} /> Google Calendar
+          </a>
+        )}
       </div>
     );
   }
 
   // Render external Google Calendar busy block (strictly privacy-sanitized: no titles, descriptions, or attendees)
   function renderExternalBusyCard(busyItem, idx) {
-    const startStr = new Date(busyItem.start).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-    const endStr = new Date(busyItem.end).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const startStr = formatTimeIST(busyItem.start);
+    const endStr = formatTimeIST(busyItem.end);
+    const durationLabel = formatDurationLabel(busyItem.start, busyItem.end);
 
     return (
       <div
         key={`external-busy-${idx}-${busyItem.start}`}
-        className="bg-[#FAFAF8] border border-dashed border-[#132A24]/15 rounded-xl p-4 flex items-center justify-between gap-4 transition-all"
+        className="bg-[#FAFAF8] border border-dashed border-[#132A24]/15 rounded-xl p-4 flex items-center justify-between gap-4 transition-all shadow-2xs"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#132A24]/5 border border-[#132A24]/10 flex flex-col items-center justify-center shrink-0 text-[#132A24]/60">
+          <div className="w-11 h-11 rounded-xl bg-[#132A24]/5 border border-[#132A24]/10 flex flex-col items-center justify-center shrink-0 text-[#132A24]/60">
             <Clock size={16} />
+            <span className="text-[9px] font-bold mt-0.5">{durationLabel}</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#132A24]">
-                {startStr} – {endStr}
+              <span className="text-sm font-semibold text-[#132A24]">
+                Google Calendar Busy Window
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#132A24]/5 text-[#132A24]/70 uppercase tracking-wider">
-                Busy
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#132A24]/5 text-[#132A24]/70 uppercase tracking-wider">
+                Busy Commitment
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#132A24]/60">
+                <Clock size={11} /> {durationLabel}
               </span>
             </div>
-            <p className="text-[11px] text-[#132A24]/50 mt-0.5">
-              Google Calendar Commitment &bull; Client self-booking slots blocked during this period
+            <p className="text-xs text-[#132A24]/60 mt-1 flex items-center gap-2">
+              <span className="font-semibold text-[#132A24]">{startStr} – {endStr} (IST)</span>
+              <span>&bull;</span>
+              <span className="text-amber-800 font-medium">Blocks client self-booking slots</span>
             </p>
           </div>
         </div>
@@ -959,25 +1010,22 @@ export default function TherapistCalendarView({
 
   // Render individual session card
   function renderSessionCard(appt) {
-    const startsAt = appt.startsAt || appt.scheduled_start;
-    const endsAt = appt.endsAt || appt.scheduled_end;
-    const clientName = appt.client?.displayName || appt.clientDisplayName || 'Authorized Client';
+    const startsAt = appt.startsAt || appt.scheduled_start || appt.scheduledStart;
+    const endsAt = appt.endsAt || appt.scheduled_end || appt.scheduledEnd;
+    const clientName = appt.client?.displayName || appt.clientDisplayName || (appt.client?.firstName ? `${appt.client.firstName} ${appt.client.lastName || ''}`.trim() : null) || 'Authorized Client';
     const clientId = appt.client?.id || appt.user_id;
 
-    const startTimeStr = new Date(startsAt).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-    const endTimeStr = new Date(endsAt).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const startTimeStr = formatTimeIST(startsAt);
+    const endTimeStr = formatTimeIST(endsAt);
+    const durationLabel = formatDurationLabel(startsAt, endsAt, false, appt.durationMinutes || 50);
 
     const isCancelled = appt.status === 'cancelled';
     const isCompleted = appt.status === 'completed';
     const isScheduled = !isCancelled && !isCompleted;
+
+    const sessionModality = appt.modality || 'Video';
+    const sessionType = appt.sessionType || appt.session_type || 'Standard Consultation';
+    const careStage = (appt.careStage || 'Intake').replace(/_/g, ' ');
 
     return (
       <div
@@ -989,21 +1037,21 @@ export default function TherapistCalendarView({
         }`}
       >
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-lg bg-[#FAFAF8] border border-[#132A24]/10 flex flex-col items-center justify-center shrink-0">
-            <Clock size={16} className="text-[#4E7A66]" />
+          <div className="w-12 h-12 rounded-xl bg-[#4E7A66]/10 border border-[#4E7A66]/20 flex flex-col items-center justify-center shrink-0 text-[#4E7A66]">
+            <Clock size={16} />
             <span className="text-[10px] font-bold text-[#132A24] mt-0.5">
-              {appt.durationMinutes || 50}m
+              {durationLabel}
             </span>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#132A24]">
-                {startTimeStr} – {endTimeStr}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-[#132A24]">
+                {startTimeStr} – {endTimeStr} (IST)
               </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
+              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
                 isCompleted
-                  ? 'bg-[#4E7A66]/10 text-[#4E7A66]'
+                  ? 'bg-emerald-100 text-emerald-800'
                   : isCancelled
                   ? 'bg-red-50 text-red-700'
                   : 'bg-blue-50 text-blue-700'
@@ -1011,21 +1059,21 @@ export default function TherapistCalendarView({
                 {appt.status}
               </span>
               {appt.calendarSyncStatus === 'synced' && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 flex items-center gap-1 border border-emerald-200">
                   <CheckCircle2 size={10} /> Google Cal
                 </span>
               )}
               {appt.attendanceStatus === 'client_no_show' && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700">
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                   Client No-Show
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2">
               <h4
                 onClick={() => onOpenSession ? onOpenSession(appt.id) : null}
-                className="font-serif text-base font-medium text-[#132A24] cursor-pointer hover:text-[#4E7A66] transition-colors"
+                className="font-serif text-base font-semibold text-[#132A24] cursor-pointer hover:text-[#4E7A66] transition-colors"
               >
                 {clientName}
               </h4>
@@ -1040,16 +1088,20 @@ export default function TherapistCalendarView({
               )}
             </div>
 
-            <div className="flex items-center gap-2 mt-1 text-[11px] text-[#132A24]/50 capitalize">
-              <span>{appt.sessionType || appt.session_type || 'Video'}</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[#132A24]/60">
+              <span className="inline-flex items-center gap-1 font-medium bg-[#132A24]/5 px-2 py-0.5 rounded-md text-[11px] text-[#132A24]/80">
+                <Video size={11} className="text-[#4E7A66]" /> {sessionType}
+              </span>
               <span>&bull;</span>
-              <span>{appt.modality || 'Telehealth'}</span>
+              <span className="capitalize">{sessionModality}</span>
               <span>&bull;</span>
-              <span>{(appt.careStage || 'Intake').replace(/_/g, ' ')}</span>
+              <span className="capitalize">{careStage}</span>
             </div>
 
             {appt.clientNotes && (
-              <p className="text-[11px] text-[#132A24]/60 mt-1 italic">{appt.clientNotes}</p>
+              <p className="text-xs text-[#132A24]/70 mt-1 italic bg-[#FAF9F5] p-2 rounded-lg border border-[#132A24]/5">
+                "{appt.clientNotes}"
+              </p>
             )}
           </div>
         </div>

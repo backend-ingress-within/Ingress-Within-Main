@@ -132,6 +132,11 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
   // Working Hours / Consultation Windows
   const [savingHours, setSavingHours] = useState(false);
   const [hoursNotice, setHoursNotice] = useState('');
+  const [inspectDate, setInspectDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [inspectSlots, setInspectSlots] = useState([]);
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [inspectError, setInspectError] = useState(null);
+  const [inspectDayInfo, setInspectDayInfo] = useState(null);
 
   // Payout Method Modal State
   const [isAddPayoutModalOpen, setIsAddPayoutModalOpen] = useState(false);
@@ -418,10 +423,38 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
   };
 
   // Consultation Windows / Working Hours Handlers
+  const fetchInspectSlots = async (dateStr) => {
+    if (!dateStr) return;
+    setInspectLoading(true);
+    setInspectError(null);
+    try {
+      const res = await fetch(`/api/therapist/calendar/slots?date=${encodeURIComponent(dateStr)}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || 'Failed to inspect slots.');
+      }
+      const data = await res.json();
+      setInspectSlots(data.slots || []);
+      setInspectDayInfo(data);
+    } catch (err) {
+      setInspectError(err.message);
+      setInspectSlots([]);
+    } finally {
+      setInspectLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'delivery' && inspectDate) {
+      fetchInspectSlots(inspectDate);
+    }
+  }, [activeSection, inspectDate]);
+
   const handleSaveWorkingHours = async () => {
     setSavingHours(true);
     setHoursNotice('');
     try {
+      // 1. Update therapist_profiles
       const res = await fetch('/api/therapist/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -432,8 +465,42 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Failed to save consultation windows.');
       setProfile(data.profile);
-      setHoursNotice('Consultation windows saved successfully.');
+
+      // 2. Synchronize recurring blocks to therapist_availability_blocks
+      const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const recurringBlocks = [];
+      if (formData.availabilityHours && typeof formData.availabilityHours === 'object') {
+        for (const [dayKey, slotList] of Object.entries(formData.availabilityHours)) {
+          const dayIdx = dayMap[dayKey.toLowerCase()];
+          if (dayIdx !== undefined && Array.isArray(slotList)) {
+            for (const slotStr of slotList) {
+              const [start, end] = slotStr.split('-');
+              if (start && end) {
+                recurringBlocks.push({
+                  dayOfWeek: dayIdx,
+                  startTime: start.trim(),
+                  endTime: end.trim(),
+                  isRecurring: true,
+                  isBlocked: false,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      await fetch('/api/therapist/calendar/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks: recurringBlocks }),
+      }).catch((err) => console.warn('Warning syncing recurring availability blocks:', err));
+
+      setHoursNotice('Consultation windows and calendar slots saved successfully.');
       setTimeout(() => setHoursNotice(''), 3500);
+
+      if (inspectDate) {
+        fetchInspectSlots(inspectDate);
+      }
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
@@ -451,6 +518,16 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
         thu: ['09:00-17:00'],
         fri: ['09:00-17:00'],
         sat: [],
+        sun: [],
+      };
+    } else if (preset === 'split_shift') {
+      nextHours = {
+        mon: ['09:00-13:00', '16:00-20:00'],
+        tue: ['09:00-13:00', '16:00-20:00'],
+        wed: ['09:00-13:00', '16:00-20:00'],
+        thu: ['09:00-13:00', '16:00-20:00'],
+        fri: ['09:00-13:00', '16:00-20:00'],
+        sat: ['10:00-14:00'],
         sun: [],
       };
     } else if (preset === 'weekdays_extended') {
@@ -486,6 +563,46 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
         availabilityHours: {
           ...prev.availabilityHours,
           [dayKey]: isEnabled ? [] : ['09:00-17:00'],
+        },
+      };
+    });
+  };
+
+  const handleAddTimeSlot = (dayKey) => {
+    setFormData((prev) => {
+      const currentSlots = prev.availabilityHours?.[dayKey] || [];
+      let nextStart = '14:00';
+      let nextEnd = '18:00';
+      if (currentSlots.length > 0) {
+        const lastSlot = currentSlots[currentSlots.length - 1];
+        const [, lastEnd] = lastSlot.split('-');
+        if (lastEnd) {
+          const lastEndHour = parseInt(lastEnd.split(':')[0], 10) || 14;
+          const newStartHour = Math.min(lastEndHour + 1, 20);
+          const newEndHour = Math.min(newStartHour + 3, 23);
+          nextStart = `${String(newStartHour).padStart(2, '0')}:00`;
+          nextEnd = `${String(newEndHour).padStart(2, '0')}:00`;
+        }
+      }
+      return {
+        ...prev,
+        availabilityHours: {
+          ...prev.availabilityHours,
+          [dayKey]: [...currentSlots, `${nextStart}-${nextEnd}`],
+        },
+      };
+    });
+  };
+
+  const handleRemoveTimeSlot = (dayKey, slotIndex) => {
+    setFormData((prev) => {
+      const currentSlots = [...(prev.availabilityHours?.[dayKey] || [])];
+      currentSlots.splice(slotIndex, 1);
+      return {
+        ...prev,
+        availabilityHours: {
+          ...prev.availabilityHours,
+          [dayKey]: currentSlots,
         },
       };
     });
@@ -1563,7 +1680,7 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-[#132A24]/50 font-medium">Quick Presets:</span>
                 <button
                   type="button"
@@ -1571,6 +1688,13 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                   className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
                 >
                   Weekdays 9-5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPresetHours('split_shift')}
+                  className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
+                >
+                  Split: Morning & Evening
                 </button>
                 <button
                   type="button"
@@ -1609,8 +1733,6 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
               ].map(({ key, label }) => {
                 const slots = formData.availabilityHours?.[key] || [];
                 const isEnabled = slots.length > 0;
-                const slotStr = slots[0] || '09:00-17:00';
-                const [start = '09:00', end = '17:00'] = slotStr.split('-');
 
                 const timeOptions = [
                   '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -1618,59 +1740,111 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                   '20:00', '21:00', '22:00', '23:00'
                 ];
 
+                const estimatedSlotsCount = (() => {
+                  let count = 0;
+                  for (const s of slots) {
+                    const [start, end] = s.split('-');
+                    if (start && end) {
+                      const [sh, sm = 0] = start.split(':').map(Number);
+                      const [eh, em = 0] = end.split(':').map(Number);
+                      const totalMin = (eh * 60 + em) - (sh * 60 + sm);
+                      if (totalMin >= 50) count += Math.floor(totalMin / 60);
+                    }
+                  }
+                  return count;
+                })();
+
                 return (
                   <div
                     key={key}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border transition-all gap-3 ${
+                    className={`p-4 rounded-xl border transition-all space-y-3 ${
                       isEnabled
-                        ? 'bg-white border-[#132A24]/15'
+                        ? 'bg-white border-[#132A24]/15 shadow-2xs'
                         : 'bg-[#FAFAF8] border-[#132A24]/8 opacity-60'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={() => handleToggleDay(key)}
-                        id={`day-${key}`}
-                        className="rounded border-[#132A24]/20 text-[#4E7A66] focus:ring-[#4E7A66] cursor-pointer"
-                      />
-                      <label htmlFor={`day-${key}`} className="font-semibold text-xs text-[#132A24] cursor-pointer w-28">
-                        {label}
-                      </label>
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                        isEnabled ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-500'
-                      }`}>
-                        {isEnabled ? 'Open for bookings' : 'Closed'}
-                      </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => handleToggleDay(key)}
+                          id={`day-${key}`}
+                          className="rounded border-[#132A24]/20 text-[#4E7A66] focus:ring-[#4E7A66] cursor-pointer"
+                        />
+                        <label htmlFor={`day-${key}`} className="font-semibold text-xs text-[#132A24] cursor-pointer w-28">
+                          {label}
+                        </label>
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          isEnabled ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-500'
+                        }`}>
+                          {isEnabled ? 'Open for bookings' : 'Closed'}
+                        </span>
+                      </div>
+
+                      {isEnabled && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-medium text-[#132A24]/60 bg-[#132A24]/5 px-2.5 py-0.5 rounded-md">
+                            {estimatedSlotsCount} {estimatedSlotsCount === 1 ? 'slot' : 'slots'} available / day
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddTimeSlot(key)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#4E7A66] hover:text-[#132A24] cursor-pointer px-2 py-1 rounded-md hover:bg-[#4E7A66]/10 transition-colors"
+                          >
+                            <Plus size={12} /> Add Window
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {isEnabled && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-[#132A24]/60">From</span>
-                        <select
-                          value={start}
-                          onChange={(e) => handleTimeSlotChange(key, 0, e.target.value, end)}
-                          className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
-                        >
-                          {timeOptions.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="text-[#132A24]/60">To</span>
-                        <select
-                          value={end}
-                          onChange={(e) => handleTimeSlotChange(key, 0, start, e.target.value)}
-                          className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
-                        >
-                          {timeOptions.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="space-y-2 pt-1 border-t border-[#132A24]/5">
+                        {slots.map((slotStr, sIdx) => {
+                          const [start = '09:00', end = '17:00'] = slotStr.split('-');
+                          return (
+                            <div key={`slot-${key}-${sIdx}`} className="flex flex-wrap items-center gap-2 text-xs bg-[#FAF9F5] p-2.5 rounded-lg border border-[#132A24]/5">
+                              <span className="text-[11px] font-semibold text-[#132A24]/60 w-18">
+                                Window {sIdx + 1}:
+                              </span>
+                              <span className="text-[#132A24]/60">From</span>
+                              <select
+                                value={start}
+                                onChange={(e) => handleTimeSlotChange(key, sIdx, e.target.value, end)}
+                                className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
+                              >
+                                {timeOptions.map((t) => (
+                                  <option key={t} value={t}>
+                                    {t}
+                                  </option>
+                                ))}
+                              </select>
+                              <span className="text-[#132A24]/60">To</span>
+                              <select
+                                value={end}
+                                onChange={(e) => handleTimeSlotChange(key, sIdx, start, e.target.value)}
+                                className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
+                              >
+                                {timeOptions.map((t) => (
+                                  <option key={t} value={t}>
+                                    {t}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {slots.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTimeSlot(key, sIdx)}
+                                  className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer ml-auto transition-colors"
+                                  title="Remove this consultation window"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1691,6 +1865,126 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                 <Save size={13} /> {savingHours ? 'Saving...' : 'Save Working Windows'}
               </button>
             </div>
+          </div>
+
+          {/* Daily Slot & Clinical Conflict Inspector */}
+          <div className="bg-white border border-[#132A24]/10 rounded-2xl p-6 lg:p-8 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#132A24]/10 pb-4">
+              <div>
+                <h3 className="font-serif text-lg font-medium text-[#132A24] flex items-center gap-2">
+                  <Clock size={16} className="text-[#4E7A66]" />
+                  Day Slots & Clinical Conflict Inspector
+                </h3>
+                <p className="text-xs text-[#132A24]/60 mt-0.5">
+                  Inspect generated consultation slots for any date. Slots affected by booked sessions, manual leaves, or Google Calendar busy hours cannot be double-booked.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={inspectDate}
+                  onChange={(e) => setInspectDate(e.target.value)}
+                  className="border border-[#132A24]/15 rounded-lg px-3 py-1.5 text-xs bg-white text-[#132A24] outline-hidden focus:border-[#4E7A66]"
+                />
+                <button
+                  type="button"
+                  onClick={() => fetchInspectSlots(inspectDate)}
+                  disabled={inspectLoading}
+                  className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 bg-white text-xs font-semibold text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <RefreshCw size={12} className={inspectLoading ? 'animate-spin' : ''} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {inspectLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 animate-pulse">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-16 bg-[#132A24]/5 rounded-xl" />
+                ))}
+              </div>
+            ) : inspectDayInfo?.isClosed ? (
+              <div className="p-6 rounded-xl bg-stone-50 border border-stone-200 text-center space-y-1">
+                <p className="text-xs font-semibold text-stone-700">Practice Closed on {inspectDayInfo.dayOfWeek}</p>
+                <p className="text-[11px] text-stone-500">Enable this day in your Consultation Windows above to open booking slots.</p>
+              </div>
+            ) : inspectSlots.length === 0 ? (
+              <div className="p-6 rounded-xl bg-stone-50 border border-stone-200 text-center space-y-1">
+                <p className="text-xs font-semibold text-stone-700">No Consultation Slots on this Date</p>
+                <p className="text-[11px] text-stone-500">Configure your working hours above to generate slots.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  {inspectSlots.map((slot) => {
+                    const isAvailable = slot.available;
+                    const conflictLabel = slot.conflictType === 'session_conflict'
+                      ? 'Booked Session'
+                      : slot.conflictType === 'manual_block'
+                      ? 'Leave / Blocked'
+                      : slot.conflictType === 'google_calendar'
+                      ? 'Google Cal Busy'
+                      : slot.conflictType === 'pending_hold'
+                      ? 'Pending Checkout'
+                      : slot.conflictType === 'past'
+                      ? 'Past Slot'
+                      : 'Unavailable';
+
+                    return (
+                      <div
+                        key={slot.id}
+                        className={`p-3 rounded-xl border flex flex-col justify-between transition-all ${
+                          isAvailable
+                            ? 'bg-emerald-50/50 border-emerald-200/80 text-emerald-950 shadow-2xs'
+                            : 'bg-stone-50 border-stone-200/80 text-stone-500 opacity-75'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs font-bold ${isAvailable ? 'text-emerald-950' : 'text-stone-700'}`}>
+                            {slot.formatted}
+                          </span>
+                          {isAvailable ? (
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" title="Open for booking" />
+                          ) : (
+                            <Lock size={12} className="text-stone-400 shrink-0" />
+                          )}
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between text-[10px]">
+                          {isAvailable ? (
+                            <span className="font-semibold text-emerald-700 inline-flex items-center gap-1">
+                              <CheckCircle2 size={11} /> Open
+                            </span>
+                          ) : (
+                            <span className={`font-semibold px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ${
+                              slot.conflictType === 'session_conflict'
+                                ? 'bg-blue-100 text-blue-800'
+                                : slot.conflictType === 'manual_block'
+                                ? 'bg-amber-100 text-amber-800'
+                                : slot.conflictType === 'google_calendar'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-stone-200 text-stone-700'
+                            }`}>
+                              {conflictLabel}
+                            </span>
+                          )}
+                          <span className="text-stone-400 font-medium">50m</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#132A24]/10 text-[11px] text-[#132A24]/70 flex items-start gap-2">
+                  <ShieldCheck size={14} className="text-[#4E7A66] shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Authoritative Two-Way Protection:</strong> Locked slots cannot be booked by clients or scheduled internally, ensuring complete schedule integrity across Ingress Within and Google Calendar.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
