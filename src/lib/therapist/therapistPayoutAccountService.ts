@@ -95,6 +95,27 @@ export class TherapistPayoutAccountService {
   }
 
   /**
+   * Helper: Resolves and sanitizes the configured RazorpayX source account number.
+   * Recognizes standard aliases (RAZORPAYX_ACCOUNT_NUMBER, RAZORPAY_ACCOUNT_ID, etc.)
+   * and ignores mock or placeholder values.
+   */
+  static getRazorpayXAccountNumber(): string | null {
+    const raw = (
+      process.env.RAZORPAYX_ACCOUNT_NUMBER ||
+      process.env.RAZORPAY_ACCOUNT_NUMBER ||
+      process.env.RAZORPAYX_ACCOUNT_ID ||
+      process.env.RAZORPAY_ACCOUNT_ID ||
+      process.env.ACCOUNT_ID ||
+      ''
+    ).trim();
+
+    if (!raw || raw === 'your_razorpayx_account_number' || raw === 'placeholder' || raw.length < 5) {
+      return null;
+    }
+    return raw;
+  }
+
+  /**
    * Helper: Connects to live Razorpay API to register a Contact and Fund Account.
    * Returns genuine Razorpay Fund Account ID (fa_...).
    */
@@ -686,6 +707,17 @@ export class TherapistPayoutAccountService {
       throw err;
     }
 
+    // Maximum single withdrawal safety ceiling (₹50,000)
+    const MAX_SINGLE_WITHDRAWAL_INR = 50000;
+    if (amount > MAX_SINGLE_WITHDRAWAL_INR) {
+      const err: any = new Error(
+        `Withdrawal amount of ₹${amount.toLocaleString('en-IN')} exceeds the per-transaction safety limit of ₹${MAX_SINGLE_WITHDRAWAL_INR.toLocaleString('en-IN')}. For higher disbursements, please contact administration.`
+      );
+      err.code = 'EXCEEDS_MAXIMUM_WITHDRAWAL_LIMIT';
+      err.status = 400;
+      throw err;
+    }
+
     // Concurrency Lock Guard: Prevent simultaneous withdrawals for the same therapist
     if (this.withdrawalLocks.has(therapistAccountId)) {
       const err: any = new Error('A withdrawal request is currently in progress. Concurrent submission blocked.');
@@ -769,48 +801,80 @@ export class TherapistPayoutAccountService {
       let processedAt: string | null = null;
 
       // Live RazorpayX Payout Execution (if RazorpayX Account Number is configured)
-      const rzpAccountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
+      const rzpAccountNumber = this.getRazorpayXAccountNumber();
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
       if (rzpAccountNumber && keyId && keySecret && account.provider_account_id?.startsWith('fa_')) {
         try {
           const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-          const payoutRes = await fetch('https://api.razorpay.com/v1/payouts', {
-            method: 'POST',
-            headers: {
-              Authorization: authHeader,
-              'Content-Type': 'application/json',
-              'X-Payout-Idempotency': safeIdempotencyKey,
-            },
-            body: JSON.stringify({
-              account_number: rzpAccountNumber,
-              fund_account_id: account.provider_account_id,
-              amount: Math.round(amount * 100),
-              currency: 'INR',
-              mode: account.account_type === 'upi' ? 'UPI' : 'IMPS',
-              purpose: 'payout',
-              queue_if_low_balance: true,
-              reference_id: safeIdempotencyKey.slice(0, 40),
-              narration: 'Therapist Withdrawal',
-            }),
-          });
 
-          const payoutData = await payoutRes.json();
-          if (payoutRes.ok && payoutData?.id) {
-            providerPayoutId = payoutData.id;
-            if (payoutData.status === 'processed') {
-              initialStatus = 'completed';
-              realUtr = payoutData.utr || null;
-              processedAt = new Date().toISOString();
-            } else if (payoutData.status === 'rejected' || payoutData.status === 'failed') {
-              initialStatus = 'failed';
-              failureReason = payoutData.failure_reason || 'Disbursement rejected by RazorpayX';
+          // Pre-flight check: Verify Fund Account is verified & active on Razorpay
+          let isFundAccountActive = false;
+          try {
+            const faCheck = await fetch(`https://api.razorpay.com/v1/fund_accounts/${account.provider_account_id}`, {
+              headers: { Authorization: authHeader },
+            });
+            if (faCheck.ok) {
+              const faData = await faCheck.json();
+              if (faData?.active) {
+                isFundAccountActive = true;
+              }
+            }
+          } catch (faErr) {
+            console.warn('[TherapistPayoutAccountService] Pre-flight fund account check warning:', faErr);
+          }
+
+          if (isFundAccountActive) {
+            const amountPaise = Math.round(amount * 100);
+            const payoutRes = await fetch('https://api.razorpay.com/v1/payouts', {
+              method: 'POST',
+              headers: {
+                Authorization: authHeader,
+                'Content-Type': 'application/json',
+                'X-Payout-Idempotency': safeIdempotencyKey,
+              },
+              body: JSON.stringify({
+                account_number: rzpAccountNumber,
+                fund_account_id: account.provider_account_id,
+                amount: amountPaise,
+                currency: 'INR',
+                mode: account.account_type === 'upi' ? 'UPI' : 'IMPS',
+                purpose: 'payout',
+                queue_if_low_balance: true,
+                reference_id: safeIdempotencyKey.slice(0, 40),
+                narration: 'Therapist Withdrawal',
+              }),
+            });
+
+            const payoutData = await payoutRes.json();
+            if (payoutRes.ok && payoutData?.id) {
+              providerPayoutId = payoutData.id;
+              if (payoutData.status === 'processed') {
+                initialStatus = 'completed';
+                realUtr = payoutData.utr || null;
+                processedAt = new Date().toISOString();
+              } else if (payoutData.status === 'rejected' || payoutData.status === 'failed') {
+                initialStatus = 'failed';
+                failureReason = payoutData.failure_reason || 'Disbursement rejected by RazorpayX';
+              } else {
+                initialStatus = 'processing';
+              }
             } else {
-              initialStatus = 'processing';
+              const errDesc = payoutData?.error?.description || JSON.stringify(payoutData);
+              console.warn('[TherapistPayoutAccountService] Live RazorpayX payout notice:', errDesc);
+              if (
+                payoutData?.error?.code === 'BAD_REQUEST_ERROR' &&
+                (errDesc.toLowerCase().includes('insufficient') || errDesc.toLowerCase().includes('inactive'))
+              ) {
+                initialStatus = 'failed';
+                failureReason = errDesc;
+              } else {
+                initialStatus = 'processing';
+              }
             }
           } else {
-            console.warn('[TherapistPayoutAccountService] Live RazorpayX payout notice:', payoutData?.error?.description || payoutData);
+            console.warn('[TherapistPayoutAccountService] Fund account not active on Razorpay, queued for manual review.');
             initialStatus = 'processing';
           }
         } catch (apiErr: any) {
@@ -1023,7 +1087,7 @@ export class TherapistPayoutAccountService {
     settledIds: string[];
   }> {
     const settledIds: string[] = [];
-    const rzpAccountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
+    const rzpAccountNumber = this.getRazorpayXAccountNumber();
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
