@@ -14,6 +14,9 @@ import {
   Sparkles,
   AlertCircle,
   Info,
+  FileText,
+  Activity,
+  BookOpen,
 } from 'lucide-react';
 import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
 import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
@@ -906,9 +909,13 @@ function Conversation({ exit, user, profile }) {
 }
 
 function Guided({ exit, onBookSession, user, profile }) {
-  const total = 17;
+  const total = 18;
   const [step, setStep] = useState(1);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const [sharePatterns, setSharePatterns] = useState(false);
+  const [shareVocab, setShareVocab] = useState(false);
+  const [shareWeekly, setShareWeekly] = useState(false);
+  const [shareMonthly, setShareMonthly] = useState(false);
   const [therapySessionId, setTherapySessionId] = useState(null);
   const [eligibleTherapists, setEligibleTherapists] = useState([]);
   const [loadingTherapists, setLoadingTherapists] = useState(false);
@@ -1506,7 +1513,7 @@ function Guided({ exit, onBookSession, user, profile }) {
   const previous = () => {
     if (loading) return;
 
-    if (step === 17 && triageTier !== 'standard') {
+    if (step === 18 && triageTier !== 'standard') {
       setStep(13);
       return;
     }
@@ -1514,17 +1521,36 @@ function Guided({ exit, onBookSession, user, profile }) {
     setStep((value) => Math.max(1, value - 1));
   };
 
-  const finish = async () => {
+  const handleSaveConsentAndFinish = async (hasConsented) => {
     if (loading) return;
-
     setLoading(true);
     setSessionError('');
 
     try {
+      if (selectedTherapist?.id || hasConsented) {
+        try {
+          await fetch('/api/user/insights-consent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              therapistAccountId: selectedTherapist?.id || null,
+              isEnabled: !!hasConsented,
+              sharePatternSummary: hasConsented ? sharePatterns : false,
+              shareEmotionalVocab: hasConsented ? shareVocab : false,
+              shareWeeklyReports: hasConsented ? shareWeekly : false,
+              shareMonthlyReports: hasConsented ? shareMonthly : false,
+              consentVersion: '1.0.0',
+            }),
+          });
+        } catch (consentErr) {
+          console.warn('Could not save insight consent preferences during matching intake:', consentErr);
+        }
+      }
+
       const submitted = await submitGuided();
 
       if (submitted) {
-        setStep(17);
+        setStep(18);
       }
     } catch (error) {
       console.error('Guided therapy submission failed:', error);
@@ -1538,10 +1564,34 @@ function Guided({ exit, onBookSession, user, profile }) {
     }
   };
 
-  if (step === 17) {
+  const finish = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    setSessionError('');
+
+    try {
+      const submitted = await submitGuided();
+
+      if (submitted) {
+        setStep(18);
+      }
+    } catch (error) {
+      console.error('Guided therapy submission failed:', error);
+      setSessionError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit your therapy intake'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (step === 18) {
     return (
       <div className="iw-flow">
-        <Header name="Guided form" step={17} total={17} onBack={exit} />
+        <Header name="Guided form" step={18} total={18} onBack={exit} />
         <div className="iw-card iw-success">
           <div className="iw-successicon"><Check /></div>
           {selectedTherapist ? (
@@ -1600,7 +1650,7 @@ function Guided({ exit, onBookSession, user, profile }) {
 
   return (
     <div className="iw-flow">
-      <Header name="Guided form" step={step} total={17} onBack={step === 1 ? exit : previous} />
+      <Header name="Guided form" step={step} total={total} onBack={step === 1 ? exit : previous} />
       <div className="iw-card">
         {step === 1 && (
           <>
@@ -2066,6 +2116,116 @@ function Guided({ exit, onBookSession, user, profile }) {
           </div>
         )}
 
+        {step === 17 && (
+          <div className="space-y-6">
+            <div className="iw-k">Care Continuity &amp; Privacy</div>
+            <h2>Share Insights with {selectedTherapist?.name || 'Your Therapist'}</h2>
+            <p className="text-sm text-stone-600 leading-relaxed">
+              Help your therapist understand your emotional context and progress from day one. You can optionally share high-level summaries derived from your self-reflection activity.
+            </p>
+
+            <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong>Completely optional &amp; confidential.</strong> Sharing these insights is strictly voluntary and never blocks therapy booking. Raw journal entries, audio recordings, and confidential reflection notes are <em>never</em> shared. You can change preferences or revoke access anytime under Settings.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 pb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+                Sharing Permissions (Explicit Consent)
+              </span>
+              <button
+                type="button"
+                className="text-xs text-emerald-700 hover:underline font-medium cursor-pointer"
+                onClick={() => {
+                  const allActive = sharePatterns && shareVocab && shareWeekly && shareMonthly;
+                  setSharePatterns(!allActive);
+                  setShareVocab(!allActive);
+                  setShareWeekly(!allActive);
+                  setShareMonthly(!allActive);
+                }}
+              >
+                {sharePatterns && shareVocab && shareWeekly && shareMonthly ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${sharePatterns ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={sharePatterns}
+                  onChange={(e) => setSharePatterns(e.target.checked)}
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-medium text-stone-900">Pattern Summary</span>
+                  </div>
+                  <div className="text-xs text-stone-500 leading-normal">
+                    Share high-level recurring emotional and behavioral theme summaries from your platform activity (cycle visualizer details remain private).
+                  </div>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareVocab ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={shareVocab}
+                  onChange={(e) => setShareVocab(e.target.checked)}
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-medium text-stone-900">Emotional Vocabulary Summary</span>
+                  </div>
+                  <div className="text-xs text-stone-500 leading-normal">
+                    Share your emotional vocabulary distribution and primary emotional descriptors identified during check-ins.
+                  </div>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareWeekly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={shareWeekly}
+                  onChange={(e) => setShareWeekly(e.target.checked)}
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-medium text-stone-900">Weekly Reports</span>
+                  </div>
+                  <div className="text-xs text-stone-500 leading-normal">
+                    Share your periodic weekly self-reflection summaries to help your therapist track week-over-week shifts.
+                  </div>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareMonthly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  checked={shareMonthly}
+                  onChange={(e) => setShareMonthly(e.target.checked)}
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-medium text-stone-900">Monthly Reports</span>
+                  </div>
+                  <div className="text-xs text-stone-500 leading-normal">
+                    Share your comprehensive monthly reflection and progress reports.
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
         {sessionError && (
           <div className="iw-error">{sessionError}</div>
         )}
@@ -2094,10 +2254,39 @@ function Guided({ exit, onBookSession, user, profile }) {
               type="button"
               className="iw-primary"
               disabled={triageTier === 'standard' && !selectedTherapist}
-              onClick={finish}
+              onClick={() => setStep(17)}
             >
-              {triageTier === 'standard' ? 'Continue' : 'Continue to review'} <Check size={16} />
+              {triageTier === 'standard' ? 'Continue to Sharing' : 'Continue to review'} <ArrowRight size={16} />
             </button>
+          )}
+          {step === 17 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                className="iw-secondary"
+                disabled={loading}
+                onClick={() => {
+                  setSharePatterns(false);
+                  setShareVocab(false);
+                  setShareWeekly(false);
+                  setShareMonthly(false);
+                  handleSaveConsentAndFinish(false);
+                }}
+              >
+                Skip &amp; Keep Private
+              </button>
+              <button
+                type="button"
+                className="iw-primary"
+                disabled={loading}
+                onClick={() => {
+                  const anySelected = sharePatterns || shareVocab || shareWeekly || shareMonthly;
+                  handleSaveConsentAndFinish(anySelected);
+                }}
+              >
+                {loading ? 'Submitting…' : (sharePatterns || shareVocab || shareWeekly || shareMonthly ? 'Save Sharing & Submit' : 'Submit Intake')} <Check size={16} />
+              </button>
+            </div>
           )}
         </div>
       </div>

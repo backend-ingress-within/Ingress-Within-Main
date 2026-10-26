@@ -445,14 +445,28 @@ async function runTestSuite() {
     assert(Array.isArray(insights.monthlyReports?.reports), 'Monthly reports must be an array');
   });
 
-  await test('17. Existing client onboarding and consent flows remain functional', () => {
+  await test('17. Consent removed from main onboarding and integrated in matching engine onboarding', () => {
+    // 1. Verify main onboarding does NOT contain insight sharing consent
     const onboardingFile = fs.readFileSync(
       path.join(process.cwd(), 'src/views/OnboardingPage.jsx'),
       'utf8'
     );
-    assert(onboardingFile.includes('sharing_consent'), 'Onboarding sharing consent step present');
-    assert(onboardingFile.includes('/api/user/insights-consent'), 'API call to insights consent present');
-    assert(onboardingFile.includes('handleFinalizeOnboarding'), 'Onboarding finalization preserved');
+    assert(!onboardingFile.includes('sharing_consent'), 'Main onboarding must not include insight sharing consent');
+    assert(!onboardingFile.includes('/api/user/insights-consent'), 'Main onboarding must not call insights consent API');
+    assert(onboardingFile.includes('handleFinalizeOnboarding'), 'Main onboarding finalization preserved');
+
+    // 2. Verify Client Matching Engine onboarding (TherapyPage.jsx) DOES contain insight sharing consent
+    const therapyPageFile = fs.readFileSync(
+      path.join(process.cwd(), 'src/views/TherapyPage.jsx'),
+      'utf8'
+    );
+    assert(therapyPageFile.includes('/api/user/insights-consent'), 'Matching engine must call insights consent API');
+    assert(therapyPageFile.includes('Share Insights with'), 'Matching engine must include Share Insights consent step');
+    assert(therapyPageFile.includes('sharePatterns'), 'Matching engine must include pattern summary consent state');
+    assert(therapyPageFile.includes('shareVocab'), 'Matching engine must include emotional vocabulary consent state');
+    assert(therapyPageFile.includes('shareWeekly'), 'Matching engine must include weekly reports consent state');
+    assert(therapyPageFile.includes('shareMonthly'), 'Matching engine must include monthly reports consent state');
+    assert(therapyPageFile.includes('handleSaveConsentAndFinish'), 'Matching engine must handle consent save and finish');
   });
 
   await test('18. Existing therapist-client details and report experiences remain functional', () => {
