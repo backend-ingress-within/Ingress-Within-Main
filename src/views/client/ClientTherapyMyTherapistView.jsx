@@ -955,6 +955,31 @@ export default function ClientTherapyMyTherapistView({
           </div>
         </div>
 
+        {/* Insight Sharing Settings Quick Action */}
+        <div className="p-4 rounded-xl bg-[#FAF9F7] border border-[#263238]/8 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5 text-left">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#132A24]">
+              <Sparkles size={14} className="text-[#4E7A66]" />
+              <span>Consent-Based Insight Sharing</span>
+            </div>
+            <p className="text-[11.5px] text-[#66747A] leading-relaxed">
+              Control which self-reflection summaries (Pattern Summary, Emotional Vocabulary, Weekly &amp; Monthly Reports) your therapist can view.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                if (window.navigateTo) window.navigateTo('/settings?tab=sharing');
+                else window.location.href = '/settings?tab=sharing';
+              }
+            }}
+            className="px-3.5 py-1.5 rounded-lg bg-white border border-[#263238]/15 text-[#132A24] text-xs font-medium hover:bg-gray-50 transition-colors shrink-0 cursor-pointer shadow-xs"
+          >
+            Manage in Privacy &amp; Sharing &rarr;
+          </button>
+        </div>
+
         {/* Relationship Actions / Care Management Footer */}
         <div className="pt-5 border-t border-[#263238]/10 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#66747A]">

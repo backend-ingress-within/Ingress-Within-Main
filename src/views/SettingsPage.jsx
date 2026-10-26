@@ -29,9 +29,15 @@ import { SUPPORT_CONFIG } from '../config/supportConfig';
 
 export default function SettingsPage({ user, profile, onSignOut }) {
   // Navigation & UI States
-  const [activeTab, setActiveTab] = useState('profile'); // profile, notifications, subscription, billing, payment, how, ai, privacy, delete
+  const [activeTab, setActiveTab] = useState('profile'); // profile, notifications, sharing, subscription, billing, payment, how, ai, privacy, delete
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openEditPanel, setOpenEditPanel] = useState(null); // 'name' | 'phone' | 'email' | null
+  
+  // Privacy & Sharing State
+  const [sharingData, setSharingData] = useState(null);
+  const [isSharingLoading, setIsSharingLoading] = useState(true);
+  const [isSavingSharing, setIsSavingSharing] = useState(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState('');
@@ -125,7 +131,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      const validTabs = ['profile', 'notifications', 'subscription', 'billing', 'payment', 'how', 'ai', 'privacy', 'feedback', 'delete'];
+      const validTabs = ['profile', 'notifications', 'sharing', 'subscription', 'billing', 'payment', 'how', 'ai', 'privacy', 'feedback', 'delete'];
       if (tabParam && validTabs.includes(tabParam)) {
         setActiveTab(tabParam);
       }
@@ -202,6 +208,89 @@ export default function SettingsPage({ user, profile, onSignOut }) {
       console.error('[Settings] Failed to fetch billing overview:', err);
     } finally {
       setIsBillingLoading(false);
+    }
+  };
+
+  const fetchSharingSettings = async () => {
+    setIsSharingLoading(true);
+    try {
+      const res = await fetch('/api/user/insights-consent', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        setSharingData(json);
+      }
+    } catch (err) {
+      console.warn('Failed to load sharing settings:', err);
+    } finally {
+      setIsSharingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sharing') {
+      fetchSharingSettings();
+    }
+  }, [activeTab]);
+
+  const handleToggleCategory = async (categoryKey, newValue) => {
+    if (!sharingData?.consent) return;
+    setIsSavingSharing(true);
+    try {
+      const current = sharingData.consent;
+      const categories = {
+        patternSummary: categoryKey === 'pattern_summary' ? newValue : Boolean(current.share_pattern_summary),
+        emotionalVocabulary: categoryKey === 'emotional_vocabulary' ? newValue : Boolean(current.share_emotional_vocabulary),
+        weeklyReports: categoryKey === 'weekly_reports' ? newValue : Boolean(current.share_weekly_reports),
+        monthlyReports: categoryKey === 'monthly_reports' ? newValue : Boolean(current.share_monthly_reports),
+      };
+      const anyActive = Object.values(categories).some(Boolean);
+
+      const res = await fetch('/api/user/insights-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isEnabled: anyActive,
+          categories,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setSharingData((prev) => ({
+          ...prev,
+          consent: json.consent,
+        }));
+        triggerToast('Sharing preferences updated');
+      } else {
+        triggerToast('Failed to update sharing preference');
+      }
+    } catch (err) {
+      triggerToast('Network error updating sharing preference');
+    } finally {
+      setIsSavingSharing(false);
+    }
+  };
+
+  const handleWithdrawAllSharing = async () => {
+    setIsSavingSharing(true);
+    try {
+      const res = await fetch('/api/user/insights-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ withdraw: true }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setSharingData((prev) => ({
+          ...prev,
+          consent: json.consent,
+        }));
+        setShowWithdrawConfirm(false);
+        triggerToast('All insight sharing consent withdrawn');
+      }
+    } catch (err) {
+      triggerToast('Error withdrawing sharing consent');
+    } finally {
+      setIsSavingSharing(false);
     }
   };
 
@@ -1592,6 +1681,213 @@ export default function SettingsPage({ user, profile, onSignOut }) {
     </div>
   );
 
+  // 7b. Privacy & Sharing Tab (Consent-based insights sharing with assigned therapist)
+  const renderSharing = () => {
+    const consent = sharingData?.consent;
+    const activeTherapist = sharingData?.activeTherapist;
+    const isEnabled = Boolean(consent?.is_enabled);
+
+    return (
+      <div className="pad animate-fadeUp">
+        <p className="pg-ey">Your account</p>
+        <h1 className="pg-h font-serif text-3xl font-normal">Privacy &amp; Sharing</h1>
+        <p className="pg-sub text-[13.5px] text-mid mb-6 max-w-[540px]">
+          Manage consent and select which self-reflection summaries and progress reports your assigned therapist can view during care.
+        </p>
+
+        {isSharingLoading ? (
+          <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl p-8 text-center text-xs text-mid animate-pulse">
+            Loading your privacy and sharing preferences...
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {/* Clinical Tenancy & Status Card */}
+            <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl p-5 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E2A2E]/6 pb-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#4A6A64]">
+                    Insight Sharing Status
+                  </span>
+                  <div className="font-serif text-lg text-primary font-normal mt-0.5">
+                    {isEnabled ? 'Sharing Enabled' : 'Sharing Disabled (Private)'}
+                  </div>
+                </div>
+
+                <span
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto ${
+                    isEnabled
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-stone-100 text-stone-600 border border-stone-200'
+                  }`}
+                >
+                  {isEnabled ? '● Active' : '○ Disabled'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                <div>
+                  <span className="text-mid block text-[11px]">Authorized Clinician:</span>
+                  <span className="font-semibold text-primary">
+                    {activeTherapist?.therapistName || 'No therapist currently assigned'}
+                  </span>
+                  {activeTherapist?.status && (
+                    <span className="text-[10.5px] text-mid block mt-0.5 capitalize">
+                      Care relationship: {activeTherapist.status}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-mid block text-[11px]">Preferences Last Updated:</span>
+                  <span className="font-medium text-primary">
+                    {consent?.updated_at
+                      ? new Date(consent.updated_at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Not yet configured'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy Guarantee Note */}
+            <div className="bg-[#FAFBFB] border border-[#1E2A2E]/8 rounded-xl p-4 text-xs text-[#4A6A64] space-y-1">
+              <div className="font-semibold text-primary">Explicit Consent &amp; Privacy Guarantee</div>
+              <p className="leading-relaxed">
+                Your therapist will only receive the specific summaries you check below. <strong>Your raw private journal entries, drafts, and reflections are strictly confidential and are NEVER shared.</strong> Any changes you make take effect immediately on the server.
+              </p>
+            </div>
+
+            {/* Granular Categories List */}
+            <div className="card bg-white border border-[#1E2A2E]/8 rounded-xl overflow-hidden shadow-xs divide-y divide-[#1E2A2E]/6">
+              <div className="p-4 bg-[#FAFAF8]">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Shared Insight Categories
+                </h4>
+                <p className="text-[11px] text-mid mt-0.5">
+                  Toggle each category individually. Changes update your therapist's access in real time.
+                </p>
+              </div>
+
+              {/* 1. Pattern Summary */}
+              <div className="p-4 flex items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-xs text-primary block">Pattern Summary</span>
+                  <p className="text-[11.5px] text-mid leading-relaxed max-w-lg">
+                    The overview summary displayed at the top of your Pattern experience (recurring behavioral themes and counts of active, shifting, and quiet patterns across reflection cycles).
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={Boolean(consent?.share_pattern_summary)}
+                  disabled={isSavingSharing}
+                  onChange={(e) => handleToggleCategory('pattern_summary', e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#1E2A2E]/20 text-[#2E7A70] focus:ring-[#2E7A70] cursor-pointer"
+                />
+              </div>
+
+              {/* 2. Emotional Vocabulary */}
+              <div className="p-4 flex items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-xs text-primary block">Emotional Vocabulary</span>
+                  <p className="text-[11.5px] text-mid leading-relaxed max-w-lg">
+                    The overview summary displayed at the top of your Emotional Vocabulary experience (distinct emotion words tracked, top reached-for descriptors, and vocabulary breadth).
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={Boolean(consent?.share_emotional_vocabulary)}
+                  disabled={isSavingSharing}
+                  onChange={(e) => handleToggleCategory('emotional_vocabulary', e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#1E2A2E]/20 text-[#2E7A70] focus:ring-[#2E7A70] cursor-pointer"
+                />
+              </div>
+
+              {/* 3. Weekly Reports */}
+              <div className="p-4 flex items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-xs text-primary block">Weekly Reports</span>
+                  <p className="text-[11.5px] text-mid leading-relaxed max-w-lg">
+                    Synthesized weekly progress reports detailing emotional balance, consistency, and observed reflection themes.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={Boolean(consent?.share_weekly_reports)}
+                  disabled={isSavingSharing}
+                  onChange={(e) => handleToggleCategory('weekly_reports', e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#1E2A2E]/20 text-[#2E7A70] focus:ring-[#2E7A70] cursor-pointer"
+                />
+              </div>
+
+              {/* 4. Monthly Reports */}
+              <div className="p-4 flex items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-xs text-primary block">Monthly Reports (Cycle Assessments)</span>
+                  <p className="text-[11.5px] text-mid leading-relaxed max-w-lg">
+                    Full 30-day reflection cycle assessment reports summarizing your long-term progress and emotional growth.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={Boolean(consent?.share_monthly_reports)}
+                  disabled={isSavingSharing}
+                  onChange={(e) => handleToggleCategory('monthly_reports', e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#1E2A2E]/20 text-[#2E7A70] focus:ring-[#2E7A70] cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Withdraw Consent Section */}
+            {isEnabled && (
+              <div className="pt-2">
+                {showWithdrawConfirm ? (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs space-y-3">
+                    <div className="font-semibold text-red-900">
+                      Withdraw All Insight Sharing Consent?
+                    </div>
+                    <p className="text-red-700 leading-relaxed">
+                      Your assigned therapist will immediately lose access to all summaries, pattern data, and reports. This cannot be undone automatically (you would need to grant consent again).
+                    </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleWithdrawAllSharing}
+                        disabled={isSavingSharing}
+                        className="px-3.5 py-1.5 bg-red-700 text-white rounded-lg font-medium hover:bg-red-800 transition-colors cursor-pointer"
+                      >
+                        {isSavingSharing ? 'Revoking...' : 'Yes, Withdraw All Consent'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowWithdrawConfirm(false)}
+                        className="px-3 py-1.5 bg-white border border-red-200 text-red-800 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowWithdrawConfirm(true)}
+                    className="text-xs font-semibold text-red-700 hover:text-red-800 underline bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    Withdraw All Sharing Consent
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // 8. Privacy Policy Tab
   const renderPrivacyPolicy = () => (
     <div className="pad animate-fadeUp">
@@ -2256,6 +2552,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
           <span className="sb-group-label text-[10px] tracking-wider uppercase font-bold text-[#4A6A64]/38 px-[18px] py-3.5 pb-1 block">Account</span>
           <button className={`sb-btn w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium border-l-[3px] border-transparent transition-colors hover:text-primary hover:bg-[#1E2A2E]/3 cursor-pointer ${activeTab === 'profile' ? 'on' : 'text-[#4A6A64]'}`} onClick={() => handleTabSwitch('profile')}>Profile</button>
           <button className={`sb-btn w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium border-l-[3px] border-transparent transition-colors hover:text-primary hover:bg-[#1E2A2E]/3 cursor-pointer ${activeTab === 'notifications' ? 'on' : 'text-[#4A6A64]'}`} onClick={() => handleTabSwitch('notifications')}>Notifications</button>
+          <button className={`sb-btn w-full text-left py-2 px-[18px] font-sans text-[13px] font-medium border-l-[3px] border-transparent transition-colors hover:text-primary hover:bg-[#1E2A2E]/3 cursor-pointer ${activeTab === 'sharing' ? 'on' : 'text-[#4A6A64]'}`} onClick={() => handleTabSwitch('sharing')}>Privacy &amp; Sharing</button>
           
           <div className="h-[1px] bg-[#1E2A2E]/8 my-2 mx-3" />
           
@@ -2290,6 +2587,7 @@ export default function SettingsPage({ user, profile, onSignOut }) {
         <div className="content flex-1 overflow-y-auto h-full" id="content-panel">
           {activeTab === 'profile' && renderProfile()}
           {activeTab === 'notifications' && renderNotifications()}
+          {activeTab === 'sharing' && renderSharing()}
           {activeTab === 'subscription' && renderSubscription()}
           {activeTab === 'billing' && renderBilling()}
           {activeTab === 'payment' && renderPayment()}

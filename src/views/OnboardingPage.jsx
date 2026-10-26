@@ -141,6 +141,12 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
   const [showFullTerms, setShowFullTerms] = useState(false);
   const [showFullPrivacy, setShowFullPrivacy] = useState(false);
 
+  // 1b. Insights Sharing Consent State (Unchecked by default - explicit affirmative consent)
+  const [sharePatterns, setSharePatterns] = useState(false);
+  const [shareVocab, setShareVocab] = useState(false);
+  const [shareWeekly, setShareWeekly] = useState(false);
+  const [shareMonthly, setShareMonthly] = useState(false);
+
   // 2. Profile State
   const [fullName, setFullName] = useState('');
   const [preferredName, setPreferredName] = useState('');
@@ -357,6 +363,30 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
+
+  const handleSharingConsentSubmit = async (enableSharing) => {
+    setIsSubmitting(true);
+    setErrorMsg('');
+    try {
+      await fetch('/api/user/insights-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isEnabled: enableSharing,
+          categories: {
+            patternSummary: enableSharing ? sharePatterns : false,
+            emotionalVocabulary: enableSharing ? shareVocab : false,
+            weeklyReports: enableSharing ? shareWeekly : false,
+            monthlyReports: enableSharing ? shareMonthly : false,
+          }
+        })
+      });
+    } catch (err) {
+      console.warn('Failed to record sharing preferences during onboarding:', err);
+    } finally {
+      await handleFinalizeOnboarding();
     }
   };
 
@@ -1025,16 +1055,163 @@ export default function OnboardingPage({ initialStep = 'loading', onComplete }) 
                     {/* Continue Button */}
                     <div className="pt-4">
                       <button 
-                        onClick={handleFinalizeOnboarding}
+                        onClick={() => navigateToStep('sharing_consent')}
                         disabled={isSubmitting}
                         className="w-full py-3.5 bg-accent hover:bg-[#654652] active:bg-[#533842] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 shadow-xs"
                       >
-                        {isSubmitting ? "Saving..." : "Continue"}
+                        Continue
                       </button>
                     </div>
                   </motion.div>
                 )}
               </div>
+            )}
+
+            {/* STEP 4B: INSIGHTS SHARING CONSENT */}
+            {step === 'sharing_consent' && (
+              <motion.div
+                key="sharing-consent-view"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-6"
+              >
+                <div>
+                  <span className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase text-accent mb-2 block">
+                    Optional Clinical Sharing &bull; Therapist Insights
+                  </span>
+                  <h2 className="font-serif text-2xl sm:text-3xl font-normal text-primary mb-2">
+                    Share Insights With Your Therapist
+                  </h2>
+                  <p className="font-sans text-xs sm:text-[13px] text-mid leading-relaxed">
+                    When you work with an Ingress Within therapist, you can choose to share synthesized summaries from your self-reflection practice. This helps your clinician understand your emotional themes, patterns, and progress beforehand without requiring you to explain everything from scratch each session.
+                  </p>
+                </div>
+
+                {/* Privacy & Boundary Guarantee */}
+                <div className="bg-[#FAFBFB] border border-primary/10 rounded-xl p-4 text-xs text-[#4A6A64] space-y-1">
+                  <div className="font-semibold text-primary flex items-center gap-1.5">
+                    <ShieldCheck size={14} className="text-secondary" />
+                    <span>Your Privacy Is Fully Protected</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Sharing is strictly optional. Your therapist will only receive high-level summaries and generated reports. <strong>Your raw, private journal entries are never shared.</strong> You can change or withdraw this consent anytime in Settings.
+                  </p>
+                </div>
+
+                {/* Quick Toggle Controls */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="font-semibold text-primary">Choose categories to share:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allChecked = sharePatterns && shareVocab && shareWeekly && shareMonthly;
+                      setSharePatterns(!allChecked);
+                      setShareVocab(!allChecked);
+                      setShareWeekly(!allChecked);
+                      setShareMonthly(!allChecked);
+                    }}
+                    className="text-secondary hover:text-primary font-medium cursor-pointer underline bg-transparent border-none p-0 text-xs"
+                  >
+                    {sharePatterns && shareVocab && shareWeekly && shareMonthly ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+
+                {/* Categories Selection List */}
+                <div className="space-y-3">
+                  {/* Category 1: Pattern Summary */}
+                  <label className="flex items-start gap-3 p-3.5 bg-white border border-primary/10 rounded-xl cursor-pointer hover:border-accent/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={sharePatterns}
+                      onChange={(e) => setSharePatterns(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-primary/20 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-primary">Pattern Summary</div>
+                      <p className="text-mid leading-relaxed">
+                        The overview summary displayed at the top of your Pattern experience (recurring themes and active/quiet pattern counts across reflection cycles).
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Category 2: Emotional Vocabulary */}
+                  <label className="flex items-start gap-3 p-3.5 bg-white border border-primary/10 rounded-xl cursor-pointer hover:border-accent/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={shareVocab}
+                      onChange={(e) => setShareVocab(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-primary/20 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-primary">Emotional Vocabulary</div>
+                      <p className="text-mid leading-relaxed">
+                        The summary displayed at the top of your Emotional Vocabulary experience (distinct emotion words tracked, top reached-for descriptors, and vocabulary breadth).
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Category 3: Weekly Reports */}
+                  <label className="flex items-start gap-3 p-3.5 bg-white border border-primary/10 rounded-xl cursor-pointer hover:border-accent/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={shareWeekly}
+                      onChange={(e) => setShareWeekly(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-primary/20 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-primary">Weekly Reports</div>
+                      <p className="text-mid leading-relaxed">
+                        Synthesized weekly progress reports detailing emotional balance, consistency, and observed themes.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Category 4: Monthly Reports */}
+                  <label className="flex items-start gap-3 p-3.5 bg-white border border-primary/10 rounded-xl cursor-pointer hover:border-accent/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={shareMonthly}
+                      onChange={(e) => setShareMonthly(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-primary/20 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-primary">Monthly Reports</div>
+                      <p className="text-mid leading-relaxed">
+                        Full 30-day reflection cycle assessment reports summarizing your long-term progress and emotional growth.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {errorMsg && (
+                  <p className="font-sans text-[13px] text-error text-center leading-relaxed">
+                    {errorMsg}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div className="pt-2 space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSharingConsentSubmit(true)}
+                    disabled={isSubmitting || (!sharePatterns && !shareVocab && !shareWeekly && !shareMonthly)}
+                    className="w-full py-3.5 bg-accent hover:bg-[#654652] text-white border-none rounded-xl font-sans text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 shadow-xs"
+                  >
+                    {isSubmitting ? "Saving..." : "Save Selected Preferences & Continue"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSharingConsentSubmit(false)}
+                    disabled={isSubmitting}
+                    className="w-full py-2.5 bg-transparent hover:bg-primary/5 text-mid hover:text-primary border border-primary/15 rounded-xl font-sans text-xs font-semibold transition-all duration-200 cursor-pointer"
+                  >
+                    Keep Everything Private &bull; Skip Sharing
+                  </button>
+                </div>
+              </motion.div>
             )}
 
             {/* STEP 5: SUCCESS SCREEN */}

@@ -14,8 +14,10 @@ import {
   Milestone,
   Link2,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import TherapistCareJourneyView from './TherapistCareJourneyView';
+import TherapistClientInsightsView from './TherapistClientInsightsView';
 
 export default function TherapistClientModal({
   clientId,
@@ -133,6 +135,7 @@ export default function TherapistClientModal({
 
   const TABS = [
     { id: 'overview', label: 'Overview', icon: User },
+    { id: 'insights', label: 'Client Insights', icon: Sparkles },
     { id: 'journey', label: 'Care Journey', icon: Milestone },
     { id: 'sessions', label: 'Sessions', icon: Calendar },
     { id: 'soap', label: 'SOAP Notes', icon: FileText },
@@ -259,7 +262,9 @@ export default function TherapistClientModal({
 
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-grow">
-          {activeTab === 'journey' ? (
+          {activeTab === 'insights' ? (
+            <TherapistClientInsightsView clientId={clientId} />
+          ) : activeTab === 'journey' ? (
             <TherapistCareJourneyView
               clientId={clientId}
               onOpenSchedule={onOpenSchedule}
