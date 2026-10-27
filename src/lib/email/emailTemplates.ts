@@ -1045,4 +1045,43 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       text: `Hello ${rawAdminName},\n\nThis is a live transactional email dispatched via MSG91.\nProvider Status: Accepted by MSG91.\n\nOpen Email Observability:\n${statusUrl}\n\nIngress Within Operations`,
     };
   },
+
+  therapist_bulk_broadcast: (data) => {
+    const rawName = data.therapistName || data.name || 'Therapist';
+    const therapistName = escapeHtml(rawName);
+    const rawSubject = (data.subject || 'Platform Announcement for Therapists').trim();
+    const rawMessage = (data.message || data.msg || '').trim();
+
+    // Split paragraphs safely and render escaped HTML with line breaks preserved
+    const paragraphs = String(rawMessage)
+      .split(/\n\n+/)
+      .map(p => `<p style="margin: 0 0 14px 0; font-size: 15px; line-height: 1.6; color: #334155;">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+
+    const contentHtml = `
+      <p style="margin: 0 0 14px 0; font-size: 15px; color: #334155;">Dear <strong>${therapistName}</strong>,</p>
+      ${paragraphs}
+      <div style="margin-top: 24px; padding: 14px 16px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.5;">
+        <p style="margin: 0 0 4px 0; font-weight: 600; color: #1e293b;">Ingress Within Administrative Communication</p>
+        <p style="margin: 0;">This official update was sent to active practitioners on the Ingress Within platform from <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66; text-decoration: underline;">contactus@ingresswithin.com</a>. If you have questions regarding this announcement, reply directly to this email.</p>
+      </div>
+    `;
+
+    return {
+      subject: `${rawSubject} — Ingress Within`,
+      html: renderBaseEmailLayout({
+        title: rawSubject,
+        badge: 'Therapist Notice',
+        badgeVariant: 'info',
+        heading: rawSubject,
+        preheader: String(rawMessage).slice(0, 120).replace(/\s+/g, ' '),
+        contentHtml,
+        ctaButton: data.ctaUrl ? {
+          label: data.ctaLabel || 'Open Therapist Portal',
+          url: data.ctaUrl,
+        } : undefined,
+      }),
+      text: `${rawSubject}\n\nDear ${rawName},\n\n${rawMessage}\n\n---\nIngress Within Administrative Team\ncontactus@ingresswithin.com\n+91 89556 05569`,
+    };
+  },
 };

@@ -4,6 +4,7 @@ import { TherapistPayoutAccountService } from '../therapist/therapistPayoutAccou
 import { AdminAuditService } from './adminAuditService';
 import { ApiUsageService } from './apiUsageService';
 import { EmailService } from '../email/emailService';
+import { validateAndNormalizeEmail } from '../email/emailValidation';
 import { AdminRole, AdminStatus } from './adminAuthService';
 
 export interface OverviewMetrics {
@@ -2084,5 +2085,268 @@ export class AdminPlatformService {
     });
 
     return { success: true, targetAdminId, newStatus };
+  }
+
+  /**
+   * Retrieves active, practicing therapists with resolved verified email addresses for administrative broadcast.
+   */
+  static async getActiveTherapistsForBroadcast(): Promise<{
+    therapists: Array<{
+      therapistId: string;
+      email: string;
+      name: string;
+      phone?: string | null;
+    }>;
+    totalActiveAccounts: number;
+    unreachableCount: number;
+  }> {
+    // 1. Fetch all therapist accounts with active practice status
+    const { data: accounts, error: accountsErr } = await supabase
+      .from('therapist_accounts')
+      .select('id, auth_user_id, phone_number, status, can_practice, application_status')
+      .eq('status', 'active')
+      .eq('can_practice', true);
+
+    if (accountsErr) {
+      console.error('[AdminPlatformService] getActiveTherapistsForBroadcast accounts query error:', accountsErr);
+      throw accountsErr;
+    }
+
+    if (!accounts || accounts.length === 0) {
+      return { therapists: [], totalActiveAccounts: 0, unreachableCount: 0 };
+    }
+
+    const accountIds = accounts.map((a: any) => a.id);
+    const authUserIds = accounts
+      .map((a: any) => a.auth_user_id)
+      .filter((id: any) => Boolean(id));
+
+    // 2. Fetch associated profiles, applications, and auth user details in parallel
+    const [profilesRes, appsRes, usersRes] = await Promise.all([
+      supabase
+        .from('therapist_profiles')
+        .select('therapist_account_id, full_name, contact_email')
+        .in('therapist_account_id', accountIds),
+      supabase
+        .from('therapist_applications')
+        .select('therapist_account_id, answers')
+        .in('therapist_account_id', accountIds),
+      authUserIds.length > 0
+        ? supabase
+            .from('users')
+            .select('id, email, name')
+            .in('id', authUserIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.therapist_account_id, p]));
+    const appMap = new Map((appsRes.data || []).map((app: any) => [app.therapist_account_id, app]));
+    const userMap = new Map((usersRes.data || []).map((u: any) => [u.id, u]));
+
+    const therapistsList: Array<{
+      therapistId: string;
+      email: string;
+      name: string;
+      phone?: string | null;
+    }> = [];
+
+    const seenEmails = new Set<string>();
+    let unreachableCount = 0;
+
+    for (const account of accounts) {
+      const p: any = profileMap.get(account.id) || {};
+      const app: any = appMap.get(account.id) || {};
+      const u: any = account.auth_user_id ? userMap.get(account.auth_user_id) : null;
+
+      const rawEmail =
+        p.contact_email ||
+        app.answers?.contact_email ||
+        app.answers?.email ||
+        u?.email ||
+        (account as any).email ||
+        null;
+
+      const rawName =
+        p.full_name ||
+        app.answers?.fullName ||
+        app.answers?.name ||
+        u?.name ||
+        'Therapist';
+
+      if (!rawEmail) {
+        unreachableCount++;
+        continue;
+      }
+
+      const emailValidation = validateAndNormalizeEmail(rawEmail);
+      if (!emailValidation.valid || !emailValidation.normalizedEmail) {
+        unreachableCount++;
+        continue;
+      }
+
+      const normalizedEmail = emailValidation.normalizedEmail.toLowerCase();
+      if (seenEmails.has(normalizedEmail)) {
+        // Skip duplicate email addresses to prevent redundant broadcasts
+        continue;
+      }
+
+      seenEmails.add(normalizedEmail);
+      therapistsList.push({
+        therapistId: account.id,
+        email: normalizedEmail,
+        name: rawName,
+        phone: account.phone_number || null,
+      });
+    }
+
+    return {
+      therapists: therapistsList,
+      totalActiveAccounts: accounts.length,
+      unreachableCount,
+    };
+  }
+
+  /**
+   * Broadcasts bulk email announcement to all active, practicing therapists from contactus@ingresswithin.com.
+   */
+  static async broadcastEmailToActiveTherapists(params: {
+    adminId: string;
+    adminEmail?: string;
+    subject: string;
+    message: string;
+  }): Promise<{
+    success: boolean;
+    totalActiveTherapists: number;
+    dispatchedCount: number;
+    failedCount: number;
+    sender: string;
+    recipients: Array<{
+      therapistId: string;
+      email: string;
+      name: string;
+      status: 'sent' | 'failed';
+      messageId?: string;
+      error?: string;
+    }>;
+  }> {
+    const trimmedSubject = (params.subject || '').trim();
+    const trimmedMessage = (params.message || '').trim();
+
+    if (!trimmedSubject) {
+      const err: any = new Error('Subject is required for bulk email broadcast.');
+      err.code = 'INVALID_BROADCAST_SUBJECT';
+      err.status = 400;
+      throw err;
+    }
+
+    if (!trimmedMessage) {
+      const err: any = new Error('Message content is required for bulk email broadcast.');
+      err.code = 'INVALID_BROADCAST_MESSAGE';
+      err.status = 400;
+      throw err;
+    }
+
+    const { therapists, totalActiveAccounts } = await this.getActiveTherapistsForBroadcast();
+
+    const results: Array<{
+      therapistId: string;
+      email: string;
+      name: string;
+      status: 'sent' | 'failed';
+      messageId?: string;
+      error?: string;
+    }> = [];
+
+    let dispatchedCount = 0;
+    let failedCount = 0;
+
+    const SENDER_EMAIL = 'contactus@ingresswithin.com';
+    const broadcastBatchId = `broadcast_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    for (const therapist of therapists) {
+      const idempotencyKey = `bulk_broadcast_${therapist.therapistId}_${broadcastBatchId}`;
+      try {
+        const delivery = await EmailService.sendEmail({
+          eventType: 'therapist_broadcast',
+          recipient: {
+            email: therapist.email,
+            name: therapist.name,
+            type: 'therapist',
+            id: therapist.therapistId,
+          },
+          templateKey: 'therapist_bulk_broadcast',
+          templateData: {
+            therapistName: therapist.name,
+            subject: trimmedSubject,
+            message: trimmedMessage,
+          },
+          entityType: 'therapist',
+          entityId: therapist.therapistId,
+          idempotencyKey,
+          metadata: {
+            broadcastBatchId,
+            broadcastByAdminId: params.adminId,
+            broadcastByAdminEmail: params.adminEmail || 'admin@ingresswithin.com',
+            senderAddress: SENDER_EMAIL,
+          },
+        });
+
+        if (delivery && delivery.status !== 'failed') {
+          dispatchedCount++;
+          results.push({
+            therapistId: therapist.therapistId,
+            email: therapist.email,
+            name: therapist.name,
+            status: 'sent',
+            messageId: delivery.providerMessageId || delivery.id,
+          });
+        } else {
+          failedCount++;
+          results.push({
+            therapistId: therapist.therapistId,
+            email: therapist.email,
+            name: therapist.name,
+            status: 'failed',
+            error: delivery?.lastError || 'Delivery marked failed by provider',
+          });
+        }
+      } catch (sendErr: any) {
+        console.error(`[AdminPlatformService] Failed to send broadcast to therapist ${therapist.therapistId}:`, sendErr);
+        failedCount++;
+        results.push({
+          therapistId: therapist.therapistId,
+          email: therapist.email,
+          name: therapist.name,
+          status: 'failed',
+          error: sendErr.message || 'Dispatch exception',
+        });
+      }
+    }
+
+    // Record immutable audit log
+    await AdminAuditService.logAction({
+      actorId: params.adminId,
+      actorType: 'admin_user',
+      action: 'therapist_bulk_email_broadcast',
+      entityType: 'therapist',
+      metadata: {
+        broadcastBatchId,
+        subject: trimmedSubject,
+        totalActiveAccounts,
+        totalTargetedTherapists: therapists.length,
+        dispatchedCount,
+        failedCount,
+        sender: SENDER_EMAIL,
+      },
+    });
+
+    return {
+      success: true,
+      totalActiveTherapists: therapists.length,
+      dispatchedCount,
+      failedCount,
+      sender: SENDER_EMAIL,
+      recipients: results,
+    };
   }
 }

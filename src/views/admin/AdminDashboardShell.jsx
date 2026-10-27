@@ -50,6 +50,7 @@ import {
   Trash2,
   Pencil,
   Link2,
+  Send,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
@@ -101,6 +102,16 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
   const [smokeTestEmail, setSmokeTestEmail] = useState('');
   const [smokeTestLoading, setSmokeTestLoading] = useState(false);
   const [smokeTestResult, setSmokeTestResult] = useState(null);
+
+  // Bulk Therapist Email Broadcast States
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastSubject, setBroadcastSubject] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState(null);
+  const [broadcastSummary, setBroadcastSummary] = useState(null);
+  const [loadingBroadcastSummary, setLoadingBroadcastSummary] = useState(false);
+  const [broadcastActiveTab, setBroadcastActiveTab] = useState('compose'); // 'compose' | 'preview'
 
   // Feedback & Bug Reports States
   const [feedbackData, setFeedbackData] = useState({ feedback: [], pagination: {}, counts: {} });
@@ -244,6 +255,61 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
       showToast(err.message, true);
     } finally {
       setSmokeTestLoading(false);
+    }
+  };
+
+  const handleOpenBroadcastModal = async () => {
+    setShowBroadcastModal(true);
+    setBroadcastResult(null);
+    setLoadingBroadcastSummary(true);
+    try {
+      const res = await fetch('/api/admin/therapists/broadcast');
+      const data = await res.json();
+      if (data.success) {
+        setBroadcastSummary(data);
+      }
+    } catch (e) {
+      console.error('Failed to load broadcast recipients summary:', e);
+    } finally {
+      setLoadingBroadcastSummary(false);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastSubject.trim()) {
+      showToast('Please provide an email subject', true);
+      return;
+    }
+    if (!broadcastMessage.trim()) {
+      showToast('Please provide a message body', true);
+      return;
+    }
+
+    setBroadcastSending(true);
+    setBroadcastResult(null);
+    try {
+      const res = await fetch('/api/admin/therapists/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: broadcastSubject.trim(),
+          message: broadcastMessage.trim(),
+        }),
+      });
+      const data = await res.json();
+      setBroadcastResult(data);
+      if (data.success) {
+        showToast(`Broadcast delivered to ${data.dispatchedCount || 0} active therapist(s)!`);
+        if (activeTab === 'emails') {
+          fetchTabData();
+        }
+      } else {
+        showToast(`Broadcast error: ${data.error?.message || 'Failed to send broadcast'}`, true);
+      }
+    } catch (err) {
+      showToast(err.message || 'Network error sending broadcast', true);
+    } finally {
+      setBroadcastSending(false);
     }
   };
 
@@ -1053,6 +1119,14 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleOpenBroadcastModal}
+                    className="px-3.5 py-1.5 bg-[#4E7A66] hover:bg-[#3D6353] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1.5 shadow-xs"
+                    title="Send bulk email announcement to all active therapists from contactus@ingresswithin.com"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Broadcast to Active</span>
+                  </button>
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#132A24]/40" />
                     <input
@@ -3234,16 +3308,26 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                     <span className="font-semibold text-[#132A24]">Transactional Email Observability:</span> Status <strong className="text-emerald-700">SENT</strong> confirms the message was verified and accepted by MSG91's API. Status <strong className="text-green-800">DELIVERED</strong> confirms recipient mailbox arrival via MSG91 webhook callback.
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowSmokeTestModal(true);
-                    setSmokeTestResult(null);
-                  }}
-                  className="px-3.5 py-2 bg-[#4E7A66] hover:bg-[#3D6353] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Run Live Smoke Test
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleOpenBroadcastModal}
+                    className="px-3.5 py-2 bg-[#132A24] hover:bg-[#1E3E35] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5 shadow-xs"
+                    title="Send bulk email announcement to all active therapists from contactus@ingresswithin.com"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Broadcast to Therapists
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSmokeTestModal(true);
+                      setSmokeTestResult(null);
+                    }}
+                    className="px-3.5 py-2 bg-[#4E7A66] hover:bg-[#3D6353] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Run Live Smoke Test
+                  </button>
+                </div>
               </div>
 
               {/* Status Filters */}
@@ -4120,6 +4204,248 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* GLOBAL MODAL: BULK EMAIL BROADCAST TO ACTIVE THERAPISTS */}
+          {/* ========================================================================= */}
+          {showBroadcastModal && (
+            <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white border border-[#132A24]/10 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-8 flex flex-col max-h-[90vh]">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-5 border-b border-[#132A24]/10 bg-[#FAF8F5]/80 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#132A24] flex items-center justify-center text-white shadow-xs">
+                      <Mail className="w-5 h-5 text-[#88B09A]" />
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-bold text-base text-[#132A24]">
+                        Broadcast Email to Active Therapists
+                      </h4>
+                      <p className="text-[11px] text-[#132A24]/60">
+                        Dispatches official communications directly to all authorized practitioners.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowBroadcastModal(false);
+                      setBroadcastResult(null);
+                    }}
+                    className="p-1.5 text-[#132A24]/40 hover:text-[#132A24] rounded-lg hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Sender & Recipient Badges Banner */}
+                <div className="bg-[#132A24]/[0.02] border-b border-[#132A24]/5 px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#132A24]/50 uppercase tracking-wider">From:</span>
+                    <span className="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-[#4E7A66]/10 text-[#2D5A46] font-semibold border border-[#4E7A66]/20">
+                      contactus@ingresswithin.com
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#132A24]/50 uppercase tracking-wider">To:</span>
+                    {loadingBroadcastSummary ? (
+                      <span className="text-[11px] text-[#132A24]/50 flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Counting recipients...
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
+                        {broadcastSummary ? `${broadcastSummary.totalEligibleTherapists} Active Clinicians` : 'Active Clinicians'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sub-Tabs: Compose vs Preview */}
+                <div className="flex items-center gap-4 px-5 pt-3 border-b border-[#132A24]/10 bg-white text-xs font-semibold shrink-0">
+                  <button
+                    onClick={() => setBroadcastActiveTab('compose')}
+                    className={`pb-2.5 transition-colors cursor-pointer relative ${
+                      broadcastActiveTab === 'compose'
+                        ? 'text-[#132A24] border-b-2 border-[#4E7A66]'
+                        : 'text-[#132A24]/40 hover:text-[#132A24]'
+                    }`}
+                  >
+                    Compose Message
+                  </button>
+                  <button
+                    onClick={() => setBroadcastActiveTab('preview')}
+                    className={`pb-2.5 transition-colors cursor-pointer relative ${
+                      broadcastActiveTab === 'preview'
+                        ? 'text-[#132A24] border-b-2 border-[#4E7A66]'
+                        : 'text-[#132A24]/40 hover:text-[#132A24]'
+                    }`}
+                  >
+                    Branded Preview
+                  </button>
+                </div>
+
+                {/* Modal Body / Scrollable Content */}
+                <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
+                  {broadcastResult && (
+                    <div
+                      className={`p-4 rounded-xl border ${
+                        broadcastResult.success
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50 border-rose-200 text-rose-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold">
+                        {broadcastResult.success ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-600" />
+                        )}
+                        <span>
+                          {broadcastResult.success
+                            ? `Broadcast Successfully Dispatched!`
+                            : `Broadcast Failed`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] opacity-90">
+                        {broadcastResult.success
+                          ? `Delivered to ${broadcastResult.dispatchedCount} active clinicians from contactus@ingresswithin.com.${
+                              broadcastResult.failedCount > 0
+                                ? ` (${broadcastResult.failedCount} failed)`
+                                : ''
+                            }`
+                          : broadcastResult.error?.message || 'An error occurred during dispatch.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {broadcastActiveTab === 'compose' ? (
+                    <div className="space-y-4">
+                      {/* Subject Input */}
+                      <div>
+                        <label className="font-semibold text-[#132A24] block mb-1">
+                          Subject Line <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Platform Notice: Standard Clinical Notes & Documentation Guidelines"
+                          value={broadcastSubject}
+                          onChange={(e) => setBroadcastSubject(e.target.value)}
+                          disabled={broadcastSending}
+                          className="w-full bg-[#132A24]/[0.02] border border-[#132A24]/15 rounded-xl px-3.5 py-2 text-xs text-[#132A24] placeholder-[#132A24]/30 focus:outline-none focus:border-[#4E7A66] focus:bg-white transition-all disabled:opacity-50"
+                        />
+                      </div>
+
+                      {/* Message Content Area */}
+                      <div>
+                        <label className="font-semibold text-[#132A24] block mb-1">
+                          Message Body <span className="text-rose-500">*</span>
+                        </label>
+                        <textarea
+                          rows={8}
+                          placeholder="Enter your message here...&#10;&#10;Double line breaks will be rendered as separate paragraphs in the formatted email. All active therapists will receive this communication."
+                          value={broadcastMessage}
+                          onChange={(e) => setBroadcastMessage(e.target.value)}
+                          disabled={broadcastSending}
+                          className="w-full bg-[#132A24]/[0.02] border border-[#132A24]/15 rounded-xl p-3.5 text-xs text-[#132A24] placeholder-[#132A24]/30 focus:outline-none focus:border-[#4E7A66] focus:bg-white transition-all resize-y disabled:opacity-50 font-sans leading-relaxed"
+                        />
+                      </div>
+
+                      <div className="bg-[#FAF8F5] border border-[#132A24]/10 rounded-xl p-3 text-[11px] text-[#132A24]/70 space-y-1">
+                        <div className="font-semibold text-[#132A24] flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#4E7A66]" />
+                          Delivery Guarantees &amp; Observability
+                        </div>
+                        <ul className="list-disc list-inside text-[#132A24]/60 space-y-0.5">
+                          <li>Sender verified as: <strong className="text-[#132A24]">contactus@ingresswithin.com</strong></li>
+                          <li>Dispatches via MSG91 transactional email engine with automated bounce tracking</li>
+                          <li>Every recipient delivery is logged with status in the <strong className="text-[#132A24]">Email Deliveries</strong> audit tab</li>
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Layout Preview Tab */
+                    <div className="border border-[#132A24]/15 rounded-xl overflow-hidden bg-[#f8fafc] p-4 space-y-3">
+                      <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs space-y-4">
+                        <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                          <div className="font-serif font-bold text-base text-[#132A24]">
+                            INGRESS WITHIN
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
+                            Therapist Notice
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="font-serif font-bold text-lg text-[#132A24]">
+                            {broadcastSubject || 'Platform Notice for Clinicians'}
+                          </h3>
+                        </div>
+
+                        <div className="text-slate-700 text-xs leading-relaxed space-y-2 border-t border-slate-100 pt-3">
+                          <p className="font-medium text-[#132A24]">Dear Clinician,</p>
+                          {broadcastMessage ? (
+                            broadcastMessage.split(/\n\n+/).map((para, idx) => (
+                              <p key={idx} className="whitespace-pre-line text-slate-600">
+                                {para}
+                              </p>
+                            ))
+                          ) : (
+                            <p className="italic text-slate-400">
+                              (Compose your message body to preview the email text here)
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+                          <p className="font-semibold text-slate-700">Ingress Within Operations</p>
+                          <p>contactus@ingresswithin.com | +91 89556 05569</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer Controls */}
+                <div className="flex items-center justify-between p-4 border-t border-[#132A24]/10 bg-[#FAF8F5]/80 shrink-0">
+                  <span className="text-[11px] text-[#132A24]/50">
+                    {broadcastSubject.trim() && broadcastMessage.trim()
+                      ? 'Ready to dispatch'
+                      : 'Subject & message required'}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setShowBroadcastModal(false);
+                        setBroadcastResult(null);
+                      }}
+                      disabled={broadcastSending}
+                      className="px-4 py-2 rounded-xl border border-[#132A24]/15 text-xs text-[#132A24]/70 hover:text-[#132A24] cursor-pointer disabled:opacity-50"
+                    >
+                      {broadcastResult?.success ? 'Close' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleSendBroadcast}
+                      disabled={broadcastSending || !broadcastSubject.trim() || !broadcastMessage.trim()}
+                      className="bg-[#4E7A66] hover:bg-[#3D6353] text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {broadcastSending ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Dispatching Broadcast...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Send Broadcast Now</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
