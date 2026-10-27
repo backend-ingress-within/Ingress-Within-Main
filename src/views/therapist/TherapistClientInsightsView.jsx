@@ -426,54 +426,174 @@ export default function TherapistClientInsightsView({ clientId }) {
       {/* Submodal: View Weekly Report */}
       {selectedWeeklyReport && (
         <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#132A24]/10 shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-[#132A24]/10 flex items-center justify-between bg-[#FAFAF8]">
-              <div className="flex items-center gap-2">
-                <FileText size={16} className="text-[#4E7A66]" />
-                <h4 className="font-serif text-base text-[#132A24]">
-                  Week {selectedWeeklyReport.week_number} Report Summary
-                </h4>
+          <div className="bg-white rounded-2xl border border-[#132A24]/10 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[#132A24]/10 flex items-center justify-between bg-[#FAFAF8]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#132A24]/5 border border-[#132A24]/10 flex items-center justify-center text-[#4E7A66]">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <h4 className="font-serif text-lg font-normal text-[#132A24]">
+                    Week {selectedWeeklyReport.week_number} Report
+                  </h4>
+                  <span className="text-[11px] text-[#132A24]/50 block">
+                    Days {selectedWeeklyReport.day_start || ((selectedWeeklyReport.week_number - 1) * 7 + 1)}&ndash;{selectedWeeklyReport.day_end || (selectedWeeklyReport.week_number * 7)}
+                    {selectedWeeklyReport.generated_at || selectedWeeklyReport.created_at ? (
+                      <> &bull; Generated {new Date(selectedWeeklyReport.generated_at || selectedWeeklyReport.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                    ) : null}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedWeeklyReport(null)}
-                className="p-1 rounded-lg text-[#132A24]/40 hover:text-[#132A24] cursor-pointer"
+                className="p-1.5 rounded-lg text-[#132A24]/40 hover:text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer transition-colors"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-[#132A24] leading-relaxed text-left">
-              <div className="p-3 bg-[#FAFBFB] rounded-lg border border-[#132A24]/5">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60 mb-1">
-                  Synthesized Week Synthesis
-                </div>
-                <p>
-                  {selectedWeeklyReport.report_data?.summary ||
-                    selectedWeeklyReport.report_data?.synthesis ||
-                    'Synthesized review of this reflection period.'}
-                </p>
-              </div>
 
-              {selectedWeeklyReport.report_data?.themes && (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
-                    Observed Themes
+            {/* Modal Scrollable Body */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs text-[#132A24] leading-relaxed text-left">
+              {/* Report Headline / Title */}
+              {selectedWeeklyReport.title && (
+                <div className="font-serif text-base font-normal text-[#132A24] leading-snug border-l-2 border-[#4E7A66] pl-3 py-0.5">
+                  {selectedWeeklyReport.title}
+                </div>
+              )}
+
+              {/* Core Synthesis Narrative / What Was Observed */}
+              {(selectedWeeklyReport.body || selectedWeeklyReport.why || selectedWeeklyReport.report_data?.what_we_saw) && (
+                <div className="p-4 bg-[#FAFBFB] rounded-xl border border-[#132A24]/8 space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#4E7A66]">
+                    Weekly Synthesis
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(Array.isArray(selectedWeeklyReport.report_data.themes)
-                      ? selectedWeeklyReport.report_data.themes
-                      : []
-                    ).map((t, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-[#4E7A66]/10 text-[#4E7A66] rounded-md text-[11px]">
-                        {typeof t === 'string' ? t : t.title || t.name}
-                      </span>
+                  <p className="text-xs text-[#132A24]/85 leading-relaxed whitespace-pre-line font-sans">
+                    {selectedWeeklyReport.body || selectedWeeklyReport.why || selectedWeeklyReport.report_data?.what_we_saw}
+                  </p>
+                </div>
+              )}
+
+              {/* Analytical & Psychological Block */}
+              {selectedWeeklyReport.report_data?.analytical_block && (
+                <div className="p-4 bg-white rounded-xl border border-[#132A24]/10 space-y-2.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#4E7A66]">
+                    Clinical &amp; Emotional Dynamics
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {selectedWeeklyReport.report_data.analytical_block.primary_theme && (
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-semibold text-[#132A24] block">Focal Theme:</span>
+                        <p className="text-[11px] text-[#132A24]/75 leading-relaxed">
+                          {selectedWeeklyReport.report_data.analytical_block.primary_theme}
+                        </p>
+                      </div>
+                    )}
+                    {selectedWeeklyReport.report_data.analytical_block.emotional_tone && (
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-semibold text-[#132A24] block">Emotional Register:</span>
+                        <p className="text-[11px] text-[#132A24]/75 capitalize leading-relaxed">
+                          {selectedWeeklyReport.report_data.analytical_block.emotional_tone}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedWeeklyReport.report_data.analytical_block.agency_language && (
+                    <div className="pt-2 border-t border-[#132A24]/5 space-y-0.5 text-xs">
+                      <span className="text-[11px] font-semibold text-[#132A24] block">Self-Agency Stance:</span>
+                      <p className="text-[11px] text-[#132A24]/75 leading-relaxed">
+                        {selectedWeeklyReport.report_data.analytical_block.agency_language}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedWeeklyReport.report_data.analytical_block.notable_absence && (
+                    <div className="pt-2 border-t border-[#132A24]/5 space-y-0.5 text-xs">
+                      <span className="text-[11px] font-semibold text-[#132A24] block">Notable Absence:</span>
+                      <p className="text-[11px] text-[#132A24]/75 leading-relaxed">
+                        {selectedWeeklyReport.report_data.analytical_block.notable_absence}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Observed Emotion Words / Vocabulary This Week */}
+              {Array.isArray(selectedWeeklyReport.report_data?.vocabThisWeek) && selectedWeeklyReport.report_data.vocabThisWeek.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
+                    Observed Emotion Language
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedWeeklyReport.report_data.vocabThisWeek.slice(0, 8).map((v, idx) => (
+                      <div key={idx} className="px-2.5 py-1 bg-[#4E7A66]/10 text-[#132A24] rounded-lg border border-[#4E7A66]/20 flex items-center gap-1.5 text-[11px]">
+                        <span className="font-semibold text-[#4E7A66]">{v.word}</span>
+                        {v.normalized_word && v.normalized_word !== v.word && (
+                          <span className="text-[#132A24]/50 text-[10px]">&rarr; {v.normalized_word}</span>
+                        )}
+                        {v.frequency > 1 && (
+                          <span className="px-1.5 py-0.2 bg-[#4E7A66]/20 text-[#132A24] rounded-full text-[9px] font-bold">
+                            &times;{v.frequency}
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="text-[10px] text-[#132A24]/40 pt-4 border-t border-[#132A24]/5">
-                Client-consented reflection summary &bull; Private unshared notes excluded.
+              {/* Emotion Clusters */}
+              {Array.isArray(selectedWeeklyReport.report_data?.emotion_clusters) && selectedWeeklyReport.report_data.emotion_clusters.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
+                    Emotion Clusters
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedWeeklyReport.report_data.emotion_clusters.slice(0, 4).map((c, idx) => (
+                      <div key={idx} className="p-2.5 bg-[#FAFBFB] rounded-lg border border-[#132A24]/5 text-[11px]">
+                        <span className="font-semibold text-[#132A24] block mb-1">{c.word}</span>
+                        <div className="flex flex-wrap gap-1">
+                          {(c.related || []).map((r, rIdx) => (
+                            <span key={rIdx} className="px-1.5 py-0.5 bg-white border border-[#132A24]/10 rounded text-[10px] text-[#132A24]/70">
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Candidate Quote / Pulled Expression */}
+              {selectedWeeklyReport.report_data?.candidate_quote && (
+                <div className="p-3.5 bg-[#FAFAF8] rounded-xl border-l-3 border-[#4E7A66] text-xs space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#4E7A66]">
+                    Client Expression
+                  </div>
+                  <p className="font-serif italic text-[13px] text-[#132A24]/90">
+                    &ldquo;{selectedWeeklyReport.report_data.candidate_quote}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {/* Reflective Exploration / Carry Question */}
+              {(selectedWeeklyReport.open_question || selectedWeeklyReport.report_data?.carry_question) && (
+                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-600/15 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    Reflective Question
+                  </div>
+                  <p className="font-serif text-xs text-[#132A24] leading-relaxed">
+                    {selectedWeeklyReport.open_question || selectedWeeklyReport.report_data?.carry_question}
+                  </p>
+                </div>
+              )}
+
+              {/* Footer Note */}
+              <div className="text-[10px] text-[#132A24]/40 pt-3 border-t border-[#132A24]/5">
+                Client-consented reflection summary &bull; Personal unshared journal entries excluded.
               </div>
             </div>
           </div>
@@ -481,69 +601,210 @@ export default function TherapistClientInsightsView({ clientId }) {
       )}
 
       {/* Submodal: View Monthly Report */}
-      {selectedMonthlyReport && (
-        <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#132A24]/10 shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-[#132A24]/10 flex items-center justify-between bg-[#FAFAF8]">
-              <div className="flex items-center gap-2">
-                <Layers size={16} className="text-[#4E7A66]" />
-                <h4 className="font-serif text-base text-[#132A24]">
-                  Cycle Assessment Report
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedMonthlyReport(null)}
-                className="p-1 rounded-lg text-[#132A24]/40 hover:text-[#132A24] cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-[#132A24] leading-relaxed text-left">
-              <div className="p-4 bg-[#FAFBFB] rounded-lg border border-[#132A24]/5 whitespace-pre-wrap font-sans text-xs">
-                {typeof selectedMonthlyReport.report_text === 'string' &&
-                selectedMonthlyReport.report_text.startsWith('{')
-                  ? (() => {
-                      try {
-                        const parsed = JSON.parse(selectedMonthlyReport.report_text);
-                        return (
-                          <div className="space-y-3">
-                            <h5 className="font-bold text-sm text-[#132A24]">
-                              {parsed.title || 'Cycle Reflection Synthesis'}
-                            </h5>
-                            <p className="text-[#132A24]/80">
-                              {parsed.overview || parsed.summary || 'Summary across full 30-day practice cycle.'}
-                            </p>
-                            {parsed.insights && (
-                              <div className="space-y-1 pt-2">
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
-                                  Key Patterns &amp; Observations
-                                </div>
-                                <ul className="list-disc pl-4 space-y-1">
-                                  {(Array.isArray(parsed.insights) ? parsed.insights : [parsed.insights]).map(
-                                    (ins, i) => (
-                                      <li key={i}>{typeof ins === 'string' ? ins : ins.text}</li>
-                                    )
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      } catch (e) {
-                        return selectedMonthlyReport.report_text;
-                      }
-                    })()
-                  : selectedMonthlyReport.report_text || 'Assessment report content.'}
+      {selectedMonthlyReport && (() => {
+        let reportData = null;
+        if (typeof selectedMonthlyReport.report_text === 'string' && selectedMonthlyReport.report_text.trim().startsWith('{')) {
+          try {
+            reportData = JSON.parse(selectedMonthlyReport.report_text);
+          } catch (e) {}
+        } else if (typeof selectedMonthlyReport.report_text === 'object' && selectedMonthlyReport.report_text !== null) {
+          reportData = selectedMonthlyReport.report_text;
+        }
+
+        const whatShowed = reportData?.whatThisCycleShowed;
+        const stats = reportData?.stats;
+        const patterns = Array.isArray(reportData?.patterns) ? reportData.patterns : [];
+        const recurringThemes = Array.isArray(reportData?.recurringThemes) ? reportData.recurringThemes : [];
+        const whereLeavesYou = reportData?.whereLeavesYou;
+        const closingQuote = reportData?.closingQuote;
+
+        return (
+          <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl border border-[#132A24]/10 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+              <div className="p-5 border-b border-[#132A24]/10 flex items-center justify-between bg-[#FAFAF8]">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#132A24]/5 border border-[#132A24]/10 flex items-center justify-center text-[#4E7A66]">
+                    <Layers size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-normal text-[#132A24]">
+                      Cycle {reportData?.cycleNumber || 1} Assessment Report
+                    </h4>
+                    <span className="text-[11px] text-[#132A24]/50 block">
+                      {reportData?.startDate || 'Day 1'} &ndash; {reportData?.endDate || 'Day 30'}
+                      {selectedMonthlyReport.generated_at || selectedMonthlyReport.created_at ? (
+                        <> &bull; Generated {new Date(selectedMonthlyReport.generated_at || selectedMonthlyReport.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                      ) : null}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonthlyReport(null)}
+                  className="p-1.5 rounded-lg text-[#132A24]/40 hover:text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer transition-colors"
+                >
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className="text-[10px] text-[#132A24]/40 pt-4 border-t border-[#132A24]/5">
-                Client-consented monthly cycle summary &bull; Self-reflection insights only.
+              <div className="p-6 overflow-y-auto space-y-5 text-xs text-[#132A24] leading-relaxed text-left">
+                {/* Stats Grid */}
+                {stats && (
+                  <div className="grid grid-cols-3 gap-3 p-3.5 bg-[#FAFBFB] rounded-xl border border-[#132A24]/8">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block">Entries Written</span>
+                      <span className="font-serif text-base font-semibold text-[#132A24]">
+                        {stats.entriesCount} <span className="text-xs font-normal text-[#132A24]/50">/ {stats.totalDays || 30}</span>
+                      </span>
+                      <span className="text-[10px] text-[#132A24]/60 block">{stats.daysSkipped || 0} skipped</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block">Most Used Word</span>
+                      <span className="font-serif text-base font-semibold text-[#4E7A66] capitalize truncate block">
+                        &ldquo;{stats.mostUsedWord}&rdquo;
+                      </span>
+                      <span className="text-[10px] text-[#132A24]/60 block">{stats.mostUsedWordFreq || 0} entries</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block">Self-Work Modules</span>
+                      <span className="font-serif text-base font-semibold text-[#132A24]">
+                        {stats.exercisesCompletedCount ?? 0} <span className="text-xs font-normal text-[#132A24]/50">/ {stats.totalExercisesCount ?? 4}</span>
+                      </span>
+                      <span className="text-[10px] text-[#132A24]/60 block">{stats.missedExercisesText || 'Exercises'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* What This Cycle Showed */}
+                {whatShowed && (
+                  <div className="p-4 bg-white rounded-xl border border-[#132A24]/10 space-y-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#4E7A66]">
+                      What This Cycle Showed
+                    </div>
+                    {whatShowed.openingObs && (
+                      <p className="font-medium text-xs text-[#132A24] leading-relaxed whitespace-pre-line">
+                        {whatShowed.openingObs}
+                      </p>
+                    )}
+                    {whatShowed.narrative && (
+                      <p className="text-xs text-[#132A24]/80 leading-relaxed font-sans">
+                        {whatShowed.narrative}
+                      </p>
+                    )}
+                    {whatShowed.pulledQuote && (
+                      <div className="pt-2 border-t border-[#132A24]/5">
+                        <span className="text-[10px] uppercase font-bold text-[#132A24]/50 block mb-0.5">From Client Reflections:</span>
+                        <p className="font-serif italic text-xs text-[#132A24]/90">
+                          &ldquo;{whatShowed.pulledQuote}&rdquo;
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Cognitive & Emotional Patterns Observed */}
+                {patterns.length > 0 && (
+                  <div className="space-y-2.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
+                      Identified Psychological Patterns ({patterns.length})
+                    </div>
+                    <div className="space-y-2">
+                      {patterns.map((p, idx) => (
+                        <div key={idx} className="p-3 bg-[#FAFBFB] rounded-xl border border-[#132A24]/8 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[#132A24]">{p.name}</span>
+                            {p.tag && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#4E7A66]/10 text-[#4E7A66]">
+                                {p.tag}
+                              </span>
+                            )}
+                          </div>
+                          {p.mechanism && (
+                            <p className="text-[11px] text-[#132A24]/80 leading-relaxed">
+                              <span className="font-medium text-[#132A24]">Mechanism: </span>
+                              {p.mechanism}
+                            </p>
+                          )}
+                          {p.cost && (
+                            <p className="text-[11px] text-[#132A24]/70 leading-relaxed">
+                              <span className="font-medium text-[#132A24]">Impact: </span>
+                              {p.cost}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurring Themes */}
+                {recurringThemes.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/60">
+                      Recurring Themes
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {recurringThemes.map((t, idx) => (
+                        <div key={idx} className="p-3 bg-white rounded-xl border border-[#132A24]/10 space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[#132A24]">{t.name}</span>
+                            {t.frequencyText && (
+                              <span className="text-[10px] text-[#4E7A66] font-medium">{t.frequencyText}</span>
+                            )}
+                          </div>
+                          {t.description && (
+                            <p className="text-[11px] text-[#132A24]/75 leading-relaxed">{t.description}</p>
+                          )}
+                          {t.contraInsight && (
+                            <p className="text-[10px] text-[#132A24]/60 italic">{t.contraInsight}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Where This Leaves You / Closing Reflection */}
+                {(whereLeavesYou?.body || closingQuote?.quote) && (
+                  <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-600/15 space-y-2">
+                    {whereLeavesYou?.title && (
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                        {whereLeavesYou.title}
+                      </div>
+                    )}
+                    {whereLeavesYou?.body && (
+                      <p className="text-xs text-[#132A24]/85 leading-relaxed">
+                        {whereLeavesYou.body}
+                      </p>
+                    )}
+                    {closingQuote?.quote && (
+                      <div className="pt-2 border-t border-emerald-600/10 font-serif italic text-xs text-[#132A24]">
+                        &ldquo;{closingQuote.quote}&rdquo;
+                        {closingQuote.observation && (
+                          <span className="not-italic block text-[10px] font-sans text-[#132A24]/60 mt-0.5">
+                            &mdash; {closingQuote.observation}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Fallback to raw text if not parsed structured data */}
+                {!reportData && (
+                  <div className="p-4 bg-[#FAFBFB] rounded-xl border border-[#132A24]/8 whitespace-pre-wrap font-sans text-xs">
+                    {selectedMonthlyReport.report_text || 'Assessment report content.'}
+                  </div>
+                )}
+
+                <div className="text-[10px] text-[#132A24]/40 pt-3 border-t border-[#132A24]/5">
+                  Client-consented monthly cycle summary &bull; Self-reflection insights only.
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
