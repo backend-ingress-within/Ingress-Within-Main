@@ -30,6 +30,7 @@ export default function TherapistClientModal({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState(null);
   const [updatingStage, setUpdatingStage] = useState(false);
   const [stageNotice, setStageNotice] = useState('');
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -77,13 +78,18 @@ export default function TherapistClientModal({
 
   const fetchClientProfile = async () => {
     try {
+      setLoading(true);
+      setProfileError(null);
       const res = await fetch(`/api/therapist/clients/${clientId}`);
+      const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        const json = await res.json();
         setProfile(json);
+      } else {
+        setProfileError(json.error?.message || 'Unable to load authorized client profile.');
       }
     } catch (err) {
       console.error('Failed to load client profile:', err);
+      setProfileError('Failed to load client profile due to a network connection issue.');
     } finally {
       setLoading(false);
     }
@@ -277,7 +283,7 @@ export default function TherapistClientModal({
             </div>
           ) : !profile ? (
             <div className="p-8 text-center text-xs text-red-600">
-              Unable to load authorized client profile.
+              {profileError || 'Unable to load authorized client profile.'}
             </div>
           ) : activeTab === 'overview' ? (
             <>

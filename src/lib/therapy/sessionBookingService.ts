@@ -138,12 +138,14 @@ export class SessionBookingService {
     message?: string;
     relationshipId?: string;
   }> {
-    const { data: rel, error } = await supabase
+    const { data: rels, error } = await supabase
       .from('therapy_care_relationships')
       .select('id, status, care_stage, first_session_completed')
       .eq('therapist_account_id', therapistAccountId)
       .eq('user_id', userId)
-      .maybeSingle();
+      .order('started_at', { ascending: false });
+
+    const rel = (rels || []).find((r) => r.status === 'active') || (rels || [])[0] || null;
 
     if (error || !rel || rel.status !== 'active') {
       return {
@@ -433,12 +435,14 @@ export class SessionBookingService {
 
     if (!params.isFirstSessionCoordination) {
       // Find or initialize relationship
-      const { data: rel } = await supabase
+      const { data: rels } = await supabase
         .from('therapy_care_relationships')
         .select('id, status, care_stage, first_session_completed')
         .eq('therapist_account_id', therapistAccountId)
         .eq('user_id', userId)
-        .maybeSingle();
+        .order('started_at', { ascending: false });
+
+      const rel = (rels || []).find((r) => r.status === 'active') || (rels || [])[0] || null;
 
       if (rel) {
         if (rel.status !== 'active') {
@@ -469,12 +473,13 @@ export class SessionBookingService {
       }
     } else {
       // Find relationship
-      const { data: rel } = await supabase
+      const { data: rels } = await supabase
         .from('therapy_care_relationships')
-        .select('id')
+        .select('id, status')
         .eq('therapist_account_id', therapistAccountId)
         .eq('user_id', userId)
-        .maybeSingle();
+        .order('started_at', { ascending: false });
+      const rel = (rels || []).find((r) => r.status === 'active') || (rels || [])[0] || null;
       relationshipId = rel?.id || null;
       isFirstSession = true;
     }

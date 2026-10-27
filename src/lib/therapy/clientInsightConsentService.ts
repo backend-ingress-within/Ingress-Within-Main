@@ -36,6 +36,8 @@ export interface ConsentVerificationResult {
   consentGranted: boolean;
   categoryAuthorized: boolean;
   consent?: ClientInsightSharingConsent | null;
+  clientId?: string;
+  relationshipId?: string;
 }
 
 export class ClientInsightConsentService {
@@ -96,6 +98,7 @@ export class ClientInsightConsentService {
           id,
           therapist_account_id,
           status,
+          started_at,
           therapist_accounts (
             id,
             therapist_profiles (
@@ -104,24 +107,24 @@ export class ClientInsightConsentService {
           )
         `)
         .eq('user_id', clientId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('started_at', { ascending: false });
 
-      if (error || !data) {
+      const activeOrLatestRel = (data || []).find((r: any) => r.status === 'active') || (data || [])[0];
+
+      if (error || !activeOrLatestRel) {
         return { relationshipId: null, therapistAccountId: null, therapistName: null, status: null };
       }
 
-      const ta: any = data.therapist_accounts;
+      const ta: any = activeOrLatestRel.therapist_accounts;
       const profile = Array.isArray(ta?.therapist_profiles)
         ? ta?.therapist_profiles[0]
         : ta?.therapist_profiles;
 
       return {
-        relationshipId: data.id,
-        therapistAccountId: data.therapist_account_id,
+        relationshipId: activeOrLatestRel.id,
+        therapistAccountId: activeOrLatestRel.therapist_account_id,
         therapistName: profile?.full_name || 'Assigned Therapist',
-        status: data.status,
+        status: activeOrLatestRel.status,
       };
     } catch {
       return { relationshipId: null, therapistAccountId: null, therapistName: null, status: null };
@@ -425,22 +428,31 @@ export class ClientInsightConsentService {
     let activeRel: any = this.inMemoryRelationships.get(`${therapistAccountId}:${clientId}`) || null;
     if (!activeRel) {
       try {
-        const { data, error } = await supabase
+        const { data: rels, error } = await supabase
           .from('therapy_care_relationships')
           .select('id, therapist_account_id, user_id, status')
           .eq('therapist_account_id', therapistAccountId)
-          .eq('user_id', clientId)
-          .maybeSingle();
+          .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+          .order('started_at', { ascending: false });
 
-        if (!error && data) {
-          activeRel = data;
+        if (!error && rels && rels.length > 0) {
+          activeRel = rels.find((r: any) => r.status === 'active') || rels[0];
         }
       } catch (dbErr: any) {
         console.warn('[ClientInsightConsentService] Relationship check notice:', dbErr.message);
       }
     }
 
-    // If no DB relationship was found, check if in-memory relationship is set or if status is active
+    if (!activeRel && this.inMemoryRelationships.size > 0) {
+      for (const [key, rel] of this.inMemoryRelationships.entries()) {
+        if (rel.therapist_account_id === therapistAccountId && (rel.user_id === clientId || rel.id === clientId)) {
+          activeRel = rel;
+          break;
+        }
+      }
+    }
+
+    // If no relationship was found
     if (!activeRel) {
       return {
         authorized: false,
@@ -461,8 +473,10 @@ export class ClientInsightConsentService {
       };
     }
 
+    const resolvedClientId = activeRel.user_id;
+
     // 2. Fetch client's current sharing consent
-    const { consent } = await this.getConsentForClient(clientId);
+    const { consent } = await this.getConsentForClient(resolvedClientId);
 
     if (!consent || !consent.is_enabled) {
       return {
@@ -472,6 +486,8 @@ export class ClientInsightConsentService {
         consentGranted: false,
         categoryAuthorized: false,
         consent,
+        clientId: resolvedClientId,
+        relationshipId: activeRel.id,
       };
     }
 
@@ -489,6 +505,8 @@ export class ClientInsightConsentService {
         consentGranted: false,
         categoryAuthorized: false,
         consent,
+        clientId: resolvedClientId,
+        relationshipId: activeRel.id,
       };
     }
 
@@ -534,16 +552,27 @@ export class ClientInsightConsentService {
    * Granularly respects consent for each category and strips raw personal notes.
    */
   static async getTherapistClientInsights(therapistAccountId: string, clientId: string): Promise<any> {
-    // 1. Check baseline relationship
+    // 1. Check baseline relationship (resilient lookup supporting userId or relationshipId)
     let relationship: any = this.inMemoryRelationships.get(`${therapistAccountId}:${clientId}`) || null;
     if (!relationship) {
-      const { data } = await supabase
+      const { data: rels } = await supabase
         .from('therapy_care_relationships')
         .select('id, therapist_account_id, user_id, status, started_at')
         .eq('therapist_account_id', therapistAccountId)
-        .eq('user_id', clientId)
-        .maybeSingle();
-      if (data) relationship = data;
+        .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+        .order('started_at', { ascending: false });
+      if (rels && rels.length > 0) {
+        relationship = rels.find((r: any) => r.status === 'active') || rels[0];
+      }
+    }
+
+    if (!relationship && this.inMemoryRelationships.size > 0) {
+      for (const [key, rel] of this.inMemoryRelationships.entries()) {
+        if (rel.therapist_account_id === therapistAccountId && (rel.user_id === clientId || rel.id === clientId)) {
+          relationship = rel;
+          break;
+        }
+      }
     }
 
     if (!relationship) {
@@ -552,6 +581,8 @@ export class ClientInsightConsentService {
       err.code = 'CLIENT_NOT_AUTHORIZED';
       throw err;
     }
+
+    const resolvedClientId = relationship.user_id;
 
     if (relationship.status !== 'active') {
       return {
@@ -563,7 +594,7 @@ export class ClientInsightConsentService {
     }
 
     // 2. Check client consent
-    const { consent } = await this.getConsentForClient(clientId);
+    const { consent } = await this.getConsentForClient(resolvedClientId);
 
     if (!consent || !consent.is_enabled) {
       return {
@@ -591,7 +622,7 @@ export class ClientInsightConsentService {
     let patternSummary: any = { consented: false };
     if (consent.share_pattern_summary) {
       try {
-        const patternOverview = await PatternIntelligenceService.getPatternOverview(clientId);
+        const patternOverview = await PatternIntelligenceService.getPatternOverview(resolvedClientId);
         patternSummary = {
           consented: true,
           isAvailable: patternOverview.isAvailable,
@@ -617,7 +648,7 @@ export class ClientInsightConsentService {
     let emotionalVocabulary: any = { consented: false };
     if (consent.share_emotional_vocabulary) {
       try {
-        const vocabOverview = await VocabularyIntelligenceService.getVocabularyOverview(clientId);
+        const vocabOverview = await VocabularyIntelligenceService.getVocabularyOverview(resolvedClientId);
         emotionalVocabulary = {
           consented: true,
           isAvailable: vocabOverview.isAvailable,
@@ -646,7 +677,7 @@ export class ClientInsightConsentService {
         const { data: reports, error: reportsErr } = await supabase
           .from('weekly_summaries')
           .select('id, cycle_id, week_number, day_start, day_end, status, created_at, report_data')
-          .eq('user_id', clientId)
+          .eq('user_id', resolvedClientId)
           .order('week_number', { ascending: false });
 
         if (reportsErr) throw reportsErr;
@@ -686,8 +717,8 @@ export class ClientInsightConsentService {
         // Query assessments and cycles
         const { data: assessments, error: aErr } = await supabase
           .from('assessments')
-          .select('id, cycle_id, created_at, status, report_text')
-          .eq('user_id', clientId)
+          .select('id, cycle_id, created_at, generation_status, report_text')
+          .eq('user_id', resolvedClientId)
           .order('created_at', { ascending: false });
 
         if (aErr) throw aErr;
@@ -695,7 +726,7 @@ export class ClientInsightConsentService {
         const { data: cycles } = await supabase
           .from('cycles')
           .select('id, cycle_number, start_date, total_days, status')
-          .eq('user_id', clientId);
+          .eq('user_id', resolvedClientId);
 
         const cycleMap = new Map((cycles || []).map((c) => [c.id, c]));
 
@@ -712,7 +743,7 @@ export class ClientInsightConsentService {
               id: a.id,
               cycle_id: a.cycle_id,
               cycle_number: cycle.cycle_number,
-              status: a.status || cycle.status,
+              status: a.generation_status || cycle.status || 'COMPLETED',
               created_at: a.created_at,
               start_date: cycle.start_date,
             };
@@ -766,11 +797,13 @@ export class ClientInsightConsentService {
       throw err;
     }
 
+    const resolvedClientId = authCheck.clientId || clientId;
+
     const { data: report, error } = await supabase
       .from('weekly_summaries')
       .select('*')
       .eq('id', reportId)
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .maybeSingle();
 
     if (error || !report) {
@@ -808,12 +841,14 @@ export class ClientInsightConsentService {
       throw err;
     }
 
+    const resolvedClientId = authCheck.clientId || clientId;
+
     // Resolve cycle assessment strictly for this client
     let assessment: any = null;
     const { data: a1 } = await supabase
       .from('assessments')
       .select('*')
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .eq('cycle_id', cycleId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -825,7 +860,7 @@ export class ClientInsightConsentService {
       const { data: a2 } = await supabase
         .from('assessments')
         .select('*')
-        .eq('user_id', clientId)
+        .eq('user_id', resolvedClientId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

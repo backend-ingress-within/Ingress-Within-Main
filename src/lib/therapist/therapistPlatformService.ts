@@ -1475,13 +1475,15 @@ export class TherapistPlatformService {
           .update({ match_status: 'selected', updated_at: now })
           .eq('id', matchId);
 
-        const { data: existingRel } = await supabase
+        const { data: existingRels } = await supabase
           .from('therapy_care_relationships')
           .select('*')
           .eq('therapist_account_id', therapistAccountId)
           .eq('user_id', match.user_id)
           .eq('status', 'active')
-          .maybeSingle();
+          .order('started_at', { ascending: false });
+
+        const existingRel = (existingRels || [])[0] || null;
 
         if (existingRel) {
           careRel = existingRel;
@@ -1752,7 +1754,19 @@ export class TherapistPlatformService {
         });
       }
 
-      let clients = relationships.map((r: any) => ({
+      // Deduplicate relationships per client user_id, prioritizing 'active' status
+      const clientMap = new Map<string, any>();
+      for (const r of relationships) {
+        const existing = clientMap.get(r.user_id);
+        if (!existing) {
+          clientMap.set(r.user_id, r);
+        } else if (existing.status !== 'active' && r.status === 'active') {
+          clientMap.set(r.user_id, r);
+        }
+      }
+      const uniqueRelationships = Array.from(clientMap.values());
+
+      let clients = uniqueRelationships.map((r: any) => ({
         relationshipId: r.id,
         clientId: r.user_id,
         name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
@@ -1780,27 +1794,30 @@ export class TherapistPlatformService {
    * PRIVACY GUARANTEE: Does NOT query or return private journals/reflections.
    */
   static async getClientClinicalProfile(therapistAccountId: string, clientId: string) {
-    // 1. Verify clinical tenancy
-    const { data: relationship, error: relError } = await supabase
+    // 1. Verify clinical tenancy (resilient to relationshipId or userId, prioritizing active status)
+    const { data: rels, error: relError } = await supabase
       .from('therapy_care_relationships')
       .select('*')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', clientId)
-      .maybeSingle();
+      .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+      .order('started_at', { ascending: false });
 
-    if (relError || !relationship) {
+    if (relError || !rels || rels.length === 0) {
       const err: any = new Error('Client not found or not in your clinical care roster.');
       err.status = 404;
       err.code = 'CLIENT_NOT_AUTHORIZED';
       throw err;
     }
 
+    const relationship = rels.find((r) => r.status === 'active') || rels[0];
+    const resolvedClientId = relationship.user_id;
+
     // 2. Fetch user profile
     const { data: user } = await supabase
       .from('users')
       .select('id, name, created_at')
-      .eq('id', clientId)
-      .single();
+      .eq('id', resolvedClientId)
+      .maybeSingle();
 
     // 3. Fetch authorized intake information
     const { data: intake } = await supabase
@@ -1819,7 +1836,7 @@ export class TherapistPlatformService {
         coping_and_support,
         expectations
       `)
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1828,7 +1845,7 @@ export class TherapistPlatformService {
     const { data: safety } = await supabase
       .from('therapy_safety_assessments')
       .select('safety_status, triage_level, evaluated_at')
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1847,7 +1864,7 @@ export class TherapistPlatformService {
         created_at
       `)
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('scheduled_start', { ascending: false });
 
     // 6. Fetch SOAP notes for these appointments
@@ -1872,8 +1889,8 @@ export class TherapistPlatformService {
         endedAt: relationship.ended_at,
       },
       client: {
-        id: clientId,
-        name: user?.name || intake?.full_name || `Client #${clientId.substring(0, 6)}`,
+        id: resolvedClientId,
+        name: user?.name || intake?.full_name || `Client #${resolvedClientId.substring(0, 6)}`,
         age: intake?.age || null,
         gender: intake?.gender || null,
         occupation: intake?.occupation || null,
@@ -1935,26 +1952,29 @@ export class TherapistPlatformService {
    * self-work modules, and internal client entries.
    */
   static async getCareJourney(therapistAccountId: string, clientId: string) {
-    // 1. Locate therapist's care relationship with client and enforce strict tenancy
-    const { data: rel, error: relErr } = await supabase
+    // 1. Locate therapist's care relationship with client and enforce strict tenancy (resilient lookup)
+    const { data: rels, error: relErr } = await supabase
       .from('therapy_care_relationships')
       .select('id, therapist_account_id, user_id, status, care_stage, started_at, ended_at, metadata, created_at, updated_at')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', clientId)
-      .maybeSingle();
+      .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+      .order('started_at', { ascending: false });
 
-    if (relErr || !rel) {
+    if (relErr || !rels || rels.length === 0) {
       const err: any = new Error('Client care relationship not found or unauthorized.');
       err.status = 404;
       err.code = 'CLIENT_NOT_AUTHORIZED';
       throw err;
     }
 
+    const rel = rels.find((r) => r.status === 'active') || rels[0];
+    const resolvedClientId = rel.user_id;
+
     // 2. Fetch client display name (safe basic identity)
     const { data: user } = await supabase
       .from('users')
       .select('id, name')
-      .eq('id', clientId)
+      .eq('id', resolvedClientId)
       .maybeSingle();
 
     // 3. Fetch stage transition history
@@ -1969,7 +1989,7 @@ export class TherapistPlatformService {
     const { data: intake } = await supabase
       .from('therapy_intakes')
       .select('presenting_reason, concerns')
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1978,7 +1998,7 @@ export class TherapistPlatformService {
     const { data: safety } = await supabase
       .from('therapy_safety_assessments')
       .select('safety_status, triage_level, evaluated_at')
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1988,7 +2008,7 @@ export class TherapistPlatformService {
       .from('therapist_clinical_appointments')
       .select('id, scheduled_start, scheduled_end, status, attendance_status, session_type, modality, meeting_link, created_at')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', clientId)
+      .eq('user_id', resolvedClientId)
       .order('scheduled_start', { ascending: false });
 
     const appts = appointments || [];
@@ -2053,8 +2073,8 @@ export class TherapistPlatformService {
 
     return {
       client: {
-        id: clientId,
-        displayName: user?.name || `Client #${clientId.substring(0, 6)}`,
+        id: resolvedClientId,
+        displayName: user?.name || `Client #${resolvedClientId.substring(0, 6)}`,
       },
       relationship: {
         id: rel.id,
@@ -2175,19 +2195,21 @@ export class TherapistPlatformService {
     }
 
     // 2. Application-level fallback state machine with ACID integrity
-    const { data: rel, error: relErr } = await supabase
+    const { data: rels, error: relErr } = await supabase
       .from('therapy_care_relationships')
       .select('id, therapist_account_id, user_id, status, care_stage, started_at, ended_at')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', clientId)
-      .maybeSingle();
+      .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+      .order('started_at', { ascending: false });
 
-    if (relErr || !rel) {
+    if (relErr || !rels || rels.length === 0) {
       const err: any = new Error('Client care relationship not found or unauthorized.');
       err.status = 404;
       err.code = 'CLIENT_NOT_AUTHORIZED';
       throw err;
     }
+
+    const rel = rels.find((r) => r.status === 'active') || rels[0];
 
     if (rel.status === 'completed' || rel.status === 'terminated') {
       const err: any = new Error('Relationship has ended. Stage cannot be modified.');
@@ -2302,13 +2324,15 @@ export class TherapistPlatformService {
 
     // 2. Client authorization: Client must have an active/current care relationship with therapist
     if (userId) {
-      const { data: rel } = await supabase
+      const { data: rels } = await supabase
         .from('therapy_care_relationships')
         .select('id, status, care_stage')
         .eq('therapist_account_id', therapistAccountId)
-        .eq('user_id', userId)
+        .or(`id.eq.${userId},user_id.eq.${userId}`)
         .eq('status', 'active')
-        .maybeSingle();
+        .order('started_at', { ascending: false });
+
+      const rel = (rels || [])[0] || null;
 
       if (!rel) {
         return {
@@ -2712,13 +2736,13 @@ export class TherapistPlatformService {
     // Care relationship lookup
     let relationship: any = null;
     if (appt.user_id) {
-      const { data: rel } = await supabase
+      const { data: rels } = await supabase
         .from('therapy_care_relationships')
         .select('*')
         .eq('therapist_account_id', therapistAccountId)
         .eq('user_id', appt.user_id)
-        .maybeSingle();
-      relationship = rel;
+        .order('started_at', { ascending: false });
+      relationship = (rels || []).find((r) => r.status === 'active') || (rels || [])[0] || null;
     }
 
     // Reschedule audit history
@@ -2848,13 +2872,15 @@ export class TherapistPlatformService {
     }
 
     // 2. Fetch care relationship details
-    const { data: rel } = await supabase
+    const { data: rels } = await supabase
       .from('therapy_care_relationships')
       .select('id, care_stage')
       .eq('therapist_account_id', therapistAccountId)
-      .eq('user_id', targetUserId)
+      .or(`id.eq.${targetUserId},user_id.eq.${targetUserId}`)
       .eq('status', 'active')
-      .maybeSingle();
+      .order('started_at', { ascending: false });
+
+    const rel = (rels || [])[0] || null;
 
     if (!rel) {
       const err: any = new Error('Client does not have an active care relationship with this therapist.');
@@ -3228,13 +3254,15 @@ export class TherapistPlatformService {
     }
 
     // 2. Verify active care relationship
-    const { data: rel } = await supabase
+    const { data: rels } = await supabase
       .from('therapy_care_relationships')
       .select('id, status')
       .eq('therapist_account_id', therapistAccountId)
       .eq('user_id', appt.user_id)
       .eq('status', 'active')
-      .maybeSingle();
+      .order('started_at', { ascending: false });
+
+    const rel = (rels || [])[0] || null;
 
     if (!rel) {
       const err: any = new Error('Client does not have an active care relationship with this therapist.');
@@ -3465,13 +3493,15 @@ export class TherapistPlatformService {
     }
 
     // 2. Verify active care relationship
-    const { data: rel } = await supabase
+    const { data: rels } = await supabase
       .from('therapy_care_relationships')
       .select('id, status')
       .eq('therapist_account_id', therapistAccountId)
       .eq('user_id', appt.user_id)
       .eq('status', 'active')
-      .maybeSingle();
+      .order('started_at', { ascending: false });
+
+    const rel = (rels || [])[0] || null;
 
     if (!rel) {
       const err: any = new Error('Client does not have an active care relationship with this therapist.');
@@ -3601,13 +3631,15 @@ export class TherapistPlatformService {
     }
 
     // 2. Verify active care relationship
-    const { data: rel } = await supabase
+    const { data: rels } = await supabase
       .from('therapy_care_relationships')
       .select('id, status')
       .eq('therapist_account_id', therapistAccountId)
       .eq('user_id', appt.user_id)
       .eq('status', 'active')
-      .maybeSingle();
+      .order('started_at', { ascending: false });
+
+    const rel = (rels || [])[0] || null;
 
     if (!rel) {
       const err: any = new Error('Client does not have an active care relationship with this therapist.');
