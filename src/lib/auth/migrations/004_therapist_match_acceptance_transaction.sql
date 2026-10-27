@@ -72,8 +72,38 @@ BEGIN
         RAISE EXCEPTION 'REQUEST_UNAVAILABLE: Request is no longer available' USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_match.match_status NOT IN ('candidate', 'shortlisted') THEN
+    IF v_match.match_status NOT IN ('candidate', 'shortlisted', 'proposed') THEN
         RAISE EXCEPTION 'INVALID_REQUEST_STATUS: Request cannot be accepted from status %', v_match.match_status USING ERRCODE = 'P0001';
+    END IF;
+
+    -- 4.5 Exclusivity Check: Verify client is not already accepted by another therapist
+    IF EXISTS (
+        SELECT 1 FROM public.therapy_care_relationships
+        WHERE user_id = v_match.user_id
+          AND therapist_account_id != p_therapist_account_id
+          AND status = 'active'
+    ) THEN
+        UPDATE public.therapy_matches
+        SET match_status = 'unavailable',
+            updated_at = v_now
+        WHERE id = v_match.id;
+
+        RAISE EXCEPTION 'REQUEST_ALREADY_CLAIMED: This client request has already been accepted and confirmed by another therapist' USING ERRCODE = 'P0001';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM public.therapy_matches
+        WHERE (therapy_session_id = v_match.therapy_session_id OR user_id = v_match.user_id)
+          AND id != v_match.id
+          AND match_status IN ('selected', 'accepted')
+          AND therapist_account_id != p_therapist_account_id
+    ) THEN
+        UPDATE public.therapy_matches
+        SET match_status = 'unavailable',
+            updated_at = v_now
+        WHERE id = v_match.id;
+
+        RAISE EXCEPTION 'REQUEST_ALREADY_CLAIMED: This client request has already been accepted and confirmed by another therapist' USING ERRCODE = 'P0001';
     END IF;
 
     -- 5. Atomically find or create therapy_care_relationships inside the same transaction
@@ -114,6 +144,22 @@ BEGIN
     SET match_status = 'selected',
         updated_at = v_now
     WHERE id = v_match.id;
+
+    -- 6.5 Atomically invalidate all other candidate/shortlisted/proposed matches for this client/session
+    -- Guarantees that when one therapist accepts, the client is never seen by any other therapist!
+    UPDATE public.therapy_matches
+    SET match_status = 'unavailable',
+        updated_at = v_now
+    WHERE (therapy_session_id = v_match.therapy_session_id OR user_id = v_match.user_id)
+      AND id != v_match.id
+      AND match_status IN ('candidate', 'shortlisted', 'proposed');
+
+    -- Update any pending submissions for this intake/session to completed
+    UPDATE public.therapy_submissions
+    SET submission_status = 'completed',
+        updated_at = v_now
+    WHERE (therapy_session_id = v_match.therapy_session_id OR user_id = v_match.user_id)
+      AND submission_status IN ('submitted', 'under_review');
 
     -- 7. Atomically insert therapist notification
     INSERT INTO public.therapist_notifications (

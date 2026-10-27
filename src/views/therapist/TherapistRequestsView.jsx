@@ -84,6 +84,9 @@ export default function TherapistRequestsView({ onNavigate }) {
         const text = json.error?.message || `Failed to ${action} request.`;
         setFeedbackMessage({ type: 'error', text });
         setTimeout(() => setFeedbackMessage(null), 6000);
+        setSelectedRequest(null);
+        setConfirmAction(null);
+        await fetchRequests();
       }
     } catch (err) {
       console.error('Action failed:', err);
@@ -92,6 +95,9 @@ export default function TherapistRequestsView({ onNavigate }) {
         text: 'Network error processing your request. Please try again.',
       });
       setTimeout(() => setFeedbackMessage(null), 6000);
+      setSelectedRequest(null);
+      setConfirmAction(null);
+      await fetchRequests();
     } finally {
       setActioningId(null);
     }
@@ -102,6 +108,7 @@ export default function TherapistRequestsView({ onNavigate }) {
   const isReqDeclined = (st) => st === 'rejected' || st === 'declined';
 
   const filtered = requests.filter((r) => {
+    if (r.matchStatus === 'unavailable') return false;
     if (filterStatus === 'pending') {
       return isReqPending(r.matchStatus);
     }
@@ -114,7 +121,7 @@ export default function TherapistRequestsView({ onNavigate }) {
     return true;
   });
 
-  const pendingCount = requests.filter((r) => isReqPending(r.matchStatus)).length;
+  const pendingCount = requests.filter((r) => isReqPending(r.matchStatus) && r.matchStatus !== 'unavailable').length;
   const acceptedCount = requests.filter((r) => isReqAccepted(r.matchStatus)).length;
   const declinedCount = requests.filter((r) => isReqDeclined(r.matchStatus)).length;
 

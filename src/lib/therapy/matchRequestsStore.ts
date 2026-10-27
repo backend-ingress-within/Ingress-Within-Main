@@ -19,3 +19,12 @@ export function getPersistedMatchRequests(): PersistedMatchRequest[] {
 export function recordMatchRequest(record: PersistedMatchRequest): void {
   IN_MEMORY_REQUESTS.push(record);
 }
+
+export function markClientRequestsAsClaimed(userId?: string | null): void {
+  if (!userId) return;
+  for (const req of IN_MEMORY_REQUESTS) {
+    if (req.userId === userId && req.status === 'pending') {
+      req.status = 'booked';
+    }
+  }
+}

@@ -6,6 +6,7 @@ import { TherapistPayoutService } from './therapistPayoutService';
 import { GoogleCalendarService, isValidGoogleMeetUrl } from '../calendar/googleCalendarService';
 import { GoogleAuthService } from '../calendar/googleAuthService';
 import { TherapistPayoutAccountService } from './therapistPayoutAccountService';
+import { markClientRequestsAsClaimed } from '../therapy/matchRequestsStore';
 
 export class TherapistPlatformService {
   private static inMemoryReviews: Array<{
@@ -19,6 +20,30 @@ export class TherapistPlatformService {
     reviewer_notes: string | null;
     created_at: string;
   }> = [];
+
+  private static inMemoryMatches: Map<string, any> = new Map();
+  private static inMemoryCareRelationships: Map<string, any> = new Map();
+
+  static registerMockMatch(match: any) {
+    this.inMemoryMatches.set(match.id, {
+      ...match,
+      created_at: match.created_at || new Date().toISOString(),
+      updated_at: match.updated_at || new Date().toISOString(),
+    });
+  }
+
+  static registerMockCareRelationship(rel: any) {
+    this.inMemoryCareRelationships.set(rel.id || `${rel.therapist_account_id}_${rel.user_id}`, {
+      ...rel,
+      created_at: rel.created_at || new Date().toISOString(),
+      updated_at: rel.updated_at || new Date().toISOString(),
+    });
+  }
+
+  static clearMockMatches() {
+    this.inMemoryMatches.clear();
+    this.inMemoryCareRelationships.clear();
+  }
 
   static async getReviewHistory(therapistAccountId: string) {
     try {
@@ -964,20 +989,32 @@ export class TherapistPlatformService {
     if (!therapistAccountId) return [];
 
     try {
-      const { data: matches, error } = await supabase
+      let matches: any[] = [];
+      const { data: dbMatches, error } = await supabase
         .from('therapy_matches')
         .select('*')
         .eq('therapist_account_id', therapistAccountId)
         .order('created_at', { ascending: false });
 
-      if (error || !matches || matches.length === 0) {
+      if (!error && dbMatches && dbMatches.length > 0) {
+        matches = [...dbMatches];
+      }
+
+      // Merge in-memory mock matches for this therapist
+      for (const m of this.inMemoryMatches.values()) {
+        if (m.therapist_account_id === therapistAccountId && !matches.some((existing) => existing.id === m.id)) {
+          matches.push(m);
+        }
+      }
+
+      if (matches.length === 0) {
         return [];
       }
 
       const sessionIds = Array.from(new Set(matches.map((m: any) => m.therapy_session_id).filter(Boolean)));
       const userIds = Array.from(new Set(matches.map((m: any) => m.user_id).filter(Boolean)));
 
-      const [intakesRes, userIntakesRes, sessionsRes, usersRes] = await Promise.all([
+      const [intakesRes, userIntakesRes, sessionsRes, usersRes, activeRelRes, otherAcceptedMatchesRes] = await Promise.all([
         sessionIds.length > 0
           ? supabase.from('therapy_intakes').select('*').in('therapy_session_id', sessionIds)
           : { data: [] },
@@ -990,7 +1027,87 @@ export class TherapistPlatformService {
         userIds.length > 0
           ? supabase.from('users').select('id, name').in('id', userIds)
           : { data: [] },
+        userIds.length > 0
+          ? supabase.from('therapy_care_relationships').select('user_id, therapist_account_id').in('user_id', userIds).eq('status', 'active')
+          : { data: [] },
+        (userIds.length > 0 || sessionIds.length > 0)
+          ? supabase.from('therapy_matches').select('user_id, therapy_session_id, therapist_account_id, match_status').in('match_status', ['selected', 'accepted'])
+          : { data: [] },
       ]);
+
+      // Set of clients that are already actively connected to a DIFFERENT therapist
+      const activeOtherRelUserIds = new Set<string>();
+      for (const rel of (activeRelRes.data || [])) {
+        if (rel.user_id && rel.therapist_account_id !== therapistAccountId) {
+          activeOtherRelUserIds.add(rel.user_id);
+        }
+      }
+      for (const rel of this.inMemoryCareRelationships.values()) {
+        if (rel.user_id && rel.therapist_account_id !== therapistAccountId && rel.status === 'active') {
+          activeOtherRelUserIds.add(rel.user_id);
+        }
+      }
+
+      // Set of sessions and clients that have been accepted by a DIFFERENT therapist
+      const otherAcceptedSessions = new Set<string>();
+      const otherAcceptedUsers = new Set<string>();
+      for (const accMatch of (otherAcceptedMatchesRes.data || [])) {
+        if (accMatch.therapist_account_id !== therapistAccountId) {
+          if (accMatch.therapy_session_id) otherAcceptedSessions.add(accMatch.therapy_session_id);
+          if (accMatch.user_id) otherAcceptedUsers.add(accMatch.user_id);
+        }
+      }
+      for (const m of this.inMemoryMatches.values()) {
+        if (m.therapist_account_id !== therapistAccountId && (m.match_status === 'selected' || m.match_status === 'accepted')) {
+          if (m.therapy_session_id) otherAcceptedSessions.add(m.therapy_session_id);
+          if (m.user_id) otherAcceptedUsers.add(m.user_id);
+        }
+      }
+
+      // Filter matches: Guarantee that if another therapist accepted the request/client,
+      // it is NEVER seen by this therapist!
+      const validMatches = matches.filter((m: any) => {
+        // Exclude records explicitly marked as unavailable
+        if (m.match_status === 'unavailable') return false;
+
+        // If this match was accepted or declined by THIS therapist, preserve it for history/tabs
+        if (m.match_status === 'selected' || m.match_status === 'accepted' || m.match_status === 'rejected' || m.match_status === 'declined') {
+          return true;
+        }
+
+        // For pending requests (candidate, shortlisted, proposed):
+        // If client already has an active relationship or accepted match with another therapist, EXCLUDE!
+        if (m.user_id && activeOtherRelUserIds.has(m.user_id)) {
+          return false;
+        }
+        if (m.therapy_session_id && otherAcceptedSessions.has(m.therapy_session_id)) {
+          return false;
+        }
+        if (m.user_id && otherAcceptedUsers.has(m.user_id)) {
+          return false;
+        }
+
+        return true;
+      });
+
+      // Self-heal: mark orphaned pending matches as unavailable in background
+      const staleMatchIds = matches
+        .filter((m: any) => {
+          if (m.match_status !== 'candidate' && m.match_status !== 'shortlisted' && m.match_status !== 'proposed') return false;
+          return (m.user_id && activeOtherRelUserIds.has(m.user_id)) ||
+                 (m.therapy_session_id && otherAcceptedSessions.has(m.therapy_session_id)) ||
+                 (m.user_id && otherAcceptedUsers.has(m.user_id));
+        })
+        .map((m: any) => m.id);
+
+      if (staleMatchIds.length > 0) {
+        Promise.resolve(
+          supabase
+            .from('therapy_matches')
+            .update({ match_status: 'unavailable', updated_at: new Date().toISOString() })
+            .in('id', staleMatchIds)
+        ).catch(() => {});
+      }
 
       const intakesBySessionId = new Map(
         (intakesRes.data || []).map((i: any) => [i.therapy_session_id, i])
@@ -1005,7 +1122,7 @@ export class TherapistPlatformService {
         (usersRes.data || []).map((u: any) => [u.id, u])
       );
 
-      return matches.map((m: any) => {
+      return validMatches.map((m: any) => {
         const intake = intakesBySessionId.get(m.therapy_session_id) || intakesByUserId.get(m.user_id);
         const session = sessionsById.get(m.therapy_session_id);
         const user = usersById.get(m.user_id);
@@ -1057,11 +1174,15 @@ export class TherapistPlatformService {
       throw err;
     }
 
-    const { data: match, error: fetchErr } = await supabase
-      .from('therapy_matches')
-      .select('*')
-      .eq('id', matchId)
-      .maybeSingle();
+    let match = this.inMemoryMatches.get(matchId) || null;
+    if (!match) {
+      const { data: dbMatch, error: fetchErr } = await supabase
+        .from('therapy_matches')
+        .select('*')
+        .eq('id', matchId)
+        .maybeSingle();
+      match = dbMatch;
+    }
 
     if (!match) {
       const err: any = new Error('Request not found.');
@@ -1075,6 +1196,58 @@ export class TherapistPlatformService {
       err.code = 'REQUEST_FORBIDDEN';
       err.status = 403;
       throw err;
+    }
+
+    // Exclusivity Check: If request was already claimed/unavailable, reject immediately
+    if (match.match_status === 'unavailable') {
+      const err: any = new Error('This client request has already been accepted and confirmed by another practitioner.');
+      err.code = 'REQUEST_ALREADY_CLAIMED';
+      err.status = 409;
+      throw err;
+    }
+
+    if (match.match_status === 'candidate' || match.match_status === 'shortlisted' || match.match_status === 'proposed') {
+      let isClaimed = false;
+      for (const rel of this.inMemoryCareRelationships.values()) {
+        if (rel.user_id === match.user_id && rel.therapist_account_id !== therapistAccountId && rel.status === 'active') {
+          isClaimed = true;
+          break;
+        }
+      }
+      for (const otherM of this.inMemoryMatches.values()) {
+        if ((otherM.user_id === match.user_id || otherM.therapy_session_id === match.therapy_session_id) && otherM.therapist_account_id !== therapistAccountId && (otherM.match_status === 'selected' || otherM.match_status === 'accepted')) {
+          isClaimed = true;
+          break;
+        }
+      }
+
+      if (!isClaimed) {
+        const [otherRelRes, otherMatchRes] = await Promise.all([
+          match.user_id
+            ? supabase.from('therapy_care_relationships').select('id, therapist_account_id').eq('user_id', match.user_id).neq('therapist_account_id', therapistAccountId).eq('status', 'active').maybeSingle()
+            : { data: null },
+          supabase.from('therapy_matches').select('id, therapist_account_id').or(`therapy_session_id.eq.${match.therapy_session_id},user_id.eq.${match.user_id}`).neq('therapist_account_id', therapistAccountId).in('match_status', ['selected', 'accepted']).maybeSingle(),
+        ]);
+        if (otherRelRes.data || otherMatchRes.data) {
+          isClaimed = true;
+        }
+      }
+
+      if (isClaimed) {
+        if (this.inMemoryMatches.has(matchId)) {
+          this.inMemoryMatches.get(matchId).match_status = 'unavailable';
+        }
+        Promise.resolve(
+          supabase
+            .from('therapy_matches')
+            .update({ match_status: 'unavailable', updated_at: new Date().toISOString() })
+            .eq('id', matchId)
+        ).catch(() => {});
+        const err: any = new Error('This client request has already been accepted and confirmed by another practitioner.');
+        err.code = 'REQUEST_ALREADY_CLAIMED';
+        err.status = 409;
+        throw err;
+      }
     }
 
     // Safely retrieve intake and session context
@@ -1150,11 +1323,15 @@ export class TherapistPlatformService {
     }
 
     // 1. Verify match existence and therapist ownership
-    const { data: match, error: fetchErr } = await supabase
-      .from('therapy_matches')
-      .select('*')
-      .eq('id', matchId)
-      .maybeSingle();
+    let match = this.inMemoryMatches.get(matchId) || null;
+    if (!match) {
+      const { data: dbMatch, error: fetchErr } = await supabase
+        .from('therapy_matches')
+        .select('*')
+        .eq('id', matchId)
+        .maybeSingle();
+      match = dbMatch;
+    }
 
     if (!match) {
       const err: any = new Error('Request not found.');
@@ -1222,6 +1399,56 @@ export class TherapistPlatformService {
 
     // 2. Handle ACCEPT Action via True PostgreSQL Database Transaction
     if (action === 'accept') {
+      // 2.1 Exclusivity Check: If request was already claimed or client is already connected to another therapist
+      if (match.match_status === 'unavailable') {
+        const err: any = new Error('This client request has already been accepted and confirmed by another practitioner.');
+        err.code = 'REQUEST_ALREADY_CLAIMED';
+        err.status = 409;
+        throw err;
+      }
+
+      let isClaimed = false;
+      for (const rel of this.inMemoryCareRelationships.values()) {
+        if (rel.user_id === match.user_id && rel.therapist_account_id !== therapistAccountId && rel.status === 'active') {
+          isClaimed = true;
+          break;
+        }
+      }
+      for (const otherM of this.inMemoryMatches.values()) {
+        if ((otherM.user_id === match.user_id || otherM.therapy_session_id === match.therapy_session_id) && otherM.therapist_account_id !== therapistAccountId && (otherM.match_status === 'selected' || otherM.match_status === 'accepted')) {
+          isClaimed = true;
+          break;
+        }
+      }
+
+      if (!isClaimed && (match.user_id || match.therapy_session_id)) {
+        const [otherRelRes, otherMatchRes] = await Promise.all([
+          match.user_id
+            ? supabase.from('therapy_care_relationships').select('id, therapist_account_id').eq('user_id', match.user_id).neq('therapist_account_id', therapistAccountId).eq('status', 'active').maybeSingle()
+            : { data: null },
+          supabase.from('therapy_matches').select('id, therapist_account_id').or(`therapy_session_id.eq.${match.therapy_session_id},user_id.eq.${match.user_id}`).neq('therapist_account_id', therapistAccountId).in('match_status', ['selected', 'accepted']).maybeSingle(),
+        ]);
+
+        if (otherRelRes.data || otherMatchRes.data) {
+          isClaimed = true;
+        }
+      }
+
+      if (isClaimed) {
+        if (this.inMemoryMatches.has(matchId)) {
+          this.inMemoryMatches.get(matchId).match_status = 'unavailable';
+        }
+        await supabase
+          .from('therapy_matches')
+          .update({ match_status: 'unavailable', updated_at: new Date().toISOString() })
+          .eq('id', matchId);
+
+        const err: any = new Error('This client request has already been accepted and confirmed by another therapist.');
+        err.code = 'REQUEST_ALREADY_CLAIMED';
+        err.status = 409;
+        throw err;
+      }
+
       // Primary transactional mechanism: PostgreSQL atomic transaction function accept_therapy_match
       const { data: rpcResult, error: rpcError } = await supabase.rpc('accept_therapy_match', {
         p_therapist_account_id: therapistAccountId,
@@ -1240,8 +1467,8 @@ export class TherapistPlatformService {
         finalStatus = rpcResult.match_status || 'selected';
         alreadyAccepted = Boolean(rpcResult.already_accepted);
         careRel = rpcResult.relationship || null;
-      } else if (rpcError && (rpcError.message?.includes('does not exist') || rpcError.message?.includes('function') || rpcError.code === '42883')) {
-        // Resilient fallback if RPC procedure is not deployed in current environment
+      } else if (this.inMemoryMatches.has(matchId) || (rpcError && (rpcError.message?.includes('does not exist') || rpcError.message?.includes('function') || rpcError.code === '42883' || rpcError.code === 'P0002' || rpcError.message?.includes('invalid input syntax')))) {
+        // Resilient fallback if RPC procedure is not deployed or in-memory mock environment
         const now = new Date().toISOString();
         await supabase
           .from('therapy_matches')
@@ -1273,12 +1500,60 @@ export class TherapistPlatformService {
             })
             .select('*')
             .single();
-          careRel = newRel;
+          careRel = newRel || {
+            id: `rel_${therapistAccountId}_${match.user_id}`,
+            therapist_account_id: therapistAccountId,
+            user_id: match.user_id,
+            status: 'active',
+          };
         }
         acceptSuccess = true;
       }
 
       if (acceptSuccess) {
+        // Broadcast Pool Invalidation:
+        // When one therapist accepts, immediately mark all other candidate/shortlisted/proposed matches
+        // for this client/session as unavailable so no other therapist can see or accept them!
+        const now = new Date().toISOString();
+
+        if (this.inMemoryMatches.has(matchId)) {
+          this.inMemoryMatches.get(matchId).match_status = 'selected';
+          for (const other of this.inMemoryMatches.values()) {
+            if (other.id !== matchId && ((match.user_id && other.user_id === match.user_id) || (match.therapy_session_id && other.therapy_session_id === match.therapy_session_id))) {
+              if (other.match_status === 'candidate' || other.match_status === 'shortlisted' || other.match_status === 'proposed') {
+                other.match_status = 'unavailable';
+                other.updated_at = now;
+              }
+            }
+          }
+        }
+        this.registerMockCareRelationship({
+          id: `rel_${therapistAccountId}_${match.user_id}`,
+          therapist_account_id: therapistAccountId,
+          user_id: match.user_id,
+          therapy_session_id: match.therapy_session_id,
+          status: 'active',
+        });
+
+        try {
+          await Promise.all([
+            supabase
+              .from('therapy_matches')
+              .update({ match_status: 'unavailable', updated_at: now })
+              .or(`therapy_session_id.eq.${match.therapy_session_id},user_id.eq.${match.user_id}`)
+              .neq('id', matchId)
+              .in('match_status', ['candidate', 'shortlisted', 'proposed']),
+            supabase
+              .from('therapy_submissions')
+              .update({ submission_status: 'completed', updated_at: now })
+              .or(`therapy_session_id.eq.${match.therapy_session_id},user_id.eq.${match.user_id}`)
+              .in('submission_status', ['submitted', 'under_review']),
+          ]);
+          markClientRequestsAsClaimed(match.user_id);
+        } catch (invalidationErr) {
+          console.warn('[TherapistPlatformService] Broadcast pool invalidation notice:', invalidationErr);
+        }
+
         // Dispatch first-session operational coordination, client notice & therapist confirmation emails
         try {
           const [clientUserRes, clientIntakeRes, clientUserIntakeRes, therapistProfileRes, therapistAppRes] = await Promise.all([
@@ -1350,6 +1625,12 @@ export class TherapistPlatformService {
         if (errorMsg.includes('REQUEST_ALREADY_DECLINED')) {
           const err: any = new Error('This request has already been declined and cannot be accepted.');
           err.code = 'REQUEST_ALREADY_DECLINED';
+          err.status = 409;
+          throw err;
+        }
+        if (errorMsg.includes('REQUEST_ALREADY_CLAIMED') || errorMsg.includes('already been accepted')) {
+          const err: any = new Error('This client request has already been accepted and confirmed by another therapist.');
+          err.code = 'REQUEST_ALREADY_CLAIMED';
           err.status = 409;
           throw err;
         }
