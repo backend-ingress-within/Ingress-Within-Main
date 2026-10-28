@@ -88,7 +88,10 @@ export async function processEmailJob(
     throw new EmailWorkerError(errorMsg, true, 'MISSING_TEMPLATE');
   }
 
-  const rendered = templateRenderer(jobData.templateData);
+  const rendered = templateRenderer({
+    recipientType: jobData.recipient.type,
+    ...jobData.templateData,
+  });
 
   // 4. Upsert/Record in-flight delivery state in DB
   let deliveryId: string | null = null;

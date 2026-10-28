@@ -4,6 +4,16 @@ import { SUPPORT_CONFIG } from '../../config/supportConfig';
 
 export { escapeHtml };
 
+/**
+ * Authoritative platform route URLs for all user and therapist actions.
+ */
+export const APP_URLS = {
+  SELF_HELP: 'https://ingresswithin.com/',
+  THERAPY_DASHBOARD: 'https://ingresswithin.com/therapy',
+  THERAPIST_DASHBOARD: 'https://ingresswithin.com/therapist',
+  ADMIN_PORTAL: 'https://ingresswithin.com/admin',
+} as const;
+
 export function formatDate(isoString: string): string {
   try {
     const d = new Date(isoString);
@@ -31,7 +41,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
   therapist_match_request: (data) => {
     const rawTherapistName = data.therapistName || 'Therapist';
     const therapistName = escapeHtml(rawTherapistName);
-    const dashboardUrl = data.dashboardUrl || 'https://ingresswithin.com/therapist';
+    const dashboardUrl = data.dashboardUrl || APP_URLS.THERAPIST_DASHBOARD;
     const matchId = escapeHtml(data.matchId || '');
     const rank = escapeHtml(data.rank || '');
 
@@ -72,6 +82,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const clientName = escapeHtml(rawClientName);
     const rawTherapistName = data.therapistName || 'Your Therapist';
     const therapistName = escapeHtml(rawTherapistName);
+    const therapyUrl = data.therapyUrl || data.dashboardUrl || APP_URLS.THERAPY_DASHBOARD;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${clientName}</strong>,</p>
@@ -85,7 +96,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       </div>
 
       <p style="margin: 0; font-size: 13.5px; color: #475569;">
-        You can log in to your Ingress Within account anytime to view your care team status and explore self-guided reflection tools.
+        You can log in to your <a href="${escapeHtml(therapyUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">Therapy Dashboard</a> anytime to view your care team status, upcoming sessions, and care progress.
       </p>
     `;
 
@@ -99,11 +110,11 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: `${rawTherapistName} has accepted your care connection request on Ingress Within.`,
         contentHtml,
         ctaButton: {
-          label: 'View Care Journey',
-          url: 'https://ingresswithin.com',
+          label: 'Open Therapy Dashboard',
+          url: therapyUrl,
         },
       }),
-      text: `Hello ${rawClientName},\n\nWe are pleased to inform you that ${rawTherapistName} has accepted your care connection request.\n\nNext Step: Our clinical coordination team will connect with you shortly to finalize your first session time.\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawClientName},\n\nWe are pleased to inform you that ${rawTherapistName} has accepted your care connection request.\n\nNext Step: Our clinical coordination team will connect with you shortly to finalize your first session time.\n\nOpen Therapy Dashboard:\n${therapyUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -112,7 +123,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const therapistName = escapeHtml(rawTherapistName);
     const rawClientName = data.clientName || 'your client';
     const clientName = escapeHtml(rawClientName);
-    const dashboardUrl = data.dashboardUrl || 'https://ingresswithin.com/therapist';
+    const dashboardUrl = data.dashboardUrl || APP_URLS.THERAPIST_DASHBOARD;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${therapistName}</strong>,</p>
@@ -153,6 +164,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const clientEmail = escapeHtml(rawClientEmail);
     const rawMatchId = data.matchId || '';
     const matchId = escapeHtml(rawMatchId);
+    const adminUrl = data.adminUrl || APP_URLS.ADMIN_PORTAL;
 
     const contentHtml = `
       <p style="margin: 0 0 16px 0;">A new care connection was accepted and requires operational scheduling coordination.</p>
@@ -186,8 +198,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: 'First Session Coordination Required',
         preheader: `Coordination required for match #${rawMatchId} between ${rawTherapistName} and ${rawClientEmail}`,
         contentHtml,
+        ctaButton: {
+          label: 'Open Admin Command Center',
+          url: adminUrl,
+        },
       }),
-      text: `First Session Coordination Required\n\nMatch ID: ${rawMatchId}\nTherapist: ${rawTherapistName}\nClient: ${rawClientEmail}\n\nPlease verify availability and dispatch the initial session payment order.`,
+      text: `First Session Coordination Required\n\nMatch ID: ${rawMatchId}\nTherapist: ${rawTherapistName}\nClient: ${rawClientEmail}\n\nOpen Admin Command Center:\n${adminUrl}\n\nPlease verify availability and dispatch the initial session payment order.`,
     };
   },
 
@@ -200,6 +216,9 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const googleMeetUrl = data.googleMeetUrl || '';
     const rawBookingRef = data.bookingReference || '';
     const bookingRef = escapeHtml(rawBookingRef);
+    const isTherapist = data.recipientType === 'therapist';
+    const dashboardUrl = isTherapist ? APP_URLS.THERAPIST_DASHBOARD : APP_URLS.THERAPY_DASHBOARD;
+    const dashboardLabel = isTherapist ? 'Therapist Dashboard' : 'Therapy Dashboard';
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
@@ -220,6 +239,10 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
             : `<p style="margin: 8px 0 0 0; font-size: 13px; color: #64748b;">Meeting link will synchronize to your calendar prior to the session.</p>`
         }
       </div>
+
+      <p style="margin: 0 0 16px 0; font-size: 13.5px; color: #475569;">
+        You can review and manage your session in your <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; text-decoration: underline; font-weight: 600;">${escapeHtml(dashboardLabel)}</a>.
+      </p>
 
       <h4 style="margin: 20px 0 8px 0; color: #132A24; font-size: 14px;">Policy Guidelines</h4>
       <ul style="margin: 0 0 16px 0; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.6;">
@@ -242,9 +265,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
               label: 'Join with Google Meet',
               url: googleMeetUrl,
             }
-          : undefined,
+          : {
+              label: `Open ${dashboardLabel}`,
+              url: dashboardUrl,
+            },
       }),
-      text: `Hello ${rawRecipientName},\n\nYour therapy session with ${rawOtherPartyName} is confirmed for ${formattedStart}.\n\nBooking Reference: ${rawBookingRef}\nMeeting Link: ${googleMeetUrl || 'Will sync to your calendar'}\n\nRescheduling: Permitted up to 24h before start.\nCancellations: 48h prior for full refund.\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawRecipientName},\n\nYour therapy session with ${rawOtherPartyName} is confirmed for ${formattedStart}.\n\nBooking Reference: ${rawBookingRef}\nMeeting Link: ${googleMeetUrl || 'Will sync to your calendar'}\n\nView in ${dashboardLabel}:\n${dashboardUrl}\n\nRescheduling: Permitted up to 24h before start.\nCancellations: 48h prior for full refund.\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -253,9 +279,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const recipientName = escapeHtml(rawRecipientName);
     const rawOtherPartyName = data.otherPartyName || 'Therapist';
     const otherPartyName = escapeHtml(rawOtherPartyName);
-    const oldStart = formatDate(data.previousStart);
+    const oldStart = formatDate(data.previousStart || data.oldStart);
     const newStart = formatDate(data.newStart);
     const googleMeetUrl = data.googleMeetUrl || '';
+    const isTherapist = data.recipientType === 'therapist';
+    const dashboardUrl = isTherapist ? APP_URLS.THERAPIST_DASHBOARD : APP_URLS.THERAPY_DASHBOARD;
+    const dashboardLabel = isTherapist ? 'Therapist Dashboard' : 'Therapy Dashboard';
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
@@ -276,7 +305,9 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         }
       </div>
 
-      <p style="margin: 0; font-size: 13px; color: #64748b;">Your calendar event has been updated automatically.</p>
+      <p style="margin: 0; font-size: 13.5px; color: #64748b;">
+        Your calendar event has been updated automatically. You can review updates in your <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; text-decoration: underline; font-weight: 600;">${escapeHtml(dashboardLabel)}</a>.
+      </p>
     `;
 
     return {
@@ -293,9 +324,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
               label: 'Join with Google Meet',
               url: googleMeetUrl,
             }
-          : undefined,
+          : {
+              label: `Open ${dashboardLabel}`,
+              url: dashboardUrl,
+            },
       }),
-      text: `Hello ${rawRecipientName},\n\nYour session with ${rawOtherPartyName} has been rescheduled from ${oldStart} to ${newStart}.\nMeeting Link: ${googleMeetUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawRecipientName},\n\nYour session with ${rawOtherPartyName} has been rescheduled from ${oldStart} to ${newStart}.\nMeeting Link: ${googleMeetUrl}\n\nView in ${dashboardLabel}:\n${dashboardUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -308,6 +342,9 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const rawReason = data.reason || 'Requested by user';
     const reason = escapeHtml(rawReason);
     const refundStatus = data.refundStatus || 'none';
+    const isTherapist = data.recipientType === 'therapist';
+    const dashboardUrl = isTherapist ? APP_URLS.THERAPIST_DASHBOARD : APP_URLS.THERAPY_DASHBOARD;
+    const dashboardLabel = isTherapist ? 'Therapist Dashboard' : 'Therapy Dashboard';
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
@@ -331,7 +368,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       </div>
 
       <p style="margin: 0; font-size: 13.5px; color: #64748b;">
-        If you have any questions or would like to schedule a replacement appointment, please contact our support team at <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66;">contactus@ingresswithin.com</a>.
+        If you have any questions or would like to schedule a replacement appointment, please contact our support team at <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66;">contactus@ingresswithin.com</a> or visit your <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; text-decoration: underline; font-weight: 600;">${escapeHtml(dashboardLabel)}</a>.
       </p>
     `;
 
@@ -344,8 +381,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: 'Session Cancelled',
         preheader: `The session with ${rawOtherPartyName} scheduled for ${scheduledStart} was cancelled.`,
         contentHtml,
+        ctaButton: {
+          label: `Open ${dashboardLabel}`,
+          url: dashboardUrl,
+        },
       }),
-      text: `Hello ${rawRecipientName},\n\nThe therapy session with ${rawOtherPartyName} on ${scheduledStart} has been cancelled.\nReason: ${rawReason}\nRefund Status: ${refundStatus}\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawRecipientName},\n\nThe therapy session with ${rawOtherPartyName} on ${scheduledStart} has been cancelled.\nReason: ${rawReason}\nRefund Status: ${refundStatus}\n\nOpen ${dashboardLabel}:\n${dashboardUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -355,6 +396,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const amountInr = (data.amountPaise ? (data.amountPaise / 100).toFixed(2) : data.amountInr) || '0.00';
     const rawRefundId = data.refundId || '';
     const refundId = escapeHtml(rawRefundId);
+    const therapyUrl = APP_URLS.THERAPY_DASHBOARD;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
@@ -366,7 +408,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       </div>
 
       <p style="margin: 0; font-size: 13.5px; color: #64748b;">
-        If you have any questions regarding your refund, please feel free to reach out to our team.
+        You can review your active care sessions in your <a href="${escapeHtml(therapyUrl)}" style="color: #4E7A66; text-decoration: underline; font-weight: 600;">Therapy Dashboard</a>.
       </p>
     `;
 
@@ -379,8 +421,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: 'Refund Processed',
         preheader: `Refund of INR ${amountInr} initiated. Reference: ${rawRefundId}`,
         contentHtml,
+        ctaButton: {
+          label: 'Open Therapy Dashboard',
+          url: therapyUrl,
+        },
       }),
-      text: `Hello ${rawRecipientName},\n\nWe have processed a full refund of INR ${amountInr} for your session.\nRefund Reference: ${rawRefundId}\n\nFunds typically reflect within 5-7 business days.\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawRecipientName},\n\nWe have processed a full refund of INR ${amountInr} for your session.\nRefund Reference: ${rawRefundId}\n\nFunds typically reflect within 5-7 business days.\n\nOpen Therapy Dashboard:\n${therapyUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -390,6 +436,9 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const attendanceStatus = data.attendanceStatus || '';
     const scheduledStart = formatDate(data.scheduledStart);
     const isClientNoShow = attendanceStatus === 'client_no_show';
+    const isTherapist = data.recipientType === 'therapist';
+    const dashboardUrl = isTherapist ? APP_URLS.THERAPIST_DASHBOARD : APP_URLS.THERAPY_DASHBOARD;
+    const dashboardLabel = isTherapist ? 'Therapist Dashboard' : 'Therapy Dashboard';
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${recipientName}</strong>,</p>
@@ -406,7 +455,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       </div>
 
       <p style="margin: 0; font-size: 13.5px; color: #64748b;">
-        Please reach out to <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66;">contactus@ingresswithin.com</a> if you believe this was recorded in error.
+        Please reach out to <a href="mailto:contactus@ingresswithin.com" style="color: #4E7A66;">contactus@ingresswithin.com</a> if you believe this was recorded in error. You can also view appointment history in your <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; text-decoration: underline; font-weight: 600;">${escapeHtml(dashboardLabel)}</a>.
       </p>
     `;
 
@@ -419,8 +468,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: 'Missed Appointment Notice',
         preheader: `Notice regarding missed appointment on ${scheduledStart}.`,
         contentHtml,
+        ctaButton: {
+          label: `Open ${dashboardLabel}`,
+          url: dashboardUrl,
+        },
       }),
-      text: `Hello ${rawRecipientName},\n\nThe session scheduled for ${scheduledStart} was recorded as unattended (${attendanceStatus}).\n\nReach out to support@ingresswithin.com if you have any questions.\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawRecipientName},\n\nThe session scheduled for ${scheduledStart} was recorded as unattended (${attendanceStatus}).\n\nOpen ${dashboardLabel}:\n${dashboardUrl}\n\nReach out to contactus@ingresswithin.com if you have any questions.\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 
@@ -443,7 +496,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         : 'Not specified';
     const experience = escapeHtml(rawExp);
     const submittedAt = data.submittedAt ? formatDate(data.submittedAt) : 'Recently';
-    const adminReviewUrl = data.adminReviewUrl || 'https://ingresswithin.com/admin/applications';
+    const adminReviewUrl = data.adminReviewUrl || APP_URLS.ADMIN_PORTAL;
 
     const contentHtml = `
       <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155;">A new clinician has submitted an onboarding application for credential verification and clinical review.</p>
@@ -482,7 +535,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
   therapist_application_received: (data) => {
     const rawTherapistName = data.therapistName || 'Doctor/Counselor';
     const therapistName = escapeHtml(rawTherapistName);
-    const statusUrl = data.statusUrl || 'https://ingresswithin.com/therapist/application/status';
+    const statusUrl = data.statusUrl || APP_URLS.THERAPIST_DASHBOARD;
     const answers = (data.answers || {}) as Record<string, any>;
     const rawDocs = Array.isArray(data.documents) ? data.documents : [];
     const submittedAtIso = data.submittedAt || new Date().toISOString();
@@ -734,7 +787,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         <div style="padding: 12px 16px; background-color: #ffffff;">
           ${docsTableHtml}
           <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748b; line-height: 1.5;">
-            <strong>Document Privacy &amp; Security:</strong> For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents by logging in to your <a href="${statusUrl}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">Application Status Portal</a>.
+            <strong>Document Privacy &amp; Security:</strong> For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents by logging in to your <a href="${statusUrl}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">Therapist Dashboard</a>.
           </p>
         </div>
       </div>
@@ -771,19 +824,18 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: `Thank you for applying to Ingress Within. Your application has been safely received and is under clinical review.`,
         contentHtml,
         ctaButton: {
-          label: 'View Application Status',
+          label: 'Open Therapist Dashboard',
           url: statusUrl,
         },
       }),
-      text: `Hello ${rawTherapistName},\n\nThank you for submitting your application to join the Ingress Within mental healthcare network. We have safely received your application and uploaded verification records.\n\n============================================================\nCURRENT APPLICATION STATUS: SUBMITTED / UNDER REVIEW\n============================================================\nSubmitted on: ${formattedSubmittedDate}\nStatus Portal: ${statusUrl}\n\nIMPORTANT CLINICAL NOTICE:\nSubmitting an onboarding application and verification documents does not constitute authorization to practise. Your profile remains private and hidden from prospective clients until clinical verification and administrative approval are finalized.\n\n============================================================\nSUMMARY OF SUBMITTED APPLICATION\n============================================================\n\n1. BASIC INFORMATION & CONTACT\n- Full Name: ${rawTherapistName}\n- Email: ${answers.contact_email || answers.email || data.email || 'Registered account email'}\n- Phone: ${answers.phone || 'Recorded in application'}\n- Location: ${[answers.city, answers.state].filter(Boolean).join(', ') || 'India'}\n- Gender: ${answers.gender || 'Not specified'}\n\n2. PROFESSIONAL CREDENTIALS & LICENSURE\n- Title / Credentials: ${answers.credentials || 'Psychotherapist'}\n- Clinical Experience: ${answers.yearsOfExperience !== undefined ? `${answers.yearsOfExperience} years` : (data.experienceYears !== undefined ? `${data.experienceYears} years` : 'Not specified')}\n- Licensing / Issuing Body: ${answers.issuingBody || 'Accredited Board'}\n- License / Registration: ${answers.licenseNumber || 'Not specified'}\n- RCI Registration: ${isRci ? 'Yes (RCI Registered)' : 'Not RCI Registered'}\n\n3. CLINICAL PRACTICE & MODALITIES\n- Specialties: ${specialtiesList.length > 0 ? specialtiesList.join(', ') : 'General Clinical Psychology'}\n- Therapeutic Modalities: ${modalitiesList.length > 0 ? modalitiesList.join(', ') : 'Evidence-based Practice'}\n- Languages: ${languagesList.join(', ')}\n- Session Formats: ${sessionFormatsList.join(', ')}\n- Consultation Fee: ${fee ? `₹${fee} per session` : 'Platform Standard'}\n\n4. CASELOAD & AVAILABILITY\n- Current Caseload: ${answers.currentCapacity !== undefined ? `${answers.currentCapacity} clients` : 'Flexible'}\n- Maximum Caseload: ${answers.maxCapacity !== undefined ? `${answers.maxCapacity} clients` : 'Flexible'}\n- Soonest Opening: ${answers.soonestOpeningDays !== undefined ? `Within ${answers.soonestOpeningDays} days` : 'Immediate'}\n- Severity Ceiling: ${answers.severityCeiling !== undefined ? `Level ${answers.severityCeiling} of 5` : 'Standard Outpatient'}\n- Age Groups Served: ${ageGroupsList.join(', ')}\n- Higher-Acuity Referral: ${answers.higherAcuityInterest === 'Yes' ? 'Interested' : 'Standard outpatient'}\n\n5. SUPERVISION & DECLARATIONS\n- Supervision: ${answers.supervision?.status || 'Independent Practice'}\n- Ethics Declaration: ${ethicsConfirmed}\n- Background Check: ${backgroundConsent}\n- Truthfulness: ${truthConfirmed}\n\n6. UPLOADED VERIFICATION DOCUMENTS\n${docsTextList}\n\n(Document Privacy Notice: For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents after authenticating at ${statusUrl})\n\n============================================================\nNEXT STEPS IN THE REVIEW PROCESS\n============================================================\n1. Credential Verification: Our clinical review board will examine your degree credentials, state licensure, and submitted practice modalities.\n2. Administrative Review: Once credential checks are complete, you will receive an email update with your application outcome.\n3. Practice Activation: If approved, your account will be activated and you will be invited to configure your availability, Google Calendar integration, and practice settings.\n\nNeed assistance or have corrections?\nContact support at:\nEmail: ${SUPPORT_CONFIG.supportEmail}\nPhone: ${SUPPORT_CONFIG.temporaryContactNumber}\n\nView Application Status:\n${statusUrl}\n\nWarm regards,\nThe Ingress Within Clinical Team`,
+      text: `Hello ${rawTherapistName},\n\nThank you for submitting your application to join the Ingress Within mental healthcare network. We have safely received your application and uploaded verification records.\n\n============================================================\nCURRENT APPLICATION STATUS: SUBMITTED / UNDER REVIEW\n============================================================\nSubmitted on: ${formattedSubmittedDate}\nTherapist Dashboard: ${statusUrl}\n\nIMPORTANT CLINICAL NOTICE:\nSubmitting an onboarding application and verification documents does not constitute authorization to practise. Your profile remains private and hidden from prospective clients until clinical verification and administrative approval are finalized.\n\n============================================================\nSUMMARY OF SUBMITTED APPLICATION\n============================================================\n\n1. BASIC INFORMATION & CONTACT\n- Full Name: ${rawTherapistName}\n- Email: ${answers.contact_email || answers.email || data.email || 'Registered account email'}\n- Phone: ${answers.phone || 'Recorded in application'}\n- Location: ${[answers.city, answers.state].filter(Boolean).join(', ') || 'India'}\n- Gender: ${answers.gender || 'Not specified'}\n\n2. PROFESSIONAL CREDENTIALS & LICENSURE\n- Title / Credentials: ${answers.credentials || 'Psychotherapist'}\n- Clinical Experience: ${answers.yearsOfExperience !== undefined ? `${answers.yearsOfExperience} years` : (data.experienceYears !== undefined ? `${data.experienceYears} years` : 'Not specified')}\n- Licensing / Issuing Body: ${answers.issuingBody || 'Accredited Board'}\n- License / Registration: ${answers.licenseNumber || 'Not specified'}\n- RCI Registration: ${isRci ? 'Yes (RCI Registered)' : 'Not RCI Registered'}\n\n3. CLINICAL PRACTICE & MODALITIES\n- Specialties: ${specialtiesList.length > 0 ? specialtiesList.join(', ') : 'General Clinical Psychology'}\n- Therapeutic Modalities: ${modalitiesList.length > 0 ? modalitiesList.join(', ') : 'Evidence-based Practice'}\n- Languages: ${languagesList.join(', ')}\n- Session Formats: ${sessionFormatsList.join(', ')}\n- Consultation Fee: ${fee ? `₹${fee} per session` : 'Platform Standard'}\n\n4. CASELOAD & AVAILABILITY\n- Current Caseload: ${answers.currentCapacity !== undefined ? `${answers.currentCapacity} clients` : 'Flexible'}\n- Maximum Caseload: ${answers.maxCapacity !== undefined ? `${answers.maxCapacity} clients` : 'Flexible'}\n- Soonest Opening: ${answers.soonestOpeningDays !== undefined ? `Within ${answers.soonestOpeningDays} days` : 'Immediate'}\n- Severity Ceiling: ${answers.severityCeiling !== undefined ? `Level ${answers.severityCeiling} of 5` : 'Standard Outpatient'}\n- Age Groups Served: ${ageGroupsList.join(', ')}\n- Higher-Acuity Referral: ${answers.higherAcuityInterest === 'Yes' ? 'Interested' : 'Standard outpatient'}\n\n5. SUPERVISION & DECLARATIONS\n- Supervision: ${answers.supervision?.status || 'Independent Practice'}\n- Ethics Declaration: ${ethicsConfirmed}\n- Background Check: ${backgroundConsent}\n- Truthfulness: ${truthConfirmed}\n\n6. UPLOADED VERIFICATION DOCUMENTS\n${docsTextList}\n\n(Document Privacy Notice: For data security and privacy, sensitive credential and identity files are stored in an encrypted vault and never attached directly to unencrypted emails. You can securely view and manage your uploaded documents after authenticating at ${statusUrl})\n\n============================================================\nNEXT STEPS IN THE REVIEW PROCESS\n============================================================\n1. Credential Verification: Our clinical review board will examine your degree credentials, state licensure, and submitted practice modalities.\n2. Administrative Review: Once credential checks are complete, you will receive an email update with your application outcome.\n3. Practice Activation: If approved, your account will be activated and you will be invited to configure your availability, Google Calendar integration, and practice settings.\n\nNeed assistance or have corrections?\nContact support at:\nEmail: ${SUPPORT_CONFIG.supportEmail}\nPhone: ${SUPPORT_CONFIG.temporaryContactNumber}\n\nOpen Therapist Dashboard:\n${statusUrl}\n\nWarm regards,\nThe Ingress Within Clinical Team`,
     };
   },
 
   therapist_application_approved: (data) => {
     const rawTherapistName = data.therapistName || 'Doctor/Counselor';
     const therapistName = escapeHtml(rawTherapistName);
-    const loginUrl = data.loginUrl || 'https://ingresswithin.com/auth?role=therapist';
-    const dashboardUrl = data.dashboardUrl || 'https://ingresswithin.com/therapist';
+    const dashboardUrl = data.dashboardUrl || data.loginUrl || APP_URLS.THERAPIST_DASHBOARD;
     const supportEmail = escapeHtml(data.supportEmail || SUPPORT_CONFIG.supportEmail);
     const supportPhone = escapeHtml(data.supportPhone || SUPPORT_CONFIG.temporaryContactNumber);
 
@@ -812,7 +864,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 24px 0;">
         <p style="margin: 0 0 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">Next Steps for Setting Up Your Practice:</p>
         <ol style="margin: 0; padding-left: 20px; font-size: 13.5px; color: #334155; line-height: 1.8;">
-          <li><strong>Log In to Your Therapist Dashboard:</strong> Sign in at <a href="${escapeHtml(loginUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">${escapeHtml(loginUrl)}</a> using your registered credentials.</li>
+          <li><strong>Log In to Your Therapist Dashboard:</strong> Sign in at <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">${escapeHtml(dashboardUrl)}</a> using your registered credentials.</li>
           <li><strong>Connect Google Calendar:</strong> Synchronize your calendar to automatically generate Google Meet consultation links for upcoming client sessions.</li>
           <li><strong>Configure Practice Hours &amp; Buffers:</strong> Set your weekly consultation windows, daily session caps, and appointment buffers.</li>
           <li><strong>Link Payout Details:</strong> Enter your bank account details under the Earnings tab to receive direct session disbursements.</li>
@@ -821,7 +873,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
 
       <p style="margin: 16px 0; font-size: 14px; color: #334155; line-height: 1.6;">
         Log in to your therapist dashboard:<br>
-        <a href="${escapeHtml(loginUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(loginUrl)}</a>
+        <a href="${escapeHtml(dashboardUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(dashboardUrl)}</a>
       </p>
 
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 20px 0; font-size: 13px; color: #475569;">
@@ -846,11 +898,11 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: 'Congratulations and welcome to Ingress Within! Your therapist application has been approved.',
         contentHtml,
         ctaButton: {
-          label: 'Log in to Therapist Dashboard',
-          url: loginUrl,
+          label: 'Open Therapist Dashboard',
+          url: dashboardUrl,
         },
       }),
-      text: `Hello ${rawTherapistName},\n\nCongratulations, and welcome to Ingress Within!\n\nWe're happy to let you know that your therapist application has been approved. Thank you for completing the onboarding and verification process.\n\nYour practitioner account has been verified, and clinical practice authorization has been granted on the Ingress Within platform.\n\nYou can now sign in to your therapist account and continue setting up your professional profile, availability, and practice workflow.\n\nNext steps for setting up your practice:\n1. Log in to your therapist dashboard: ${loginUrl}\n2. Connect Google Calendar to synchronize availability and automated Google Meet links.\n3. Configure Practice Hours and weekly session buffers.\n4. Link Payout Details under Earnings to receive direct session honorariums.\n\nLog in to your therapist dashboard:\n${loginUrl}\n\nIf you need any assistance, please contact our support team:\nEmail: ${data.supportEmail || SUPPORT_CONFIG.supportEmail}\nPhone: ${data.supportPhone || SUPPORT_CONFIG.temporaryContactNumber}\n\nWe look forward to having you with us!\n\nWarm regards,\nThe Ingress Within Clinical Team`,
+      text: `Hello ${rawTherapistName},\n\nCongratulations, and welcome to Ingress Within!\n\nWe're happy to let you know that your therapist application has been approved. Thank you for completing the onboarding and verification process.\n\nYour practitioner account has been verified, and clinical practice authorization has been granted on the Ingress Within platform.\n\nYou can now sign in to your therapist account and continue setting up your professional profile, availability, and practice workflow.\n\nNext steps for setting up your practice:\n1. Log in to your therapist dashboard: ${dashboardUrl}\n2. Connect Google Calendar to synchronize availability and automated Google Meet links.\n3. Configure Practice Hours and weekly session buffers.\n4. Link Payout Details under Earnings to receive direct session honorariums.\n\nLog in to your therapist dashboard:\n${dashboardUrl}\n\nIf you need any assistance, please contact our support team:\nEmail: ${data.supportEmail || SUPPORT_CONFIG.supportEmail}\nPhone: ${data.supportPhone || SUPPORT_CONFIG.temporaryContactNumber}\n\nWe look forward to having you with us!\n\nWarm regards,\nThe Ingress Within Clinical Team`,
     };
   },
 
@@ -859,7 +911,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const therapistName = escapeHtml(rawTherapistName);
     const rawRejectionReason = data.rejectionReason || 'Uploaded documentation was incomplete or could not be verified.';
     const rejectionReason = escapeHtml(rawRejectionReason);
-    const reviewUrl = data.reviewUrl || 'https://ingresswithin.com/therapist/application/status';
+    const reviewUrl = data.reviewUrl || APP_URLS.THERAPIST_DASHBOARD;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${therapistName}</strong>,</p>
@@ -886,7 +938,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: `Update regarding your Ingress Within therapist application review.`,
         contentHtml,
         ctaButton: {
-          label: 'Review Application & Resubmit',
+          label: 'Open Therapist Dashboard',
           url: reviewUrl,
         },
       }),
@@ -909,7 +961,7 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const contactEmail = escapeHtml(rawContactEmail);
     const rawPageUrl = data.pageUrl || 'Not specified';
     const pageUrl = escapeHtml(rawPageUrl);
-    const adminUrl = data.adminUrl || `https://ingresswithin.com/admin?tab=feedback&ref=${rawRefCode}`;
+    const adminUrl = data.adminUrl || APP_URLS.ADMIN_PORTAL;
     const timestamp = data.createdAt ? formatDate(data.createdAt) : formatDate(new Date().toISOString());
 
     const contentHtml = `
@@ -963,11 +1015,11 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: `[${rawType}] ${rawSubject} (${rawRefCode}) received.`,
         contentHtml,
         ctaButton: {
-          label: 'View in Admin Command Center →',
+          label: 'View in Admin Portal',
           url: adminUrl,
         },
       }),
-      text: `[${rawType}] ${rawSubject} (${rawRefCode})\n\nCategory: ${rawCategory}\nContact: ${rawContactEmail}\nPage: ${rawPageUrl}\nDate: ${timestamp}\n\nDescription:\n${rawDescription}\n\n${data.stepsToReproduce ? `Steps to reproduce:\n${data.stepsToReproduce}\n` : ''}${data.expectedBehavior ? `Expected: ${data.expectedBehavior}\n` : ''}${data.actualBehavior ? `Actual: ${data.actualBehavior}\n` : ''}\n\nView in Admin:\n${adminUrl}`,
+      text: `[${rawType}] ${rawSubject} (${rawRefCode})\n\nCategory: ${rawCategory}\nContact: ${rawContactEmail}\nPage: ${rawPageUrl}\nDate: ${timestamp}\n\nDescription:\n${rawDescription}\n\n${data.stepsToReproduce ? `Steps to reproduce:\n${data.stepsToReproduce}\n` : ''}${data.expectedBehavior ? `Expected: ${data.expectedBehavior}\n` : ''}${data.actualBehavior ? `Actual: ${data.actualBehavior}\n` : ''}\n\nView in Admin Portal:\n${adminUrl}`,
     };
   },
 
@@ -1004,15 +1056,19 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: 'Thank you for reaching out',
         preheader: `We received your ${typeLabel} [${rawRefCode}] regarding "${rawSubject}".`,
         contentHtml,
+        ctaButton: {
+          label: 'Explore Self-Help Resources',
+          url: APP_URLS.SELF_HELP,
+        },
       }),
-      text: `Hello,\n\nThank you for reaching out to Ingress Within.\n\nWe have received your ${typeLabel} regarding "${rawSubject}".\n\nYour Reference Code: ${rawRefCode}\nPlease keep this reference code for your records.\n\nIf you have any questions or additional details, you can contact us at contactus@ingresswithin.com or +91 89556 05569.\n\nWith appreciation,\nThe Ingress Within Team`,
+      text: `Hello,\n\nThank you for reaching out to Ingress Within.\n\nWe have received your ${typeLabel} regarding "${rawSubject}".\n\nYour Reference Code: ${rawRefCode}\nPlease keep this reference code for your records.\n\nExplore Self-Help Resources:\n${APP_URLS.SELF_HELP}\n\nIf you have any questions or additional details, you can contact us at contactus@ingresswithin.com or +91 89556 05569.\n\nWith appreciation,\nThe Ingress Within Team`,
     };
   },
 
   smoke_test: (data) => {
     const rawAdminName = data.therapistName || data.adminName || 'Authorized Administrator';
     const adminName = escapeHtml(rawAdminName);
-    const statusUrl = data.statusUrl || 'https://ingresswithin.com/admin/emails';
+    const statusUrl = data.statusUrl || APP_URLS.ADMIN_PORTAL;
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${adminName}</strong>,</p>
@@ -1038,11 +1094,11 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         preheader: 'Live diagnostic email sent via the centralized Ingress Within MSG91 email pipeline.',
         contentHtml,
         ctaButton: {
-          label: 'Open Email Observability',
+          label: 'Open Admin Portal',
           url: statusUrl,
         },
       }),
-      text: `Hello ${rawAdminName},\n\nThis is a live transactional email dispatched via MSG91.\nProvider Status: Accepted by MSG91.\n\nOpen Email Observability:\n${statusUrl}\n\nIngress Within Operations`,
+      text: `Hello ${rawAdminName},\n\nThis is a live transactional email dispatched via MSG91.\nProvider Status: Accepted by MSG91.\n\nOpen Admin Portal:\n${statusUrl}\n\nIngress Within Operations`,
     };
   },
 
@@ -1051,6 +1107,8 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const therapistName = escapeHtml(rawName);
     const rawSubject = (data.subject || 'Platform Announcement for Therapists').trim();
     const rawMessage = (data.message || data.msg || '').trim();
+    const ctaUrl = data.ctaUrl || APP_URLS.THERAPIST_DASHBOARD;
+    const ctaLabel = data.ctaLabel || 'Open Therapist Dashboard';
 
     // Split paragraphs safely and render escaped HTML with line breaks preserved
     const paragraphs = String(rawMessage)
@@ -1076,12 +1134,12 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
         heading: rawSubject,
         preheader: String(rawMessage).slice(0, 120).replace(/\s+/g, ' '),
         contentHtml,
-        ctaButton: data.ctaUrl ? {
-          label: data.ctaLabel || 'Open Therapist Portal',
-          url: data.ctaUrl,
-        } : undefined,
+        ctaButton: {
+          label: ctaLabel,
+          url: ctaUrl,
+        },
       }),
-      text: `${rawSubject}\n\nDear ${rawName},\n\n${rawMessage}\n\n---\nIngress Within Administrative Team\ncontactus@ingresswithin.com\n+91 89556 05569`,
+      text: `${rawSubject}\n\nDear ${rawName},\n\n${rawMessage}\n\nOpen Therapist Dashboard:\n${ctaUrl}\n\n---\nIngress Within Administrative Team\ncontactus@ingresswithin.com\n+91 89556 05569`,
     };
   },
 };

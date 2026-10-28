@@ -71,7 +71,7 @@ export class EmailService {
         templateKey: 'smoke_test',
         templateData: {
           therapistName: 'System Administrator (Live Smoke Test)',
-          statusUrl: 'https://ingresswithin.com/admin/emails',
+          statusUrl: 'https://ingresswithin.com/admin',
         },
         idempotencyKey: testIdempotencyKey,
         metadata: {
@@ -249,7 +249,7 @@ export class EmailService {
         specialization: payload.specialization,
         experience: payload.experienceYears,
         submittedAt: submittedAtIso,
-        adminReviewUrl: 'https://ingresswithin.com/admin/applications',
+        adminReviewUrl: 'https://ingresswithin.com/admin',
       },
       entityType: 'application',
       entityId: payload.applicationId || payload.therapistAccountId,
@@ -274,7 +274,7 @@ export class EmailService {
         email: payload.email,
         applicationId: payload.applicationId,
         submittedAt: submittedAtIso,
-        statusUrl: 'https://ingresswithin.com/therapist/application/status',
+        statusUrl: 'https://ingresswithin.com/therapist',
         answers: payload.answers || {},
         documents: payload.documents || [],
         specialization: payload.specialization,
@@ -302,7 +302,7 @@ export class EmailService {
     dashboardUrl?: string;
     idempotencyKey?: string;
   }) {
-    const loginUrl = payload.loginUrl || 'https://ingresswithin.com/auth?role=therapist';
+    const loginUrl = payload.loginUrl || 'https://ingresswithin.com/therapist';
     const dashboardUrl = payload.dashboardUrl || 'https://ingresswithin.com/therapist';
 
     await this.queueEmail({
@@ -354,7 +354,7 @@ export class EmailService {
       templateData: {
         therapistName: payload.therapistName,
         rejectionReason: payload.rejectionReason,
-        reviewUrl: 'https://ingresswithin.com/therapist/application/status',
+        reviewUrl: 'https://ingresswithin.com/therapist',
       },
       entityType: 'application',
       entityId: payload.applicationId || payload.therapistAccountId,

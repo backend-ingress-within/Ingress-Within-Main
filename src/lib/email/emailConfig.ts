@@ -41,6 +41,7 @@ export const MSG91_TEMPLATE_ENV_KEYS: Record<string, string> = {
   feedback_team_notification: 'MSG91_TEMPLATE_FEEDBACK_TEAM_NOTIFICATION',
   feedback_user_acknowledgement: 'MSG91_TEMPLATE_FEEDBACK_USER_ACKNOWLEDGEMENT',
   smoke_test: 'MSG91_TEMPLATE_SMOKE_TEST',
+  therapist_bulk_broadcast: 'MSG91_TEMPLATE_THERAPIST_BULK_BROADCAST',
 };
 
 export function readFreshEnvKey(key: string): string | null {

@@ -105,6 +105,46 @@ async function runBulkTherapistEmailSuite() {
     'Plain text equivalent is cleanly rendered for non-HTML email clients'
   );
 
+  assert(
+    rendered.html.includes('RUMINARI (OPC) PVT LTD'),
+    'Rendered email footer strictly includes legal entity RUMINARI (OPC) PVT LTD'
+  );
+
+  assert(
+    rendered.html.includes('Ahmedabad, Gujarat'),
+    'Rendered email footer strictly includes Ahmedabad, Gujarat (not Bengaluru/Bangalore)'
+  );
+
+  assert(
+    !rendered.html.includes('Bangalore') && !rendered.html.includes('Bengaluru'),
+    'Rendered email footer does not contain obsolete Bangalore or Bengaluru references'
+  );
+
+  assert(
+    rendered.html.includes('https://ingresswithin.com/therapist'),
+    'CTA button correctly links to authoritative therapist dashboard https://ingresswithin.com/therapist'
+  );
+
+  // Check user therapy dashboard link in therapist_accepted_client
+  const clientAcceptedRender = EmailTemplates.therapist_accepted_client({
+    clientName: 'Rahul',
+    therapistName: 'Dr. Anita',
+  });
+  assert(
+    clientAcceptedRender.html.includes('https://ingresswithin.com/therapy'),
+    'therapist_accepted_client template CTA button links to user therapy dashboard https://ingresswithin.com/therapy'
+  );
+
+  // Check self-help link in feedback_user_acknowledgement
+  const feedbackAckRender = EmailTemplates.feedback_user_acknowledgement({
+    referenceCode: 'FB-TEST-123',
+    subject: 'Need help with exercises',
+  });
+  assert(
+    feedbackAckRender.html.includes('https://ingresswithin.com/'),
+    'feedback_user_acknowledgement template CTA button links to self-help dashboard https://ingresswithin.com/'
+  );
+
   // --------------------------------------------------------------------------
   // TEST 3: Validation on Missing Subject or Message
   // --------------------------------------------------------------------------

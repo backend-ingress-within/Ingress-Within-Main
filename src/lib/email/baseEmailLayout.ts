@@ -172,7 +172,7 @@ export function renderBaseEmailLayout(options: BaseEmailLayoutOptions): string {
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
               <td>
-                <a href="https://ingresswithin.com" target="_blank" style="text-decoration: none;">
+                <a href="https://ingresswithin.com/" target="_blank" style="text-decoration: none;">
                   <span style="font-family: 'Georgia', serif, -apple-system; font-size: 20px; font-weight: 700; letter-spacing: 0.12em; color: #132A24; text-transform: uppercase; display: inline-block;">
                     INGRESS WITHIN
                   </span>
@@ -263,8 +263,8 @@ export function renderBaseEmailLayout(options: BaseEmailLayoutOptions): string {
             <strong>Confidentiality Notice:</strong> This communication may contain confidential or privileged health-related administrative information. If you received this transmission in error, please immediately notify the sender and delete it from your system.
           </p>
           <p style="margin: 0 0 4px 0; color: #94a3b8;">
-            Ingress Within &bull; Ingress Healthcare Private Limited &bull; Bangalore &amp; Remote Telehealth &bull;
-            <a href="https://ingresswithin.com" target="_blank" style="color: #94a3b8; text-decoration: underline;">ingresswithin.com</a>
+            Ingress Within &bull; RUMINARI (OPC) PVT LTD &bull; Ahmedabad, Gujarat &bull;
+            <a href="https://ingresswithin.com/" target="_blank" style="color: #94a3b8; text-decoration: underline;">ingresswithin.com</a>
           </p>
           <p style="margin: 4px 0 0 0; color: #cbd5e1; font-size: 10px;">
             &copy; ${currentYear} Ingress Within. All rights reserved.
