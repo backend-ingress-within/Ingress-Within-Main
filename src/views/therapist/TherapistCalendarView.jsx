@@ -18,10 +18,14 @@ import {
   Ban,
   Trash2,
   Lock,
+  Sun,
+  Moon,
+  Sparkles,
 } from 'lucide-react';
 import TherapistScheduleModal from './TherapistScheduleModal';
 import TherapistRescheduleModal from './TherapistRescheduleModal';
 import TherapistBlockTimeModal from './TherapistBlockTimeModal';
+import TherapistWorkingHoursModal from './TherapistWorkingHoursModal';
 import { getSessionMeetingWindow } from '../../utils/sessionMeetingUtils';
 
 export default function TherapistCalendarView({
@@ -48,6 +52,8 @@ export default function TherapistCalendarView({
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const [availabilityHours, setAvailabilityHours] = useState(null);
   const [rescheduleAppt, setRescheduleAppt] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
   const [completingId, setCompletingId] = useState(null);
@@ -105,6 +111,7 @@ export default function TherapistCalendarView({
       setExternalEvents(json.externalEvents || []);
       const blocks = (json.availabilityBlocks || []).filter(b => b.is_blocked);
       setBlockedSlots(blocks);
+      setAvailabilityHours(json.availabilityHours || null);
       setGoogleCalendarStatus(json.googleCalendarStatus || null);
     } catch (err) {
       console.error('Calendar error:', err);
@@ -218,6 +225,155 @@ export default function TherapistCalendarView({
     const today = new Date();
     setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+  };
+
+  const handlePrevDay = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      if (d.getMonth() !== currentMonth.getMonth() || d.getFullYear() !== currentMonth.getFullYear()) {
+        setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+      }
+      return d;
+    });
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      if (d.getMonth() !== currentMonth.getMonth() || d.getFullYear() !== currentMonth.getFullYear()) {
+        setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+      }
+      return d;
+    });
+  };
+
+  // Day key short for availability lookup: 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'
+  const selectedDayKeyShort = useMemo(() => {
+    const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    return dayNames[selectedDate.getDay()];
+  }, [selectedDate]);
+
+  // Working hours windows for the currently selected day
+  const selectedDayWorkingWindows = useMemo(() => {
+    if (!availabilityHours || typeof availabilityHours !== 'object') {
+      const dayIdx = selectedDate.getDay();
+      return (dayIdx >= 1 && dayIdx <= 5) ? ['09:00-17:00'] : [];
+    }
+    const daySlots = availabilityHours[selectedDayKeyShort];
+    return Array.isArray(daySlots) ? daySlots : [];
+  }, [availabilityHours, selectedDayKeyShort, selectedDate]);
+
+  function formatTime12(timeStr) {
+    if (!timeStr) return '';
+    if (timeStr === '24:00') return '12:00 AM End';
+    const [h, m = 0] = timeStr.split(':').map(Number);
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
+  const formattedWorkingHoursForDay = useMemo(() => {
+    if (selectedDayWorkingWindows.length === 0) return 'Closed for consultations';
+    return selectedDayWorkingWindows.map(w => {
+      const [s, e] = w.split('-');
+      if (!s || !e) return w;
+      return `${formatTime12(s)} – ${formatTime12(e)}`;
+    }).join(', ');
+  }, [selectedDayWorkingWindows]);
+
+  function parseTimeStrToMinutes(t) {
+    if (!t) return 0;
+    if (t === '24:00') return 24 * 60;
+    const [h, m = 0] = t.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  }
+
+  function isHourInWorkingHours(hour) {
+    if (selectedDayWorkingWindows.length === 0) return false;
+    const hourStartMin = hour * 60;
+    const hourEndMin = (hour + 1) * 60;
+    return selectedDayWorkingWindows.some(range => {
+      const [rStart, rEnd] = range.split('-');
+      if (!rStart || !rEnd) return false;
+      const sMin = parseTimeStrToMinutes(rStart);
+      const eMin = parseTimeStrToMinutes(rEnd);
+      return hourStartMin < eMin && hourEndMin > sMin;
+    });
+  }
+
+  function formatHourLabel12(hour) {
+    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? 'AM' : 'PM';
+    return `${h12}:00 ${ampm}`;
+  }
+
+  const getCommitmentsForHour = (hour) => {
+    const hourStartMin = hour * 60;
+    const hourEndMin = (hour + 1) * 60;
+
+    // 1. Sessions in this hour
+    const hourSessions = selectedDaySessions.filter(s => {
+      const startIso = s.startsAt || s.scheduled_start;
+      const endIso = s.endsAt || s.scheduled_end;
+      if (!startIso) return false;
+      const startDate = new Date(startIso);
+      const endDate = endIso ? new Date(endIso) : new Date(startDate.getTime() + 50 * 60000);
+      
+      const sH = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const sM = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      const eH = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const eM = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      const sMin = sH * 60 + sM;
+      const eMin = eH * 60 + eM;
+      return sMin < hourEndMin && eMin > hourStartMin;
+    });
+
+    // 2. Blocked slots in this hour
+    const hourBlocks = selectedDayBlockedSlots.filter(b => {
+      const isAllDay =
+        (!b.start_time || b.start_time.startsWith('00:00')) &&
+        (!b.end_time || b.end_time.startsWith('23:59') || b.end_time.startsWith('24:00'));
+      if (isAllDay) return true;
+      const sMin = parseTimeStrToMinutes((b.start_time || '00:00').substring(0, 5));
+      const eMin = parseTimeStrToMinutes((b.end_time || '23:59').substring(0, 5));
+      return sMin < hourEndMin && eMin > hourStartMin;
+    });
+
+    // 3. External events in this hour
+    const hourExtEvents = selectedDayExternalEvents.filter(ev => {
+      const startIso = ev.startTime || ev.start_time;
+      const endIso = ev.endTime || ev.end_time;
+      if (!startIso) return false;
+      if (ev.isAllDay || ev.is_all_day) return true;
+      const startDate = new Date(startIso);
+      const endDate = endIso ? new Date(endIso) : new Date(startDate.getTime() + 60000);
+      const sH = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const sM = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      const eH = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const eM = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      return (sH * 60 + sM) < hourEndMin && (eH * 60 + eM) > hourStartMin;
+    });
+
+    // 4. External busy in this hour
+    const hourExtBusy = selectedDayExternalBusy.filter(b => {
+      if (!b.start) return false;
+      const startDate = new Date(b.start);
+      const endDate = b.end ? new Date(b.end) : new Date(startDate.getTime() + 60000);
+      const sH = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const sM = Number(startDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      const eH = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+      const eM = Number(endDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', minute: '2-digit', hour12: false }));
+      return (sH * 60 + sM) < hourEndMin && (eH * 60 + eM) > hourStartMin;
+    });
+
+    return {
+      sessions: hourSessions,
+      blocks: hourBlocks,
+      externalEvents: hourExtEvents,
+      externalBusy: hourExtBusy,
+    };
   };
 
   // Group sessions by day string (YYYY-MM-DD)
@@ -449,9 +605,16 @@ export default function TherapistCalendarView({
                 viewMode === 'day' ? 'bg-white text-[#132A24] shadow-xs' : 'text-[#132A24]/60'
               }`}
             >
-              Day Agenda
+              Day View (24h)
             </button>
           </div>
+
+          <button
+            onClick={() => setWorkingHoursModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#132A24]/15 bg-white text-[#132A24] text-xs font-semibold hover:bg-[#FAF9F5] transition-all cursor-pointer shadow-2xs"
+          >
+            <Clock size={13} className="text-[#4E7A66]" /> Set Working Hours
+          </button>
 
           <button
             onClick={() => setBlockModalOpen(true)}
@@ -746,56 +909,203 @@ export default function TherapistCalendarView({
           </div>
         </div>
       ) : (
-        /* ===================== DAY VIEW ===================== */
+        /* ===================== 24-HOUR DAY TIMELINE VIEW ===================== */
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-serif text-xl font-normal text-[#132A24]">
-              {selectedDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </h3>
-            <div className="flex items-center gap-2">
+          {/* Day Navigation & Working Hours Summary Bar */}
+          <div className="bg-white border border-[#132A24]/10 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center rounded-lg border border-[#132A24]/15 bg-[#FAF9F5] p-0.5 shrink-0 w-fit">
+                <button
+                  onClick={handlePrevDay}
+                  className="p-1.5 rounded-md hover:bg-white text-[#132A24]/70 hover:text-[#132A24] transition-colors cursor-pointer"
+                  title="Previous Day"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={handleGoToday}
+                  className="px-2.5 py-1 text-xs font-semibold text-[#132A24] hover:bg-white rounded-md transition-colors cursor-pointer"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={handleNextDay}
+                  className="p-1.5 rounded-md hover:bg-white text-[#132A24]/70 hover:text-[#132A24] transition-colors cursor-pointer"
+                  title="Next Day"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              <div>
+                <h3 className="font-serif text-lg sm:text-xl font-medium text-[#132A24]">
+                  {selectedDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                    selectedDayWorkingWindows.length > 0
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/70'
+                      : 'bg-stone-100 text-stone-600'
+                  }`}>
+                    {selectedDayWorkingWindows.length > 0 ? (
+                      <>
+                        <Sun size={11} className="text-emerald-600" />
+                        Working Hours: {formattedWorkingHoursForDay}
+                      </>
+                    ) : (
+                      <>
+                        <Moon size={11} className="text-stone-500" />
+                        Closed on this Day
+                      </>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => setWorkingHoursModalOpen(true)}
+                    className="text-[11px] font-semibold text-[#4E7A66] hover:text-[#132A24] underline cursor-pointer"
+                  >
+                    Edit Working Hours
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
               {selectedDayBlockedSlots.length > 0 && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                  {selectedDayBlockedSlots.length} blocked / leave
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-200">
+                  {selectedDayBlockedSlots.length} Blocked / Leave
                 </span>
               )}
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#132A24]/5 text-[#132A24]/70">
-                {selectedDaySessions.length} {selectedDaySessions.length === 1 ? 'session' : 'sessions'}
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#132A24]/5 text-[#132A24]/70">
+                {selectedDaySessions.length} {selectedDaySessions.length === 1 ? 'Session' : 'Sessions'}
               </span>
               {(selectedDayExternalEvents.length > 0 || selectedDayExternalBusy.length > 0) && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#132A24]/10 text-[#132A24]/80">
-                  {selectedDayExternalEvents.length || selectedDayExternalBusy.length} external
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200">
+                  {selectedDayExternalEvents.length || selectedDayExternalBusy.length} External Sync
                 </span>
               )}
+              <button
+                onClick={() => setScheduleModalOpen(true)}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#132A24] text-white text-xs font-semibold hover:bg-[#132A24]/90 transition-all cursor-pointer shadow-xs ml-auto sm:ml-0"
+              >
+                <Plus size={13} /> Schedule
+              </button>
             </div>
           </div>
 
-          {selectedDaySessions.length === 0 && selectedDayBlockedSlots.length === 0 && selectedDayExternalEvents.length === 0 && selectedDayExternalBusy.length === 0 ? (
-            <div className="bg-white border border-[#132A24]/10 rounded-2xl p-12 text-center space-y-3">
-              <CalendarIcon size={36} className="mx-auto text-[#132A24]/30" />
-              <h3 className="font-serif text-xl font-normal text-[#132A24]">
-                No commitments scheduled for this day.
-              </h3>
-              <p className="text-xs text-[#132A24]/60 max-w-sm mx-auto">
-                No clinical consultations, manual blocked leaves, or external Google Calendar commitments are recorded for this date.
-              </p>
+          {/* 24-Hour Timeline Grid Container */}
+          <div className="bg-white border border-[#132A24]/10 rounded-2xl overflow-hidden shadow-xs">
+            <div className="p-3 bg-[#FAF9F5] border-b border-[#132A24]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#132A24]/70">
+              <div className="flex items-center gap-2 font-medium">
+                <Clock size={14} className="text-[#4E7A66]" />
+                <span>All 24 Hours Timeline (00:00 – 23:59 IST)</span>
+              </div>
+              <div className="flex items-center gap-4 text-[11px]">
+                <span className="inline-flex items-center gap-1.5 font-medium text-emerald-800">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span> Practice Hours (Open)
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-medium text-stone-500">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-stone-300"></span> Off-Hours (Closed)
+                </span>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {selectedDayBlockedSlots.map(renderBlockedSlotCard)}
-              {selectedDaySessions.map(renderSessionCard)}
-              {selectedDayExternalEvents.length > 0
-                ? selectedDayExternalEvents.map(renderExternalEventCard)
-                : selectedDayExternalBusy.map(renderExternalBusyCard)}
+
+            <div className="divide-y divide-[#132A24]/8">
+              {Array.from({ length: 24 }).map((_, hour) => {
+                const isWorking = isHourInWorkingHours(hour);
+                const hourFormatted12 = formatHourLabel12(hour);
+                const hourFormatted24 = `${String(hour).padStart(2, '0')}:00`;
+                const { sessions: hourSessions, blocks: hourBlocks, externalEvents: hourExtEvents, externalBusy: hourExtBusy } = getCommitmentsForHour(hour);
+                const hasCommitments = hourSessions.length > 0 || hourBlocks.length > 0 || hourExtEvents.length > 0 || hourExtBusy.length > 0;
+
+                return (
+                  <div
+                    key={`hour-row-${hour}`}
+                    className={`flex flex-col sm:flex-row min-h-[68px] transition-colors ${
+                      isWorking ? 'bg-white hover:bg-emerald-50/20' : 'bg-[#FAFAF8]/70 hover:bg-[#FAFAF8]'
+                    }`}
+                  >
+                    {/* Time Label Column (Left) */}
+                    <div className="w-full sm:w-40 p-3 sm:border-r border-[#132A24]/10 shrink-0 flex sm:flex-col justify-between sm:justify-start gap-1 bg-[#FAF9F5]/40">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-semibold text-xs text-[#132A24] font-mono">
+                          {hourFormatted12}
+                        </span>
+                        <span className="text-[10px] text-[#132A24]/40 font-mono">
+                          {hourFormatted24}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md inline-block w-fit ${
+                        isWorking
+                          ? 'bg-emerald-100/80 text-emerald-800 border border-emerald-200/50'
+                          : 'bg-stone-200/60 text-stone-600'
+                      }`}>
+                        {isWorking ? 'Practice Window' : 'Off-Hours'}
+                      </span>
+                    </div>
+
+                    {/* Content Column (Right) */}
+                    <div className="p-3 grow flex flex-col justify-center space-y-2">
+                      {hasCommitments ? (
+                        <div className="space-y-2">
+                          {hourBlocks.map(renderBlockedSlotCard)}
+                          {hourSessions.map(renderSessionCard)}
+                          {hourExtEvents.length > 0
+                            ? hourExtEvents.map(renderExternalEventCard)
+                            : hourExtBusy.map(renderExternalBusyCard)}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between py-1 text-xs">
+                          <span className={`text-[11px] font-medium ${
+                            isWorking ? 'text-emerald-800/80' : 'text-stone-400'
+                          }`}>
+                            {isWorking
+                              ? 'Open for consultations / client booking'
+                              : 'Outside configured working hours'}
+                          </span>
+                          <div className="flex items-center gap-2 opacity-75 hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setScheduleModalOpen(true)}
+                              className="px-2 py-0.5 rounded text-[11px] font-semibold text-[#4E7A66] hover:bg-[#4E7A66]/10 transition-colors cursor-pointer"
+                            >
+                              + Schedule
+                            </button>
+                            <button
+                              onClick={() => setBlockModalOpen(true)}
+                              className="px-2 py-0.5 rounded text-[11px] font-medium text-amber-800 hover:bg-amber-100/60 transition-colors cursor-pointer"
+                            >
+                              + Block
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
       )}
 
       {/* Schedule Session Modal */}
       {scheduleModalOpen && (
         <TherapistScheduleModal
+          initialDate={selectedDate}
           onClose={() => setScheduleModalOpen(false)}
           onSuccess={() => fetchCalendar()}
+          onOpenWorkingHours={() => setWorkingHoursModalOpen(true)}
+        />
+      )}
+
+      {/* Working Hours Modal (24h Schedule) */}
+      {workingHoursModalOpen && (
+        <TherapistWorkingHoursModal
+          initialHours={availabilityHours}
+          onClose={() => setWorkingHoursModalOpen(false)}
+          onSuccess={(updatedHours) => {
+            setAvailabilityHours(updatedHours);
+            fetchCalendar();
+          }}
         />
       )}
 

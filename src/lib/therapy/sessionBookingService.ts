@@ -203,11 +203,18 @@ export class SessionBookingService {
     const start = new Date(startDateIso);
     const end = new Date(endDateIso);
 
-    // 1. Fetch therapist availability blocks
-    const { data: blocks } = await supabase
-      .from('therapist_availability_blocks')
-      .select('*')
-      .eq('therapist_account_id', therapistAccountId);
+    // 1. Fetch therapist availability blocks and profile working hours in parallel
+    const [{ data: blocks }, { data: profile }] = await Promise.all([
+      supabase
+        .from('therapist_availability_blocks')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId),
+      supabase
+        .from('therapist_profiles')
+        .select('availability_hours')
+        .eq('therapist_account_id', therapistAccountId)
+        .maybeSingle(),
+    ]);
 
     // 2. Fetch existing appointments
     const { data: appointments } = await supabase
@@ -244,27 +251,64 @@ export class SessionBookingService {
     currentCursor.setMinutes(0, 0, 0);
 
     const minLeadTimeMs = Date.now() + 60 * 60 * 1000; // 1 hour lead time
+    const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
     while (currentCursor < end) {
       const slotStart = new Date(currentCursor);
       const slotEnd = new Date(slotStart.getTime() + 50 * 60 * 1000);
 
-      // Check if slot falls within working hours (default 9am - 6pm if no custom blocks)
+      // Check if slot falls within therapist's configured working hours
       const dayOfWeek = slotStart.getDay();
-      const hour = slotStart.getHours();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const dayKey = dayKeys[dayOfWeek];
 
-      let withinWorkingHours = hour >= 9 && hour < 18 && !isWeekend;
+      // Format slot start and end in IST (HH:mm)
+      const slotStartFmt = slotStart.toLocaleTimeString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const slotEndFmt = slotEnd.toLocaleTimeString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
 
-      if (blocks && blocks.length > 0) {
+      let withinWorkingHours = false;
+      const profileHours = profile?.availability_hours;
+
+      if (profileHours && typeof profileHours === 'object' && Array.isArray(profileHours[dayKey])) {
+        const ranges: string[] = profileHours[dayKey];
+        if (ranges.length > 0) {
+          for (const range of ranges) {
+            const [rStart, rEnd] = range.split('-');
+            if (rStart && rEnd) {
+              const startLimit = rStart.trim();
+              const endLimit = rEnd.trim() === '24:00' ? '23:59:59' : rEnd.trim();
+              if (slotStartFmt >= startLimit && slotEndFmt <= endLimit) {
+                withinWorkingHours = true;
+                break;
+              }
+            }
+          }
+        } else {
+          // Explicitly closed on this day
+          withinWorkingHours = false;
+        }
+      } else if (blocks && blocks.length > 0) {
         const dayBlock = blocks.find((b: any) => b.day_of_week === dayOfWeek);
         if (dayBlock && dayBlock.is_available) {
-          const [startH] = dayBlock.start_time.split(':').map(Number);
-          const [endH] = dayBlock.end_time.split(':').map(Number);
-          withinWorkingHours = hour >= startH && hour < endH;
+          const startLimit = (dayBlock.start_time || '00:00:00').substring(0, 5);
+          const endLimit = (dayBlock.end_time || '23:59:59').substring(0, 5);
+          withinWorkingHours = slotStartFmt >= startLimit && slotEndFmt <= endLimit;
         } else if (dayBlock && !dayBlock.is_available) {
           withinWorkingHours = false;
         }
+      } else {
+        // Fallback default: 09:00 - 18:00 on weekdays if unconfigured
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        withinWorkingHours = slotStartFmt >= '09:00' && slotEndFmt <= '18:00' && !isWeekend;
       }
 
       if (withinWorkingHours && slotStart.getTime() > minLeadTimeMs) {

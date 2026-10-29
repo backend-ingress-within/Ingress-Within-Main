@@ -8,6 +8,7 @@ export default function TherapistScheduleModal({
   initialDate,
   onClose,
   onSuccess,
+  onOpenWorkingHours,
 }) {
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(defaultClientId || '');
@@ -261,11 +262,25 @@ export default function TherapistScheduleModal({
               <label className="block text-xs font-semibold text-[#132A24]">
                 Available Consultation Slots
               </label>
-              {workingHoursLabel && (
-                <span className="text-[11px] text-[#132A24]/60">
-                  Hours: {workingHoursLabel}
-                </span>
-              )}
+              {workingHoursLabel ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-[#132A24]/60">
+                    Hours: {workingHoursLabel}
+                  </span>
+                  {onOpenWorkingHours && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenWorkingHours();
+                      }}
+                      className="text-[11px] font-semibold text-[#4E7A66] hover:underline cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             {slotsLoading ? (
@@ -274,16 +289,40 @@ export default function TherapistScheduleModal({
                 <p className="text-xs text-[#132A24]/70">Checking working hours and calendar availability...</p>
               </div>
             ) : isDayClosed ? (
-              <div className="p-6 border border-dashed border-amber-200 bg-amber-50/60 rounded-xl text-center space-y-1.5">
+              <div className="p-6 border border-dashed border-amber-200 bg-amber-50/60 rounded-xl text-center space-y-2">
                 <p className="text-xs font-semibold text-amber-900">Therapist Closed on this Day</p>
                 <p className="text-[11px] text-amber-800/80">
-                  Your working schedule indicates you are closed on this day of the week. You can adjust your working days in Profile Settings or choose another date above.
+                  Your schedule indicates you are closed on this day. You can adjust your working hours to open morning, afternoon, or night consultation windows.
                 </p>
+                {onOpenWorkingHours && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenWorkingHours();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4E7A66] text-white text-[11px] font-semibold hover:bg-[#4E7A66]/90 transition-colors cursor-pointer shadow-2xs mt-1"
+                  >
+                    <Clock size={12} /> Set Working Hours (24h)
+                  </button>
+                )}
               </div>
             ) : daySlots.length === 0 ? (
-              <div className="p-6 border border-dashed border-[#132A24]/15 bg-[#FAFAF8] rounded-xl text-center space-y-1">
+              <div className="p-6 border border-dashed border-[#132A24]/15 bg-[#FAFAF8] rounded-xl text-center space-y-2">
                 <p className="text-xs font-medium text-[#132A24]">No slots configured for this date.</p>
                 <p className="text-[11px] text-[#132A24]/60">Please choose another date or update your working windows.</p>
+                {onOpenWorkingHours && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenWorkingHours();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4E7A66] text-white text-[11px] font-semibold hover:bg-[#4E7A66]/90 transition-colors cursor-pointer shadow-2xs mt-1"
+                  >
+                    <Clock size={12} /> Set Working Hours (24h)
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto p-1 border border-[#132A24]/10 rounded-xl bg-[#FAFAF8]">

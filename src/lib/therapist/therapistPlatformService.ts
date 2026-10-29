@@ -2435,27 +2435,58 @@ export class TherapistPlatformService {
         .maybeSingle();
 
       const hours = profile?.availability_hours;
-      // Default clinical practice window across all 7 days is 07:00-23:00 if not explicitly defined
-      const ranges = (hours && typeof hours === 'object' && Array.isArray(hours[kolkataDay]) && hours[kolkataDay].length > 0)
-        ? hours[kolkataDay]
-        : ['07:00-23:00'];
+      // If profile explicitly has availability_hours defined for this day
+      if (hours && typeof hours === 'object' && Array.isArray(hours[kolkataDay])) {
+        const ranges = hours[kolkataDay];
+        if (ranges.length === 0) {
+          return {
+            hasConflict: true,
+            reason: 'Therapist is closed on this day per practice schedule.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
 
-      let withinProfileHours = false;
-      for (const range of ranges) {
-        const [rStart, rEnd] = range.split('-');
-        if (rStart && rEnd) {
-          if (startFmt >= rStart.trim() && endFmt <= rEnd.trim()) {
-            withinProfileHours = true;
-            break;
+        let withinProfileHours = false;
+        for (const range of ranges) {
+          const [rStart, rEnd] = range.split('-');
+          if (rStart && rEnd) {
+            const trimmedStart = rStart.trim();
+            const trimmedEnd = rEnd.trim() === '24:00' ? '23:59:59' : rEnd.trim();
+            if (startFmt >= trimmedStart && endFmt <= trimmedEnd) {
+              withinProfileHours = true;
+              break;
+            }
           }
         }
-      }
-      if (!withinProfileHours) {
-        return {
-          hasConflict: true,
-          reason: 'Requested session time is outside configured working hours.',
-          code: 'OUTSIDE_WORKING_HOURS',
-        };
+        if (!withinProfileHours) {
+          return {
+            hasConflict: true,
+            reason: 'Requested session time is outside configured working hours.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
+      } else {
+        // Default clinical practice window across all 7 days is 00:00-24:00 if not explicitly defined
+        const ranges = ['00:00-24:00'];
+        let withinProfileHours = false;
+        for (const range of ranges) {
+          const [rStart, rEnd] = range.split('-');
+          if (rStart && rEnd) {
+            const trimmedStart = rStart.trim();
+            const trimmedEnd = rEnd.trim() === '24:00' ? '23:59:59' : rEnd.trim();
+            if (startFmt >= trimmedStart && endFmt <= trimmedEnd) {
+              withinProfileHours = true;
+              break;
+            }
+          }
+        }
+        if (!withinProfileHours) {
+          return {
+            hasConflict: true,
+            reason: 'Requested session time is outside configured working hours.',
+            code: 'OUTSIDE_WORKING_HOURS',
+          };
+        }
       }
     }
 
@@ -3737,11 +3768,18 @@ export class TherapistPlatformService {
       endDate: endDateIso,
     });
 
-    // 2. Availability blocks
-    const { data: blocks } = await supabase
-      .from('therapist_availability_blocks')
-      .select('*')
-      .eq('therapist_account_id', therapistAccountId);
+    // 2. Availability blocks and therapist profile working hours
+    const [{ data: blocks }, { data: profile }] = await Promise.all([
+      supabase
+        .from('therapist_availability_blocks')
+        .select('*')
+        .eq('therapist_account_id', therapistAccountId),
+      supabase
+        .from('therapist_profiles')
+        .select('availability_hours')
+        .eq('therapist_account_id', therapistAccountId)
+        .maybeSingle(),
+    ]);
 
     // 3. Google Calendar external events and busy slots
     const [externalBusy, externalEvents, googleCalendarStatus] = await Promise.all([
@@ -3767,6 +3805,7 @@ export class TherapistPlatformService {
       sessions: appointments,
       appointments,
       availabilityBlocks: blocks || [],
+      availabilityHours: profile?.availability_hours || null,
       externalEvents: externalEvents || [],
       externalBusy,
       googleCalendarStatus,

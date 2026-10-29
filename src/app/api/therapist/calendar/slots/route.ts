@@ -107,7 +107,9 @@ export async function GET(request: NextRequest) {
       const [eHour, eMin = 0] = rEnd.split(':').map(Number);
 
       let slotCursor = new Date(`${dateParam}T${String(sHour).padStart(2, '0')}:${String(sMin).padStart(2, '0')}:00+05:30`);
-      const rangeEnd = new Date(`${dateParam}T${String(eHour).padStart(2, '0')}:${String(eMin).padStart(2, '0')}:00+05:30`);
+      const rangeEnd = (eHour >= 24 || rEnd.startsWith('24:00'))
+        ? new Date(new Date(`${dateParam}T00:00:00+05:30`).getTime() + 24 * 60 * 60 * 1000)
+        : new Date(`${dateParam}T${String(eHour).padStart(2, '0')}:${String(eMin).padStart(2, '0')}:00+05:30`);
 
       while (slotCursor.getTime() + durationMinutes * 60 * 1000 <= rangeEnd.getTime()) {
         const slotStart = new Date(slotCursor);

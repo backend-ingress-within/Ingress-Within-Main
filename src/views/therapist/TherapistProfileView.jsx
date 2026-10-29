@@ -36,6 +36,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import TherapistCalendarIntegrationCard from '../../components/therapist/TherapistCalendarIntegrationCard';
+import { ALL_24_HOUR_OPTIONS } from './TherapistWorkingHoursModal';
 
 const TIMEZONE_OPTIONS = [
   'Asia/Kolkata',
@@ -510,7 +511,37 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
 
   const handleApplyPresetHours = (preset) => {
     let nextHours = {};
-    if (preset === 'weekdays_9_5') {
+    if (preset === 'morning_routine') {
+      nextHours = {
+        mon: ['08:00-11:00'],
+        tue: ['08:00-11:00'],
+        wed: ['08:00-11:00'],
+        thu: ['08:00-11:00'],
+        fri: ['08:00-11:00'],
+        sat: ['08:00-11:00'],
+        sun: [],
+      };
+    } else if (preset === 'night_routine') {
+      nextHours = {
+        mon: ['18:00-22:00'],
+        tue: ['18:00-22:00'],
+        wed: ['18:00-22:00'],
+        thu: ['18:00-22:00'],
+        fri: ['18:00-22:00'],
+        sat: ['18:00-22:00'],
+        sun: [],
+      };
+    } else if (preset === 'split_morning_night' || preset === 'split_shift') {
+      nextHours = {
+        mon: ['08:00-11:00', '18:00-22:00'],
+        tue: ['08:00-11:00', '18:00-22:00'],
+        wed: ['08:00-11:00', '18:00-22:00'],
+        thu: ['08:00-11:00', '18:00-22:00'],
+        fri: ['08:00-11:00', '18:00-22:00'],
+        sat: ['09:00-13:00'],
+        sun: [],
+      };
+    } else if (preset === 'weekdays_9_5') {
       nextHours = {
         mon: ['09:00-17:00'],
         tue: ['09:00-17:00'],
@@ -518,16 +549,6 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
         thu: ['09:00-17:00'],
         fri: ['09:00-17:00'],
         sat: [],
-        sun: [],
-      };
-    } else if (preset === 'split_shift') {
-      nextHours = {
-        mon: ['09:00-13:00', '16:00-20:00'],
-        tue: ['09:00-13:00', '16:00-20:00'],
-        wed: ['09:00-13:00', '16:00-20:00'],
-        thu: ['09:00-13:00', '16:00-20:00'],
-        fri: ['09:00-13:00', '16:00-20:00'],
-        sat: ['10:00-14:00'],
         sun: [],
       };
     } else if (preset === 'weekdays_extended') {
@@ -540,15 +561,15 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
         sat: ['10:00-16:00'],
         sun: [],
       };
-    } else if (preset === 'all_days') {
+    } else if (preset === 'all_day_24h' || preset === 'all_days') {
       nextHours = {
-        mon: ['09:00-18:00'],
-        tue: ['09:00-18:00'],
-        wed: ['09:00-18:00'],
-        thu: ['09:00-18:00'],
-        fri: ['09:00-18:00'],
-        sat: ['09:00-18:00'],
-        sun: ['09:00-18:00'],
+        mon: ['00:00-24:00'],
+        tue: ['00:00-24:00'],
+        wed: ['00:00-24:00'],
+        thu: ['00:00-24:00'],
+        fri: ['00:00-24:00'],
+        sat: ['00:00-24:00'],
+        sun: ['00:00-24:00'],
       };
     }
     setFormData((prev) => ({ ...prev, availabilityHours: nextHours }));
@@ -1684,17 +1705,31 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                 <span className="text-[11px] text-[#132A24]/50 font-medium">Quick Presets:</span>
                 <button
                   type="button"
+                  onClick={() => handleApplyPresetHours('morning_routine')}
+                  className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
+                >
+                  Morning (8–11 AM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPresetHours('night_routine')}
+                  className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
+                >
+                  Night (6–10 PM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPresetHours('split_morning_night')}
+                  className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
+                >
+                  Split: Morning & Night
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleApplyPresetHours('weekdays_9_5')}
                   className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
                 >
                   Weekdays 9-5
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyPresetHours('split_shift')}
-                  className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
-                >
-                  Split: Morning & Evening
                 </button>
                 <button
                   type="button"
@@ -1705,10 +1740,10 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPresetHours('all_days')}
+                  onClick={() => handleApplyPresetHours('all_day_24h')}
                   className="px-2.5 py-1 text-[11px] rounded-lg border border-[#132A24]/15 bg-[#FAFAF8] text-[#132A24]/75 hover:bg-[#132A24]/5 cursor-pointer font-medium"
                 >
-                  All 7 Days
+                  All 24 Hours
                 </button>
               </div>
             </div>
@@ -1813,9 +1848,9 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                                 onChange={(e) => handleTimeSlotChange(key, sIdx, e.target.value, end)}
                                 className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
                               >
-                                {timeOptions.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
+                                {ALL_24_HOUR_OPTIONS.filter((o) => o.value !== '24:00').map((t) => (
+                                  <option key={`opt-start-${t.value}`} value={t.value}>
+                                    {t.label}
                                   </option>
                                 ))}
                               </select>
@@ -1825,9 +1860,9 @@ export default function TherapistProfileView({ onNavigateTab, onLogout }) {
                                 onChange={(e) => handleTimeSlotChange(key, sIdx, start, e.target.value)}
                                 className="border border-[#132A24]/15 rounded-lg px-2.5 py-1 text-xs bg-white outline-hidden focus:border-[#4E7A66]"
                               >
-                                {timeOptions.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
+                                {ALL_24_HOUR_OPTIONS.map((t) => (
+                                  <option key={`opt-end-${t.value}`} value={t.value}>
+                                    {t.label}
                                   </option>
                                 ))}
                               </select>
