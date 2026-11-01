@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
+import TherapyRelationshipsView from './TherapyRelationshipsView';
 
 export default function AdminDashboardShell({ admin, onLogout, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -365,7 +366,8 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     { id: 'users', label: 'User Directory', icon: Users },
     { id: 'therapists', label: 'Therapist Roster', icon: UserCheck },
     { id: 'applications', label: 'Application Queue', icon: FileText, badge: overviewMetrics?.pendingApplications },
-    { id: 'clients', label: 'Client Directory', icon: HeartHandshake },
+    { id: 'therapy-relationships', label: 'Therapy Relationships', icon: HeartHandshake },
+    { id: 'clients', label: 'Client Directory', icon: User },
     { id: 'sessions', label: 'Clinical Sessions', icon: Calendar },
     { id: 'payments', label: 'Revenue & Orders', icon: CreditCard },
     { id: 'payouts', label: 'Therapist Payouts', icon: Banknote },
@@ -2665,6 +2667,13 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                 </div>
               )}
             </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: THERAPY RELATIONSHIPS & LIFECYCLE TRACKING */}
+          {/* ========================================================================= */}
+          {activeTab === 'therapy-relationships' && (
+            <TherapyRelationshipsView showToast={showToast} />
           )}
 
           {/* ========================================================================= */}
