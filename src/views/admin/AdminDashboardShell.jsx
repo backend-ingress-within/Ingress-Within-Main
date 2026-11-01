@@ -51,10 +51,12 @@ import {
   Pencil,
   Link2,
   Send,
+  Stethoscope,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
 import TherapyRelationshipsView from './TherapyRelationshipsView';
+import TherapistOverviewView from './TherapistOverviewView';
 
 export default function AdminDashboardShell({ admin, onLogout, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -365,6 +367,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'users', label: 'User Directory', icon: Users },
     { id: 'therapists', label: 'Therapist Roster', icon: UserCheck },
+    { id: 'therapist-overview', label: 'Therapist Overview', icon: Stethoscope },
     { id: 'applications', label: 'Application Queue', icon: FileText, badge: overviewMetrics?.pendingApplications },
     { id: 'therapy-relationships', label: 'Therapy Relationships', icon: HeartHandshake },
     { id: 'clients', label: 'Client Directory', icon: User },
@@ -2667,6 +2670,13 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                 </div>
               )}
             </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: THERAPIST OVERVIEW & CLIENT/SESSION INTELLIGENCE */}
+          {/* ========================================================================= */}
+          {activeTab === 'therapist-overview' && (
+            <TherapistOverviewView showToast={showToast} />
           )}
 
           {/* ========================================================================= */}
