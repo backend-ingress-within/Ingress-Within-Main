@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         payment_method,
         refund_status,
         refund_amount_paise,
+        metadata,
         created_at,
         therapist_account_id,
         therapist_accounts (
@@ -109,6 +110,28 @@ export async function GET(request: NextRequest) {
         createdAt: b.created_at,
         therapistName: prof?.full_name || 'Assigned Therapist',
         therapistTitle: prof?.title || 'Consultant Psychologist',
+        pricing: b.metadata?.pricing || null,
+        therapyFeeInr:
+          b.metadata?.pricing?.therapyFeeInr ||
+          b.metadata?.pricing?.subtotalInr ||
+          (b.metadata?.pricing?.platformFeeInr
+            ? Math.round(b.amount_paise / 100) - b.metadata.pricing.platformFeeInr
+            : Math.round(b.amount_paise / 100)),
+        therapyGstInr: b.metadata?.pricing?.therapyGstInr || 0,
+        platformFeeInr:
+          b.metadata?.pricing?.platformFeeInr ||
+          (b.metadata?.pricing?.platformFeePaise ? b.metadata.pricing.platformFeePaise / 100 : 0),
+        platformFeeGstInr:
+          b.metadata?.pricing?.platformFeeGstInr ||
+          (b.metadata?.pricing?.platformFeePaise ? 15.1 : 0),
+        platformFeeNetInr:
+          b.metadata?.pricing?.platformFeeNetInr ||
+          (b.metadata?.pricing?.platformFeePaise ? 83.9 : 0),
+        isTherapyGstExempt:
+          b.metadata?.pricing?.isTherapyGstExempt !== undefined
+            ? b.metadata.pricing.isTherapyGstExempt
+            : true,
+        refundBreakdown: b.metadata?.refund_breakdown || null,
       };
     });
 

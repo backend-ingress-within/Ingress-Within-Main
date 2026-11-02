@@ -701,18 +701,38 @@ export default function GuestBookingView({ token }) {
               </div>
 
               {/* Pricing Line Items */}
-              <div className="space-y-2 text-xs">
+              <div className="space-y-2.5 text-xs">
                 <div className="flex justify-between text-[#132A24]/70">
-                  <span>Consultation Fee:</span>
-                  <span>₹{pricing.subtotalInr.toLocaleString('en-IN')}</span>
+                  <span>Therapy Session Fee (50 min):</span>
+                  <span className="font-medium text-[#132A24]">
+                    ₹{(pricing.therapyFeeInr || pricing.subtotalInr).toLocaleString('en-IN')}
+                  </span>
                 </div>
+
                 <div className="flex justify-between text-[#132A24]/70">
-                  <span>Integrated GST (18%):</span>
-                  <span>₹{pricing.gstInr.toLocaleString('en-IN')}</span>
+                  <span>Applicable GST on Session:</span>
+                  <span className="text-[#132A24]/50">
+                    {pricing.therapyGstInr > 0
+                      ? `₹${pricing.therapyGstInr.toLocaleString('en-IN')}`
+                      : '₹0 (Exempt)'}
+                  </span>
                 </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[#132A24]/70">
+                    <span>Platform Fee (Inclusive of GST):</span>
+                    <span className="font-medium text-[#132A24]">
+                      ₹{(pricing.platformFeeInr || 99).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#132A24]/50 leading-tight">
+                    Platform fee for administrative operations, booking management, and access to the Ingress Within platform.
+                  </p>
+                </div>
+
                 <div className="pt-2 border-t border-[#132A24]/10 flex justify-between font-semibold text-sm text-[#132A24]">
-                  <span>Total Payable:</span>
-                  <span className="text-emerald-800">
+                  <span>Total Amount Payable:</span>
+                  <span className="text-emerald-800 font-serif text-base">
                     ₹{pricing.totalInr.toLocaleString('en-IN')}
                   </span>
                 </div>

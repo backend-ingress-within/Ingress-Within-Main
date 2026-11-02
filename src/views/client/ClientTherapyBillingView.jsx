@@ -467,17 +467,39 @@ export default function ClientTherapyBillingView({
             {/* Financial Breakdown Table */}
             <div className="border border-[#263238]/10 rounded-2xl p-4 space-y-2.5 text-xs">
               <div className="flex justify-between items-center text-[#66747A]">
-                <span>Clinical Consultation (50 min)</span>
-                <span>₹{Math.round(selectedReceipt.amountRupees / 1.18)}</span>
+                <span>Therapy Session Consultation (50 min)</span>
+                <span className="font-medium text-[#132A24]">
+                  ₹{selectedReceipt.therapyFeeInr || (selectedReceipt.platformFeeInr ? selectedReceipt.amountRupees - selectedReceipt.platformFeeInr : selectedReceipt.amountRupees)}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[#66747A]">
-                <span>Integrated GST (18%)</span>
-                <span>₹{selectedReceipt.amountRupees - Math.round(selectedReceipt.amountRupees / 1.18)}</span>
+                <span>Applicable GST on Therapy Session</span>
+                <span className="text-[#66747A]/70">
+                  {selectedReceipt.therapyGstInr > 0 ? `₹${selectedReceipt.therapyGstInr}` : '₹0 (Exempt under Healthcare Notification 12/2017)'}
+                </span>
               </div>
+              {selectedReceipt.platformFeeInr > 0 && (
+                <div className="space-y-1 pt-1 border-t border-[#263238]/5">
+                  <div className="flex justify-between items-center text-[#66747A]">
+                    <span>Platform Fee (Inclusive of GST)</span>
+                    <span className="font-medium text-[#132A24]">₹{selectedReceipt.platformFeeInr}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-[#66747A]/60 pl-2">
+                    <span>Taxable Value: ₹{selectedReceipt.platformFeeNetInr || '83.90'} + 18% GST: ₹{selectedReceipt.platformFeeGstInr || '15.10'}</span>
+                    <span>SAC 998599</span>
+                  </div>
+                </div>
+              )}
               <div className="border-t border-[#263238]/10 pt-2 flex justify-between items-center text-sm font-bold text-[#132A24]">
-                <span>Total Paid</span>
-                <span className="font-serif text-base">₹{selectedReceipt.amountRupees}</span>
+                <span>Total Amount Paid</span>
+                <span className="font-serif text-base text-emerald-900">₹{selectedReceipt.amountRupees}</span>
               </div>
+            </div>
+
+            {/* Entity Attestation */}
+            <div className="text-[10px] text-[#66747A]/60 flex justify-between items-center px-1">
+              <span>Merchant: RUMINARI (OPC) PVT LTD</span>
+              <span>Ahmedabad, Gujarat, India</span>
             </div>
 
             {/* Refund info if applicable */}

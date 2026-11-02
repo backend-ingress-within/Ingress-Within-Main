@@ -10,6 +10,7 @@ import {
   RelationshipBookingLinkService,
   verifyClientConsent,
 } from './relationshipBookingLinkService';
+import { TherapyPricingConfig, AuthoritativeTherapyPricing } from './therapyPricingConfig';
 
 export interface CreateGuestBookingOrderInput {
   token: string;
@@ -43,6 +44,12 @@ export interface GuestBookingOrderResult {
     baseFee: number;
     gstAmount: number;
     totalAmount: number;
+    therapyFee?: number;
+    platformFee?: number;
+    isTherapyGstExempt?: boolean;
+    platformFeeGst?: number;
+    platformFeeNet?: number;
+    platformFeeDescription?: string;
   };
 }
 
@@ -83,14 +90,7 @@ export interface VerifyGuestPaymentResult {
   };
 }
 
-export interface AuthoritativePricing {
-  subtotalInr: number;
-  subtotalPaise: number;
-  gstPaise: number;
-  totalPaise: number;
-  totalInr: number;
-  currency: string;
-}
+export type AuthoritativePricing = AuthoritativeTherapyPricing;
 
 export class SessionBookingService {
   // Concurrency Locks to protect against race conditions
@@ -101,27 +101,20 @@ export class SessionBookingService {
   /**
    * Calculates platform authoritative pricing for a therapist's session.
    * Client-side pricing is strictly prohibited and discarded.
+   * Introduces separate ₹99 GST-inclusive platform fee and adheres to approved tax classification.
    */
-  static async getAuthoritativePricing(therapistAccountId: string): Promise<AuthoritativePricing> {
+  static async getAuthoritativePricing(
+    therapistAccountId: string,
+    options?: { isTherapyExempt?: boolean; therapyGstRate?: number; isInterState?: boolean }
+  ): Promise<AuthoritativePricing> {
     const { data: therapist } = await supabase
       .from('therapist_accounts')
       .select('per_session_fee')
       .eq('id', therapistAccountId)
       .maybeSingle();
 
-    const baseInr = Number(therapist?.per_session_fee) || 1500;
-    const subtotalPaise = Math.round(baseInr * 100);
-    const gstPaise = Math.round(subtotalPaise * 0.18); // 18% GST standard
-    const totalPaise = subtotalPaise + gstPaise;
-
-    return {
-      subtotalInr: baseInr,
-      subtotalPaise,
-      gstPaise,
-      totalPaise,
-      totalInr: totalPaise / 100,
-      currency: 'INR',
-    };
+    const baseInr = Number(therapist?.per_session_fee) || TherapyPricingConfig.DEFAULT_THERAPY_FEE_INR;
+    return TherapyPricingConfig.calculatePricing(baseInr, options);
   }
 
   /**
@@ -700,6 +693,7 @@ export class SessionBookingService {
       keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_key',
       expiresAt,
       bypassPayment: isPaymentBypassed,
+      pricing,
     };
   }
 
@@ -846,6 +840,12 @@ export class SessionBookingService {
               baseFee: pricing.subtotalInr,
               gstAmount: pricing.gstPaise / 100,
               totalAmount: pricing.totalInr,
+              therapyFee: pricing.therapyFeeInr,
+              platformFee: pricing.platformFeeInr,
+              isTherapyGstExempt: pricing.isTherapyGstExempt,
+              platformFeeGst: pricing.platformFeeGstInr,
+              platformFeeNet: pricing.platformFeeNetInr,
+              platformFeeDescription: pricing.platformFeeDescription,
             },
           };
         }
@@ -1060,6 +1060,12 @@ export class SessionBookingService {
           baseFee: pricing.subtotalInr,
           gstAmount: pricing.gstPaise / 100,
           totalAmount: pricing.totalInr,
+          therapyFee: pricing.therapyFeeInr,
+          platformFee: pricing.platformFeeInr,
+          isTherapyGstExempt: pricing.isTherapyGstExempt,
+          platformFeeGst: pricing.platformFeeGstInr,
+          platformFeeNet: pricing.platformFeeNetInr,
+          platformFeeDescription: pricing.platformFeeDescription,
         },
       };
     } finally {
@@ -1221,8 +1227,10 @@ export class SessionBookingService {
       throw err;
     }
 
-    const pricing = await this.getAuthoritativePricing(therapistAccountId);
-    if (booking.amount_paise !== pricing.totalPaise) {
+    const expectedPaise =
+      booking.metadata?.pricing?.totalPaise ||
+      (await this.getAuthoritativePricing(therapistAccountId)).totalPaise;
+    if (booking.amount_paise !== expectedPaise) {
       const err: any = new Error('Authoritative pricing mismatch.');
       err.code = 'AMOUNT_MISMATCH';
       err.status = 400;
@@ -1560,6 +1568,24 @@ export class SessionBookingService {
         err.status = 400;
         throw err;
       }
+    }
+
+    // Verify order association and amount
+    if (booking.razorpay_order_id && razorpayOrderId && booking.razorpay_order_id !== razorpayOrderId) {
+      const err: any = new Error('Payment order ID does not match the stored booking attempt.');
+      err.code = 'ORDER_MISMATCH';
+      err.status = 400;
+      throw err;
+    }
+
+    const expectedPaise =
+      booking.metadata?.pricing?.totalPaise ||
+      (await this.getAuthoritativePricing(booking.therapist_account_id)).totalPaise;
+    if (booking.amount_paise !== expectedPaise) {
+      const err: any = new Error('Authoritative pricing mismatch.');
+      err.code = 'AMOUNT_MISMATCH';
+      err.status = 400;
+      throw err;
     }
 
     // 3. Fetch client and therapist details
@@ -2005,15 +2031,39 @@ export class SessionBookingService {
       // 3. Execute Razorpay refund if eligible
       let refundId: string | null = appt.refund_id || null;
       let refundAmountPaise = 0;
+      let therapyRefundPaise = 0;
+      let platformFeeRefundPaise = 0;
+      let bkgRecord: any = null;
 
       if (appt.booking_id) {
         const { data: bkg } = await supabase
           .from('therapy_session_bookings')
-          .select('amount_paise')
+          .select('amount_paise, metadata')
           .eq('id', appt.booking_id)
           .maybeSingle();
 
-        refundAmountPaise = bkg?.amount_paise || 177000;
+        bkgRecord = bkg;
+        const totalPaidPaise = bkg?.amount_paise || 159900;
+        const storedPricing = bkg?.metadata?.pricing;
+
+        const sessionFeePaise =
+          storedPricing?.therapyFeePaise ||
+          storedPricing?.subtotalPaise ||
+          (totalPaidPaise - TherapyPricingConfig.PLATFORM_FEE_PAISE > 0
+            ? totalPaidPaise - TherapyPricingConfig.PLATFORM_FEE_PAISE
+            : totalPaidPaise);
+        const sessionGstPaise = storedPricing?.therapyGstPaise || 0;
+        const platformFeePaise =
+          storedPricing?.platformFeePaise || (storedPricing ? TherapyPricingConfig.PLATFORM_FEE_PAISE : 0);
+
+        const isClientCancellation = cancelledBy === 'client';
+        const isPlatformFeeRefundable = isClientCancellation
+          ? TherapyPricingConfig.PLATFORM_FEE_REFUNDABLE_ON_CLIENT_CANCEL
+          : TherapyPricingConfig.PLATFORM_FEE_REFUNDABLE_ON_THERAPIST_CANCEL;
+
+        therapyRefundPaise = sessionFeePaise + sessionGstPaise;
+        platformFeeRefundPaise = isPlatformFeeRefundable ? platformFeePaise : 0;
+        refundAmountPaise = Math.min(totalPaidPaise, therapyRefundPaise + platformFeeRefundPaise);
       }
 
       // Idempotency anchor: if already refunded, keep full
@@ -2087,6 +2137,16 @@ export class SessionBookingService {
 
       // 4. Update linked booking if present
       if (appt.booking_id) {
+        const updatedMetadata = {
+          ...(bkgRecord?.metadata || {}),
+          refund_breakdown: {
+            therapyRefundPaise: refundStatus === 'full' ? therapyRefundPaise : 0,
+            platformFeeRefundPaise: refundStatus === 'full' ? platformFeeRefundPaise : 0,
+            totalRefundPaise: refundStatus === 'full' ? refundAmountPaise : 0,
+            cancelledBy,
+          },
+        };
+
         await supabase
           .from('therapy_session_bookings')
           .update({
@@ -2096,6 +2156,7 @@ export class SessionBookingService {
             refund_status: refundStatus,
             refund_id: refundId,
             refund_amount_paise: refundStatus === 'full' ? refundAmountPaise : 0,
+            metadata: updatedMetadata,
             updated_at: new Date().toISOString(),
           })
           .eq('id', appt.booking_id);

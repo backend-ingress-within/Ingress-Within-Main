@@ -23,6 +23,11 @@ export interface OverviewMetrics {
   failedPayouts: number;
   currency: string;
   range: string;
+  // Specific therapy vs platform fee breakdown
+  therapySessionRevenuePaise?: number;
+  platformFeeCollectionsPaise?: number;
+  platformFeeGstPaise?: number;
+  totalClientCollectionsPaise?: number;
 }
 
 export interface RevenueAnalytics {
@@ -41,6 +46,13 @@ export interface RevenueAnalytics {
   }>;
   currency: string;
   range: string;
+  // Authoritative separation of therapy revenue, platform fees, taxes, and refunds
+  therapySessionRevenuePaise?: number;
+  platformFeeCollectionsPaise?: number;
+  platformFeeGstPaise?: number;
+  totalClientCollectionsPaise?: number;
+  therapyRefundsPaise?: number;
+  platformFeeRefundsPaise?: number;
 }
 
 export class AdminPlatformService {
@@ -215,6 +227,34 @@ export class AdminPlatformService {
 
     const failedPayments = (failedBookings || 0) + (failedOrders || 0);
 
+    // Platform fee and client collection totals
+    let bookingsBreakdownQuery = supabase
+      .from('therapy_session_bookings')
+      .select('amount_paise, metadata')
+      .in('payment_status', ['paid', 'captured']);
+
+    if (startIso) {
+      bookingsBreakdownQuery = bookingsBreakdownQuery.gte('created_at', startIso);
+    }
+    const { data: paidBookings } = await bookingsBreakdownQuery;
+
+    let totalClientCollectionsPaise = 0;
+    let therapySessionRevenuePaise = 0;
+    let platformFeeCollectionsPaise = 0;
+    let platformFeeGstPaise = 0;
+
+    for (const b of paidBookings || []) {
+      totalClientCollectionsPaise += b.amount_paise || 0;
+      const storedPricing = b.metadata?.pricing;
+      if (storedPricing?.platformFeePaise) {
+        platformFeeCollectionsPaise += storedPricing.platformFeePaise;
+        platformFeeGstPaise += storedPricing.platformFeeGstPaise || 1510;
+        therapySessionRevenuePaise += storedPricing.therapyFeePaise || (b.amount_paise - storedPricing.platformFeePaise);
+      } else {
+        therapySessionRevenuePaise += b.amount_paise || 0;
+      }
+    }
+
     return {
       totalUsers: totalUsers || 0,
       totalClients: totalClients || 0,
@@ -229,6 +269,10 @@ export class AdminPlatformService {
       pendingPayoutsPaise,
       failedPayments: failedPayments || 0,
       failedPayouts: failedPayoutsCount,
+      therapySessionRevenuePaise,
+      platformFeeCollectionsPaise,
+      platformFeeGstPaise,
+      totalClientCollectionsPaise,
       currency: 'INR',
       range,
     };
@@ -338,6 +382,47 @@ export class AdminPlatformService {
       }
     }
 
+    // Authoritative breakdown of client collections, platform fees, taxes, and refunds
+    let bookingsBreakdownQuery = supabase
+      .from('therapy_session_bookings')
+      .select('id, amount_paise, refund_amount_paise, refund_status, payment_status, metadata, created_at')
+      .in('payment_status', ['paid', 'captured']);
+
+    if (startIso) {
+      bookingsBreakdownQuery = bookingsBreakdownQuery.gte('created_at', startIso);
+    }
+    const { data: paidBookings } = await bookingsBreakdownQuery;
+
+    let totalClientCollectionsPaise = 0;
+    let therapySessionRevenuePaise = 0;
+    let platformFeeCollectionsPaise = 0;
+    let platformFeeGstPaise = 0;
+    let therapyRefundsPaise = 0;
+    let platformFeeRefundsPaise = 0;
+
+    for (const b of paidBookings || []) {
+      totalClientCollectionsPaise += b.amount_paise || 0;
+      const storedPricing = b.metadata?.pricing;
+      if (storedPricing?.platformFeePaise) {
+        platformFeeCollectionsPaise += storedPricing.platformFeePaise;
+        platformFeeGstPaise += storedPricing.platformFeeGstPaise || 1510;
+        therapySessionRevenuePaise += storedPricing.therapyFeePaise || (b.amount_paise - storedPricing.platformFeePaise);
+      } else {
+        therapySessionRevenuePaise += b.amount_paise || 0;
+      }
+
+      if (b.refund_status === 'full' || b.refund_status === 'partial') {
+        const refundAmt = b.refund_amount_paise || b.amount_paise || 0;
+        const refundBreakdown = b.metadata?.refund_breakdown;
+        if (refundBreakdown) {
+          therapyRefundsPaise += refundBreakdown.therapyRefundPaise || 0;
+          platformFeeRefundsPaise += refundBreakdown.platformFeeRefundPaise || 0;
+        } else {
+          therapyRefundsPaise += refundAmt;
+        }
+      }
+    }
+
     const dailyBreakdown = Object.entries(dailyMap).map(([date, d]) => ({
       date,
       grossPaise: d.gross,
@@ -354,6 +439,12 @@ export class AdminPlatformService {
       refundsCount,
       refundsPaise,
       dailyBreakdown,
+      therapySessionRevenuePaise,
+      platformFeeCollectionsPaise,
+      platformFeeGstPaise,
+      totalClientCollectionsPaise,
+      therapyRefundsPaise,
+      platformFeeRefundsPaise,
       currency: 'INR',
       range,
     };

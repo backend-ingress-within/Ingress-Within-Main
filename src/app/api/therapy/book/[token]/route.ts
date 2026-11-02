@@ -131,9 +131,26 @@ export async function GET(
         subtotalPaise: pricing.subtotalPaise,
         subtotalInr: pricing.subtotalInr,
         gstPaise: pricing.gstPaise,
-        gstInr: pricing.gstPaise / 100,
+        gstInr: pricing.gstInr,
         totalPaise: pricing.totalPaise,
         totalInr: pricing.totalInr,
+
+        // Transparent Pricing Breakdown
+        therapyFeeInr: pricing.therapyFeeInr,
+        therapyFeePaise: pricing.therapyFeePaise,
+        therapyGstRate: pricing.therapyGstRate,
+        therapyGstPaise: pricing.therapyGstPaise,
+        therapyGstInr: pricing.therapyGstInr,
+        isTherapyGstExempt: pricing.isTherapyGstExempt,
+
+        platformFeeInr: pricing.platformFeeInr,
+        platformFeePaise: pricing.platformFeePaise,
+        platformFeeGstRate: pricing.platformFeeGstRate,
+        platformFeeNetPaise: pricing.platformFeeNetPaise,
+        platformFeeNetInr: pricing.platformFeeNetInr,
+        platformFeeGstPaise: pricing.platformFeeGstPaise,
+        platformFeeGstInr: pricing.platformFeeGstInr,
+        platformFeeDescription: pricing.platformFeeDescription,
       },
       availability: {
         timezone: profile?.timezone || 'Asia/Kolkata',

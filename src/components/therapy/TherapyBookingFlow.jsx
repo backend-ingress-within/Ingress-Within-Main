@@ -130,13 +130,29 @@ export default function TherapyBookingFlow({
     process.env.NEXT_PUBLIC_DISABLE_BOOKING_PAYMENTS === 'true' ||
     process.env.DISABLE_BOOKING_PAYMENTS === 'true';
 
-  const baseFee = authoritativePricing?.subtotalInr != null
-    ? authoritativePricing.subtotalInr
-    : Number(selectedTherapist?.fee || selectedTherapist?.per_session_fee || 1500);
-  const gstAmount = Math.round(baseFee * 0.18);
-  const totalAmount = authoritativePricing?.totalPaise != null
-    ? Math.round(authoritativePricing.totalPaise / 100)
-    : baseFee + gstAmount;
+  const therapyFee = authoritativePricing?.therapyFeeInr != null
+    ? authoritativePricing.therapyFeeInr
+    : (authoritativePricing?.subtotalInr != null
+      ? authoritativePricing.subtotalInr
+      : Number(selectedTherapist?.fee || selectedTherapist?.per_session_fee || 1500));
+
+  const isTherapyGstExempt = authoritativePricing?.isTherapyGstExempt !== undefined
+    ? authoritativePricing.isTherapyGstExempt
+    : true;
+
+  const therapyGst = authoritativePricing?.therapyGstInr != null
+    ? authoritativePricing.therapyGstInr
+    : (isTherapyGstExempt ? 0 : Math.round(therapyFee * 0.18));
+
+  const platformFee = authoritativePricing?.platformFeeInr != null
+    ? authoritativePricing.platformFeeInr
+    : 99;
+
+  const totalAmount = authoritativePricing?.totalInr != null
+    ? authoritativePricing.totalInr
+    : (authoritativePricing?.totalPaise != null
+      ? Math.round(authoritativePricing.totalPaise / 100)
+      : therapyFee + therapyGst + platformFee);
 
   // Handle Order Creation and Razorpay Checkout
   const handleProceedToPayment = async () => {
@@ -591,18 +607,32 @@ export default function TherapyBookingFlow({
                 </div>
 
                 {/* Authoritative pricing */}
-                <div className="pt-1 space-y-1.5">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Session Fee (50 min)</span>
-                    <span>₹{baseFee.toLocaleString('en-IN')}</span>
+                <div className="pt-1 space-y-2">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Therapy Session Fee (50 min)</span>
+                    <span className="font-medium text-gray-900">₹{therapyFee.toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>GST (18% Regulatory Tax)</span>
-                    <span>₹{gstAmount.toLocaleString('en-IN')}</span>
+
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Applicable GST on Session</span>
+                    <span className="text-gray-500">
+                      {therapyGst > 0 ? `₹${therapyGst.toLocaleString('en-IN')}` : '₹0 (Exempt)'}
+                    </span>
                   </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>Platform Fee (Inclusive of GST)</span>
+                      <span className="font-medium text-gray-900">₹{platformFee.toLocaleString('en-IN')}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 leading-tight">
+                      Platform fee for administrative operations, booking management, and access to the Ingress Within platform.
+                    </p>
+                  </div>
+
                   <div className="flex justify-between text-sm font-semibold text-gray-900 pt-2 border-t border-gray-200">
                     <span>Total Amount Payable</span>
-                    <span className="text-emerald-800">₹{totalAmount.toLocaleString('en-IN')}</span>
+                    <span className="text-emerald-800 text-base font-serif">₹{totalAmount.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
