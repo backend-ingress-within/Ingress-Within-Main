@@ -35,6 +35,7 @@ import ClientTherapyHomeworkView from './ClientTherapyHomeworkView';
 import ClientTherapyCareJourneyView from './ClientTherapyCareJourneyView';
 import ClientTherapyBillingView from './ClientTherapyBillingView';
 import ClientTherapyNotificationsView from './ClientTherapyNotificationsView';
+import ClientTherapeuticProfileView from './ClientTherapeuticProfileView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
 import { getSessionMeetingWindow, MEETING_POST_SESSION_BUFFER_MS } from '../../utils/sessionMeetingUtils';
@@ -316,6 +317,26 @@ export default function ClientTherapyDashboard({
     }
   };
 
+  // Therapeutic Profile Overview state
+  const [profileOverview, setProfileOverview] = useState(null);
+  const [loadingProfileOverview, setLoadingProfileOverview] = useState(false);
+
+  // Fetch Therapeutic Profile Overview
+  const fetchProfileOverview = async () => {
+    setLoadingProfileOverview(true);
+    try {
+      const res = await fetch('/api/therapy/client/therapeutic-profile/overview');
+      if (res.ok) {
+        const json = await res.json();
+        setProfileOverview(json.overview || null);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch profile overview:', err);
+    } finally {
+      setLoadingProfileOverview(false);
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
     fetchHomework();
@@ -323,6 +344,7 @@ export default function ClientTherapyDashboard({
     fetchBilling();
     fetchNotifications();
     fetchNotificationPreferences();
+    fetchProfileOverview();
   }, []);
 
   // Fetch availability slots when reschedule modal opens
@@ -481,6 +503,7 @@ export default function ClientTherapyDashboard({
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             {[
               { id: 'overview', label: 'Overview' },
+              { id: 'therapeutic_profile', label: 'Therapeutic Profile' },
               { id: 'sessions', label: 'Sessions', count: upcomingSessionsList.length },
               { id: 'therapist', label: 'My Therapist' },
               { id: 'journey', label: 'My Journey' },
@@ -563,6 +586,7 @@ export default function ClientTherapyDashboard({
           <div className="md:hidden border-t border-[#263238]/10 pt-3 pb-2 mt-2 space-y-1">
             {[
               { id: 'overview', label: 'Overview' },
+              { id: 'therapeutic_profile', label: 'Therapeutic Profile' },
               { id: 'sessions', label: 'Sessions', count: upcomingSessionsList.length },
               { id: 'therapist', label: 'My Therapist' },
               { id: 'journey', label: 'My Journey' },
@@ -952,6 +976,87 @@ export default function ClientTherapyDashboard({
               </div>
             </div>
 
+            {/* Therapeutic Profile Compact Overview Card */}
+            <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#263238]/8">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                    <HeartHandshake size={14} /> Living Therapeutic Record
+                  </span>
+                  <h3 className="font-serif text-lg text-[#132A24] mt-0.5">
+                    Therapeutic Profile Summary
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('therapeutic_profile')}
+                  className="shrink-0 bg-[#132A24] text-white hover:bg-[#1C3E35] px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                >
+                  <span>Open Full Profile</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+
+              {loadingProfileOverview ? (
+                <div className="py-4 text-center text-xs text-[#66747A]">Loading profile metrics...</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1 text-xs">
+                  {/* Metric 1: Intake Status */}
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 block">Intake Background</span>
+                    <div className="font-semibold text-[#132A24] flex items-center gap-1">
+                      <CheckCircle2 size={13} className="text-emerald-700" />
+                      <span className="capitalize">{profileOverview?.intakeStatus || 'Submitted'}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 block truncate">
+                      {profileOverview?.intakeCompletedAt
+                        ? `On file since ${new Date(profileOverview.intakeCompletedAt).toLocaleDateString()}`
+                        : 'Onboarding complete'}
+                    </span>
+                  </div>
+
+                  {/* Metric 2: Active Goals */}
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 block">Active Goals</span>
+                    <div className="font-serif text-lg font-bold text-[#132A24]">
+                      {profileOverview?.activeGoalsCount ?? 0}
+                    </div>
+                    <span className="text-[10px] text-emerald-800 font-medium block truncate">
+                      {profileOverview?.recentlyAchievedGoals?.length
+                        ? `${profileOverview.recentlyAchievedGoals.length} recently achieved`
+                        : 'Collaborative roadmap'}
+                    </span>
+                  </div>
+
+                  {/* Metric 3: Shared Life Milestones */}
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 block">Life Milestones</span>
+                    <div className="font-serif text-lg font-bold text-[#132A24]">
+                      {profileOverview?.sharedLifeEventsCount ?? 0}
+                    </div>
+                    <span className="text-[10px] text-blue-800 font-medium block truncate">
+                      Shared with clinician
+                    </span>
+                  </div>
+
+                  {/* Metric 4: Longitudinal Reviews */}
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 block">Periodic Reviews</span>
+                    <div className="font-semibold text-[#132A24] truncate">
+                      {profileOverview?.lastCompletedReview
+                        ? profileOverview.lastCompletedReview.label
+                        : 'Cadence: 6 sessions'}
+                    </div>
+                    <span className="text-[10px] text-purple-800 font-medium block truncate">
+                      {profileOverview?.nextReviewDueDate
+                        ? `Next due: ${new Date(profileOverview.nextReviewDueDate).toLocaleDateString()}`
+                        : 'Reviewed periodically'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Care Journey Snapshot Bar */}
             <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1041,6 +1146,17 @@ export default function ClientTherapyDashboard({
             onStartRematch={onStartRematch}
             onNavigateSupport={() => setActiveTab('support')}
             onRefresh={onRefreshRelationship}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB: THERAPEUTIC PROFILE                                                 */}
+        {/* ========================================================================= */}
+        {activeTab === 'therapeutic_profile' && (
+          <ClientTherapeuticProfileView
+            relationshipId={relationship?.id}
+            clinicianName={clinicianName}
+            onNavigateJourney={() => setActiveTab('journey')}
           />
         )}
 
@@ -1312,6 +1428,7 @@ export default function ClientTherapyDashboard({
             onRefresh={fetchJourney}
             onNavigateSessions={() => setActiveTab('sessions')}
             onNavigateHomework={() => setActiveTab('homework')}
+            onNavigateProfile={() => setActiveTab('therapeutic_profile')}
             onOpenHomework={(homeworkId) => {
               setSelectedHomeworkId(homeworkId);
             }}

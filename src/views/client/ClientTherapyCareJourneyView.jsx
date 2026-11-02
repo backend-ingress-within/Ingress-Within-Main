@@ -59,6 +59,7 @@ export default function ClientTherapyCareJourneyView({
   onRefresh,
   onNavigateSessions,
   onNavigateHomework,
+  onNavigateProfile,
   onOpenHomework,
 }) {
   const [timelineFilter, setTimelineFilter] = useState('all'); // all | sessions | homework | stages
@@ -121,16 +122,28 @@ export default function ClientTherapyCareJourneyView({
           </p>
         </div>
 
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            title="Refresh journey data"
-            className="self-start sm:self-auto p-2 rounded-xl border border-[#263238]/15 text-[#66747A] hover:text-[#132A24] hover:bg-white transition-all cursor-pointer"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {onNavigateProfile && (
+            <button
+              type="button"
+              onClick={onNavigateProfile}
+              className="px-3.5 py-1.5 rounded-xl border border-emerald-800 text-emerald-800 hover:bg-emerald-50 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <HeartHandshake size={13} />
+              <span>Therapeutic Profile &rarr;</span>
+            </button>
+          )}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              title="Refresh journey data"
+              className="p-2 rounded-xl border border-[#263238]/15 text-[#66747A] hover:text-[#132A24] hover:bg-white transition-all cursor-pointer"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading State */}

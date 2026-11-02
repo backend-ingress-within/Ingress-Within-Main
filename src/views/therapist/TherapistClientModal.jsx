@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import TherapistCareJourneyView from './TherapistCareJourneyView';
 import TherapistClientInsightsView from './TherapistClientInsightsView';
+import TherapistTherapeuticProfileView from './TherapistTherapeuticProfileView';
 
 export default function TherapistClientModal({
   clientId,
@@ -141,6 +142,7 @@ export default function TherapistClientModal({
 
   const TABS = [
     { id: 'overview', label: 'Overview', icon: User },
+    { id: 'therapeutic_profile', label: 'Therapeutic Profile', icon: HeartHandshake },
     { id: 'insights', label: 'Client Insights', icon: Sparkles },
     { id: 'journey', label: 'Care Journey', icon: Milestone },
     { id: 'sessions', label: 'Sessions', icon: Calendar },
@@ -268,7 +270,13 @@ export default function TherapistClientModal({
 
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-grow">
-          {activeTab === 'insights' ? (
+          {activeTab === 'therapeutic_profile' ? (
+            <TherapistTherapeuticProfileView
+              clientId={clientId}
+              relationshipId={profile?.relationship?.id}
+              clientName={profile?.client?.name || 'Client'}
+            />
+          ) : activeTab === 'insights' ? (
             <TherapistClientInsightsView clientId={clientId} />
           ) : activeTab === 'journey' ? (
             <TherapistCareJourneyView
@@ -301,12 +309,20 @@ export default function TherapistClientModal({
                   )}
                 </div>
 
-                <button
-                  onClick={() => handleTabChange('journey')}
-                  className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 transition-colors cursor-pointer"
-                >
-                  Manage in Care Journey &rarr;
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleTabChange('therapeutic_profile')}
+                    className="px-3 py-1.5 rounded-lg border border-[#132A24]/20 text-[#132A24] text-xs font-semibold hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                  >
+                    Therapeutic Profile &rarr;
+                  </button>
+                  <button
+                    onClick={() => handleTabChange('journey')}
+                    className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 transition-colors cursor-pointer"
+                  >
+                    Manage in Care Journey &rarr;
+                  </button>
+                </div>
               </div>
 
               {/* Clinical Intake Information */}
