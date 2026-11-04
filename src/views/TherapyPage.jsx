@@ -1061,6 +1061,62 @@ function Guided({ exit, onBookSession, user, profile }) {
       };
     });
   }, [eligibleTherapists]);
+
+  // Calculate dynamic options from actual therapist roster to prevent "no therapist found" dead-ends
+  const dynamicBudgetOptions = useMemo(() => {
+    if (!normalizedTherapists.length) {
+      return [
+        { value: 'Flexible', label: 'Flexible · All available clinicians (Recommended)' },
+        { value: '₹1,200–₹1,800', label: '₹1,200 – ₹1,800 per session' },
+        { value: '₹1,800–₹2,500', label: '₹1,800 – ₹2,500 per session' },
+        { value: '₹2,500+', label: '₹2,500+ per session' },
+      ];
+    }
+
+    const under1500 = normalizedTherapists.filter((t) => (t.fee || 1500) <= 1500).length;
+    const between1200and1800 = normalizedTherapists.filter((t) => (t.fee || 1500) <= 1800).length;
+    const between1800and2500 = normalizedTherapists.filter((t) => (t.fee || 1500) > 1800 && (t.fee || 1500) <= 2500).length;
+    const above2500 = normalizedTherapists.filter((t) => (t.fee || 1500) > 2500).length;
+
+    const list = [
+      { value: 'Flexible', label: `Flexible · All ${normalizedTherapists.length} clinicians (Recommended)` }
+    ];
+
+    if (under1500 > 0) {
+      list.push({ value: '₹1000–1500', label: `Accessible · Up to ₹1,500 (${under1500} available)` });
+    }
+    if (between1200and1800 > 0 && between1200and1800 !== under1500) {
+      list.push({ value: '₹1,200–₹1,800', label: `Standard · ₹1,200–₹1,800 (${between1200and1800} available)` });
+    }
+    if (between1800and2500 > 0) {
+      list.push({ value: '₹1,800–₹2,500', label: `Senior · ₹1,800–₹2,500 (${between1800and2500} available)` });
+    }
+    if (above2500 > 0) {
+      list.push({ value: '₹2,500+', label: `Specialist · ₹2,500+ (${above2500} available)` });
+    }
+
+    return list;
+  }, [normalizedTherapists]);
+
+  const dynamicGenderOptions = useMemo(() => {
+    const list = [
+      { value: 'No preference', label: `No preference (${normalizedTherapists.length || 'All'} clinicians)` }
+    ];
+    const femaleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'female').length;
+    const maleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'male').length;
+    const nbCount = normalizedTherapists.filter((t) => ['non-binary', 'other'].includes((t.gender || '').toLowerCase())).length;
+
+    if (femaleCount > 0) {
+      list.push({ value: 'Female', label: `Female clinician (${femaleCount} available)` });
+    }
+    if (maleCount > 0) {
+      list.push({ value: 'Male', label: `Male clinician (${maleCount} available)` });
+    }
+    if (nbCount > 0) {
+      list.push({ value: 'Non-binary', label: `Non-binary clinician (${nbCount} available)` });
+    }
+    return list;
+  }, [normalizedTherapists]);
   
   const createSession = async () => {
     try {
@@ -2021,13 +2077,29 @@ function Guided({ exit, onBookSession, user, profile }) {
             <div className="iw-field">
               <label>Therapist gender preference?</label>
               <div className="iw-optiongrid">
-                {['No preference', 'Female', 'Male'].map((item) => <Option key={item} selected={d.therapistGender === item} onClick={() => set('therapistGender', item)}>{item}</Option>)}
+                {dynamicGenderOptions.map((opt) => (
+                  <Option
+                    key={opt.value}
+                    selected={d.therapistGender === opt.value}
+                    onClick={() => set('therapistGender', opt.value)}
+                  >
+                    {opt.label}
+                  </Option>
+                ))}
               </div>
             </div>
             <div className="iw-field">
               <label>Affordable budget per session?</label>
               <div className="iw-optiongrid">
-                {['Under ₹500', '₹500–1000', '₹1000–1500', '₹1500+'].map((item) => <Option key={item} selected={d.budget === item} onClick={() => set('budget', item)}>{item}</Option>)}
+                {dynamicBudgetOptions.map((opt) => (
+                  <Option
+                    key={opt.value}
+                    selected={d.budget === opt.value}
+                    onClick={() => set('budget', opt.value)}
+                  >
+                    {opt.label}
+                  </Option>
+                ))}
               </div>
             </div>
             <div className="iw-field">

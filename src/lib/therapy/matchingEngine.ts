@@ -166,6 +166,11 @@ export const BUDGET_BAND_MAX: Record<string, number> = {
   '₹500–1000': 1000,
   '₹1000–1500': 1500,
   '₹1500+': 999999,
+  'Under ₹1,200': 1200,
+  '₹1,200–₹1,800': 1800,
+  '₹1,800–₹2,500': 2500,
+  '₹2,500+': 999999,
+  'Flexible': 999999,
 };
 
 export const KNOWN_MODALITIES = [
@@ -326,11 +331,18 @@ export function citiesMatch(a?: string | null, b?: string | null): boolean {
 
 export function normalizeBudgetBand(b?: string | null): string | null {
   if (!b) return null;
+  const lower = b.toLowerCase();
+  if (lower.includes('flexible') || lower.includes('any') || lower.includes('all clinicians')) {
+    return 'Flexible';
+  }
   const cleaned = b.replace(/-/g, '–').trim();
   if (BUDGET_BAND_MAX[cleaned] !== undefined) return cleaned;
   if (BUDGET_BAND_MAX[b.trim()] !== undefined) return b.trim();
-  const lower = b.toLowerCase();
-  if (lower.includes('under') || lower.includes('500') && !lower.includes('1000')) return 'Under ₹500';
+  if (lower.includes('under') && (lower.includes('1,200') || lower.includes('1200'))) return 'Under ₹1,200';
+  if ((lower.includes('1,200') || lower.includes('1200')) && (lower.includes('1,800') || lower.includes('1800'))) return '₹1,200–₹1,800';
+  if ((lower.includes('1,800') || lower.includes('1800')) && (lower.includes('2,500') || lower.includes('2500'))) return '₹1,800–₹2,500';
+  if (lower.includes('2,500+') || lower.includes('2500+')) return '₹2,500+';
+  if (lower.includes('under') || (lower.includes('500') && !lower.includes('1000'))) return 'Under ₹500';
   if (lower.includes('500') && lower.includes('1000')) return '₹500–1000';
   if (lower.includes('1000') && lower.includes('1500')) return '₹1000–1500';
   if (lower.includes('1500') || lower.includes('2000')) return '₹1500+';
@@ -387,9 +399,9 @@ export function scoreGender(profile: ClientProfile, t: TherapistRecord) {
 export function scoreBudget(profile: ClientProfile, t: TherapistRecord) {
   if (!profile.budget) return { score: null };
   const normKey = normalizeBudgetBand(profile.budget);
-  if (!normKey) return { score: null };
+  if (!normKey || normKey === 'Flexible') return { score: null };
   const max = BUDGET_BAND_MAX[normKey];
-  if (max == null) return { score: null };
+  if (max == null || max >= 999999) return { score: null };
   return { score: t.fee <= max ? 1 : 0 };
 }
 

@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Info,
   Calendar,
+  Bookmark,
+  X,
 } from 'lucide-react';
 import {
   CONVERSATIONAL_QUESTIONS,
@@ -25,8 +27,6 @@ import {
   getActiveQuestions,
 } from '../../lib/therapy/conversationalIntakeConfig';
 import TherapyMatchResultsView from './TherapyMatchResultsView';
-
-
 
 export default function ConversationalIntake({ exit, user, profile, onStartBooking }) {
   const [sessionId, setSessionId] = useState(null);
@@ -37,6 +37,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   const [textInput, setTextInput] = useState('');
   const [selectedMulti, setSelectedMulti] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [matchingInProgress, setMatchingInProgress] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
@@ -59,7 +60,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, currentQuestionId, matchingInProgress]);
+  }, [messages, isTyping, currentQuestionId, matchingInProgress]);
 
   // Initial load: start or resume session
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                     id: `msg_ack_${q.id}`,
                     sender: 'assistant',
                     text: ack,
+                    isAck: true,
                     questionId: q.id,
                     timestamp: new Date().toISOString(),
                   });
@@ -174,7 +176,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
 
   // Submit response to current question
   const handleAnswer = async (answerVal) => {
-    if (loading || matchingInProgress) return;
+    if (loading || matchingInProgress || isTyping) return;
     setErrorMsg('');
 
     // Pre-validation
@@ -218,8 +220,9 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
     setTextInput('');
     setSelectedMulti([]);
 
-    // Call server to persist and evaluate acknowledgment
-    setLoading(true);
+    // Trigger typing indicator for natural conversational pacing
+    setIsTyping(true);
+
     try {
       const res = await fetch('/api/therapy/conversation/session', {
         method: 'POST',
@@ -234,23 +237,14 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
 
       const data = await res.json().catch(() => ({}));
 
+      // Conversational pacing delay: minimum 320ms so user feels heard
+      await new Promise((r) => setTimeout(r, 320));
+
       const acknowledgment =
         data.acknowledgment ||
         (typeof currentConfig.getNaturalAcknowledgment === 'function'
           ? currentConfig.getNaturalAcknowledgment(answerVal, nextAnswers)
           : 'Thank you for sharing.');
-
-      // Push assistant acknowledgment
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg_ack_${Date.now()}`,
-          sender: 'assistant',
-          text: acknowledgment,
-          questionId: currentQId,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
 
       const nextQId = data.nextQuestionId || (
         typeof currentConfig.getNextQuestionId === 'function'
@@ -258,29 +252,41 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
           : null
       );
 
+      const nextCfg = nextQId ? getQuestionById(nextQId) : null;
+
+      // Update message thread
+      setMessages((prev) => {
+        const updated = [
+          ...prev,
+          {
+            id: `msg_ack_${Date.now()}`,
+            sender: 'assistant',
+            text: acknowledgment,
+            isAck: true,
+            questionId: currentQId,
+            timestamp: new Date().toISOString(),
+          },
+        ];
+
+        if (nextCfg && nextCfg.id !== 'contact_consent') {
+          updated.push({
+            id: `msg_prompt_${Date.now() + 1}`,
+            sender: 'assistant',
+            text: nextCfg.prompt,
+            questionId: nextCfg.id,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        return updated;
+      });
+
       if (nextQId) {
         setCurrentQuestionId(nextQId);
-        const nextCfg = getQuestionById(nextQId);
-        if (nextCfg && nextCfg.id !== 'contact_consent') {
-          // Push next question prompt
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg_prompt_${Date.now()}`,
-              sender: 'assistant',
-              text: nextCfg.prompt,
-              questionId: nextCfg.id,
-              timestamp: new Date().toISOString(),
-            },
-          ]);
-        }
       } else {
-        // Conversation complete, prompt consent step
         setCurrentQuestionId('contact_consent');
       }
     } catch (err) {
       console.warn('Answer persistence notice:', err);
-      // Fallback: advance locally
       let fallbackNext = 'contact_consent';
       if (typeof currentConfig.getNextQuestionId === 'function') {
         const next = currentConfig.getNextQuestionId(answerVal, nextAnswers);
@@ -288,13 +294,13 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
       }
       setCurrentQuestionId(fallbackNext);
     } finally {
-      setLoading(false);
+      setIsTyping(false);
     }
   };
 
   // Back to previous question
   const handleBackQuestion = () => {
-    if (questionHistory.length === 0) return;
+    if (questionHistory.length === 0 || isTyping) return;
     const prevQId = questionHistory[questionHistory.length - 1];
     setQuestionHistory((prev) => prev.slice(0, -1));
     setCurrentQuestionId(prevQId);
@@ -414,7 +420,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
     setTimeout(() => {
       setSaveSuccessMsg('');
       exit();
-    }, 1800);
+    }, 1500);
   };
 
   // ---------------------------------------------------------------------------
@@ -448,17 +454,21 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             </div>
             <div className="flex items-center justify-between text-xs text-mid pb-2 border-b border-[#132A24]/8">
               <span>Fee per session</span>
-              <strong className="text-primary font-medium">₹{selectedTherapistSuccess.fee || 1500}</strong>
+              <strong className="text-primary font-medium">₹{Number(selectedTherapistSuccess.fee || 1500).toLocaleString('en-IN')}</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs text-mid pb-2 border-b border-[#132A24]/8">
+              <span>Format</span>
+              <strong className="text-primary font-medium">Online (Telehealth Google Meet)</strong>
             </div>
             <div className="flex items-center justify-between text-xs text-mid">
-              <span>Format</span>
-              <strong className="text-primary font-medium">
-                {(selectedTherapistSuccess.formats || ['Telehealth']).join(', ')}
-              </strong>
+              <span>Confidentiality</span>
+              <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                <ShieldCheck size={14} /> Encrypted &amp; Clinical Safe
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => {
@@ -468,17 +478,17 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   exit();
                 }
               }}
-              className="w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-primary/90 text-white font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+              className="px-8 py-3.5 bg-accent hover:bg-accent/90 text-white font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2"
             >
-              <span>Schedule First Session</span>
+              <span>Schedule Initial Session</span>
               <Calendar size={15} />
             </button>
             <button
               type="button"
               onClick={exit}
-              className="w-full sm:w-auto px-6 py-3.5 border border-primary/20 text-primary hover:bg-primary/5 font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              className="px-6 py-3.5 border border-[#132A24]/20 hover:bg-[#132A24]/5 text-primary font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
             >
-              Return to Care Portal
+              Return to Therapy Portal
             </button>
           </div>
         </div>
@@ -487,16 +497,15 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: MATCH OUTCOME SCREEN (Shortlist OR Strict No-Match)
+  // RENDER: MATCH OUTCOME (RESULTS OR NO-MATCH REASSURANCE)
   // ---------------------------------------------------------------------------
   if (matchOutcome) {
-    // ZERO MATCHES CASE (NON-NEGOTIABLE ZERO-BROADCAST REASSURING PATH)
-    if (matchOutcome.status === 'no_match' || (matchOutcome.matches && matchOutcome.matches.length === 0)) {
+    if (!matchOutcome.matches || matchOutcome.matches.length === 0) {
       return (
-        <div className="w-full max-w-[760px] mx-auto px-4 py-8 animate-in fade-in duration-300">
-          <div className="bg-white border border-[#132A24]/12 rounded-3xl p-6 sm:p-10 shadow-lg text-left">
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 w-fit mb-4">
-              <Clock size={13} />
+        <div className="w-full max-w-[720px] mx-auto px-4 py-8 animate-in fade-in duration-300">
+          <div className="bg-white border border-[#132A24]/12 rounded-3xl p-6 sm:p-10 text-left shadow-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold mb-4">
+              <Clock size={14} />
               <span>Personal Care Coordination Needed</span>
             </div>
 
@@ -605,424 +614,446 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: MAIN CHATBOT CONVERSATIONAL CONTAINER
+  // RENDER: CHATBOT INTERFACE (FIXED-HEIGHT CONVERSATIONAL SHELL)
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-full max-w-[800px] mx-auto px-3.5 sm:px-6 py-4 sm:py-6 flex flex-col min-h-[82vh]">
-      {/* TOP HEADER: Progress, Title, Save & Resume */}
-      <header className="bg-white/80 backdrop-blur-md border border-[#132A24]/10 rounded-2xl p-4 mb-4 flex items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={exit}
-            className="w-8 h-8 rounded-lg border border-[#132A24]/10 flex items-center justify-center text-mid hover:text-primary hover:border-accent/40 transition-all cursor-pointer shrink-0"
-            title="Exit conversation"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-sm sm:text-base font-semibold text-primary truncate">
-                Talk it through
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                Conversational Intake
-              </span>
-            </div>
-            <div className="text-[11px] text-mid truncate">
-              Step {currentIndex + 1} of {activeQuestions.length} · {currentConfig.category}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleSaveAndResumeLater}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#132A24]/15 hover:border-accent/40 text-primary hover:bg-primary/5 text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer"
-          >
-            <span>Save &amp; Resume</span>
-          </button>
-          <button
-            type="button"
-            onClick={exit}
-            className="px-3 py-1.5 text-xs text-mid hover:text-primary transition-colors cursor-pointer"
-          >
-            Exit
-          </button>
-        </div>
-      </header>
-
-      {/* PROGRESS BAR */}
-      <div className="w-full bg-[#132A24]/10 h-1 rounded-full mb-4 overflow-hidden">
-        <div
-          className="bg-accent h-full transition-all duration-300"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      {saveSuccessMsg && (
-        <div className="p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium text-center animate-in fade-in">
-          {saveSuccessMsg}
-        </div>
-      )}
-
-      {/* CHAT STREAM (Message Scroll Area) */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.map((msg) => {
-          const isAssistant = msg.sender === 'assistant';
-          return (
-            <div
-              key={msg.id}
-              className={`flex items-start gap-3 ${isAssistant ? 'justify-start' : 'justify-end'} animate-in fade-in duration-200`}
-            >
-              {isAssistant && (
-                <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent border border-accent/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles size={14} />
-                </div>
-              )}
-
-              <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 sm:p-4 text-xs sm:text-[13.5px] leading-relaxed ${
-                  isAssistant
-                    ? 'bg-white border border-[#132A24]/10 text-[#132A24] shadow-2xs rounded-tl-xs'
-                    : 'bg-primary text-white shadow-2xs rounded-tr-xs font-light'
-                }`}
-              >
-                {msg.text}
+    <div className="w-full max-w-[760px] mx-auto px-2 sm:px-4 py-2 sm:py-3 h-[86vh] min-h-[580px] max-h-[820px] flex flex-col animate-in fade-in duration-200">
+      <div className="flex-1 bg-white/95 backdrop-blur-md border border-[#132A24]/12 rounded-3xl shadow-xl flex flex-col overflow-hidden relative">
+        
+        {/* PINNED CHATBOT HEADER */}
+        <header className="px-4 sm:px-6 py-3.5 bg-white/90 border-b border-[#132A24]/8 flex items-center justify-between gap-3 shrink-0 z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#1E3A34] to-[#132A24] text-white flex items-center justify-center shadow-xs">
+                <Sparkles size={17} className="text-amber-300" />
               </div>
-
-              {!isAssistant && (
-                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                  <User size={14} />
-                </div>
-              )}
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
             </div>
-          );
-        })}
 
-        {loading && (
-          <div className="flex items-center gap-2 text-xs text-mid/70 italic px-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-ping" />
-            <span>Thinking and adapting...</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="font-serif text-sm sm:text-base font-semibold text-[#132A24] truncate">
+                  Talk it through
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full hidden sm:inline">
+                  Adaptive Matching
+                </span>
+              </div>
+              <div className="text-[11px] text-mid truncate flex items-center gap-1.5 font-light">
+                <span>Step {currentIndex >= 0 ? currentIndex + 1 : activeQuestions.length} of {activeQuestions.length}</span>
+                <span>•</span>
+                <span className="capitalize">{currentConfig.category}</span>
+              </div>
+            </div>
           </div>
-        )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* ACTIVE QUESTION INPUT CONTROL AREA */}
-      <div className="mt-auto pt-3 border-t border-[#132A24]/10 bg-warm-paper/95 backdrop-blur-md">
-        {errorMsg && (
-          <div className="mb-3 p-2.5 rounded-xl bg-[#FBEFEA] border border-[#E3B3A2] text-[#8A3320] text-xs flex items-center gap-2">
-            <AlertCircle size={14} className="shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleSaveAndResumeLater}
+              title="Save your progress and return anytime"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#132A24]/15 hover:border-accent/40 text-primary hover:bg-primary/5 text-xs font-semibold transition-all cursor-pointer"
+            >
+              <Bookmark size={13} className="text-accent" />
+              <span className="hidden sm:inline">Save &amp; Resume</span>
+            </button>
+            <button
+              type="button"
+              onClick={exit}
+              className="w-8 h-8 rounded-xl border border-transparent hover:border-[#132A24]/10 text-mid hover:text-primary flex items-center justify-center transition-all cursor-pointer"
+              title="Exit intake"
+            >
+              <X size={16} />
+            </button>
           </div>
-        )}
+        </header>
 
-        {/* QUESTION PROMPT BANNER */}
-        <div className="mb-3.5 text-left">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-secondary mb-1">
-            Question {currentIndex + 1}
-          </div>
-          <h3 className="font-serif text-lg sm:text-xl font-normal text-primary leading-tight">
-            {currentConfig.prompt}
-          </h3>
-          {currentConfig.helperText && (
-            <p className="text-xs text-mid font-light mt-1">
-              {currentConfig.helperText}
-            </p>
-          )}
+        {/* THIN PROGRESS INDICATOR */}
+        <div className="w-full bg-[#132A24]/6 h-1 shrink-0 overflow-hidden">
+          <div
+            className="bg-emerald-600 h-full transition-all duration-300 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
 
-        {/* INPUT TYPE 1: TEXTAREA */}
-        {currentConfig.inputType === 'textarea' && (
-          <div className="space-y-2">
-            <textarea
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (textInput.trim()) handleAnswer(textInput.trim());
-                }
-              }}
-              rows={3}
-              placeholder={currentConfig.placeholder || 'Type your reflection here...'}
-              className="w-full p-3.5 rounded-xl bg-white border border-[#132A24]/15 focus:border-accent focus:ring-1 focus:ring-accent/30 text-xs sm:text-sm text-primary placeholder:text-mid/50 outline-none resize-none transition-all"
-            />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-mid/70 hidden sm:inline">
-                Press Enter to send · Shift+Enter for new line
+        {saveSuccessMsg && (
+          <div className="mx-4 mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium text-center animate-in fade-in shrink-0">
+            {saveSuccessMsg}
+          </div>
+        )}
+
+        {/* CHAT MESSAGES SCROLL AREA (Infinite inside the card, page never scrolls) */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3.5 scroll-smooth">
+          {messages.map((msg) => {
+            const isAssistant = msg.sender === 'assistant';
+            const isAck = Boolean(msg.isAck);
+
+            if (isAck) {
+              return (
+                <div
+                  key={msg.id}
+                  className="flex items-start gap-2.5 justify-start animate-in fade-in duration-200 max-w-[88%]"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100/70 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
+                    <HeartHandshake size={13} />
+                  </div>
+                  <div className="bg-emerald-50/70 border border-emerald-200/50 text-[#132A24] rounded-2xl rounded-tl-xs px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed font-light italic shadow-2xs">
+                    {msg.text}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex items-start gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'} animate-in fade-in duration-200`}
+              >
+                {isAssistant && (
+                  <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent border border-accent/20 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <Sparkles size={14} />
+                  </div>
+                )}
+
+                <div
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 sm:p-4 text-xs sm:text-[13.5px] leading-relaxed ${
+                    isAssistant
+                      ? 'bg-[#FAF8F5] border border-[#132A24]/8 text-[#132A24] shadow-2xs rounded-tl-xs font-normal'
+                      : 'bg-[#132A24] text-white shadow-xs rounded-tr-xs font-light'
+                  }`}
+                >
+                  {msg.text}
+                </div>
+
+                {!isAssistant && (
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                    <User size={14} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* REALISTIC TYPING INDICATOR */}
+          {isTyping && (
+            <div className="flex items-center gap-2.5 justify-start animate-in fade-in duration-200">
+              <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent border border-accent/20 flex items-center justify-center shrink-0 shadow-2xs">
+                <Sparkles size={13} />
+              </div>
+              <div className="bg-[#FAF8F5] border border-[#132A24]/8 rounded-2xl rounded-tl-xs px-4 py-3 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* PINNED BOTTOM INTERACTIVE ACTION DOCK */}
+        <div className="border-t border-[#132A24]/10 bg-white/95 backdrop-blur-md p-3 sm:p-4 shrink-0 z-10">
+          {errorMsg && (
+            <div className="mb-2.5 p-2.5 rounded-xl bg-[#FBEFEA] border border-[#E3B3A2] text-[#8A3320] text-xs flex items-center gap-2 animate-in fade-in">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Helper caption for current step */}
+          {currentConfig.inputType !== 'contact_consent' && (
+            <div className="flex items-center justify-between text-[11px] text-mid/80 mb-2 px-1">
+              <span className="font-medium text-secondary truncate">
+                {currentConfig.helperText || (
+                  currentConfig.inputType === 'single_select'
+                    ? 'Select an option to continue:'
+                    : currentConfig.inputType === 'multi_select'
+                    ? 'Select all that apply, then confirm:'
+                    : currentConfig.inputType === 'yes_no'
+                    ? 'Choose Yes or No:'
+                    : 'Share your thoughts:'
+                )}
               </span>
-              <div className="flex items-center gap-2 ml-auto">
-                {questionHistory.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleBackQuestion}
-                    className="px-3 py-2 text-xs text-mid hover:text-primary font-medium cursor-pointer"
-                  >
-                    Back
-                  </button>
-                )}
-                {currentConfig.skippable && (
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="px-3.5 py-2 text-xs border border-primary/20 rounded-xl hover:bg-primary/5 text-primary cursor-pointer font-medium"
-                  >
-                    {currentConfig.skipLabel || 'Skip'}
-                  </button>
-                )}
+              {questionHistory.length > 0 && (
                 <button
                   type="button"
-                  disabled={!textInput.trim() || loading}
-                  onClick={() => handleAnswer(textInput.trim())}
-                  className="px-5 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/30 text-white rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  onClick={handleBackQuestion}
+                  disabled={isTyping}
+                  className="text-mid hover:text-primary transition-colors cursor-pointer text-[11px] font-medium"
                 >
-                  <span>Continue</span>
+                  ← Previous question
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* INPUT 1: TEXTAREA / REFLECTION */}
+          {currentConfig.inputType === 'textarea' && (
+            <div className="space-y-2">
+              <div className="relative">
+                <textarea
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (textInput.trim()) handleAnswer(textInput.trim());
+                    }
+                  }}
+                  rows={2}
+                  disabled={isTyping}
+                  placeholder={currentConfig.placeholder || 'Type your reflection here...'}
+                  className="w-full p-3 pr-12 rounded-2xl bg-[#FAF8F5] border border-[#132A24]/12 focus:border-emerald-600 focus:bg-white focus:ring-1 focus:ring-emerald-600/30 text-xs sm:text-sm text-primary placeholder:text-mid/50 outline-none resize-none transition-all shadow-inner"
+                />
+                <button
+                  type="button"
+                  disabled={!textInput.trim() || isTyping}
+                  onClick={() => handleAnswer(textInput.trim())}
+                  className="absolute right-2.5 bottom-3.5 w-8 h-8 rounded-xl bg-primary hover:bg-primary/90 disabled:bg-primary/20 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                  title="Send reflection"
+                >
                   <Send size={13} />
                 </button>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* INPUT TYPE 2: SINGLE SELECT */}
-        {currentConfig.inputType === 'single_select' && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(currentConfig.options || []).map((opt) => (
+              <div className="flex items-center justify-between gap-2 px-1">
+                <span className="text-[10px] text-mid/60 hidden sm:inline">
+                  Enter to send · Shift+Enter for new line
+                </span>
+                <div className="flex items-center gap-2 ml-auto">
+                  {currentConfig.skippable && (
+                    <button
+                      type="button"
+                      disabled={isTyping}
+                      onClick={handleSkip}
+                      className="px-3 py-1 text-xs border border-primary/20 rounded-lg hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                    >
+                      {currentConfig.skipLabel || 'Skip'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* INPUT 2: SINGLE SELECT (QUICK REPLIES) */}
+          {currentConfig.inputType === 'single_select' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-0.5">
+                {(currentConfig.options || []).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={isTyping}
+                    onClick={() => handleAnswer(opt.value)}
+                    className="p-2.5 sm:p-3 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/10 hover:border-emerald-600 hover:shadow-xs text-left text-xs font-medium text-primary transition-all cursor-pointer flex items-center justify-between gap-2 group"
+                  >
+                    <span className="leading-snug">{opt.label}</span>
+                    <ChevronRight size={13} className="text-mid/40 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </button>
+                ))}
+              </div>
+
+              {currentConfig.skippable && (
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    disabled={isTyping}
+                    onClick={handleSkip}
+                    className="px-3 py-1 text-xs border border-primary/20 rounded-lg hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                  >
+                    {currentConfig.skipLabel || 'Skip'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* INPUT 3: MULTI SELECT (TOGGLE CHIPS) */}
+          {currentConfig.inputType === 'multi_select' && (
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-0.5">
+                {(currentConfig.options || []).map((opt) => {
+                  const isSelected = selectedMulti.includes(opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={isTyping}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedMulti(selectedMulti.filter((v) => v !== opt.value));
+                        } else {
+                          setSelectedMulti([...selectedMulti, opt.value]);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                          : 'bg-[#FAF8F5] hover:bg-white border-[#132A24]/12 hover:border-emerald-600/40 text-primary'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && <Check size={12} className="stroke-[2.5]" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-1 gap-2 border-t border-[#132A24]/6">
+                <span className="text-[11px] text-mid">
+                  {selectedMulti.length > 0
+                    ? `${selectedMulti.length} selected`
+                    : 'Select options above'}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  {currentConfig.skippable && (
+                    <button
+                      type="button"
+                      disabled={isTyping}
+                      onClick={handleSkip}
+                      className="px-3 py-1.5 text-xs border border-primary/20 rounded-xl hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                    >
+                      {currentConfig.skipLabel || 'Skip'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={selectedMulti.length === 0 && !currentConfig.skippable || isTyping}
+                    onClick={() => handleAnswer(selectedMulti)}
+                    className="px-5 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/20 text-white rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  >
+                    <span>Confirm Selection</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* INPUT 4: YES / NO */}
+          {currentConfig.inputType === 'yes_no' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  key={opt.value}
                   type="button"
-                  onClick={() => handleAnswer(opt.value)}
-                  className="p-3 rounded-xl bg-white hover:bg-[#FAF8F5] border border-[#132A24]/12 hover:border-accent/40 text-left text-xs font-medium text-primary transition-all cursor-pointer flex items-center justify-between gap-2 group shadow-2xs"
+                  disabled={isTyping}
+                  onClick={() => handleAnswer('Yes')}
+                  className="py-3 px-4 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/15 hover:border-emerald-600 text-primary hover:text-emerald-800 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
                 >
-                  <span>{opt.label}</span>
-                  <ChevronRight size={14} className="text-mid/50 group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                  Yes
                 </button>
-              ))}
+                <button
+                  type="button"
+                  disabled={isTyping}
+                  onClick={() => handleAnswer('No')}
+                  className="py-3 px-4 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/15 hover:border-emerald-600 text-primary hover:text-emerald-800 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
+                >
+                  No
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className="flex items-center justify-between pt-1">
-              {questionHistory.length > 0 ? (
+          {/* INPUT 5: CONTACT & EXPLICIT MATCHING CONSENT */}
+          {currentConfig.inputType === 'contact_consent' && (
+            <div className="bg-[#FAF8F5] border border-[#132A24]/12 rounded-2xl p-3.5 sm:p-4 text-left space-y-3 shadow-inner max-h-56 sm:max-h-64 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Your name"
+                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+91..."
+                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Privacy Shield & Consent Notice */}
+              <div className="p-3 bg-white border border-primary/10 rounded-xl space-y-1.5 text-xs text-mid leading-relaxed font-light">
+                <div className="flex items-center gap-1.5 font-bold uppercase text-[10px] text-primary tracking-wider">
+                  <Lock size={12} className="text-emerald-700" />
+                  <span>Confidential Matching Privacy Guarantee</span>
+                </div>
+                <p className="m-0 text-[11.5px]">
+                  Your intake answers are evaluated algorithmically against active, verified licensed therapists. Your full intake is <strong>only shared with the specific therapist you explicitly select</strong>. If no direct match is found, your record is held securely for internal clinical review with zero broadcasts.
+                </p>
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={consentGranted}
+                  onChange={(e) => setConsentGranted(e.target.checked)}
+                  className="mt-0.5 accent-emerald-700 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs text-primary font-medium">
+                  I authorize Ingress Within to evaluate verified clinicians based on my intake answers and schedule 1-on-1 care.
+                </span>
+              </label>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[#132A24]/8">
                 <button
                   type="button"
                   onClick={handleBackQuestion}
                   className="px-3 py-1.5 text-xs text-mid hover:text-primary font-medium cursor-pointer"
                 >
-                  ← Back to previous question
+                  ← Previous question
                 </button>
-              ) : <div />}
 
-              {currentConfig.skippable && (
                 <button
                   type="button"
-                  onClick={handleSkip}
-                  className="px-3.5 py-1.5 text-xs border border-primary/20 rounded-xl hover:bg-primary/5 text-primary cursor-pointer"
+                  disabled={!consentGranted || matchingInProgress}
+                  onClick={handleRunMatching}
+                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-700/40 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-xs"
                 >
-                  {currentConfig.skipLabel || 'Skip'}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* INPUT TYPE 3: MULTI SELECT */}
-        {currentConfig.inputType === 'multi_select' && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
-              {(currentConfig.options || []).map((opt) => {
-                const isSelected = selectedMulti.includes(opt.value);
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      if (isSelected) {
-                        setSelectedMulti(selectedMulti.filter((v) => v !== opt.value));
-                      } else {
-                        setSelectedMulti([...selectedMulti, opt.value]);
-                      }
-                    }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-2 ${
-                      isSelected
-                        ? 'bg-accent text-white border-accent shadow-xs'
-                        : 'bg-white border-[#132A24]/12 hover:border-accent/40 text-primary'
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                    {isSelected && <Check size={13} />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between pt-1 gap-2">
-              {questionHistory.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={handleBackQuestion}
-                  className="px-3 py-2 text-xs text-mid hover:text-primary font-medium cursor-pointer"
-                >
-                  ← Back
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                {currentConfig.skippable && (
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="px-3.5 py-2 text-xs border border-primary/20 rounded-xl hover:bg-primary/5 text-primary cursor-pointer font-medium"
-                  >
-                    {currentConfig.skipLabel || 'Skip'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={selectedMulti.length === 0 && !currentConfig.skippable}
-                  onClick={() => handleAnswer(selectedMulti)}
-                  className="px-5 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/30 text-white rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                >
-                  <span>Confirm Selection ({selectedMulti.length})</span>
-                  <ArrowRight size={13} />
+                  {matchingInProgress ? (
+                    <>
+                      <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      <span>Evaluating Therapists...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Find My Matching Therapists</span>
+                      <Sparkles size={14} className="text-amber-300" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* INPUT TYPE 4: YES / NO */}
-        {currentConfig.inputType === 'yes_no' && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleAnswer('Yes')}
-                className="flex-1 py-3 px-4 rounded-xl bg-white border border-[#132A24]/15 hover:border-accent/40 text-primary hover:bg-accent/5 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAnswer('No')}
-                className="flex-1 py-3 px-4 rounded-xl bg-white border border-[#132A24]/15 hover:border-accent/40 text-primary hover:bg-accent/5 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
-              >
-                No
-              </button>
-            </div>
-
-            {questionHistory.length > 0 && (
-              <button
-                type="button"
-                onClick={handleBackQuestion}
-                className="px-3 py-1 text-xs text-mid hover:text-primary font-medium cursor-pointer"
-              >
-                ← Back
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* INPUT TYPE 5: CONTACT & EXPLICIT MATCHING CONSENT */}
-        {currentConfig.inputType === 'contact_consent' && (
-          <div className="bg-white border border-[#132A24]/12 rounded-2xl p-4 sm:p-5 text-left space-y-4 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Your full name"
-                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-primary focus:border-accent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-primary focus:border-accent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="+91..."
-                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-primary focus:border-accent outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Privacy Shield & Consent Notice */}
-            <div className="p-3.5 bg-[#FAF8F5] border border-primary/10 rounded-xl space-y-2 text-xs text-mid leading-relaxed font-light">
-              <div className="flex items-center gap-2 font-bold uppercase text-[10px] text-primary tracking-wider">
-                <Lock size={12} className="text-accent" />
-                <span>Confidential Matching Privacy Guarantee</span>
-              </div>
-              <p className="m-0">
-                Your intake answers are evaluated algorithmically against active, verified licensed therapists. Your full intake is <strong>only shared with the specific therapist you explicitly select</strong>. If no direct match is found, your record is held securely for internal clinical review with zero broadcasts.
-              </p>
-            </div>
-
-            <label className="flex items-start gap-3 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={consentGranted}
-                onChange={(e) => setConsentGranted(e.target.checked)}
-                className="mt-0.5 accent-accent w-4 h-4 cursor-pointer"
-              />
-              <span className="text-xs text-primary font-medium">
-                I authorize Ingress Within to evaluate verified clinicians based on my intake answers and schedule 1-on-1 care.
-              </span>
-            </label>
-
-            <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={handleBackQuestion}
-                className="px-3 py-2 text-xs text-mid hover:text-primary font-medium cursor-pointer"
-              >
-                ← Back to previous question
-              </button>
-
-              <button
-                type="button"
-                disabled={!consentGranted || matchingInProgress}
-                onClick={handleRunMatching}
-                className="px-6 py-2.5 bg-accent hover:bg-accent/90 disabled:bg-accent/30 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-xs"
-              >
-                {matchingInProgress ? (
-                  <>
-                    <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    <span>Evaluating Therapists...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Find My Matching Therapists</span>
-                    <Sparkles size={14} />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
