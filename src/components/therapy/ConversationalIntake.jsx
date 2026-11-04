@@ -21,7 +21,6 @@ import {
   Bookmark,
   X,
   Compass,
-  Wind,
   Feather,
   Heart,
   HelpCircle,
@@ -70,10 +69,6 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   const [errorMsg, setErrorMsg] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
-  // Bespoke Sanctuary Grounding Feature (Take a Breath)
-  const [isBreathingMode, setIsBreathingMode] = useState(false);
-  const [breathPhase, setBreathPhase] = useState('Inhale gently...');
-
   // Contact consent state
   const [contactName, setContactName] = useState(profile?.name || user?.name || user?.full_name || '');
   const [contactEmail, setContactEmail] = useState(profile?.email || user?.email || '');
@@ -93,25 +88,6 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping, currentQuestionId, matchingInProgress]);
-
-  // Gentle 4-second box-breathing cycle when breathing mode is activated
-  useEffect(() => {
-    if (!isBreathingMode) return;
-    const phases = [
-      'Inhale gently through your nose (4s)...',
-      'Hold softly, feeling grounded (4s)...',
-      'Exhale slowly and release (4s)...',
-      'Rest in stillness (4s)...',
-    ];
-    let idx = 0;
-    setBreathPhase(phases[0]);
-    const interval = setInterval(() => {
-      idx = (idx + 1) % phases.length;
-      setBreathPhase(phases[idx]);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [isBreathingMode]);
 
   // Initial load: start or resume session
   useEffect(() => {
@@ -688,18 +664,13 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
               <div className="w-10 h-10 rounded-2xl bg-[#283D38] text-[#FDFBF8] flex items-center justify-center shadow-xs border border-[#B8964A]/30">
                 <Compass className="w-5 h-5 text-[#D9BCAF]" />
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#8AA688] border-2 border-white rounded-full animate-pulse shadow-2xs" title="Sanctuary Active" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#8AA688] border-2 border-white rounded-full animate-pulse shadow-2xs" />
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="font-serif text-[15px] sm:text-base font-medium text-[#011627] truncate">
-                  The Ingress Guide
-                </h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#795663] bg-[#795663]/10 border border-[#795663]/20 px-2 py-0.5 rounded-full hidden sm:inline">
-                  Intake Sanctuary
-                </span>
-              </div>
+              <h2 className="font-serif text-[15px] sm:text-base font-medium text-[#011627] truncate">
+                The Ingress Guide
+              </h2>
               <div className="text-[11px] text-[#4F635E] truncate flex items-center gap-1.5 font-light">
                 <span>Phase: {currentPhase.label}</span>
                 <span>•</span>
@@ -709,21 +680,6 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Mindful Grounding Breathing Button */}
-            <button
-              type="button"
-              onClick={() => setIsBreathingMode(!isBreathingMode)}
-              title="Ground yourself with gentle pacing"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                isBreathingMode
-                  ? 'bg-[#795663] text-white border-[#795663] shadow-xs'
-                  : 'bg-[#795663]/5 hover:bg-[#795663]/15 text-[#795663] border-[#795663]/20'
-              }`}
-            >
-              <Wind size={13} className={isBreathingMode ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">{isBreathingMode ? 'Pause Breathing' : 'Take a Breath'}</span>
-            </button>
-
             <button
               type="button"
               onClick={handleSaveAndResumeLater}
@@ -731,7 +687,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#283D38]/15 hover:border-[#795663]/50 text-[#011627] hover:bg-[#283D38]/5 text-xs font-semibold transition-all cursor-pointer"
             >
               <Bookmark size={13} className="text-[#B8964A]" />
-              <span className="hidden md:inline">Save &amp; Resume</span>
+              <span className="hidden sm:inline">Save &amp; Resume</span>
             </button>
 
             <button
@@ -784,23 +740,6 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             />
           </div>
         </div>
-
-        {/* MINDFUL BREATHING BANNER (Optional Grounding Oasis) */}
-        {isBreathingMode && (
-          <div className="bg-gradient-to-r from-[#F8F5F1] via-[#FAF7F2] to-[#F8F5F1] border-b border-[#795663]/20 px-4 py-2.5 flex items-center justify-between text-xs text-[#283D38] animate-in fade-in">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#8AA688] animate-ping" />
-              <span className="font-serif italic text-[13px]">{breathPhase}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsBreathingMode(false)}
-              className="text-[#4F635E] hover:text-[#011627] text-[11px] underline cursor-pointer"
-            >
-              Close
-            </button>
-          </div>
-        )}
 
         {saveSuccessMsg && (
           <div className="mx-4 mt-3 p-2.5 rounded-xl bg-[#EDF3ED] border border-[#8AA688]/40 text-[#283D38] text-xs font-medium text-center animate-in fade-in shrink-0">
