@@ -72,7 +72,7 @@ export default function DashboardNavbar({ activeTab }) {
 
   // Determine if current active tab is part of the "More" extended destinations (for mobile bottom nav)
   const isMoreActive = Boolean(
-    activeTab && !['home', 'dashboard', 'write', 'interventions', 'reports', 'patterns', 'knowledge'].includes(activeTab)
+    activeTab && !['home', 'dashboard', 'write', 'interventions', 'reports', 'patterns', 'knowledge', 'therapy'].includes(activeTab)
   );
 
   const getTabClass = (tab) => {
@@ -151,6 +151,13 @@ export default function DashboardNavbar({ activeTab }) {
               aria-current={activeTab === 'knowledge' ? 'page' : undefined}
             >
               Knowledge
+            </button>
+            <button 
+              className={getTabClass('therapy')} 
+              onClick={() => handleNavigate('/therapy')}
+              aria-current={activeTab === 'therapy' ? 'page' : undefined}
+            >
+              Therapy
             </button>
           </nav>
 
@@ -616,7 +623,11 @@ export default function DashboardNavbar({ activeTab }) {
                   <button
                     type="button"
                     onClick={() => handleNavigate('/therapy')}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:bg-primary/5 text-primary transition-all cursor-pointer"
+                    className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      activeTab === 'therapy'
+                        ? 'bg-accent/10 border-accent/20 text-accent font-semibold'
+                        : 'border-transparent hover:bg-primary/5 text-primary'
+                    }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-[#8DBFB4]/15 text-[#1A5040] flex items-center justify-center shrink-0">
@@ -625,11 +636,11 @@ export default function DashboardNavbar({ activeTab }) {
                       <div className="text-left truncate">
                         <div className="flex items-center gap-2">
                           <span className="text-[13px] font-medium leading-tight">1-on-1 Clinical Care</span>
-                          <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded bg-accent/15 text-accent">
-                            Coming Soon
+                          <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Available
                           </span>
                         </div>
-                        <div className="text-[11px] text-mid leading-snug truncate">Matched licensed therapist integration</div>
+                        <div className="text-[11px] text-mid leading-snug truncate">Match with verified licensed therapists</div>
                       </div>
                     </div>
                     <ChevronRight size={14} className="text-mid/60 shrink-0" />

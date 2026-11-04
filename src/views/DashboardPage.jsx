@@ -511,22 +511,22 @@ export default function DashboardPage({ user, profile, onSignOut }) {
           </p>
         </section>
 
-        {/* Sleek Upcoming Clinical Support Announcement Strip */}
+        {/* Clinical Support Announcement Strip */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          onClick={() => setTherapyModalOpen(true)}
+          onClick={() => window.navigateTo('/therapy')}
           className="w-full bg-white/90 hover:bg-white border border-primary/10 hover:border-accent/40 rounded-xl px-3.5 sm:px-4 py-2.5 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setTherapyModalOpen(true);
+              window.navigateTo('/therapy');
             }
           }}
-          title="Click to view details about upcoming 1-on-1 Clinical Support"
+          title="Connect with verified licensed therapists for 1-on-1 clinical care"
         >
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0 text-accent group-hover:scale-105 transition-transform">
@@ -539,14 +539,14 @@ export default function DashboardPage({ user, profile, onSignOut }) {
               </span>
               <span className="text-primary/20 hidden md:inline">•</span>
               <span className="text-xs text-mid font-light truncate hidden sm:inline">
-                Direct matching with licensed therapists is launching soon
+                Direct matching with verified licensed therapists
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[9px] font-bold text-accent uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-accent/10 border border-accent/20">
-              Coming Soon
+            <span className="text-[9px] font-bold text-accent uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-accent/10 border border-accent/20 group-hover:bg-accent group-hover:text-white transition-colors">
+              Available
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-mid group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
           </div>
@@ -1584,8 +1584,8 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                     <HeartHandshake className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[9px] font-bold text-accent uppercase tracking-widest px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20">
-                      Therapists — Coming Soon
+                    <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200">
+                      Now Available
                     </span>
                   </div>
                 </div>
@@ -1595,36 +1595,48 @@ export default function DashboardPage({ user, profile, onSignOut }) {
                 </h3>
 
                 <p className="text-sm text-mid font-light leading-relaxed">
-                  Direct matching with licensed, culturally attuned therapists is launching soon. In the meantime, all self-help modules, techniques, and writing tools are fully active.
+                  Direct matching with licensed, culturally attuned therapists is now live. Complete your confidential clinical intake, get matched with verified practitioners, schedule sessions, and integrate your self-reflection journey.
                 </p>
               </div>
 
               <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-4 space-y-2.5">
                 <div className="text-[10px] font-bold text-secondary uppercase tracking-wider">
-                  What to expect at launch
+                  What you can do now
                 </div>
                 <ul className="text-xs text-mid space-y-2 list-none p-0 m-0">
                   <li className="flex items-start gap-2">
                     <span className="text-accent font-bold mt-0.5">•</span>
-                    <span>Direct matching with certified, culturally attuned therapists.</span>
+                    <span>Confidential intake and algorithmic matching with verified clinicians.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent font-bold mt-0.5">•</span>
-                    <span>Integrated homework & reflection continuity between sessions.</span>
+                    <span>Book 1-on-1 virtual sessions with calendar sync and video integration.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent font-bold mt-0.5">•</span>
-                    <span>Your private self-work journals remain strictly confidential.</span>
+                    <span>Collaborative therapeutic goals, homework, and longitudinal care reviews.</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end items-center gap-2 pt-2">
                 <button
+                  type="button"
                   onClick={() => setTherapyModalOpen(false)}
-                  className="px-5 py-2.5 bg-primary text-white hover:bg-primary/90 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs border-none"
+                  className="px-4 py-2 border border-primary/20 text-primary hover:bg-primary/5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
                 >
-                  Got It
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTherapyModalOpen(false);
+                    window.navigateTo('/therapy');
+                  }}
+                  className="px-5 py-2.5 bg-primary text-white hover:bg-primary/90 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs border-none flex items-center gap-1.5"
+                >
+                  <span>Explore Therapists</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
