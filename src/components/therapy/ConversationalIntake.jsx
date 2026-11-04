@@ -20,6 +20,11 @@ import {
   Calendar,
   Bookmark,
   X,
+  Compass,
+  Wind,
+  Feather,
+  Heart,
+  HelpCircle,
 } from 'lucide-react';
 import {
   CONVERSATIONAL_QUESTIONS,
@@ -27,6 +32,29 @@ import {
   getActiveQuestions,
 } from '../../lib/therapy/conversationalIntakeConfig';
 import TherapyMatchResultsView from './TherapyMatchResultsView';
+
+// Curated starter thoughts for open-ended reflection steps to reduce user blank-page anxiety
+const STARTER_THOUGHTS = {
+  reason: [
+    'Feeling overwhelmed with daily stress & burnout',
+    'Navigating anxiety and persistent worry',
+    'Working through relationship or family difficulties',
+    'Processing grief, loss, or major life transition',
+    'Seeking clarity, direction, and self-understanding',
+  ],
+  expectations: [
+    'Learn practical coping strategies and tools',
+    'Have a safe, non-judgmental space to unpack emotions',
+    'Understand unconscious patterns from my past',
+    'Build resilience in my close relationships',
+  ],
+  modality_preference: [
+    'Open to what my therapist recommends',
+    'CBT (Practical thought & behavioral tools)',
+    'Psychodynamic (Exploring root patterns & past experiences)',
+    'Somatic (Mind-body stress release)',
+  ],
+};
 
 export default function ConversationalIntake({ exit, user, profile, onStartBooking }) {
   const [sessionId, setSessionId] = useState(null);
@@ -41,6 +69,10 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   const [matchingInProgress, setMatchingInProgress] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+
+  // Bespoke Sanctuary Grounding Feature (Take a Breath)
+  const [isBreathingMode, setIsBreathingMode] = useState(false);
+  const [breathPhase, setBreathPhase] = useState('Inhale gently...');
 
   // Contact consent state
   const [contactName, setContactName] = useState(profile?.name || user?.name || user?.full_name || '');
@@ -61,6 +93,25 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping, currentQuestionId, matchingInProgress]);
+
+  // Gentle 4-second box-breathing cycle when breathing mode is activated
+  useEffect(() => {
+    if (!isBreathingMode) return;
+    const phases = [
+      'Inhale gently through your nose (4s)...',
+      'Hold softly, feeling grounded (4s)...',
+      'Exhale slowly and release (4s)...',
+      'Rest in stillness (4s)...',
+    ];
+    let idx = 0;
+    setBreathPhase(phases[0]);
+    const interval = setInterval(() => {
+      idx = (idx + 1) % phases.length;
+      setBreathPhase(phases[idx]);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isBreathingMode]);
 
   // Initial load: start or resume session
   useEffect(() => {
@@ -174,6 +225,16 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
     Math.round(((currentIndex >= 0 ? currentIndex : 0) / Math.max(1, activeQuestions.length)) * 100)
   );
 
+  // Derive meaningful therapeutic phases for client clarity
+  const phases = [
+    { id: 1, label: 'Intent & Reason', maxStep: 4 },
+    { id: 2, label: 'Presenting Context', maxStep: 8 },
+    { id: 3, label: 'Style & Relational Fit', maxStep: 14 },
+    { id: 4, label: 'Therapist Match', maxStep: 17 },
+  ];
+  const currentStepNum = currentIndex >= 0 ? currentIndex + 1 : 1;
+  const currentPhase = phases.find((p) => currentStepNum <= p.maxStep) || phases[phases.length - 1];
+
   // Submit response to current question
   const handleAnswer = async (answerVal) => {
     if (loading || matchingInProgress || isTyping) return;
@@ -237,8 +298,8 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
 
       const data = await res.json().catch(() => ({}));
 
-      // Conversational pacing delay: minimum 320ms so user feels heard
-      await new Promise((r) => setTimeout(r, 320));
+      // Conversational pacing delay: minimum 340ms so client feels heard
+      await new Promise((r) => setTimeout(r, 340));
 
       const acknowledgment =
         data.acknowledgment ||
@@ -416,7 +477,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
 
   // Save and resume later
   const handleSaveAndResumeLater = () => {
-    setSaveSuccessMsg('Your progress has been safely saved. You can return anytime to continue.');
+    setSaveSuccessMsg('Your journey has been safely preserved. You can return anytime to continue.');
     setTimeout(() => {
       setSaveSuccessMsg('');
       exit();
@@ -429,41 +490,41 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   if (selectedTherapistSuccess) {
     return (
       <div className="w-full max-w-[720px] mx-auto px-4 py-8 animate-in fade-in duration-300">
-        <div className="bg-white border border-[#132A24]/12 rounded-3xl p-6 sm:p-10 text-center shadow-lg">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center mx-auto mb-6 shadow-xs">
-            <CheckCircle2 size={32} />
+        <div className="bg-[#FAF7F2] border border-[#283D38]/12 rounded-3xl p-6 sm:p-10 text-center shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-[#EDF3ED] text-[#283D38] border border-[#8AA688]/30 flex items-center justify-center mx-auto mb-6 shadow-xs">
+            <CheckCircle2 size={32} className="text-[#8AA688]" />
           </div>
 
-          <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            Therapist Connection Initiated
+          <span className="text-[10.5px] font-bold uppercase tracking-widest text-[#795663] bg-[#795663]/10 px-3.5 py-1 rounded-full border border-[#795663]/20">
+            Therapist Connection Formed
           </span>
 
-          <h2 className="font-serif text-3xl font-semibold text-[#132A24] mt-4 mb-3">
+          <h2 className="font-serif text-3xl font-semibold text-[#011627] mt-4 mb-3">
             You’re connected with {selectedTherapistSuccess.name}
           </h2>
 
-          <p className="text-mid text-sm sm:text-base max-w-[520px] mx-auto leading-relaxed mb-6 font-light">
-            We have securely transmitted your selected match request to {selectedTherapistSuccess.name}.
-            Only this practitioner will review your relevant intake background. You can now schedule your first session.
+          <p className="text-[#4F635E] text-sm sm:text-base max-w-[520px] mx-auto leading-relaxed mb-6 font-light">
+            We have securely routed your confidential intake profile exclusively to {selectedTherapistSuccess.name}.
+            Only your chosen clinician will review your background before your initial session.
           </p>
 
-          <div className="bg-[#FAF8F5] border border-[#132A24]/8 rounded-2xl p-5 max-w-[480px] mx-auto mb-8 text-left space-y-2.5">
-            <div className="flex items-center justify-between text-xs text-mid pb-2 border-b border-[#132A24]/8">
+          <div className="bg-white border border-[#283D38]/10 rounded-2xl p-5 max-w-[480px] mx-auto mb-8 text-left space-y-2.5 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#4F635E] pb-2 border-b border-[#283D38]/8">
               <span>Practitioner</span>
-              <strong className="text-primary font-medium">{selectedTherapistSuccess.name}</strong>
+              <strong className="text-[#011627] font-medium">{selectedTherapistSuccess.name}</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-mid pb-2 border-b border-[#132A24]/8">
+            <div className="flex items-center justify-between text-xs text-[#4F635E] pb-2 border-b border-[#283D38]/8">
               <span>Fee per session</span>
-              <strong className="text-primary font-medium">₹{Number(selectedTherapistSuccess.fee || 1500).toLocaleString('en-IN')}</strong>
+              <strong className="text-[#011627] font-medium">₹{Number(selectedTherapistSuccess.fee || 1500).toLocaleString('en-IN')}</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-mid pb-2 border-b border-[#132A24]/8">
-              <span>Format</span>
-              <strong className="text-primary font-medium">Online (Telehealth Google Meet)</strong>
+            <div className="flex items-center justify-between text-xs text-[#4F635E] pb-2 border-b border-[#283D38]/8">
+              <span>Session Format</span>
+              <strong className="text-[#011627] font-medium">Online (Telehealth Google Meet)</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-mid">
+            <div className="flex items-center justify-between text-xs text-[#4F635E]">
               <span>Confidentiality</span>
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <ShieldCheck size={14} /> Encrypted &amp; Clinical Safe
+              <span className="text-[#283D38] font-semibold flex items-center gap-1">
+                <ShieldCheck size={14} className="text-[#8AA688]" /> Verified &amp; Encrypted
               </span>
             </div>
           </div>
@@ -478,15 +539,15 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   exit();
                 }
               }}
-              className="px-8 py-3.5 bg-accent hover:bg-accent/90 text-white font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2"
+              className="px-8 py-3.5 bg-[#283D38] hover:bg-[#1E3A34] text-[#FDFBF8] font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2"
             >
               <span>Schedule Initial Session</span>
-              <Calendar size={15} />
+              <Calendar size={15} className="text-[#D9BCAF]" />
             </button>
             <button
               type="button"
               onClick={exit}
-              className="px-6 py-3.5 border border-[#132A24]/20 hover:bg-[#132A24]/5 text-primary font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              className="px-6 py-3.5 border border-[#283D38]/20 hover:bg-[#283D38]/5 text-[#011627] font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
             >
               Return to Therapy Portal
             </button>
@@ -503,38 +564,38 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
     if (!matchOutcome.matches || matchOutcome.matches.length === 0) {
       return (
         <div className="w-full max-w-[720px] mx-auto px-4 py-8 animate-in fade-in duration-300">
-          <div className="bg-white border border-[#132A24]/12 rounded-3xl p-6 sm:p-10 text-left shadow-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold mb-4">
-              <Clock size={14} />
-              <span>Personal Care Coordination Needed</span>
+          <div className="bg-[#FAF7F2] border border-[#283D38]/12 rounded-3xl p-6 sm:p-10 text-left shadow-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FBF5E8] border border-[#B8964A]/30 text-[#6B4A0B] text-xs font-semibold mb-4">
+              <Compass size={14} className="text-[#B8964A]" />
+              <span>Personal Care Coordination Sanctuary</span>
             </div>
 
-            <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#132A24] leading-snug mb-3">
+            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-[#011627] leading-snug mb-3">
               We couldn’t find an immediate match based on your preferences right now.
             </h2>
 
-            <p className="text-mid text-sm sm:text-base leading-relaxed mb-6 font-light">
-              That’s completely okay — finding the right therapeutic fit matters. Because we strictly partner with verified, active practitioners with open capacity, nobody on our roster was a confident match for every specific criterion you requested.
+            <p className="text-[#4F635E] text-sm sm:text-base leading-relaxed mb-6 font-light">
+              That is completely okay — therapeutic resonance is delicate and deeply personal. Because we uphold clinical standards and verify every practitioner, none on our immediate roster satisfied every unique preference you specified.
             </p>
 
-            <div className="bg-[#FAF8F5] border border-[#132A24]/8 rounded-2xl p-5 mb-6 space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-secondary">
-                What happens next
+            <div className="bg-white border border-[#283D38]/10 rounded-2xl p-5 mb-6 space-y-3 shadow-2xs">
+              <div className="text-xs font-bold uppercase tracking-wider text-[#795663]">
+                Our Clinical Commitment to You
               </div>
-              <p className="text-xs sm:text-sm text-mid leading-relaxed font-light">
-                Our internal clinical care team has recorded your intake reference securely (<strong>{matchOutcome.referenceId}</strong>). An authorized coordinator will personally review your requirements and follow up with you.
+              <p className="text-xs sm:text-sm text-[#4F635E] leading-relaxed font-light">
+                Our internal clinical care coordination team has received your intake record securely under reference ID <strong>{matchOutcome.referenceId}</strong>. A licensed intake coordinator will personally review your answers to help guide your care.
               </p>
-              <div className="p-3 bg-white rounded-xl border border-primary/8 text-xs text-mid flex items-start gap-2.5">
-                <ShieldCheck size={16} className="text-accent shrink-0 mt-0.5" />
+              <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#283D38]/8 text-xs text-[#4F635E] flex items-start gap-2.5">
+                <ShieldCheck size={16} className="text-[#8AA688] shrink-0 mt-0.5" />
                 <span>
-                  <strong>Strict Privacy Guarantee:</strong> Your confidential intake is never broadcast to therapists or posted as a general lead. It remains securely held for internal coordinator review only.
+                  <strong>Strict Zero-Broadcast Guarantee:</strong> Your confidential intake is never broadcast or shared with other clinicians as a lead. It remains securely held for internal care coordination only.
                 </span>
               </div>
             </div>
 
             {/* Helpline Notice */}
-            <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-4 text-xs text-amber-900 mb-8 flex items-start gap-3">
-              <Phone size={16} className="text-amber-800 shrink-0 mt-0.5" />
+            <div className="bg-[#FBF5E8]/80 border border-[#B8964A]/30 rounded-xl p-4 text-xs text-[#6B4A0B] mb-8 flex items-start gap-3">
+              <Phone size={16} className="text-[#B8964A] shrink-0 mt-0.5" />
               <div>
                 <strong>Need immediate assistance?</strong> If you are experiencing acute distress or need support right away, free confidential helplines are available 24/7 across India: Tele-MANAS (<strong>14416</strong>) and KIRAN (<strong>1800-599-0019</strong>).
               </div>
@@ -546,14 +607,14 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                 <button
                   type="button"
                   onClick={handleRequestTeam}
-                  className="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                  className="px-6 py-3 bg-[#283D38] hover:bg-[#1E3A34] text-[#FDFBF8] font-semibold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-2"
                 >
-                  <HeartHandshake size={15} />
-                  <span>Request Personal Team Coordination</span>
+                  <HeartHandshake size={15} className="text-[#D9BCAF]" />
+                  <span>Request Personal Care Coordination</span>
                 </button>
               ) : (
-                <div className="px-5 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl flex items-center gap-2">
-                  <Check size={15} />
+                <div className="px-5 py-2.5 bg-[#EDF3ED] border border-[#8AA688]/40 text-[#283D38] text-xs font-semibold rounded-xl flex items-center gap-2">
+                  <Check size={15} className="text-[#8AA688]" />
                   <span>Coordination Request Received</span>
                 </div>
               )}
@@ -564,7 +625,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   setMatchOutcome(null);
                   setCurrentQuestionId('concerns');
                 }}
-                className="px-5 py-3 border border-primary/20 text-primary hover:bg-primary/5 font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                className="px-5 py-3 border border-[#283D38]/20 text-[#011627] hover:bg-[#283D38]/5 font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
               >
                 Adjust My Preferences
               </button>
@@ -572,7 +633,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
               <button
                 type="button"
                 onClick={exit}
-                className="px-5 py-3 text-mid hover:text-primary text-xs uppercase tracking-wider font-semibold cursor-pointer"
+                className="px-5 py-3 text-[#4F635E] hover:text-[#011627] text-xs uppercase tracking-wider font-semibold cursor-pointer"
               >
                 Return to Dashboard
               </button>
@@ -589,12 +650,12 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
           <button
             type="button"
             onClick={() => setMatchOutcome(null)}
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-mid hover:text-primary transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#4F635E] hover:text-[#011627] transition-colors cursor-pointer"
           >
             <ArrowLeft size={14} />
             <span>Review Intake Answers</span>
           </button>
-          <span className="text-xs text-mid">
+          <span className="text-xs text-[#4F635E]">
             {matchOutcome.matches.length} verified clinician{matchOutcome.matches.length > 1 ? 's' : ''} matched
           </span>
         </div>
@@ -614,53 +675,69 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: CHATBOT INTERFACE (FIXED-HEIGHT CONVERSATIONAL SHELL)
+  // RENDER: BESPOKE INGRESS WITHIN SANCTUARY CHATBOT
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-full max-w-[760px] mx-auto px-2 sm:px-4 py-2 sm:py-3 h-[86vh] min-h-[580px] max-h-[820px] flex flex-col animate-in fade-in duration-200">
-      <div className="flex-1 bg-white/95 backdrop-blur-md border border-[#132A24]/12 rounded-3xl shadow-xl flex flex-col overflow-hidden relative">
+    <div className="w-full max-w-[780px] mx-auto px-2 sm:px-4 py-2 sm:py-3 h-[88vh] min-h-[620px] max-h-[850px] flex flex-col animate-in fade-in duration-200">
+      <div className="flex-1 bg-gradient-to-b from-[#FDFBF8] to-[#FAF7F2] border border-[#283D38]/12 rounded-3xl shadow-xl flex flex-col overflow-hidden relative backdrop-blur-md">
         
-        {/* PINNED CHATBOT HEADER */}
-        <header className="px-4 sm:px-6 py-3.5 bg-white/90 border-b border-[#132A24]/8 flex items-center justify-between gap-3 shrink-0 z-10">
+        {/* BESPOKE SANCTUARY HEADER */}
+        <header className="px-4 sm:px-6 py-3.5 bg-white/90 border-b border-[#283D38]/8 flex items-center justify-between gap-3 shrink-0 z-10">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#1E3A34] to-[#132A24] text-white flex items-center justify-center shadow-xs">
-                <Sparkles size={17} className="text-amber-300" />
+              <div className="w-10 h-10 rounded-2xl bg-[#283D38] text-[#FDFBF8] flex items-center justify-center shadow-xs border border-[#B8964A]/30">
+                <Compass className="w-5 h-5 text-[#D9BCAF]" />
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#8AA688] border-2 border-white rounded-full animate-pulse shadow-2xs" title="Sanctuary Active" />
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="font-serif text-sm sm:text-base font-semibold text-[#132A24] truncate">
-                  Talk it through
+                <h2 className="font-serif text-[15px] sm:text-base font-medium text-[#011627] truncate">
+                  The Ingress Guide
                 </h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full hidden sm:inline">
-                  Adaptive Matching
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#795663] bg-[#795663]/10 border border-[#795663]/20 px-2 py-0.5 rounded-full hidden sm:inline">
+                  Intake Sanctuary
                 </span>
               </div>
-              <div className="text-[11px] text-mid truncate flex items-center gap-1.5 font-light">
-                <span>Step {currentIndex >= 0 ? currentIndex + 1 : activeQuestions.length} of {activeQuestions.length}</span>
+              <div className="text-[11px] text-[#4F635E] truncate flex items-center gap-1.5 font-light">
+                <span>Phase: {currentPhase.label}</span>
                 <span>•</span>
-                <span className="capitalize">{currentConfig.category}</span>
+                <span>Step {currentStepNum} of {activeQuestions.length}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Mindful Grounding Breathing Button */}
+            <button
+              type="button"
+              onClick={() => setIsBreathingMode(!isBreathingMode)}
+              title="Ground yourself with gentle pacing"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                isBreathingMode
+                  ? 'bg-[#795663] text-white border-[#795663] shadow-xs'
+                  : 'bg-[#795663]/5 hover:bg-[#795663]/15 text-[#795663] border-[#795663]/20'
+              }`}
+            >
+              <Wind size={13} className={isBreathingMode ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{isBreathingMode ? 'Pause Breathing' : 'Take a Breath'}</span>
+            </button>
+
             <button
               type="button"
               onClick={handleSaveAndResumeLater}
               title="Save your progress and return anytime"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#132A24]/15 hover:border-accent/40 text-primary hover:bg-primary/5 text-xs font-semibold transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#283D38]/15 hover:border-[#795663]/50 text-[#011627] hover:bg-[#283D38]/5 text-xs font-semibold transition-all cursor-pointer"
             >
-              <Bookmark size={13} className="text-accent" />
-              <span className="hidden sm:inline">Save &amp; Resume</span>
+              <Bookmark size={13} className="text-[#B8964A]" />
+              <span className="hidden md:inline">Save &amp; Resume</span>
             </button>
+
             <button
               type="button"
               onClick={exit}
-              className="w-8 h-8 rounded-xl border border-transparent hover:border-[#132A24]/10 text-mid hover:text-primary flex items-center justify-center transition-all cursor-pointer"
+              className="w-8 h-8 rounded-xl border border-transparent hover:border-[#283D38]/10 text-[#4F635E] hover:text-[#011627] flex items-center justify-center transition-all cursor-pointer"
               title="Exit intake"
             >
               <X size={16} />
@@ -668,82 +745,152 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
           </div>
         </header>
 
-        {/* THIN PROGRESS INDICATOR */}
-        <div className="w-full bg-[#132A24]/6 h-1 shrink-0 overflow-hidden">
-          <div
-            className="bg-emerald-600 h-full transition-all duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
+        {/* 4-PHASE MILESTONE ROADMAP */}
+        <div className="bg-[#FAF7F2] border-b border-[#283D38]/6 px-4 py-2 shrink-0">
+          <div className="flex items-center justify-between gap-1 text-[10px] font-semibold tracking-wider text-[#4F635E] uppercase mb-1">
+            {phases.map((p) => {
+              const isActive = currentPhase.id === p.id;
+              const isDone = currentPhase.id > p.id;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-1 transition-colors ${
+                    isActive
+                      ? 'text-[#795663] font-bold'
+                      : isDone
+                      ? 'text-[#8AA688]'
+                      : 'text-[#4F635E]/40'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isActive
+                        ? 'bg-[#795663] ring-2 ring-[#795663]/30'
+                        : isDone
+                        ? 'bg-[#8AA688]'
+                        : 'bg-[#283D38]/20'
+                    }`}
+                  />
+                  <span className="hidden sm:inline">{p.label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="w-full bg-[#283D38]/8 h-1 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-[#8AA688] via-[#795663] to-[#B8964A] h-full transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
 
+        {/* MINDFUL BREATHING BANNER (Optional Grounding Oasis) */}
+        {isBreathingMode && (
+          <div className="bg-gradient-to-r from-[#F8F5F1] via-[#FAF7F2] to-[#F8F5F1] border-b border-[#795663]/20 px-4 py-2.5 flex items-center justify-between text-xs text-[#283D38] animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8AA688] animate-ping" />
+              <span className="font-serif italic text-[13px]">{breathPhase}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsBreathingMode(false)}
+              className="text-[#4F635E] hover:text-[#011627] text-[11px] underline cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
         {saveSuccessMsg && (
-          <div className="mx-4 mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium text-center animate-in fade-in shrink-0">
+          <div className="mx-4 mt-3 p-2.5 rounded-xl bg-[#EDF3ED] border border-[#8AA688]/40 text-[#283D38] text-xs font-medium text-center animate-in fade-in shrink-0">
             {saveSuccessMsg}
           </div>
         )}
 
-        {/* CHAT MESSAGES SCROLL AREA (Infinite inside the card, page never scrolls) */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3.5 scroll-smooth">
+        {/* CHAT MESSAGES SCROLL AREA (Dedicated sanctuary feed) */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scroll-smooth">
           {messages.map((msg) => {
             const isAssistant = msg.sender === 'assistant';
             const isAck = Boolean(msg.isAck);
 
+            // EMPATHETIC REFLECTIVE ACKNOWLEDGMENT (Distinctive Sanctuary Note)
             if (isAck) {
               return (
                 <div
                   key={msg.id}
-                  className="flex items-start gap-2.5 justify-start animate-in fade-in duration-200 max-w-[88%]"
+                  className="animate-in fade-in duration-200 max-w-[90%] sm:max-w-[80%]"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-emerald-100/70 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
-                    <HeartHandshake size={13} />
-                  </div>
-                  <div className="bg-emerald-50/70 border border-emerald-200/50 text-[#132A24] rounded-2xl rounded-tl-xs px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed font-light italic shadow-2xs">
-                    {msg.text}
+                  <div className="bg-gradient-to-r from-[#F9F6F0] to-[#FAF8F5] border-l-4 border-[#795663] rounded-r-2xl py-3 px-4 shadow-2xs">
+                    <div className="flex items-center gap-1.5 text-[9.5px] uppercase tracking-wider text-[#795663] font-bold mb-1">
+                      <HeartHandshake size={12} />
+                      <span>Reflective Pause</span>
+                    </div>
+                    <div className="font-serif italic text-[13.5px] text-[#283D38] leading-relaxed">
+                      "{msg.text}"
+                    </div>
                   </div>
                 </div>
               );
             }
 
+            // ASSISTANT QUESTION CARD (Clinical Sanctuary Voice)
+            if (isAssistant) {
+              return (
+                <div
+                  key={msg.id}
+                  className="flex items-start gap-3 justify-start animate-in fade-in duration-200 max-w-[90%] sm:max-w-[82%]"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-[#283D38]/10 text-[#283D38] border border-[#283D38]/15 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <Compass size={16} className="text-[#795663]" />
+                  </div>
+
+                  <div className="bg-white border border-[#283D38]/10 rounded-2xl rounded-tl-sm p-4 sm:p-5 shadow-xs relative text-[#011627]">
+                    <div className="text-[9.5px] uppercase tracking-widest font-bold text-[#8AA688] mb-1.5 flex items-center gap-1.5">
+                      <span>Ingress Sanctuary Guide</span>
+                    </div>
+                    <div className="font-serif text-[15px] sm:text-[16px] leading-relaxed text-[#011627] font-normal">
+                      {msg.text}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // USER RESPONSE CARD (Velvety Hawthorne Voice)
             return (
               <div
                 key={msg.id}
-                className={`flex items-start gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'} animate-in fade-in duration-200`}
+                className="flex items-start gap-2.5 justify-end animate-in fade-in duration-200"
               >
-                {isAssistant && (
-                  <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent border border-accent/20 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                    <Sparkles size={14} />
+                <div className="max-w-[85%] sm:max-w-[75%] bg-[#283D38] text-[#FDFBF8] rounded-2xl rounded-tr-sm px-4 sm:px-5 py-3 shadow-md border border-[#283D38]/30">
+                  <div className="text-[9.5px] uppercase tracking-widest text-[#D9BCAF] font-semibold mb-1 flex items-center gap-1">
+                    <Feather size={11} />
+                    <span>Your Reflection</span>
                   </div>
-                )}
-
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 sm:p-4 text-xs sm:text-[13.5px] leading-relaxed ${
-                    isAssistant
-                      ? 'bg-[#FAF8F5] border border-[#132A24]/8 text-[#132A24] shadow-2xs rounded-tl-xs font-normal'
-                      : 'bg-[#132A24] text-white shadow-xs rounded-tr-xs font-light'
-                  }`}
-                >
-                  {msg.text}
+                  <div className="text-[13.5px] font-normal leading-relaxed text-[#FDFBF8]">
+                    {msg.text}
+                  </div>
                 </div>
 
-                {!isAssistant && (
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                    <User size={14} />
-                  </div>
-                )}
+                <div className="w-7 h-7 rounded-lg bg-[#283D38]/15 text-[#283D38] flex items-center justify-center shrink-0 mt-0.5">
+                  <User size={13} />
+                </div>
               </div>
             );
           })}
 
-          {/* REALISTIC TYPING INDICATOR */}
+          {/* SERENE ORGANIC TYPING INDICATOR */}
           {isTyping && (
             <div className="flex items-center gap-2.5 justify-start animate-in fade-in duration-200">
-              <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent border border-accent/20 flex items-center justify-center shrink-0 shadow-2xs">
-                <Sparkles size={13} />
+              <div className="w-8 h-8 rounded-xl bg-[#283D38]/10 text-[#795663] border border-[#283D38]/15 flex items-center justify-center shrink-0 shadow-2xs">
+                <Compass size={15} className="animate-spin text-[#795663]" />
               </div>
-              <div className="bg-[#FAF8F5] border border-[#132A24]/8 rounded-2xl rounded-tl-xs px-4 py-3 flex items-center gap-1.5 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-white border border-[#283D38]/10 rounded-2xl rounded-tl-sm px-4 py-3 shadow-2xs flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#8AA688] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#795663] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#B8964A] animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="text-xs text-[#4F635E] italic font-serif ml-1.5">The Guide is listening...</span>
               </div>
             </div>
           )}
@@ -751,27 +898,27 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
           <div ref={messagesEndRef} />
         </div>
 
-        {/* PINNED BOTTOM INTERACTIVE ACTION DOCK */}
-        <div className="border-t border-[#132A24]/10 bg-white/95 backdrop-blur-md p-3 sm:p-4 shrink-0 z-10">
+        {/* PINNED BOTTOM INTERACTIVE RESPONSE STUDIO */}
+        <div className="border-t border-[#283D38]/10 bg-white/98 backdrop-blur-md p-3 sm:p-4 shrink-0 z-10">
           {errorMsg && (
-            <div className="mb-2.5 p-2.5 rounded-xl bg-[#FBEFEA] border border-[#E3B3A2] text-[#8A3320] text-xs flex items-center gap-2 animate-in fade-in">
+            <div className="mb-2.5 p-2.5 rounded-xl bg-[#FDF2F1] border border-[#B34B46]/30 text-[#B34B46] text-xs flex items-center gap-2 animate-in fade-in">
               <AlertCircle size={14} className="shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Helper caption for current step */}
+          {/* Context helper caption */}
           {currentConfig.inputType !== 'contact_consent' && (
-            <div className="flex items-center justify-between text-[11px] text-mid/80 mb-2 px-1">
-              <span className="font-medium text-secondary truncate">
+            <div className="flex items-center justify-between text-[11px] text-[#4F635E] mb-2 px-1">
+              <span className="font-medium text-[#795663] truncate">
                 {currentConfig.helperText || (
                   currentConfig.inputType === 'single_select'
-                    ? 'Select an option to continue:'
+                    ? 'Select the option that most resonates:'
                     : currentConfig.inputType === 'multi_select'
-                    ? 'Select all that apply, then confirm:'
+                    ? 'Select all areas you want to address, then confirm:'
                     : currentConfig.inputType === 'yes_no'
-                    ? 'Choose Yes or No:'
-                    : 'Share your thoughts:'
+                    ? 'Select your response:'
+                    : 'Reflect in your own words:'
                 )}
               </span>
               {questionHistory.length > 0 && (
@@ -779,7 +926,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   type="button"
                   onClick={handleBackQuestion}
                   disabled={isTyping}
-                  className="text-mid hover:text-primary transition-colors cursor-pointer text-[11px] font-medium"
+                  className="text-[#4F635E] hover:text-[#011627] transition-colors cursor-pointer text-[11px] font-medium"
                 >
                   ← Previous question
                 </button>
@@ -787,9 +934,31 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             </div>
           )}
 
-          {/* INPUT 1: TEXTAREA / REFLECTION */}
+          {/* INPUT 1: TEXTAREA WITH STARTER INSPIRATION PILLS */}
           {currentConfig.inputType === 'textarea' && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
+              {/* Optional starter thought chips */}
+              {STARTER_THOUGHTS[currentConfig.id] && (
+                <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                  <span className="text-[10px] font-semibold text-[#8AA688] uppercase tracking-wider">
+                    Quick suggestions:
+                  </span>
+                  {STARTER_THOUGHTS[currentConfig.id].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      disabled={isTyping}
+                      onClick={() => {
+                        setTextInput((prev) => (prev ? `${prev}. ${chip}` : chip));
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-full bg-[#FAF7F2] hover:bg-[#EDF3ED] border border-[#283D38]/10 hover:border-[#8AA688] text-[#283D38] transition-all cursor-pointer"
+                    >
+                      + {chip}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="relative">
                 <textarea
                   value={textInput}
@@ -802,23 +971,23 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   }}
                   rows={2}
                   disabled={isTyping}
-                  placeholder={currentConfig.placeholder || 'Type your reflection here...'}
-                  className="w-full p-3 pr-12 rounded-2xl bg-[#FAF8F5] border border-[#132A24]/12 focus:border-emerald-600 focus:bg-white focus:ring-1 focus:ring-emerald-600/30 text-xs sm:text-sm text-primary placeholder:text-mid/50 outline-none resize-none transition-all shadow-inner"
+                  placeholder={currentConfig.placeholder || 'Share your reflection here...'}
+                  className="w-full p-3.5 pr-12 rounded-2xl bg-[#FAF7F2] border border-[#283D38]/12 focus:border-[#795663] focus:bg-white focus:ring-1 focus:ring-[#795663]/30 text-xs sm:text-sm text-[#011627] placeholder:text-[#4F635E]/50 outline-none resize-none transition-all shadow-inner"
                 />
                 <button
                   type="button"
                   disabled={!textInput.trim() || isTyping}
                   onClick={() => handleAnswer(textInput.trim())}
-                  className="absolute right-2.5 bottom-3.5 w-8 h-8 rounded-xl bg-primary hover:bg-primary/90 disabled:bg-primary/20 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                  className="absolute right-2.5 bottom-3.5 w-8 h-8 rounded-xl bg-[#283D38] hover:bg-[#1E3A34] disabled:bg-[#283D38]/20 text-[#FDFBF8] flex items-center justify-center transition-all cursor-pointer shadow-xs"
                   title="Send reflection"
                 >
-                  <Send size={13} />
+                  <Send size={13} className="text-[#D9BCAF]" />
                 </button>
               </div>
 
               <div className="flex items-center justify-between gap-2 px-1">
-                <span className="text-[10px] text-mid/60 hidden sm:inline">
-                  Enter to send · Shift+Enter for new line
+                <span className="text-[10px] text-[#4F635E]/70 hidden sm:inline">
+                  Enter ↵ to send · Shift+Enter for newline
                 </span>
                 <div className="flex items-center gap-2 ml-auto">
                   {currentConfig.skippable && (
@@ -826,7 +995,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                       type="button"
                       disabled={isTyping}
                       onClick={handleSkip}
-                      className="px-3 py-1 text-xs border border-primary/20 rounded-lg hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                      className="px-3 py-1 text-xs border border-[#283D38]/20 rounded-lg hover:bg-[#283D38]/5 text-[#011627] cursor-pointer font-medium"
                     >
                       {currentConfig.skipLabel || 'Skip'}
                     </button>
@@ -836,20 +1005,20 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             </div>
           )}
 
-          {/* INPUT 2: SINGLE SELECT (QUICK REPLIES) */}
+          {/* INPUT 2: SINGLE SELECT (TACTILE OPTION CARDS) */}
           {currentConfig.inputType === 'single_select' && (
             <div className="space-y-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-0.5">
                 {(currentConfig.options || []).map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
                     disabled={isTyping}
                     onClick={() => handleAnswer(opt.value)}
-                    className="p-2.5 sm:p-3 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/10 hover:border-emerald-600 hover:shadow-xs text-left text-xs font-medium text-primary transition-all cursor-pointer flex items-center justify-between gap-2 group"
+                    className="p-3 rounded-xl bg-[#FAF7F2] hover:bg-white border border-[#283D38]/10 hover:border-[#795663] hover:shadow-xs text-left text-xs font-medium text-[#011627] transition-all cursor-pointer flex items-center justify-between gap-2 group border-l-2 hover:border-l-4 hover:border-l-[#795663]"
                   >
                     <span className="leading-snug">{opt.label}</span>
-                    <ChevronRight size={13} className="text-mid/40 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ChevronRight size={13} className="text-[#4F635E]/40 group-hover:text-[#795663] group-hover:translate-x-0.5 transition-all shrink-0" />
                   </button>
                 ))}
               </div>
@@ -860,7 +1029,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                     type="button"
                     disabled={isTyping}
                     onClick={handleSkip}
-                    className="px-3 py-1 text-xs border border-primary/20 rounded-lg hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                    className="px-3 py-1 text-xs border border-[#283D38]/20 rounded-lg hover:bg-[#283D38]/5 text-[#011627] cursor-pointer font-medium"
                   >
                     {currentConfig.skipLabel || 'Skip'}
                   </button>
@@ -869,7 +1038,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             </div>
           )}
 
-          {/* INPUT 3: MULTI SELECT (TOGGLE CHIPS) */}
+          {/* INPUT 3: MULTI SELECT (BOTANICAL TOGGLE CHIPS) */}
           {currentConfig.inputType === 'multi_select' && (
             <div className="space-y-2.5">
               <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-0.5">
@@ -889,22 +1058,22 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                          : 'bg-[#FAF8F5] hover:bg-white border-[#132A24]/12 hover:border-emerald-600/40 text-primary'
+                          ? 'bg-[#283D38] text-[#FDFBF8] border-[#283D38] shadow-xs'
+                          : 'bg-[#FAF7F2] hover:bg-white border-[#283D38]/12 hover:border-[#795663]/50 text-[#011627]'
                       }`}
                     >
                       <span>{opt.label}</span>
-                      {isSelected && <Check size={12} className="stroke-[2.5]" />}
+                      {isSelected && <Check size={12} className="stroke-[2.5] text-[#D9BCAF]" />}
                     </button>
                   );
                 })}
               </div>
 
-              <div className="flex items-center justify-between pt-1 gap-2 border-t border-[#132A24]/6">
-                <span className="text-[11px] text-mid">
+              <div className="flex items-center justify-between pt-1 gap-2 border-t border-[#283D38]/6">
+                <span className="text-[11px] text-[#4F635E]">
                   {selectedMulti.length > 0
-                    ? `${selectedMulti.length} selected`
-                    : 'Select options above'}
+                    ? `${selectedMulti.length} area${selectedMulti.length > 1 ? 's' : ''} selected`
+                    : 'Select all that resonate'}
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -913,7 +1082,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                       type="button"
                       disabled={isTyping}
                       onClick={handleSkip}
-                      className="px-3 py-1.5 text-xs border border-primary/20 rounded-xl hover:bg-primary/5 text-primary cursor-pointer font-medium"
+                      className="px-3 py-1.5 text-xs border border-[#283D38]/20 rounded-xl hover:bg-[#283D38]/5 text-[#011627] cursor-pointer font-medium"
                     >
                       {currentConfig.skipLabel || 'Skip'}
                     </button>
@@ -922,17 +1091,17 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                     type="button"
                     disabled={selectedMulti.length === 0 && !currentConfig.skippable || isTyping}
                     onClick={() => handleAnswer(selectedMulti)}
-                    className="px-5 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/20 text-white rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    className="px-5 py-2 bg-[#283D38] hover:bg-[#1E3A34] disabled:bg-[#283D38]/20 text-[#FDFBF8] rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <span>Confirm Selection</span>
-                    <ArrowRight size={13} />
+                    <ArrowRight size={13} className="text-[#D9BCAF]" />
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* INPUT 4: YES / NO */}
+          {/* INPUT 4: YES / NO (SANCTUARY PAIR) */}
           {currentConfig.inputType === 'yes_no' && (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-3">
@@ -940,41 +1109,41 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   type="button"
                   disabled={isTyping}
                   onClick={() => handleAnswer('Yes')}
-                  className="py-3 px-4 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/15 hover:border-emerald-600 text-primary hover:text-emerald-800 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
+                  className="py-3 px-4 rounded-xl bg-[#FAF7F2] hover:bg-white border border-[#283D38]/15 hover:border-[#795663] text-[#011627] hover:text-[#795663] font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs border-l-2 hover:border-l-4 hover:border-l-[#795663]"
                 >
-                  Yes
+                  Yes, that resonates
                 </button>
                 <button
                   type="button"
                   disabled={isTyping}
                   onClick={() => handleAnswer('No')}
-                  className="py-3 px-4 rounded-xl bg-[#FAF8F5] hover:bg-white border border-[#132A24]/15 hover:border-emerald-600 text-primary hover:text-emerald-800 font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
+                  className="py-3 px-4 rounded-xl bg-[#FAF7F2] hover:bg-white border border-[#283D38]/15 hover:border-[#283D38] text-[#011627] font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
                 >
-                  No
+                  No, not particularly
                 </button>
               </div>
             </div>
           )}
 
-          {/* INPUT 5: CONTACT & EXPLICIT MATCHING CONSENT */}
+          {/* INPUT 5: CONTACT & EXPLICIT CLINICAL CONSENT */}
           {currentConfig.inputType === 'contact_consent' && (
-            <div className="bg-[#FAF8F5] border border-[#132A24]/12 rounded-2xl p-3.5 sm:p-4 text-left space-y-3 shadow-inner max-h-56 sm:max-h-64 overflow-y-auto">
+            <div className="bg-[#FAF7F2] border border-[#283D38]/12 rounded-2xl p-3.5 sm:p-4 text-left space-y-3 shadow-inner max-h-56 sm:max-h-64 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#795663] mb-1">
                     Full Name
                   </label>
                   <input
                     type="text"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Your name"
-                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                    placeholder="Your full name"
+                    className="w-full px-3 py-1.5 rounded-lg border border-[#283D38]/15 text-xs text-[#011627] bg-white focus:border-[#795663] outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#795663] mb-1">
                     Email Address
                   </label>
                   <input
@@ -982,12 +1151,12 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                    className="w-full px-3 py-1.5 rounded-lg border border-[#283D38]/15 text-xs text-[#011627] bg-white focus:border-[#795663] outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-secondary mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#795663] mb-1">
                     Phone Number
                   </label>
                   <input
@@ -995,19 +1164,19 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
                     placeholder="+91..."
-                    className="w-full px-3 py-1.5 rounded-lg border border-primary/15 text-xs text-primary bg-white focus:border-emerald-600 outline-none"
+                    className="w-full px-3 py-1.5 rounded-lg border border-[#283D38]/15 text-xs text-[#011627] bg-white focus:border-[#795663] outline-none"
                   />
                 </div>
               </div>
 
               {/* Privacy Shield & Consent Notice */}
-              <div className="p-3 bg-white border border-primary/10 rounded-xl space-y-1.5 text-xs text-mid leading-relaxed font-light">
-                <div className="flex items-center gap-1.5 font-bold uppercase text-[10px] text-primary tracking-wider">
-                  <Lock size={12} className="text-emerald-700" />
+              <div className="p-3 bg-white border border-[#283D38]/10 rounded-xl space-y-1.5 text-xs text-[#4F635E] leading-relaxed font-light">
+                <div className="flex items-center gap-1.5 font-bold uppercase text-[10px] text-[#011627] tracking-wider">
+                  <Lock size={12} className="text-[#8AA688]" />
                   <span>Confidential Matching Privacy Guarantee</span>
                 </div>
                 <p className="m-0 text-[11.5px]">
-                  Your intake answers are evaluated algorithmically against active, verified licensed therapists. Your full intake is <strong>only shared with the specific therapist you explicitly select</strong>. If no direct match is found, your record is held securely for internal clinical review with zero broadcasts.
+                  Your intake answers are evaluated algorithmically against active, verified licensed therapists. Your full intake is <strong>only shared with the specific therapist you explicitly choose</strong>. If no direct match is found, your record is held securely for internal care review with zero therapist broadcasts.
                 </p>
               </div>
 
@@ -1016,18 +1185,18 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   type="checkbox"
                   checked={consentGranted}
                   onChange={(e) => setConsentGranted(e.target.checked)}
-                  className="mt-0.5 accent-emerald-700 w-4 h-4 cursor-pointer"
+                  className="mt-0.5 accent-[#283D38] w-4 h-4 cursor-pointer"
                 />
-                <span className="text-xs text-primary font-medium">
+                <span className="text-xs text-[#011627] font-medium">
                   I authorize Ingress Within to evaluate verified clinicians based on my intake answers and schedule 1-on-1 care.
                 </span>
               </label>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#132A24]/8">
+              <div className="flex items-center justify-between pt-2 border-t border-[#283D38]/8">
                 <button
                   type="button"
                   onClick={handleBackQuestion}
-                  className="px-3 py-1.5 text-xs text-mid hover:text-primary font-medium cursor-pointer"
+                  className="px-3 py-1.5 text-xs text-[#4F635E] hover:text-[#011627] font-medium cursor-pointer"
                 >
                   ← Previous question
                 </button>
@@ -1036,17 +1205,17 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
                   type="button"
                   disabled={!consentGranted || matchingInProgress}
                   onClick={handleRunMatching}
-                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-700/40 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                  className="px-6 py-2.5 bg-[#283D38] hover:bg-[#1E3A34] disabled:bg-[#283D38]/30 text-[#FDFBF8] rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-xs"
                 >
                   {matchingInProgress ? (
                     <>
                       <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      <span>Evaluating Therapists...</span>
+                      <span>Evaluating Clinicians...</span>
                     </>
                   ) : (
                     <>
-                      <span>Find My Matching Therapists</span>
-                      <Sparkles size={14} className="text-amber-300" />
+                      <span>Find My Matching Clinicians</span>
+                      <Sparkles size={14} className="text-[#D9BCAF]" />
                     </>
                   )}
                 </button>
