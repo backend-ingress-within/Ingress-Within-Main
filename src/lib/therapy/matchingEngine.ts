@@ -396,7 +396,7 @@ export function scoreBudget(profile: ClientProfile, t: TherapistRecord) {
 export function qualifiesFloor(dims: DimensionScores, relaxFloor?: boolean): boolean {
   if (relaxFloor) return true;
   if (dims.concern && dims.concern.score === 0) return false;
-  if (dims.modality && dims.modality.score === 0) return false;
+  if (dims.modality && dims.modality.score === 0 && dims.modality.confidence === 'explicit') return false;
   return true;
 }
 
@@ -518,10 +518,8 @@ export function matchTherapists(
 
 export const RELAX_TIERS = [
   { relax: {}, label: null },
-  { relax: { floor: true }, label: 'widening therapeutic approach fit' },
   { relax: { city: true }, label: 'including practitioners in your city offering telehealth' },
-  { relax: { floor: true, city: true }, label: 'widening search parameters' },
-  { relax: { language: true, floor: true, city: true }, label: 'including some therapists outside your stated language preference' },
+  { relax: { language: true, city: true }, label: 'including some therapists outside your stated language preference' },
 ] as const;
 
 export function getGuaranteedMatches(

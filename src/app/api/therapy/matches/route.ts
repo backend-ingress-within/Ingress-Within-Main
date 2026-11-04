@@ -142,7 +142,14 @@ export async function POST(request: NextRequest) {
       }));
     }
 
-    const emailResults = await Promise.allSettled(candidatesToNotify.map((candidate) => {
+    // Single Therapist Notification Guard:
+    // Intakes in shortlist stage must NEVER broadcast to all candidate therapists.
+    // Only when a single clinician is explicitly selected by the client do we notify that individual practitioner.
+    const eligibleToNotify = selectedTherapistId
+      ? candidatesToNotify.filter((c) => c.therapistAccountId === selectedTherapistId)
+      : [];
+
+    const emailResults = await Promise.allSettled(eligibleToNotify.map((candidate) => {
       if (!candidate?.email || !candidate?.matchId) return Promise.resolve();
       return EmailService.notifyTherapistMatchRequest({
         matchId: candidate.matchId,

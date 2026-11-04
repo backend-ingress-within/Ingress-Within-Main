@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
 import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
+import ConversationalIntake from '../components/therapy/ConversationalIntake';
 import ClientTherapyDashboard from './client/ClientTherapyDashboard';
 
 /*
@@ -2938,7 +2939,14 @@ export default function TherapyPage({ user, profile, onSignOut }) {
         </div>
       )}
 
-      {journey === 'conversation' && <Conversation exit={() => { setJourney(null); checkConnection(); }} user={user} profile={profile} />}
+      {journey === 'conversation' && (
+        <ConversationalIntake
+          exit={() => { setJourney(null); checkConnection(); }}
+          user={user}
+          profile={profile}
+          onStartBooking={handleStartBooking}
+        />
+      )}
       {journey === 'guided' && <Guided exit={() => { setJourney(null); checkConnection(); }} onBookSession={handleStartBooking} user={user} profile={profile} />}
       {journey === 'team' && <Team exit={() => { setJourney(null); checkConnection(); }} user={user} profile={profile} />}
 

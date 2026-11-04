@@ -52,11 +52,13 @@ import {
   Link2,
   Send,
   Stethoscope,
+  ClipboardList,
 } from 'lucide-react';
 import ApiTrafficCenterView from './ApiTrafficCenterView';
 import AnalyticsDashboardView from './AnalyticsDashboardView';
 import TherapyRelationshipsView from './TherapyRelationshipsView';
 import TherapistOverviewView from './TherapistOverviewView';
+import ManualMatchingReviewsView from './ManualMatchingReviewsView';
 
 export default function AdminDashboardShell({ admin, onLogout, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -370,6 +372,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     { id: 'therapist-overview', label: 'Therapist Overview', icon: Stethoscope },
     { id: 'applications', label: 'Application Queue', icon: FileText, badge: overviewMetrics?.pendingApplications },
     { id: 'therapy-relationships', label: 'Therapy Relationships', icon: HeartHandshake },
+    { id: 'matching-reviews', label: 'Matching Reviews', icon: ClipboardList },
     { id: 'clients', label: 'Client Directory', icon: User },
     { id: 'sessions', label: 'Clinical Sessions', icon: Calendar },
     { id: 'payments', label: 'Revenue & Orders', icon: CreditCard },
@@ -2684,6 +2687,13 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
           {/* ========================================================================= */}
           {activeTab === 'therapy-relationships' && (
             <TherapyRelationshipsView showToast={showToast} />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: MATCHING REVIEWS & UNMATCHED INTAKE COORDINATION */}
+          {/* ========================================================================= */}
+          {activeTab === 'matching-reviews' && (
+            <ManualMatchingReviewsView showToast={showToast} />
           )}
 
           {/* ========================================================================= */}
