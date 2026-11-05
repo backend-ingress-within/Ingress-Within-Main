@@ -47,3 +47,61 @@ export async function GET(
     );
   }
 }
+
+/**
+ * DELETE /api/admin/therapy-relationships/[id]
+ *
+ * Secure administrator endpoint to delete a therapy care relationship, unbind client
+ * and therapist, and optionally reset all client therapy records so the client can restart
+ * fresh intake and matching.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const adminSession = await requireAuthorizedAdmin(request);
+    const resolvedParams = await params;
+    const relationshipId = resolvedParams.id;
+
+    if (!relationshipId) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_ID', message: 'Relationship ID is required.' } },
+        { status: 400 }
+      );
+    }
+
+    let resetClientTherapyData = false;
+    try {
+      const url = new URL(request.url);
+      const queryParam = url.searchParams.get('resetClientTherapyData');
+      if (queryParam === 'true') {
+        resetClientTherapyData = true;
+      } else {
+        const body = await request.json().catch(() => ({}));
+        resetClientTherapyData = Boolean(body?.resetClientTherapyData);
+      }
+    } catch {
+      // Body parsing optional
+    }
+
+    const result = await AdminTherapyRelationshipService.deleteRelationship(relationshipId, {
+      resetClientTherapyData,
+      deletedBy: adminSession.email || adminSession.adminId || 'admin',
+    });
+
+    return NextResponse.json(result);
+  } catch (err: any) {
+    console.error('[Admin Therapy Relationship DELETE] Error:', err);
+    const status = err.status || 500;
+    return NextResponse.json(
+      {
+        error: {
+          code: err.code || 'DELETE_RELATIONSHIP_ERROR',
+          message: err.message || 'Failed to delete therapy relationship.',
+        },
+      },
+      { status }
+    );
+  }
+}

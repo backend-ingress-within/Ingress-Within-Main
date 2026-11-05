@@ -940,4 +940,150 @@ export class AdminTherapyRelationshipService {
       issuedAt: new Date().toISOString(),
     };
   }
+
+  /**
+   * Deletes a therapy care relationship and optionally resets all client therapy data.
+   */
+  static async deleteRelationship(
+    relationshipId: string,
+    options: { resetClientTherapyData?: boolean; deletedBy?: string } = {}
+  ): Promise<{
+    success: boolean;
+    relationshipId: string;
+    userId: string | null;
+    therapistAccountId: string | null;
+    clientTherapyReset: boolean;
+    message: string;
+  }> {
+    if (!relationshipId) {
+      const err: any = new Error('Relationship ID is required.');
+      err.status = 400;
+      throw err;
+    }
+
+    // 1. Fetch relationship to extract user_id, therapist_account_id, therapy_session_id
+    const { data: rel, error: fetchErr } = await supabase
+      .from('therapy_care_relationships')
+      .select('id, user_id, therapist_account_id, therapy_session_id')
+      .eq('id', relationshipId)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.error('[AdminTherapyRelationshipService] Error fetching relationship for deletion:', fetchErr);
+      const err: any = new Error(`Failed to fetch relationship: ${fetchErr.message}`);
+      err.status = 500;
+      throw err;
+    }
+
+    const userId = rel?.user_id || null;
+    const therapistAccountId = rel?.therapist_account_id || null;
+
+    // 2. Delete the care relationship row (cascades to therapeutic profiles, reviews, goals, booking links, etc.)
+    const { error: delRelErr } = await supabase
+      .from('therapy_care_relationships')
+      .delete()
+      .eq('id', relationshipId);
+
+    if (delRelErr) {
+      console.error('[AdminTherapyRelationshipService] Error deleting relationship:', delRelErr);
+      const err: any = new Error(`Failed to delete relationship: ${delRelErr.message}`);
+      err.status = 500;
+      throw err;
+    }
+
+    // 3. Clean up matches between this user and therapist
+    if (userId && therapistAccountId) {
+      await supabase
+        .from('therapy_matches')
+        .delete()
+        .eq('user_id', userId)
+        .eq('therapist_account_id', therapistAccountId);
+    }
+
+    // 4. If resetClientTherapyData is requested, purge all therapy records for this client
+    let clientTherapyReset = false;
+    if (options.resetClientTherapyData && userId) {
+      clientTherapyReset = true;
+      // Delete any other care relationships for this user
+      await supabase.from('therapy_care_relationships').delete().eq('user_id', userId);
+      // Delete therapy sessions
+      await supabase.from('therapy_sessions').delete().eq('user_id', userId);
+      // Delete matches
+      await supabase.from('therapy_matches').delete().eq('user_id', userId);
+      // Delete submissions
+      await supabase.from('therapy_submissions').delete().eq('user_id', userId);
+      // Delete safety assessments
+      await supabase.from('therapy_safety_assessments').delete().eq('user_id', userId);
+      // Delete consents
+      await supabase.from('client_insight_sharing_consents').delete().eq('client_id', userId);
+      // Delete session bookings
+      await supabase.from('therapy_session_bookings').delete().eq('user_id', userId);
+      // Delete appointments
+      await supabase.from('therapist_clinical_appointments').delete().eq('user_id', userId);
+      // Delete client accounts
+      await supabase.from('therapy_client_accounts').delete().eq('user_id', userId);
+
+      // Find user emails from intake or auth to clean by email as well
+      const { data: intakeData } = await supabase
+        .from('therapy_intakes')
+        .select('email')
+        .eq('user_id', userId);
+
+      const emailsToClean = new Set<string>();
+      if (intakeData) {
+        intakeData.forEach((row) => {
+          if (row.email) emailsToClean.add(row.email.toLowerCase().trim());
+        });
+      }
+
+      // Delete intakes
+      await supabase.from('therapy_intakes').delete().eq('user_id', userId);
+
+      for (const email of emailsToClean) {
+        await supabase.from('therapy_intakes').delete().ilike('email', email);
+        await supabase.from('manual_matching_reviews').delete().ilike('client_email', email);
+        await supabase.from('therapy_client_accounts').delete().ilike('email', email);
+      }
+    } else if (userId) {
+      // Just unbind active relationship from client account if exists
+      await supabase
+        .from('therapy_client_accounts')
+        .update({
+          active_relationship_id: null,
+          active_therapist_account_id: null,
+          status: 'intake_pending',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+    }
+
+    // 5. Audit log
+    try {
+      await supabase.from('audit_logs').insert({
+        action: 'ADMIN_DELETE_THERAPY_RELATIONSHIP',
+        user_id: userId,
+        metadata: {
+          relationshipId,
+          userId,
+          therapistAccountId,
+          clientTherapyReset,
+          deletedBy: options.deletedBy || 'admin',
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (auditErr) {
+      console.warn('[AdminTherapyRelationshipService] Audit log notice:', auditErr);
+    }
+
+    return {
+      success: true,
+      relationshipId,
+      userId,
+      therapistAccountId,
+      clientTherapyReset,
+      message: clientTherapyReset
+        ? 'Therapy relationship and client therapy data have been completely deleted.'
+        : 'Therapy relationship has been successfully deleted.',
+    };
+  }
 }

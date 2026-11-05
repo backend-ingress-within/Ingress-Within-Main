@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Sparkles,
   Info,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function TherapyRelationshipsView({ showToast }) {
@@ -55,6 +57,12 @@ export default function TherapyRelationshipsView({ showToast }) {
   const [consentDocId, setConsentDocId] = useState(null);
   const [consentDocData, setConsentDocData] = useState(null);
   const [consentDocLoading, setConsentDocLoading] = useState(false);
+
+  // Delete relationship & therapy modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [relToDelete, setRelToDelete] = useState(null);
+  const [deleteResetClientData, setDeleteResetClientData] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Fetch list
   const fetchRelationships = async () => {
@@ -140,6 +148,52 @@ export default function TherapyRelationshipsView({ showToast }) {
       setConsentDocId(null);
     } finally {
       setConsentDocLoading(false);
+    }
+  };
+
+  // Open delete relationship & therapy modal
+  const handleOpenDelete = (rel) => {
+    setRelToDelete(rel);
+    setDeleteResetClientData(true);
+    setDeleteModalOpen(true);
+  };
+
+  // Confirm delete relationship & therapy
+  const handleConfirmDelete = async () => {
+    if (!relToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/therapy-relationships/${relToDelete.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetClientTherapyData: deleteResetClientData }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (showToast) {
+          showToast(data.message || 'Relationship deleted successfully');
+        }
+        setDeleteModalOpen(false);
+        setRelToDelete(null);
+        // Close detail view if open for this relationship
+        if (selectedRelId === relToDelete.id) {
+          setSelectedRelId(null);
+          setDetailData(null);
+        }
+        // Refresh relationships list
+        fetchRelationships();
+      } else {
+        if (showToast) {
+          showToast(data.error?.message || 'Failed to delete relationship', true);
+        }
+      }
+    } catch (err) {
+      console.error('[TherapyRelationshipsView] Delete error:', err);
+      if (showToast) {
+        showToast('Network error while deleting relationship', true);
+      }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -500,13 +554,25 @@ export default function TherapyRelationshipsView({ showToast }) {
 
                     {/* 10. Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDetail(rel.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#2C4A3E] transition-all cursor-pointer shadow-xs"
-                      >
-                        Details
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(rel.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#2C4A3E] transition-all cursor-pointer shadow-xs"
+                          title="View Details"
+                        >
+                          Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDelete(rel)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 transition-all cursor-pointer shadow-xs"
+                          title="Delete Relationship & Therapy"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -858,7 +924,23 @@ export default function TherapyRelationshipsView({ showToast }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[#132A24]/10 bg-[#FAF7F2] flex items-center justify-end">
+            <div className="p-4 border-t border-[#132A24]/10 bg-[#FAF7F2] flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const relToDel = detailData ? {
+                    id: detailData.id,
+                    clientName: detailData.clientDetails?.name || 'Client',
+                    therapistName: detailData.therapistDetails?.name || 'Therapist',
+                    clientEmail: detailData.clientDetails?.email,
+                  } : { id: selectedRelId };
+                  handleOpenDelete(relToDel);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Relationship & Therapy
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -995,6 +1077,146 @@ export default function TherapyRelationshipsView({ showToast }) {
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#2C4A3E] transition-colors cursor-pointer"
               >
                 Close Document
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* DELETE RELATIONSHIP & THERAPY MODAL */}
+      {/* ========================================================================= */}
+      {deleteModalOpen && relToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-rose-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-6 bg-rose-50 border-b border-rose-100 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-700">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-serif font-bold text-[#132A24]">
+                  Delete Client–Therapist Relationship
+                </h3>
+                <p className="text-xs text-[#132A24]/70 mt-1">
+                  Permanently unbind the relationship between this client and therapist.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  if (!deleteLoading) {
+                    setDeleteModalOpen(false);
+                    setRelToDelete(null);
+                  }
+                }}
+                disabled={deleteLoading}
+                className="p-1 rounded-lg hover:bg-rose-200/50 text-[#132A24]/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Target Summary */}
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#132A24]/10 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#132A24]/60">Client:</span>
+                  <span className="font-semibold text-[#132A24]">{relToDelete.clientName || 'Client'}</span>
+                </div>
+                {relToDelete.clientEmail && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#132A24]/60">Email:</span>
+                    <span className="font-mono text-[#132A24] text-[11px]">{relToDelete.clientEmail}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#132A24]/60">Therapist:</span>
+                  <span className="font-semibold text-[#132A24]">{relToDelete.therapistName || 'Therapist'}</span>
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3 pt-2">
+                <label className="text-xs font-bold text-[#132A24] uppercase tracking-wider block">
+                  Select Deletion Scope:
+                </label>
+
+                <label className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                  deleteResetClientData 
+                    ? 'bg-rose-50/50 border-rose-300 ring-1 ring-rose-300' 
+                    : 'bg-white border-[#132A24]/10 hover:border-[#132A24]/20'
+                }`}>
+                  <input
+                    type="radio"
+                    name="deleteScope"
+                    checked={deleteResetClientData}
+                    onChange={() => setDeleteResetClientData(true)}
+                    className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div className="text-xs">
+                    <span className="font-semibold text-[#132A24] block">
+                      Delete Relationship & Reset All Client Therapy Data (Recommended)
+                    </span>
+                    <span className="text-[#132A24]/70 mt-0.5 block leading-relaxed">
+                      Disconnects therapist and purges client's previous intakes, therapy sessions, and matches. When the client next logs in, they will see the fresh <strong>"Talk it through" intake screen</strong>. User login is preserved.
+                    </span>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                  !deleteResetClientData 
+                    ? 'bg-amber-50/50 border-amber-300 ring-1 ring-amber-300' 
+                    : 'bg-white border-[#132A24]/10 hover:border-[#132A24]/20'
+                }`}>
+                  <input
+                    type="radio"
+                    name="deleteScope"
+                    checked={!deleteResetClientData}
+                    onChange={() => setDeleteResetClientData(false)}
+                    className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                  />
+                  <div className="text-xs">
+                    <span className="font-semibold text-[#132A24] block">
+                      Delete Relationship Only
+                    </span>
+                    <span className="text-[#132A24]/70 mt-0.5 block leading-relaxed">
+                      Removes this specific care relationship, clinical notes, and booking link, but leaves client historical intake forms untouched.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[#132A24]/10 bg-[#FAF7F2] flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setRelToDelete(null);
+                }}
+                disabled={deleteLoading}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#132A24]/70 hover:text-[#132A24] hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
+              >
+                {deleteLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Confirm Delete
+                  </>
+                )}
               </button>
             </div>
           </div>
