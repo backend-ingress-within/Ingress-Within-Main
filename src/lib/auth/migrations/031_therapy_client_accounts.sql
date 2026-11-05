@@ -243,7 +243,7 @@ BEGIN
         DELETE FROM public.therapy_submissions WHERE user_id = uid;
         DELETE FROM public.therapy_safety_assessments WHERE user_id = uid;
         DELETE FROM public.client_insight_sharing_consents WHERE client_id = uid;
-        DELETE FROM public.therapy_session_bookings WHERE client_user_id = uid;
+        DELETE FROM public.therapy_session_bookings WHERE user_id = uid;
         DELETE FROM public.therapist_clinical_appointments WHERE user_id = uid;
 
         -- Delete dedicated therapy client account

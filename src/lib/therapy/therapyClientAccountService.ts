@@ -180,7 +180,7 @@ export async function deleteClientTherapyAccount(
       await supabase.from('therapy_submissions').delete().eq('user_id', targetUserId);
       await supabase.from('therapy_safety_assessments').delete().eq('user_id', targetUserId);
       await supabase.from('client_insight_sharing_consents').delete().eq('client_id', targetUserId);
-      await supabase.from('therapy_session_bookings').delete().eq('client_user_id', targetUserId);
+      await supabase.from('therapy_session_bookings').delete().eq('user_id', targetUserId);
       await supabase.from('therapist_clinical_appointments').delete().eq('user_id', targetUserId);
       await supabase.from('therapy_client_accounts').delete().eq('user_id', targetUserId);
     }
