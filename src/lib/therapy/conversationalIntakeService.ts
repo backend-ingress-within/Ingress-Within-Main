@@ -23,6 +23,7 @@ import {
   saveTherapyMatches,
   validateEligibleTherapist,
 } from './therapyService';
+import { upsertTherapyClientAccount } from './therapyClientAccountService';
 import { EmailService } from '../email/emailService';
 
 // Fallback in-memory ledger for manual matching reviews during offline/test environments
@@ -230,6 +231,20 @@ export class ConversationalIntakeService {
         answers: updatedAnswers,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'therapy_session_id' });
+
+      // Synchronize dedicated therapy client account
+      const clientEmail = updatedAnswers.contact_email || updatedAnswers.contact_consent?.email;
+      if (clientEmail) {
+        await upsertTherapyClientAccount({
+          userId,
+          email: clientEmail,
+          fullName: updatedAnswers.contact_name || updatedAnswers.contact_consent?.fullName,
+          phoneNumber: updatedAnswers.contact_phone || updatedAnswers.contact_consent?.phone,
+          status: 'intake_pending',
+          latestTherapySessionId: sessionId,
+          city: updatedAnswers.city || null,
+        }).catch(() => {});
+      }
 
       // Save message in therapy_messages
       const userText = typeof answerValue === 'string'
@@ -536,6 +551,26 @@ export class ConversationalIntakeService {
         })
         .eq('id', sessionId)
         .eq('user_id', userId);
+
+      // Update dedicated therapy client account
+      const { data: intakeData } = await supabase
+        .from('therapy_intakes')
+        .select('email, full_name, phone_number, city')
+        .eq('therapy_session_id', sessionId)
+        .maybeSingle();
+
+      if (intakeData?.email) {
+        await upsertTherapyClientAccount({
+          userId,
+          email: intakeData.email,
+          fullName: intakeData.full_name,
+          phoneNumber: intakeData.phone_number,
+          status: 'matched',
+          activeTherapistAccountId: therapistId,
+          latestTherapySessionId: sessionId,
+          city: intakeData.city,
+        }).catch(() => {});
+      }
     } catch {}
 
     return {
