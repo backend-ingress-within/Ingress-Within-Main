@@ -2950,30 +2950,14 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             );
           })()}
 
-          {/* STATE A & D: Primary 4 Entry Paths */}
+          {/* STATE A & D: Primary 3 Entry Paths */}
           <div className="iw-k">Support, at your pace</div>
           <h1>Let’s find the right way in.</h1>
           <p className="iw-lede">
-            Choose how you’d like to begin. You can book directly with a clinician, talk it through, answer a guided set of
-            questions, or speak with the team.
+            Choose how you’d like to begin. You can talk it through, answer a guided set of questions, or speak with the team.
           </p>
 
           <div className="iw-grid">
-            <div className="iw-card iw-journey" style={{ border: '1.5px solid #064e3b' }}>
-              <div className="iw-icon" style={{ backgroundColor: '#ecfdf5', color: '#064e3b' }}><CalendarIcon /></div>
-              <div className="iw-k" style={{ color: '#064e3b' }}>Direct Booking</div>
-              <h3>Schedule a Consultation</h3>
-              <p>Book directly with a licensed clinician based on their real-time Google Calendar availability.</p>
-              <button
-                type="button"
-                className="iw-primary"
-                style={{ backgroundColor: '#064e3b' }}
-                onClick={() => handleStartBooking(null)}
-              >
-                Book a Session <ArrowRight size={15} />
-              </button>
-            </div>
-
             <div className="iw-card iw-journey">
               <div className="iw-icon"><MessageCircle /></div>
               <div className="iw-k">Talk it through</div>
