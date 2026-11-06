@@ -22,6 +22,10 @@ export const EmailEvents = {
   THERAPIST_APPLICATION_RECEIVED: 'therapist.application_received',
   THERAPIST_APPLICATION_APPROVED: 'therapist.application_approved',
   THERAPIST_APPLICATION_REJECTED: 'therapist.application_rejected',
+
+  // Team callback & customer queries
+  TEAM_CALLBACK_RECEIVED: 'therapy.team_callback_received',
+  TEAM_CALLBACK_ADMIN_ALERT: 'therapy.team_callback_admin_alert',
 } as const;
 
 export type EmailEventType = typeof EmailEvents[keyof typeof EmailEvents];

@@ -2549,11 +2549,88 @@ function Team({ exit, user, profile }) {
     return (
       <div className="iw-flow">
         <Header name="Talk to the team" step={4} total={4} onBack={exit} />
-        <div className="iw-card iw-success">
+        <div className="iw-card iw-success" style={{ textAlign: 'center' }}>
           <div className="iw-successicon"><Check /></div>
-          <h2>Request received</h2>
-          <p>Your request, contact details and safety assessment have been securely submitted to the Therapy backend.</p>
-          <button type="button" className="iw-primary" onClick={exit}>Back to Therapy</button>
+          <h2>We have received your query</h2>
+          <p style={{ maxWidth: 520, margin: '0 auto 20px', lineHeight: 1.6, color: '#4A5568', fontSize: 15 }}>
+            Thank you for reaching out. We have received your query and will reach out soon regarding your therapy journey.
+          </p>
+          <button type="button" className="iw-primary" style={{ maxWidth: 260, margin: '0 auto 24px' }} onClick={exit}>
+            Back to Therapy
+          </button>
+
+          {/* Emergency Crisis Helplines Support Box at Bottom */}
+          <div
+            style={{
+              marginTop: 16,
+              padding: '16px 20px',
+              borderRadius: 14,
+              backgroundColor: '#FAFAF9',
+              border: '1px solid rgba(38,50,56,0.12)',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#132A24' }}>
+              <Phone size={15} style={{ color: '#064e3b' }} />
+              <span>Need Immediate Crisis Support? Helplines are Available 24/7</span>
+            </div>
+            <p style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 10px', color: '#66747A' }}>
+              If you or someone you know is in immediate crisis, having thoughts of self-harm, or experiencing severe distress, please connect directly with dedicated helplines:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
+              <a
+                href="tel:14416"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: '#ffffff',
+                  borderRadius: 8,
+                  border: '1px solid rgba(38,50,56,0.12)',
+                  color: '#132A24',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Tele-MANAS: 14416 / 1800-891-4416
+              </a>
+              <a
+                href="tel:18005990019"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: '#ffffff',
+                  borderRadius: 8,
+                  border: '1px solid rgba(38,50,56,0.12)',
+                  color: '#132A24',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                KIRAN: 1800-599-0019
+              </a>
+              <a
+                href="tel:112"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: '#ffffff',
+                  borderRadius: 8,
+                  border: '1px solid rgba(38,50,56,0.12)',
+                  color: '#132A24',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Emergency: 112
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -2595,7 +2672,77 @@ function Team({ exit, user, profile }) {
                 <Option key={item} selected={form.callback === item} onClick={() => set('callback', item)}>{item}</Option>
               ))}
             </div>
-            <div className="iw-note"><Phone size={15} style={{ verticalAlign: '-3px' }} /> Immediate safety concerns should use emergency support rather than waiting for a callback.</div>
+            <div
+              style={{
+                marginTop: 20,
+                padding: '14px 18px',
+                borderRadius: 14,
+                backgroundColor: '#FFF7ED',
+                border: '1.5px solid #FDBA74',
+                color: '#9A3412',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                <Phone size={15} style={{ color: '#EA580C' }} />
+                <span>In Immediate Crisis — Reach Out to Helplines Directly</span>
+              </div>
+              <p style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 10px', color: '#7C2D12' }}>
+                If you are experiencing acute distress or thoughts of self-harm, please do not wait for a callback. Reach out directly to 24/7 emergency helplines:
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
+                <a
+                  href="tel:14416"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 10px',
+                    background: '#ffffff',
+                    borderRadius: 8,
+                    border: '1px solid #FDBA74',
+                    color: '#C2410C',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Tele-MANAS: 14416 / 1800-891-4416
+                </a>
+                <a
+                  href="tel:18005990019"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 10px',
+                    background: '#ffffff',
+                    borderRadius: 8,
+                    border: '1px solid #FDBA74',
+                    color: '#C2410C',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  KIRAN: 1800-599-0019
+                </a>
+                <a
+                  href="tel:112"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 10px',
+                    background: '#ffffff',
+                    borderRadius: 8,
+                    border: '1px solid #FDBA74',
+                    color: '#C2410C',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Emergency: 112
+                </a>
+              </div>
+            </div>
           </>
         )}
 

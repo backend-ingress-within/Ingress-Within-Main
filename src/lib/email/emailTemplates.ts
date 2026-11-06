@@ -1142,4 +1142,118 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       text: `${rawSubject}\n\nDear ${rawName},\n\n${rawMessage}\n\nOpen Therapist Dashboard:\n${ctaUrl}\n\n---\nIngress Within Administrative Team\ncontactus@ingresswithin.com\n+91 89556 05569`,
     };
   },
+
+  team_callback_received: (data) => {
+    const rawClientName = data.clientName || 'Valued Client';
+    const clientName = escapeHtml(rawClientName);
+    const callbackPreference = escapeHtml(data.callbackPreference || 'No preference');
+    const notes = data.notes ? escapeHtml(data.notes) : '';
+    const refCode = data.referenceCode ? escapeHtml(data.referenceCode) : '';
+
+    const contentHtml = `
+      <p style="margin: 0 0 16px 0; font-size: 15px; color: #1e293b;">Hello <strong>${clientName}</strong>,</p>
+      <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+        Thank you for reaching out. We have received your query and will reach out to you soon regarding your therapy journey.
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">Request Summary</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          ${refCode ? `<tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Reference Code:</td><td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: 700;">${refCode}</td></tr>` : ''}
+          <tr>
+            <td style="padding: 6px 0; color: #64748b; width: 140px;">Preferred Window:</td>
+            <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${callbackPreference}</td>
+          </tr>
+          ${notes ? `<tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">Your Note:</td><td style="padding: 6px 0; color: #0f172a; line-height: 1.5;">${notes}</td></tr>` : ''}
+        </table>
+      </div>
+
+      <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px 18px; margin: 24px 0;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.05em;">
+          Immediate Crisis & 24/7 Helplines
+        </p>
+        <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: #7f1d1d;">
+          If you or someone you know is in immediate crisis, experiencing acute distress, or having thoughts of self-harm, please do not wait for a callback. Reach out directly to 24/7 free, confidential helplines:
+        </p>
+        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #991b1b; line-height: 1.7;">
+          <li><strong>Tele-MANAS (Govt. of India):</strong> Call <strong>14416</strong> or <strong>1800-891-4416</strong> (24/7 Toll-Free, Multilingual)</li>
+          <li><strong>KIRAN Mental Health Helpline:</strong> Call <strong>1800-599-0019</strong> (24/7 Toll-Free)</li>
+          <li><strong>National Emergency Helpline:</strong> Call <strong>112</strong></li>
+        </ul>
+      </div>
+
+      <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #64748b;">
+        Warm regards,<br />
+        <strong>The Ingress Within Care Team</strong>
+      </p>
+    `;
+
+    return {
+      subject: `Ingress Within: We have received your query${refCode ? ` [${data.referenceCode}]` : ''}`,
+      html: renderBaseEmailLayout({
+        title: 'We Have Received Your Query',
+        badge: 'Query Received',
+        badgeVariant: 'success',
+        heading: 'We have received your query',
+        preheader: 'Our care team has received your query and will reach out soon.',
+        contentHtml,
+        ctaButton: {
+          label: 'Return to Therapy Portal',
+          url: APP_URLS.THERAPY_DASHBOARD,
+        },
+      }),
+      text: `Hello ${rawClientName},\n\nWe have received your query and will reach out soon.\n\nPreferred callback: ${data.callbackPreference || 'No preference'}\n${data.notes ? `Note: ${data.notes}\n` : ''}\nImmediate Crisis Support:\n- Tele-MANAS: 14416 / 1800-891-4416\n- KIRAN: 1800-599-0019\n- Emergency: 112\n\nWarm regards,\nThe Ingress Within Care Team`,
+    };
+  },
+
+  team_callback_admin_alert: (data) => {
+    const rawClientName = data.clientName || 'Client';
+    const clientName = escapeHtml(rawClientName);
+    const clientEmail = data.clientEmail ? escapeHtml(data.clientEmail) : 'Not provided';
+    const clientPhone = data.clientPhone ? escapeHtml(data.clientPhone) : 'Not provided';
+    const callbackPreference = escapeHtml(data.callbackPreference || 'No preference');
+    const notes = data.notes ? escapeHtml(data.notes) : 'None';
+    const triageLevel = escapeHtml(data.triageLevel || 'standard');
+    const refCode = data.referenceCode ? escapeHtml(data.referenceCode) : '';
+    const adminUrl = data.adminUrl || APP_URLS.ADMIN_PORTAL;
+
+    const contentHtml = `
+      <p style="margin: 0 0 16px 0; font-size: 15px; color: #1e293b;">
+        A client has submitted a direct callback request via the Therapy Portal.
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          ${refCode ? `<tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Reference ID:</td><td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: 700;">${refCode}</td></tr>` : ''}
+          <tr><td style="padding: 6px 0; color: #64748b; width: 140px;">Client Name:</td><td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${clientName}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Email:</td><td style="padding: 6px 0; color: #0f172a;">${clientEmail}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Phone:</td><td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${clientPhone}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Preferred Window:</td><td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${callbackPreference}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Safety Triage:</td><td style="padding: 6px 0; color: ${triageLevel === 'immediate' ? '#dc2626' : triageLevel === 'priority' ? '#d97706' : '#16a34a'}; font-weight: 700;">${triageLevel.toUpperCase()}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">Client Query / Reason:</td><td style="padding: 6px 0; color: #0f172a; line-height: 1.5;">${notes}</td></tr>
+        </table>
+      </div>
+
+      <p style="margin: 0; font-size: 13px; color: #64748b;">
+        Please review the client's information in the Admin Portal under Matching Reviews and coordinate contact accordingly.
+      </p>
+    `;
+
+    return {
+      subject: `[Action Required] New Therapy Callback Query: ${rawClientName} (${data.callbackPreference || 'Anytime'})`,
+      html: renderBaseEmailLayout({
+        title: 'New Client Callback Request',
+        badge: 'Action Required',
+        badgeVariant: 'warning',
+        heading: 'New Clinical Callback Request',
+        preheader: `Callback query from ${rawClientName}. Preferred: ${data.callbackPreference || 'Anytime'}.`,
+        contentHtml,
+        ctaButton: {
+          label: 'Open Admin Matching Reviews',
+          url: adminUrl,
+        },
+      }),
+      text: `New Callback Query from ${rawClientName}\nPhone: ${data.clientPhone || 'N/A'}\nEmail: ${data.clientEmail || 'N/A'}\nPreferred Time: ${data.callbackPreference || 'Anytime'}\nTriage: ${data.triageLevel || 'standard'}\nNotes: ${data.notes || 'None'}\n\nReview in Admin Portal:\n${adminUrl}`,
+    };
+  },
 };

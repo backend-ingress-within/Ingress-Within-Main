@@ -682,6 +682,57 @@ export class EmailService {
     });
   }
 
+  /**
+   * Notifies a client that their direct team callback query has been received,
+   * confirming receipt and providing 24/7 crisis helplines.
+   */
+  static async notifyTeamCallbackReceived(payload: {
+    clientEmail: string;
+    clientName: string;
+    callbackPreference?: string | null;
+    notes?: string | null;
+    referenceCode?: string;
+  }) {
+    return this.queueEmail({
+      eventType: EmailEvents.TEAM_CALLBACK_RECEIVED,
+      recipient: {
+        email: payload.clientEmail,
+        name: payload.clientName,
+        type: 'client',
+      },
+      templateKey: 'team_callback_received',
+      templateData: payload,
+      idempotencyKey: `team_cb_client:${payload.referenceCode || Date.now()}`,
+    });
+  }
+
+  /**
+   * Notifies the admin / care coordinator that a client requested a direct team callback.
+   */
+  static async notifyTeamCallbackAdminAlert(payload: {
+    clientName: string;
+    clientEmail?: string | null;
+    clientPhone?: string | null;
+    callbackPreference?: string | null;
+    notes?: string | null;
+    triageLevel?: string;
+    referenceCode?: string;
+  }) {
+    const { getEmailConfig } = await import('./emailConfig');
+    const adminEmail = getEmailConfig().adminNotificationEmail || 'contactus@ingresswithin.com';
+    return this.queueEmail({
+      eventType: EmailEvents.TEAM_CALLBACK_ADMIN_ALERT,
+      recipient: {
+        email: adminEmail,
+        name: 'Ingress Within Care Coordinator',
+        type: 'admin',
+      },
+      templateKey: 'team_callback_admin_alert',
+      templateData: payload,
+      idempotencyKey: `team_cb_admin:${payload.referenceCode || Date.now()}`,
+    });
+  }
+
   // =========================================================================
   // ADMIN OBSERVABILITY, LOGGING & DELIVERY STATUS
   // =========================================================================

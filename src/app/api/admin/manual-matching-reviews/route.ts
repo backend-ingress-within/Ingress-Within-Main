@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
         seenRefs.add(ref);
         combined.push({
           ...r,
-          clientName: r.users?.profiles?.full_name || r.client_preferences?.contact_name || 'Client',
-          clientEmail: r.users?.email || r.client_preferences?.contact_email || 'N/A',
-          clientPhone: r.users?.phone_number || r.client_preferences?.contact_phone || 'N/A',
+          clientName: r.users?.profiles?.full_name || r.client_preferences?.contact_name || r.client_preferences?.name || r.client_name || 'Client',
+          clientEmail: r.users?.email || r.client_preferences?.contact_email || r.client_preferences?.email || r.client_email || 'N/A',
+          clientPhone: r.users?.phone_number || r.client_preferences?.contact_phone || r.client_preferences?.phone || r.client_phone || 'N/A',
         });
       }
     }
