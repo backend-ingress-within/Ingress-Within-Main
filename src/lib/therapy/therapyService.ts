@@ -618,7 +618,13 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
         : (Array.isArray(app?.answers?.specialties) && app.answers.specialties.length > 0
           ? app.answers.specialties
           : ['General Clinical Psychology']),
-      languages: Array.isArray(profile.languages) ? profile.languages : ['English', 'Hindi'],
+      languages: Array.isArray(profile.languages) && profile.languages.length > 0
+        ? profile.languages
+        : (Array.isArray(app?.answers?.languages) && app.answers.languages.length > 0
+          ? app.answers.languages
+          : (Array.isArray(app?.answers?.spokenLanguages) && app.answers.spokenLanguages.length > 0
+            ? app.answers.spokenLanguages
+            : ['English', 'Hindi'])),
       sessionFormats: Array.isArray(profile.session_formats) ? profile.session_formats : ['telehealth'],
       profileImageUrl: profile.profile_image_url || null,
       city: profile.city || null,
@@ -626,7 +632,7 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
       fee: resolvedFee,
       per_session_fee: resolvedFee,
       availability: availabilityText,
-      gender: (profile as any).gender || 'Not specified',
+      gender: (profile as any).gender || app?.answers?.gender || app?.answers?.therapistGender || 'Not specified',
     });
   }
 

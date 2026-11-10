@@ -937,7 +937,7 @@ function Guided({ exit, onBookSession, user, profile }) {
     medication: '', prescribed: '', diagnosed: '', currentSupport: '',
     satisfaction: {}, coping: '', copingOther: '', support: {},
     scenarios: {}, improve: [], worry: '',
-    therapistGender: '', budget: '', frequency: '',
+    therapistGender: '', language: 'No preference', budget: '', frequency: '',
     styleStructure: '', stylePace: '', styleLead: '', termApproach: '',
     finalNotes: '',
   }));
@@ -999,6 +999,9 @@ function Guided({ exit, onBookSession, user, profile }) {
             city: d.city,
             budget: d.budget,
             therapistgender: d.therapistGender,
+            therapistGender: d.therapistGender,
+            language: d.language,
+            clientlanguage: d.language && d.language !== 'No preference' ? [d.language] : ['English'],
             stylestructure: d.styleStructure,
             stylepace: d.stylePace,
             stylelead: d.styleLead,
@@ -1048,6 +1051,9 @@ function Guided({ exit, onBookSession, user, profile }) {
         state: t.state || '',
         city: t.city || '',
         gender: t.gender || 'Not specified',
+        languages: Array.isArray(t.languages)
+          ? t.languages
+          : (Array.isArray(t.preferred_languages) ? t.preferred_languages : ['English', 'Hindi']),
         formats,
         sessionFormats: formats,
         specialties: specializations,
@@ -1099,23 +1105,68 @@ function Guided({ exit, onBookSession, user, profile }) {
   }, [normalizedTherapists]);
 
   const dynamicGenderOptions = useMemo(() => {
-    const list = [
-      { value: 'No preference', label: `No preference (${normalizedTherapists.length || 'All'} clinicians)` }
-    ];
     const femaleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'female').length;
     const maleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'male').length;
     const nbCount = normalizedTherapists.filter((t) => ['non-binary', 'other'].includes((t.gender || '').toLowerCase())).length;
 
-    if (femaleCount > 0) {
-      list.push({ value: 'Female', label: `Female clinician (${femaleCount} available)` });
-    }
-    if (maleCount > 0) {
-      list.push({ value: 'Male', label: `Male clinician (${maleCount} available)` });
-    }
+    const list = [
+      { value: 'Female', label: femaleCount > 0 ? `Female (${femaleCount} available)` : 'Female' },
+      { value: 'Male', label: maleCount > 0 ? `Male (${maleCount} available)` : 'Male' },
+      { value: 'No preference', label: `No preference (${normalizedTherapists.length || 'All'} clinicians)` },
+    ];
     if (nbCount > 0) {
-      list.push({ value: 'Non-binary', label: `Non-binary clinician (${nbCount} available)` });
+      list.push({ value: 'Non-binary', label: `Non-binary (${nbCount} available)` });
     }
     return list;
+  }, [normalizedTherapists]);
+
+  const dynamicLanguageOptions = useMemo(() => {
+    const counts = {};
+    normalizedTherapists.forEach((t) => {
+      const langs = Array.isArray(t.languages)
+        ? t.languages
+        : (Array.isArray(t.preferred_languages) ? t.preferred_languages : ['English', 'Hindi']);
+      langs.forEach((l) => {
+        if (!l || typeof l !== 'string') return;
+        const trimmed = l.trim();
+        if (!trimmed) return;
+        const normalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+        counts[normalized] = (counts[normalized] || 0) + 1;
+      });
+    });
+
+    const standardLanguages = [
+      'English',
+      'Hindi',
+      'Marathi',
+      'Bengali',
+      'Tamil',
+      'Telugu',
+      'Kannada',
+      'Malayalam',
+      'Gujarati',
+      'Punjabi',
+      'Urdu',
+      'Odia',
+      'Assamese',
+    ];
+
+    const allLangs = Array.from(new Set([...standardLanguages, ...Object.keys(counts)])).sort((a, b) => {
+      if (a === 'English') return -1;
+      if (b === 'English') return 1;
+      if (a === 'Hindi') return -1;
+      if (b === 'Hindi') return 1;
+      return a.localeCompare(b);
+    });
+
+    return [
+      { value: 'No preference', label: `No preference (Any language · ${normalizedTherapists.length || 'All'} clinicians)` },
+      ...allLangs.map((lang) => ({
+        value: lang,
+        label: counts[lang] ? `${lang} (${counts[lang]} available)` : lang,
+        count: counts[lang] || 0,
+      })),
+    ];
   }, [normalizedTherapists]);
   
   const createSession = async () => {
@@ -1223,6 +1274,8 @@ function Guided({ exit, onBookSession, user, profile }) {
     }[d.budget] ?? Infinity;
 
     const selectedConcerns = (d.concerns || []).map((c) => c === 'Other' ? (d.concernsOther || 'Other') : c);
+    const selectedLanguage = (d.language || '').trim().toLowerCase();
+    const hasLanguagePref = selectedLanguage && selectedLanguage !== 'no preference' && selectedLanguage !== 'any language';
 
     return normalizedTherapists
       .filter((t) => {
@@ -1235,7 +1288,7 @@ function Guided({ exit, onBookSession, user, profile }) {
         if (!d.therapistGender || d.therapistGender === 'No preference' || t.gender === 'Not specified') {
           return true;
         }
-        return t.gender.toLowerCase() === d.therapistGender.toLowerCase();
+        return (t.gender || '').toLowerCase() === d.therapistGender.toLowerCase();
       })
       .map((t) => {
         const specialtiesList = Array.isArray(t.specialties) ? t.specialties : [];
@@ -1261,14 +1314,23 @@ function Guided({ exit, onBookSession, user, profile }) {
         ).length;
 
         const budgetFit = t.fee <= maxBudget ? 1 : 0.6;
-        const genderFit = (d.therapistGender === 'No preference' || t.gender === 'Not specified')
+        const genderFit = (!d.therapistGender || d.therapistGender === 'No preference' || t.gender === 'Not specified')
           ? 0.8
-          : (t.gender.toLowerCase() === d.therapistGender.toLowerCase() ? 1 : 0.3);
+          : ((t.gender || '').toLowerCase() === d.therapistGender.toLowerCase() ? 1.2 : 0.3);
 
-        const score = Math.min(99, Math.round(50 + (concernHits * 20) + (budgetFit * 20) + (genderFit * 10)));
-        return { ...t, score, concernHits };
+        const therapistLanguages = (Array.isArray(t.languages) ? t.languages : ['English', 'Hindi'])
+          .map((l) => (l || '').toLowerCase());
+        const languageFit = !hasLanguagePref
+          ? 1
+          : (therapistLanguages.some((l) => l.includes(selectedLanguage) || selectedLanguage.includes(l)) ? 1.5 : 0.2);
+
+        const score = Math.min(99, Math.round(40 + (concernHits * 20) + (budgetFit * 15) + (genderFit * 10) + (languageFit * 15)));
+        return { ...t, score, concernHits, languageFit };
       })
       .sort((a, b) => {
+        if (hasLanguagePref && b.languageFit !== a.languageFit) {
+          return b.languageFit - a.languageFit;
+        }
         if (b.concernHits !== a.concernHits) return b.concernHits - a.concernHits;
         return b.score - a.score;
       })
@@ -1323,6 +1385,7 @@ function Guided({ exit, onBookSession, user, profile }) {
           improve: d.improve,
           worry: d.worry,
           therapistGender: d.therapistGender,
+          language: d.language,
           budget: d.budget,
           frequency: d.frequency,
           styleStructure: d.styleStructure,
@@ -1339,6 +1402,8 @@ function Guided({ exit, onBookSession, user, profile }) {
         answers: {
           satisfaction: d.satisfaction,
           scenarios: d.scenarios,
+          language: d.language,
+          clientlanguage: d.language && d.language !== 'No preference' ? [d.language] : ['English'],
         },
       }),
     });
@@ -1435,9 +1500,14 @@ function Guided({ exit, onBookSession, user, profile }) {
           : 'Consultation fee aligned with clinical experience',
         d.therapistGender === 'No preference'
           ? 'No gender preference'
-          : therapist.gender === d.therapistGender
-            ? 'Matches therapist gender preference'
-            : null,
+          : (therapist.gender && therapist.gender.toLowerCase() === d.therapistGender.toLowerCase()
+            ? `Matches ${d.therapistGender} clinician preference`
+            : null),
+        d.language && d.language !== 'No preference'
+          ? (Array.isArray(therapist.languages) && therapist.languages.some((l) => (l || '').toLowerCase().includes(d.language.toLowerCase()))
+            ? `Speaks ${d.language}`
+            : null)
+          : null,
       ].filter(Boolean),
       matchingMetadata: {
         source: 'clinical_therapist_directory',
@@ -2089,6 +2159,25 @@ function Guided({ exit, onBookSession, user, profile }) {
               </div>
             </div>
             <div className="iw-field">
+              <label>Preferred language for therapy?</label>
+              <select
+                value={d.language || 'No preference'}
+                onChange={(e) => set('language', e.target.value)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  lineHeight: '1.4',
+                  backgroundColor: '#fff',
+                }}
+              >
+                {dynamicLanguageOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="iw-field">
               <label>Affordable budget per session?</label>
               <div className="iw-optiongrid">
                 {dynamicBudgetOptions.map((opt) => (
@@ -2126,6 +2215,7 @@ function Guided({ exit, onBookSession, user, profile }) {
               <div className="iw-row"><span>Most affected areas</span><strong>{Object.entries(d.lifeArea).filter(([, value]) => ['Quite a lot', 'Extremely'].includes(value)).map(([key]) => key).join(', ') || 'No area rated significantly affected'}</strong></div>
               <div className="iw-row"><span>Mental health history</span><strong>{[d.priorTherapy && `Therapy: ${d.priorTherapy}`, d.medication && `Medication: ${d.medication}`, d.diagnosed && `Diagnosis: ${d.diagnosed}`, d.currentSupport && `Support: ${d.currentSupport}`].filter(Boolean).join(' · ') || '—'}</strong></div>
               <div className="iw-row"><span>Hoping to improve</span><strong>{d.improve.join(', ') || '—'}</strong></div>
+              <div className="iw-row"><span>Preferences</span><strong>{[d.therapistGender ? `Gender: ${d.therapistGender}` : null, d.language && d.language !== 'No preference' ? `Language: ${d.language}` : 'Language: Any'].filter(Boolean).join(' · ')}</strong></div>
               <div className="iw-row"><span>Budget & frequency</span><strong>{d.budget} · {d.frequency}</strong></div>
             </div>
           </>

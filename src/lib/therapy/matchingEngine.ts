@@ -712,7 +712,11 @@ export function adaptClientAnswers(answers: Record<string, any>): ClientProfile 
     ? a.clientlanguage
     : Array.isArray(a.languages)
     ? a.languages
-    : ['English'];
+    : (a.language && a.language !== 'No preference' && a.language !== 'Any language'
+        ? [a.language]
+        : (a.therapistLanguage && a.therapistLanguage !== 'No preference' && a.therapistLanguage !== 'Any language'
+            ? [a.therapistLanguage]
+            : []));
 
   const budget = normalizeBudgetBand(a.budget);
 
