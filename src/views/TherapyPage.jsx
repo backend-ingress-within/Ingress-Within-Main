@@ -205,6 +205,32 @@ const CSS = `
 .iw-section{padding-top:4px;margin-bottom:24px}
 .iw-section+.iw-section{border-top:1px solid rgba(38,50,56,.08);padding-top:22px}
 .iw-error{color:#8d3e2d;font-size:12px;margin-top:7px}
+.iw-intake-wrap{max-width:880px;margin:0 auto;padding:16px 0 48px}
+.iw-intake-eyebrow{font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:#5f6b72;margin:0 0 14px;font-weight:600}
+.iw-intake-title{font-family:Georgia,'Times New Roman',serif;font-weight:400;color:#132a24;font-size:clamp(2.1rem,5vw,3.2rem);line-height:1.15;letter-spacing:-.01em;margin:0 0 16px}
+.iw-intake-intro{font-size:1.2rem;max-width:62ch;margin:0 0 36px;color:#4d5a61;line-height:1.6}
+.iw-intake-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.iw-intake-card{background:#ffffff;border:1px solid #e7e2da;border-radius:24px;padding:32px;display:flex;flex-direction:column;box-shadow:0 4px 16px rgba(19,42,36,0.03);transition:transform .15s ease,box-shadow .15s ease}
+.iw-intake-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(19,42,36,0.06)}
+.iw-intake-icon{width:56px;height:56px;border-radius:16px;background:#f0f4f2;display:flex;align-items:center;justify-content:center;margin-bottom:24px;color:#132a24}
+.iw-intake-icon svg{width:26px;height:26px;stroke:#132a24}
+.iw-intake-label{font-size:.85rem;color:#5f6b72;margin:0 0 6px;font-weight:600}
+.iw-intake-h2{font-family:Georgia,'Times New Roman',serif;font-weight:500;color:#132a24;font-size:1.55rem;line-height:1.25;margin:0 0 12px}
+.iw-intake-text{margin:0 0 20px;flex:1;font-size:1.02rem;color:#4d5a61;line-height:1.6}
+.iw-intake-meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+.iw-intake-meta span{font-size:.85rem;color:#132a24;background:#f0f4f2;border:1px solid #e1e9e5;border-radius:999px;padding:6px 14px;font-weight:500}
+.iw-intake-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#132a24;color:#ffffff;text-decoration:none;padding:16px 24px;border-radius:16px;font-weight:600;font-size:1rem;border:none;cursor:pointer;transition:background .15s ease}
+.iw-intake-btn:hover{background:#1f3b33}
+.iw-intake-btn:focus-visible{outline:3px solid #1B5E52;outline-offset:3px}
+.iw-intake-btn svg{width:18px;height:18px}
+.iw-intake-equal{margin-top:24px;padding:20px 28px;background:#ffffff;border:1px solid #e7e2da;border-radius:20px;box-shadow:0 2px 8px rgba(19,42,36,0.02)}
+.iw-intake-equal strong{color:#132a24;font-weight:600}
+.iw-intake-equal p{margin:0;max-width:72ch;font-size:.95rem;color:#4d5a61;line-height:1.6}
+.iw-intake-fine{margin:20px 4px 0;font-size:.9rem;color:#5f6b72;max-width:75ch}
+@media(max-width:680px){
+  .iw-intake-cards{grid-template-columns:1fr}
+  .iw-intake-card{padding:24px 20px}
+}
 @media(max-width:800px){
   .iw-grid,.iw-optiongrid{grid-template-columns:1fr}
   .iw-card{padding:20px}
@@ -3593,47 +3619,79 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             );
           })()}
 
-          {/* STATE A & D: Primary 3 Entry Paths */}
-          <div className="iw-k">Support, at your pace</div>
-          <h1>Let’s find the right way in.</h1>
-          <p className="iw-lede">
-            Choose how you’d like to begin. You can talk it through, answer a guided set of questions, or speak with the team.
-          </p>
+          {/* Intake Landing Page: 2 Paths (Guided Form & Speak with Team) */}
+          <div className="iw-intake-wrap">
+            <p className="iw-intake-eyebrow">Support, at your pace</p>
+            <h1 className="iw-intake-title">Let’s find the right therapist for you.</h1>
+            <p className="iw-intake-intro">
+              Some people prefer to choose from simple options, some prefer to talk it through. Both work equally well.
+            </p>
 
-          <div className="iw-grid">
-            <div className="iw-card iw-journey">
-              <div className="iw-icon"><MessageCircle /></div>
-              <div className="iw-k">Talk it through</div>
-              <h3>Start with a conversation</h3>
-              <p>Share what has been on your mind in a guided conversational experience.</p>
-              <button type="button" className="iw-primary" onClick={() => setJourney('conversation')}>
-                Talk it through <ArrowRight size={15} />
-              </button>
+            <section className="iw-intake-cards" aria-label="Ways to get started">
+              <article className="iw-intake-card">
+                <div className="iw-intake-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="4" width="14" height="17" rx="3" />
+                    <path d="M9 4.5h6v2H9z" />
+                    <path d="M9 11h.01M9 15h.01M12.5 11H16M12.5 15H16" />
+                  </svg>
+                </div>
+                <p className="iw-intake-label">Fill it in yourself</p>
+                <h2 className="iw-intake-h2">Choose from simple options</h2>
+                <p className="iw-intake-text">
+                  Mostly pick-the-option questions, with just 2 or 3 places to write in your own words.
+                </p>
+                <div className="iw-intake-meta">
+                  <span>About 10 minutes</span>
+                  <span>At your own time</span>
+                </div>
+                <button
+                  type="button"
+                  className="iw-intake-btn"
+                  onClick={() => setJourney('guided')}
+                >
+                  Start the form
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+              </article>
+
+              <article className="iw-intake-card">
+                <div className="iw-intake-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="8" r="3.2" />
+                    <path d="M3.5 19c.4-3.2 2.7-5 5.5-5s5.1 1.8 5.5 5" />
+                    <path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.3c1.9.6 3.1 2.2 3.5 4.7" />
+                  </svg>
+                </div>
+                <p className="iw-intake-label">Talk to someone</p>
+                <h2 className="iw-intake-h2">Prefer to speak with a person?</h2>
+                <p className="iw-intake-text">
+                  Leave your number and our team will call you at a time that suits you. A semi-structured conversation with our team, so we can understand you before we match you.
+                </p>
+                <div className="iw-intake-meta">
+                  <span>15 to 20 minutes</span>
+                  <span>Call within 1 working day</span>
+                </div>
+                <button
+                  type="button"
+                  className="iw-intake-btn"
+                  onClick={() => setJourney('team')}
+                >
+                  Request a call
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+              </article>
+            </section>
+
+            <div className="iw-intake-equal">
+              <p>
+                <strong>Matched by our algorithm, either way.</strong> Built with experienced psychologists, it finds your match from your form answers. If you speak to us, a psychologist from our team gets to know you first, and the same algorithm does the matching.
+              </p>
             </div>
 
-            <div className="iw-card iw-journey">
-              <div className="iw-icon"><ClipboardList /></div>
-              <div className="iw-k">Guided form</div>
-              <h3>Tell us about yourself</h3>
-              <p>Answer structured questions about your background, concerns, history, safety and preferences.</p>
-              <button type="button" className="iw-primary" onClick={() => setJourney('guided')}>
-                Start guided form <ArrowRight size={15} />
-              </button>
-            </div>
-
-            <div className="iw-card iw-journey">
-              <div className="iw-icon"><Users /></div>
-              <div className="iw-k">Talk to the team</div>
-              <h3>Prefer to speak with us directly?</h3>
-              <p>Skip the intake conversation and leave your details for a callback.</p>
-              <button type="button" className="iw-primary" onClick={() => setJourney('team')}>
-                Talk to the team <ArrowRight size={15} />
-              </button>
-            </div>
-          </div>
-
-          <div className="iw-note">
-            Ingress Within therapy appointments are conducted securely via Google Meet and synchronized automatically with your Google Calendar upon confirmation.
+            <p className="iw-intake-fine">
+              Confidential. Sessions are on Google Meet and added to your Google Calendar.
+            </p>
           </div>
         </div>
       )}
