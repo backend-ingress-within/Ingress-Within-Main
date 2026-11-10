@@ -37,6 +37,7 @@ export default function ManualMatchingReviewsView({ showToast }) {
   // Assignment modal states
   const [therapists, setTherapists] = useState([]);
   const [selectedTherapistId, setSelectedTherapistId] = useState('');
+  const [connectDirectly, setConnectDirectly] = useState(false);
   const [updateStatus, setUpdateStatus] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +83,7 @@ export default function ManualMatchingReviewsView({ showToast }) {
     setUpdateStatus(rev.review_status);
     setInternalNotes(rev.internal_notes || '');
     setSelectedTherapistId(rev.identified_therapist_id || '');
+    setConnectDirectly(false);
   };
 
   const handleSaveReview = async () => {
@@ -95,12 +97,17 @@ export default function ManualMatchingReviewsView({ showToast }) {
           reviewStatus: updateStatus,
           internalNotes: internalNotes.trim(),
           identifiedTherapistId: selectedTherapistId || null,
+          connectDirectly: Boolean(connectDirectly),
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast('Matching review successfully updated.');
+        showToast(
+          connectDirectly
+            ? 'Clinician directly connected and care relationship established.'
+            : 'Matching review updated and clinician request created.'
+        );
         setSelectedReview(null);
         fetchReviews();
       } else {
@@ -323,10 +330,14 @@ export default function ManualMatchingReviewsView({ showToast }) {
                         <button
                           type="button"
                           onClick={() => handleOpenReview(rev)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-primary/20 hover:border-accent hover:bg-primary/5 text-primary text-[11px] font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                            rev.identified_therapist_id
+                              ? 'border border-primary/20 text-primary hover:bg-primary/5'
+                              : 'bg-[#1B5E52] text-white hover:bg-[#144A41] shadow-xs'
+                          }`}
                         >
-                          <span>Review</span>
-                          <Eye size={12} />
+                          <span>{rev.identified_therapist_id ? 'Review' : 'Match Clinician'}</span>
+                          {rev.identified_therapist_id ? <Eye size={12} /> : <UserCheck size={12} />}
                         </button>
                       </td>
                     </tr>
@@ -449,6 +460,68 @@ export default function ManualMatchingReviewsView({ showToast }) {
                 <p className="text-[11px] text-mid font-light">
                   Assigning a clinician directly coordinates care with that specific verified therapist. It will never broadcast to or notify unauthorized therapists.
                 </p>
+
+                {selectedTherapistId && (() => {
+                  const t = therapists.find((th) => th.id === selectedTherapistId);
+                  if (!t) return null;
+                  const reqs = selectedReview.matching_requirements || {};
+                  const clientLang = Array.isArray(reqs.languages) ? reqs.languages[0] : (reqs.language || 'English');
+                  const clientGender = reqs.genderPreference || 'No preference';
+                  const matchesLang = clientLang && clientLang !== 'No preference' && Array.isArray(t.languages) && t.languages.some(l => (l || '').toLowerCase().includes(clientLang.toLowerCase()));
+                  const matchesGender = clientGender && clientGender !== 'No preference' && (t.gender || '').toLowerCase() === clientGender.toLowerCase();
+
+                  return (
+                    <div className="p-3 bg-[#F0F4F2] border border-[#D5DFDA] rounded-xl text-xs space-y-1.5 mt-2">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-[#132A24] font-semibold">{t.full_name}</strong>
+                        <span className="font-mono text-[#1B5E52] font-semibold">₹{t.per_session_fee || 1500}/session</span>
+                      </div>
+                      <div className="text-[11px] text-[#4E635E]">
+                        {t.qualification || t.title || 'Consultant Psychologist'} · {t.gender || 'Clinician'} · {t.city || 'Telehealth'}
+                      </div>
+                      {Array.isArray(t.languages) && (
+                        <div className="text-[11px] text-[#132A24]/80 flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-[#132A24]/60">Languages:</span>
+                          <span>{t.languages.join(', ')}</span>
+                          {matchesLang && (
+                            <span className="px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                              ✓ Matches Language
+                            </span>
+                          )}
+                          {matchesGender && (
+                            <span className="px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                              ✓ Matches Gender
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {selectedTherapistId && (
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer text-xs mt-2">
+                    <input
+                      type="checkbox"
+                      checked={connectDirectly}
+                      onChange={(e) => {
+                        setConnectDirectly(e.target.checked);
+                        if (e.target.checked) {
+                          setUpdateStatus('resolved');
+                        } else {
+                          setUpdateStatus('awaiting_therapist_acceptance');
+                        }
+                      }}
+                      className="mt-0.5 rounded text-emerald-600"
+                    />
+                    <div>
+                      <span className="font-semibold text-emerald-950 block">Directly connect care relationship</span>
+                      <span className="text-[11px] text-emerald-800/80 block">
+                        Instantly establishes active care relationship in client-therapist directory without awaiting therapist manual acceptance.
+                      </span>
+                    </div>
+                  </label>
+                )}
               </div>
 
               {/* Internal Notes */}
@@ -500,10 +573,18 @@ export default function ManualMatchingReviewsView({ showToast }) {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSaveReview}
-                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                className="px-6 py-2 bg-[#1B5E52] hover:bg-[#144A41] text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50"
               >
                 <CheckCircle2 size={13} />
-                <span>Save Review</span>
+                <span>
+                  {isSubmitting
+                    ? 'Saving…'
+                    : connectDirectly
+                    ? 'Confirm & Directly Connect'
+                    : selectedTherapistId
+                    ? 'Assign & Request Clinician'
+                    : 'Save Review Updates'}
+                </span>
               </button>
             </div>
           </div>

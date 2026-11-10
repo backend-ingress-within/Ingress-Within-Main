@@ -287,6 +287,17 @@ export async function POST(request: NextRequest) {
           console.warn('[Submission] manual_matching_reviews insert note:', dbErr);
         }
 
+        // Clean up any candidate matches so the user has zero lingering candidate ties
+        try {
+          await supabase
+            .from('therapy_matches')
+            .delete()
+            .eq('user_id', authUser.userId)
+            .eq('match_status', 'candidate');
+        } catch (delErr) {
+          console.warn('[Submission] Candidate matches cleanup note:', delErr);
+        }
+
         // Email to Client confirming receipt & giving 24/7 helpline numbers
         if (clientEmail) {
           await EmailService.notifyTeamCallbackReceived({

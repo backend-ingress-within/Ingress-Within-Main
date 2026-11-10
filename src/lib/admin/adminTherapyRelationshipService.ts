@@ -51,7 +51,7 @@ export interface RelationshipOverviewItem {
   lastSessionDate: string | null;
   
   // 8. Relationship Status
-  status: 'Active' | 'Dormant' | 'Completed';
+  status: 'Active' | 'Dormant' | 'Completed' | 'Awaiting Acceptance';
   rawStatus: string;
   careStage: string;
   
@@ -147,19 +147,23 @@ export class AdminTherapyRelationshipService {
 
     const careRels = relationships || [];
 
-    // 2. Also fetch candidate / shortlisted matches awaiting therapist acceptance
+    // 2. Also fetch shortlisted / selected matches awaiting therapist acceptance
+    // Strictly exclude mere algorithmic candidates so clients are never linked to all candidate therapists.
     const { data: pendingMatches } = await supabase
       .from('therapy_matches')
       .select('*')
-      .in('match_status', ['candidate', 'shortlisted', 'proposed'])
+      .in('match_status', ['shortlisted', 'selected', 'proposed'])
       .order('created_at', { ascending: false });
 
-    // Filter out pending matches where an active care relationship already exists for the client & therapist
+    // Filter out pending matches where an active care relationship already exists for the client & therapist,
+    // and enforce single clinician exclusivity per client request.
+    const seenPendingClientIds = new Set();
     const filteredPendingMatches = (pendingMatches || []).filter((m) => {
-      if (!m.therapist_account_id) return false;
-      return !careRels.some(
-        (r) => r.user_id === m.user_id && r.therapist_account_id === m.therapist_account_id
-      );
+      if (!m.therapist_account_id || !m.user_id) return false;
+      if (careRels.some((r) => r.user_id === m.user_id)) return false;
+      if (seenPendingClientIds.has(m.user_id)) return false;
+      seenPendingClientIds.add(m.user_id);
+      return true;
     });
 
     // 3. Extract distinct IDs for batch querying
@@ -438,7 +442,7 @@ export class AdminTherapyRelationshipService {
         firstSessionId: null,
         totalSessions: 0,
         lastSessionDate: null,
-        status: 'Active',
+        status: 'Awaiting Acceptance',
         rawStatus: 'awaiting_therapist_acceptance',
         careStage: 'intake',
         createdAt: match.created_at,
@@ -673,7 +677,7 @@ export class AdminTherapyRelationshipService {
     const firstSessionId = sortedValid.length > 0 ? sortedValid[0].id : null;
     const lastSessionDate = sortedCompleted.length > 0 ? sortedCompleted[0].scheduled_start : null;
 
-    let normalizedStatus: 'Active' | 'Dormant' | 'Completed' = 'Active';
+    let normalizedStatus: 'Active' | 'Dormant' | 'Completed' | 'Awaiting Acceptance' = isPendingMatch ? 'Awaiting Acceptance' : 'Active';
     if (relRecord) {
       if (relRecord.status === 'paused' || relRecord.metadata?.is_dormant) {
         normalizedStatus = 'Dormant';
