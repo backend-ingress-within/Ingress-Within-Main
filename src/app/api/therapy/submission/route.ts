@@ -177,6 +177,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle submissionType === 'team' (Talk to the team / Direct Callback Request)
+    let referenceId: string | null = null;
     if (submissionType === 'team') {
       try {
         const { supabase } = await import('../../../../lib/db');
@@ -189,11 +190,31 @@ export async function POST(request: NextRequest) {
           supabase.from('therapy_safety_assessments').select('*').eq('therapy_session_id', therapySessionId.trim()).maybeSingle(),
         ]);
 
-        const clientName = intake?.full_name || authUser.phoneNumber || 'Valued Client';
-        const clientEmail = intake?.email || null;
-        const clientPhone = intake?.phone_number || authUser.phoneNumber || null;
+        const intakeSummary = (resolvedMetadata?.clientIntakeSummary as any) || (resolvedMetadata as any) || {};
+        const clientName = intake?.full_name || intakeSummary.name || authUser.phoneNumber || 'Valued Client';
+        const clientEmail = intake?.email || intakeSummary.email || null;
+        const clientPhone = intake?.phone_number || intakeSummary.phone || authUser.phoneNumber || null;
         const triageLevel = safety?.triage_level || 'standard';
-        const referenceId = `TEAM-${Date.now().toString(36).toUpperCase()}`;
+        referenceId = `TEAM-${Date.now().toString(36).toUpperCase()}`;
+
+        const isMatchFallback = resolvedMetadata?.source === 'therapy_matches_fallback';
+        const therapyType = isMatchFallback ? 'Guided Matches Review Request' : 'Direct Team Callback';
+        const languagePref = intakeSummary.language || (intake?.answers as any)?.language || (intake?.expectations as any)?.language || 'No preference';
+        const genderPref = intakeSummary.genderPreference || (intake?.expectations as any)?.therapistGender || 'No preference';
+        const budgetPref = intakeSummary.budget || (intake?.expectations as any)?.budget || 'Flexible';
+        const concernsList = intakeSummary.concerns || (Array.isArray(intake?.concerns) ? intake?.concerns : intake?.concerns?.selected) || [];
+
+        const noMatchReason = isMatchFallback
+          ? 'Client requested care team review from therapist matches screen (none of the automated matches suited them).'
+          : 'Client requested direct assistance / callback from Ingress Within care team.';
+
+        const fullNotes = [
+          notes ? `Client Notes: ${notes}` : null,
+          languagePref && languagePref !== 'No preference' ? `Preferred Language: ${languagePref}` : null,
+          genderPref && genderPref !== 'No preference' ? `Preferred Clinician Gender: ${genderPref}` : null,
+          budgetPref ? `Budget: ${budgetPref}` : null,
+          Array.isArray(concernsList) && concernsList.length ? `Stated Concerns: ${concernsList.join(', ')}` : null,
+        ].filter(Boolean).join(' | ');
 
         // Register in manual matching reviews so Admin sees it in Matching Reviews tab
         const manualRecord = {
@@ -202,11 +223,15 @@ export async function POST(request: NextRequest) {
           user_id: authUser.userId,
           therapy_session_id: therapySessionId.trim(),
           intake_id: intake?.id || null,
-          therapy_type: 'Direct Team Callback',
+          therapy_type: therapyType,
           matching_requirements: {
             callback_preference: callbackPreference || 'No preference',
             reason: notes || intake?.presenting_reason || '',
             triage_level: triageLevel,
+            language: languagePref,
+            gender_preference: genderPref,
+            budget: budgetPref,
+            concerns: concernsList,
           },
           client_preferences: {
             name: clientName,
@@ -217,19 +242,25 @@ export async function POST(request: NextRequest) {
             contact_phone: clientPhone,
             callback: callbackPreference || 'No preference',
             callback_preference: callbackPreference || 'No preference',
-            notes: notes || intake?.presenting_reason || '',
+            notes: fullNotes,
             reason: notes || intake?.presenting_reason || '',
             triage_level: triageLevel,
+            language: languagePref,
+            gender_preference: genderPref,
+            budget: budgetPref,
+            concerns: concernsList,
           },
-          no_match_reason: 'Client requested direct assistance / callback from Ingress Within care team.',
+          no_match_reason: noMatchReason,
           unmet_criteria: [],
           review_status: 'manual_review_required' as const,
           audit_trail: [
             {
               timestamp: new Date().toISOString(),
-              action: 'team_callback_requested',
+              action: isMatchFallback ? 'matches_fallback_team_requested' : 'team_callback_requested',
               actor: 'client',
-              details: `Client submitted a direct callback request. Preferred window: ${callbackPreference || 'Anytime'}. Triage: ${triageLevel}.`,
+              details: isMatchFallback
+                ? `Client requested care team review after viewing matches. Preferred Language: ${languagePref}. Gender: ${genderPref}. Triage: ${triageLevel}.`
+                : `Client submitted a direct callback request. Preferred window: ${callbackPreference || 'Anytime'}. Triage: ${triageLevel}.`,
             },
           ],
           created_at: new Date().toISOString(),
@@ -244,7 +275,7 @@ export async function POST(request: NextRequest) {
             reference_id: referenceId,
             user_id: authUser.userId,
             therapy_session_id: therapySessionId.trim(),
-            therapy_type: 'Direct Team Callback',
+            therapy_type: manualRecord.therapy_type,
             matching_requirements: manualRecord.matching_requirements,
             client_preferences: manualRecord.client_preferences,
             no_match_reason: manualRecord.no_match_reason,
@@ -262,7 +293,9 @@ export async function POST(request: NextRequest) {
             clientEmail,
             clientName,
             callbackPreference: callbackPreference || 'No preference',
-            notes: notes || intake?.presenting_reason || null,
+            notes: isMatchFallback
+              ? `We have received your request for personal clinician matching. A care coordinator will review your preferences (${languagePref !== 'No preference' ? `Language: ${languagePref}, ` : ''}${genderPref !== 'No preference' ? `Gender: ${genderPref}` : ''}) and reach out soon.`
+              : (notes || intake?.presenting_reason || null),
             referenceCode: referenceId,
           });
         }
@@ -273,7 +306,7 @@ export async function POST(request: NextRequest) {
           clientEmail,
           clientPhone,
           callbackPreference: callbackPreference || 'No preference',
-          notes: notes || intake?.presenting_reason || null,
+          notes: fullNotes,
           triageLevel,
           referenceCode: referenceId,
         });
@@ -286,6 +319,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         submission,
+        referenceId,
       },
       { status: 201 }
     );

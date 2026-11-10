@@ -971,6 +971,9 @@ function Guided({ exit, onBookSession, user, profile }) {
 
   const [matchOutcome, setMatchOutcome] = useState(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [teamRequestSubmitted, setTeamRequestSubmitted] = useState(false);
+  const [teamRequestSubmitting, setTeamRequestSubmitting] = useState(false);
+  const [teamReferenceCode, setTeamReferenceCode] = useState('');
 
   useEffect(() => {
     if (step === 16 && !matchOutcome && !loadingMatches) {
@@ -1560,6 +1563,62 @@ function Guided({ exit, onBookSession, user, profile }) {
     return data;
   };
 
+  const handleTalkToTeam = async () => {
+    if (teamRequestSubmitting) return;
+    setTeamRequestSubmitting(true);
+    setSessionError('');
+    try {
+      const sessionId = await ensureSession();
+      if (!sessionId) {
+        throw new Error('Unable to establish a therapy session. Please try again.');
+      }
+
+      await saveGuidedIntake(sessionId);
+      await saveGuidedSafety(sessionId);
+
+      const response = await fetch('/api/therapy/submission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapySessionId: sessionId,
+          submissionType: 'team',
+          callbackPreference: 'As soon as possible',
+          notes: d.ownWords?.trim() || d.reason?.trim() || 'Client requested team review from matches screen because none of the suggested matches suited them.',
+          metadata: {
+            source: 'therapy_matches_fallback',
+            reason: 'Client indicated none of the automated therapist matches suited them',
+            clientIntakeSummary: {
+              name: d.name,
+              email: d.email,
+              phone: d.phone,
+              concerns: d.concerns,
+              language: d.language,
+              genderPreference: d.therapistGender,
+              budget: d.budget,
+              frequency: d.frequency,
+              reason: d.reason,
+              ownWords: d.ownWords,
+            },
+          },
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error?.message || data?.error || 'Failed to submit care team request');
+      }
+
+      const refCode = data?.referenceId || `TEAM-${Date.now().toString(36).toUpperCase()}`;
+      setTeamReferenceCode(refCode);
+      setTeamRequestSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit care team request from matches:', err);
+      setSessionError(err instanceof Error ? err.message : 'Unable to submit care team request');
+    } finally {
+      setTeamRequestSubmitting(false);
+    }
+  };
+
   const submitGuided = async () => {
     const sessionId = await ensureSession();
 
@@ -1714,6 +1773,144 @@ function Guided({ exit, onBookSession, user, profile }) {
       setLoading(false);
     }
   };
+
+  if (teamRequestSubmitted) {
+    return (
+      <div className="iw-flow">
+        <Header name="Care Team Review" step={4} total={4} onBack={exit} />
+        <div className="iw-card iw-success" style={{ textAlign: 'center' }}>
+          <div className="iw-successicon"><Check /></div>
+          <h2>We have received your query</h2>
+          <p style={{ maxWidth: 540, margin: '0 auto 20px', lineHeight: 1.6, color: '#4A5568', fontSize: 15 }}>
+            Thank you for reaching out. We have submitted your request along with your preferences. Our care team will review your details and reach out soon regarding your clinician matching and next steps.
+          </p>
+
+          <div
+            style={{
+              maxWidth: 500,
+              margin: '0 auto 24px',
+              padding: '16px 20px',
+              backgroundColor: '#fff',
+              border: '1px solid rgba(38,50,56,0.10)',
+              borderRadius: 14,
+              textAlign: 'left',
+              fontSize: 13,
+            }}
+          >
+            {teamReferenceCode && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 8, borderBottom: '1px solid #f0f0f0', marginBottom: 8 }}>
+                <span style={{ color: '#66747A' }}>Reference ID</span>
+                <strong style={{ fontFamily: 'monospace', color: '#132A24' }}>{teamReferenceCode}</strong>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6 }}>
+              <span style={{ color: '#66747A' }}>Name</span>
+              <strong>{d.name || 'Valued Client'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6 }}>
+              <span style={{ color: '#66747A' }}>Email</span>
+              <strong>{d.email || '—'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6 }}>
+              <span style={{ color: '#66747A' }}>Phone</span>
+              <strong>{d.phone || '—'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6 }}>
+              <span style={{ color: '#66747A' }}>Preferred Language</span>
+              <strong>{d.language || 'No preference'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6 }}>
+              <span style={{ color: '#66747A' }}>Clinician Gender</span>
+              <strong>{d.therapistGender || 'No preference'}</strong>
+            </div>
+            {d.concerns && d.concerns.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#66747A' }}>Stated Concerns</span>
+                <strong style={{ maxWidth: 260, textAlign: 'right' }}>{d.concerns.join(', ')}</strong>
+              </div>
+            )}
+          </div>
+
+          <button type="button" className="iw-primary" style={{ maxWidth: 260, margin: '0 auto 24px' }} onClick={exit}>
+            Back to Therapy
+          </button>
+
+          {/* Emergency Crisis Helplines Support Box at Bottom */}
+          <div
+            style={{
+              marginTop: 16,
+              padding: '16px 20px',
+              borderRadius: 14,
+              backgroundColor: '#FAFAF9',
+              border: '1px solid rgba(38,50,56,0.12)',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#132A24' }}>
+              <Phone size={15} style={{ color: '#064e3b' }} />
+              <span>Need Immediate Crisis Support? Helplines are Available 24/7</span>
+            </div>
+            <p style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 10px', color: '#66747A' }}>
+              If you or someone you know is in immediate crisis, having thoughts of self-harm, or experiencing severe distress, please connect directly with dedicated helplines:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
+              <a
+                href="tel:14416"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: '#fff',
+                  border: '1px solid #10b981',
+                  color: '#064e3b',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Tele-MANAS:</span> <strong>14416</strong>
+              </a>
+              <a
+                href="tel:18005990019"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: '#fff',
+                  border: '1px solid #10b981',
+                  color: '#064e3b',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>KIRAN:</span> <strong>1800-599-0019</strong>
+              </a>
+              <a
+                href="tel:112"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: '#fff',
+                  border: '1px solid #d97706',
+                  color: '#78350f',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Emergency:</span> <strong>112</strong>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 18) {
     return (
@@ -2264,7 +2461,7 @@ function Guided({ exit, onBookSession, user, profile }) {
                   setSelectedTherapist(therapist);
                 }}
                 onEditAnswers={() => setStep(5)}
-                onTalkToTeam={exit}
+                onTalkToTeam={handleTalkToTeam}
               />
             ) : (
               <>

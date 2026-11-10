@@ -534,8 +534,38 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: MATCH OUTCOME (RESULTS OR NO-MATCH REASSURANCE)
+  // RENDER: MATCH OUTCOME (RESULTS OR NO-MATCH REASSURANCE OR TEAM REQUESTED)
   // ---------------------------------------------------------------------------
+  if (teamRequested) {
+    return (
+      <div className="w-full max-w-[720px] mx-auto px-4 py-8 animate-in fade-in duration-300">
+        <div className="bg-[#FAF7F2] border border-[#283D38]/12 rounded-3xl p-6 sm:p-10 text-center shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-[#EDF3ED] text-[#283D38] border border-[#8AA688]/30 flex items-center justify-center mx-auto mb-6 shadow-xs">
+            <CheckCircle2 size={32} className="text-[#8AA688]" />
+          </div>
+
+          <h2 className="font-serif text-3xl font-semibold text-[#011627] mt-4 mb-3">
+            We have received your query
+          </h2>
+
+          <p className="text-[#4F635E] text-sm sm:text-base leading-relaxed mb-6 font-light max-w-lg mx-auto">
+            Thank you for reaching out. We have submitted your request along with your preferences. Our care team will review your details and reach out soon regarding your clinician matching and next steps.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={exit}
+              className="px-6 py-3.5 bg-[#283D38] hover:bg-[#1E3A34] text-[#FDFBF8] font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+            >
+              Back to Therapy
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (matchOutcome) {
     if (!matchOutcome.matches || matchOutcome.matches.length === 0) {
       return (
@@ -644,6 +674,7 @@ export default function ConversationalIntake({ exit, user, profile, onStartBooki
             setMatchOutcome(null);
             setCurrentQuestionId('concerns');
           }}
+          onTalkToTeam={handleRequestTeam}
           showNumericScore={false}
         />
       </div>

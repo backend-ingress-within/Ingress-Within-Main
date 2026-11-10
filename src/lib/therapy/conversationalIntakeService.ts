@@ -589,9 +589,21 @@ export class ConversationalIntakeService {
     sessionId: string,
     clientNotes?: string
   ) {
-    const existing = IN_MEMORY_MANUAL_REVIEWS.find(
+    let existing = IN_MEMORY_MANUAL_REVIEWS.find(
       (r) => r.user_id === userId && r.therapy_session_id === sessionId
     );
+
+    const [{ data: intake }, { data: safety }] = await Promise.all([
+      supabase.from('therapy_intakes').select('*').eq('therapy_session_id', sessionId).maybeSingle(),
+      supabase.from('therapy_safety_assessments').select('*').eq('therapy_session_id', sessionId).maybeSingle(),
+    ]);
+
+    const { EmailService } = await import('../email/emailService');
+    const clientName = intake?.full_name || 'Valued Client';
+    const clientEmail = intake?.email || null;
+    const clientPhone = intake?.phone_number || null;
+    const triageLevel = safety?.triage_level || 'standard';
+    const referenceId = existing?.reference_id || `TEAM-${Date.now().toString(36).toUpperCase()}`;
 
     if (existing) {
       existing.review_status = 'manual_review_required';
@@ -603,22 +615,105 @@ export class ConversationalIntakeService {
         details: clientNotes || 'Client clicked Request Team Assistance button.',
       });
       existing.updated_at = new Date().toISOString();
+    } else {
+      existing = {
+        id: crypto.randomUUID(),
+        reference_id: referenceId,
+        user_id: userId,
+        therapy_session_id: sessionId,
+        intake_id: intake?.id || null,
+        therapy_type: 'Care Team Match Review',
+        matching_requirements: {
+          callback_preference: 'As soon as possible',
+          reason: clientNotes || intake?.presenting_reason || '',
+          triage_level: triageLevel,
+        },
+        client_preferences: {
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          notes: clientNotes || intake?.presenting_reason || '',
+          triage_level: triageLevel,
+        },
+        no_match_reason: clientNotes || 'Client requested personal care team review from therapist matches screen.',
+        unmet_criteria: [],
+        review_status: 'manual_review_required',
+        audit_trail: [
+          {
+            timestamp: new Date().toISOString(),
+            action: 'client_requested_assistance',
+            actor: 'client',
+            details: clientNotes || 'Client requested team review from matches screen.',
+          },
+        ],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      IN_MEMORY_MANUAL_REVIEWS.unshift(existing);
     }
 
     try {
-      await supabase
+      const { data: existingDb } = await supabase
         .from('manual_matching_reviews')
-        .update({
+        .select('id')
+        .eq('therapy_session_id', sessionId)
+        .maybeSingle();
+
+      if (existingDb) {
+        await supabase
+          .from('manual_matching_reviews')
+          .update({
+            review_status: 'manual_review_required',
+            internal_notes: clientNotes || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingDb.id);
+      } else {
+        await supabase.from('manual_matching_reviews').insert({
+          reference_id: referenceId,
+          user_id: userId,
+          therapy_session_id: sessionId,
+          therapy_type: existing.therapy_type,
+          matching_requirements: existing.matching_requirements,
+          client_preferences: existing.client_preferences,
+          no_match_reason: existing.no_match_reason,
+          unmet_criteria: [],
           review_status: 'manual_review_required',
-          internal_notes: clientNotes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId)
-        .eq('therapy_session_id', sessionId);
-    } catch {}
+          audit_trail: existing.audit_trail,
+        });
+      }
+    } catch (dbErr) {
+      console.warn('[ConversationalIntakeService] DB review update error:', dbErr);
+    }
+
+    // Email dispatch to client and care team
+    try {
+      if (clientEmail) {
+        await EmailService.notifyTeamCallbackReceived({
+          clientEmail,
+          clientName,
+          callbackPreference: 'As soon as possible',
+          notes: clientNotes || intake?.presenting_reason || null,
+          referenceCode: referenceId,
+        });
+      }
+
+      await EmailService.notifyTeamCallbackAdminAlert({
+        clientName,
+        clientEmail,
+        clientPhone,
+        callbackPreference: 'As soon as possible',
+        notes: clientNotes || intake?.presenting_reason || null,
+        triageLevel,
+        referenceCode: referenceId,
+      });
+    } catch (emailErr) {
+      console.warn('[ConversationalIntakeService] email notification error:', emailErr);
+    }
 
     return {
       success: true,
+      referenceId,
       message: 'Your request has been submitted to our clinical care coordinator. We will reach out shortly.',
     };
   }
