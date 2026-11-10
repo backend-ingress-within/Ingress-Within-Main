@@ -61,6 +61,7 @@ export interface TherapistRecord {
   calibration?: Record<string, any>;
   ageGroups?: string[];
   gender?: string | null;
+  profileImageUrl?: string | null;
   capacity: {
     current: number;
     max: number | null;
@@ -108,6 +109,7 @@ export interface PublicTherapistMatch {
     languages: string[];
     formats: string[];
     gender: string | null;
+    profileImageUrl?: string | null;
     specialties: string[];
     modalities: string[];
     traumaVerified: boolean;
@@ -843,6 +845,7 @@ export function sanitizePublicTherapist(r: ScoredMatch): PublicTherapistMatch {
       languages: Array.isArray(t.languages) ? t.languages : ['English', 'Hindi'],
       formats: Array.isArray(t.formats) ? t.formats : ['Telehealth'],
       gender: t.gender || null,
+      profileImageUrl: (t as any).profileImageUrl || (t as any).profile_image_url || null,
       specialties: Array.isArray(t.specialties) ? t.specialties : [],
       modalities: Array.isArray(t.modalities) ? t.modalities : [],
       traumaVerified: Boolean(t.traumaVerified),

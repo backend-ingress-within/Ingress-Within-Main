@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -394,6 +394,37 @@ function Safety({ value, setValue, allowEmergencyExit = true }) {
   );
 }
 
+function getOrCreateLeadSessionId() {
+  if (typeof window === 'undefined') return 'sess_' + Date.now();
+  let id = sessionStorage.getItem('iw_lead_session_id');
+  if (!id) {
+    id = 'lead_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    sessionStorage.setItem('iw_lead_session_id', id);
+  }
+  return id;
+}
+
+async function sendLeadAutosave(payload) {
+  const phone = (payload.phoneNumber || '').trim();
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (digits.length < 7) return;
+
+  try {
+    const sessionId = payload.sessionId || getOrCreateLeadSessionId();
+    await fetch('/api/therapy/leads/autosave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        sessionId,
+        phoneNumber: phone,
+      }),
+    });
+  } catch (err) {
+    console.debug('[Lead Autosave] Non-blocking notice:', err);
+  }
+}
+
 function Conversation({ exit, user, profile }) {
   const [step, setStep] = useState(0);
   const [therapySessionId, setTherapySessionId] = useState(null);
@@ -780,7 +811,32 @@ function Conversation({ exit, user, profile }) {
               <label>Phone number</label>
               <input
                 value={contact.phone}
-                onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setContact({ ...contact, phone: val });
+                  if (val.replace(/[^\d+]/g, '').length >= 10) {
+                    sendLeadAutosave({
+                      phoneNumber: val,
+                      fullName: contact.name,
+                      email: contact.email,
+                      journeyType: 'conversational',
+                      currentStep: 3,
+                      dropOffStage: 'contact_captured',
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  if (e.target.value.replace(/[^\d+]/g, '').length >= 7) {
+                    sendLeadAutosave({
+                      phoneNumber: e.target.value,
+                      fullName: contact.name,
+                      email: contact.email,
+                      journeyType: 'conversational',
+                      currentStep: 3,
+                      dropOffStage: 'contact_captured',
+                    });
+                  }
+                }}
               />
             </div>
             <label style={{ display: 'flex', gap: 9, fontSize: 13, color: '#263238' }}>
@@ -942,6 +998,81 @@ function Guided({ exit, onBookSession, user, profile }) {
     finalNotes: '',
   }));
 
+  const phoneDebounceTimerRef = useRef(null);
+
+  const autosaveGuidedLead = (stageOverride, stepOverride, extra = {}) => {
+    const phone = (extra.phone !== undefined ? extra.phone : d.phone || '').trim();
+    const cleanDigits = phone.replace(/[^\d+]/g, '');
+    if (cleanDigits.length < 7) return;
+
+    sendLeadAutosave({
+      phoneNumber: phone,
+      fullName: (extra.name !== undefined ? extra.name : d.name || '').trim(),
+      email: (extra.email !== undefined ? extra.email : d.email || '').trim(),
+      journeyType: 'guided',
+      currentStep: stepOverride !== undefined ? stepOverride : step,
+      dropOffStage:
+        stageOverride ||
+        (step >= 16
+          ? 'matches_shown'
+          : step >= 13
+          ? 'preferences_set'
+          : step >= 10
+          ? 'safety_evaluated'
+          : step >= 5
+          ? 'concerns_selected'
+          : 'contact_captured'),
+      answers: {
+        age: d.age,
+        gender: d.gender === 'Self-describe' ? d.genderOther : d.gender,
+        city: d.city,
+        budget: d.budget,
+        language: d.language,
+        therapistGender: d.therapistGender,
+        frequency: d.frequency,
+        reason: d.reason,
+        duration: d.duration,
+        ...(extra.answers || {}),
+      },
+      concerns: Array.isArray(d.concerns) ? d.concerns : [],
+      preferredLanguage: d.language && d.language !== 'No preference' ? d.language : null,
+      therapistGenderPref: d.therapistGender || null,
+      budget: d.budget ? parseInt(String(d.budget).replace(/[^\d]/g, ''), 10) || null : null,
+      matchesShown:
+        extra.matchesShown ||
+        (matchOutcome?.matches
+          ? matchOutcome.matches.map((m) => ({
+              id: m.therapist.id,
+              name: m.therapist.name,
+              score: m.score,
+              credentials: m.therapist.credentials,
+            }))
+          : []),
+      selectedTherapistId: selectedTherapist?.id || null,
+      selectedTherapistName: selectedTherapist?.name || null,
+      isCompleted: extra.isCompleted || false,
+    });
+  };
+
+  const handlePhoneChangeWithAutosave = (newPhone) => {
+    set('phone', newPhone);
+    const cleanDigits = newPhone.replace(/[^\d+]/g, '');
+
+    if (phoneDebounceTimerRef.current) {
+      clearTimeout(phoneDebounceTimerRef.current);
+    }
+
+    if (cleanDigits.length >= 10) {
+      // Instant autosave once full phone number is typed
+      autosaveGuidedLead('contact_captured', 3, { phone: newPhone });
+    } else if (cleanDigits.length >= 7) {
+      // Debounce autosave while typing
+      phoneDebounceTimerRef.current = setTimeout(() => {
+        autosaveGuidedLead('contact_captured', 3, { phone: newPhone });
+      }, 700);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     const fetchTherapists = async () => {
@@ -1019,6 +1150,15 @@ function Guided({ exit, onBookSession, user, profile }) {
           setMatchOutcome(data);
           if (data?.matches?.length > 0 && !selectedTherapist) {
             setSelectedTherapist(data.matches[0].therapist);
+          }
+          if (data?.matches && data.matches.length > 0) {
+            const matchesSummary = data.matches.map((m) => ({
+              id: m.therapist?.id,
+              name: m.therapist?.name,
+              score: m.score,
+              credentials: m.therapist?.credentials,
+            }));
+            autosaveGuidedLead('matches_shown', 16, { matchesShown: matchesSummary });
           }
         })
         .catch((err) => {
@@ -1683,6 +1823,17 @@ function Guided({ exit, onBookSession, user, profile }) {
         await saveGuidedMatches(sessionId);
       }
 
+      // Auto-save lead drop-off progression
+      if (step === 3) {
+        autosaveGuidedLead('contact_captured', 4);
+      } else if (step === 5) {
+        autosaveGuidedLead('concerns_selected', 6);
+      } else if (step === 10) {
+        autosaveGuidedLead('safety_evaluated', 11);
+      } else if (step === 13) {
+        autosaveGuidedLead('preferences_set', 14);
+      }
+
       setStep((value) => Math.min(total - 1, value + 1));
     } catch (error) {
       console.error('Guided therapy step save failed:', error);
@@ -1736,6 +1887,7 @@ function Guided({ exit, onBookSession, user, profile }) {
       const submitted = await submitGuided();
 
       if (submitted) {
+        autosaveGuidedLead('completed', 18, { isCompleted: true });
         setStep(18);
       }
     } catch (error) {
@@ -1760,6 +1912,7 @@ function Guided({ exit, onBookSession, user, profile }) {
       const submitted = await submitGuided();
 
       if (submitted) {
+        autosaveGuidedLead('completed', 18, { isCompleted: true });
         setStep(18);
       }
     } catch (error) {
@@ -2026,15 +2179,39 @@ function Guided({ exit, onBookSession, user, profile }) {
             ))}
             <div className="iw-field">
               <label>Full name</label>
-              <input value={d.name} onChange={(e) => set('name', e.target.value)} placeholder="Your name" />
+              <input
+                value={d.name}
+                onChange={(e) => set('name', e.target.value)}
+                onBlur={(e) => {
+                  if (d.phone) autosaveGuidedLead('contact_captured', 3, { name: e.target.value });
+                }}
+                placeholder="Your name"
+              />
             </div>
             <div className="iw-field">
               <label>Email</label>
-              <input type="email" value={d.email} onChange={(e) => set('email', e.target.value)} placeholder="you@example.com" />
+              <input
+                type="email"
+                value={d.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={(e) => {
+                  if (d.phone) autosaveGuidedLead('contact_captured', 3, { email: e.target.value });
+                }}
+                placeholder="you@example.com"
+              />
             </div>
             <div className="iw-field">
               <label>Phone number</label>
-              <input value={d.phone} onChange={(e) => set('phone', e.target.value)} placeholder="Your phone number" />
+              <input
+                value={d.phone}
+                onChange={(e) => handlePhoneChangeWithAutosave(e.target.value)}
+                onBlur={(e) => {
+                  if (e.target.value.replace(/[^\d+]/g, '').length >= 7) {
+                    autosaveGuidedLead('contact_captured', 3, { phone: e.target.value });
+                  }
+                }}
+                placeholder="Your phone number"
+              />
             </div>
           </>
         )}
@@ -2936,7 +3113,39 @@ function Team({ exit, user, profile }) {
             <p>No AI conversation or therapist matching is needed for this route.</p>
             <div className="iw-field"><label>Name</label><input value={form.name} onChange={(e) => set('name', e.target.value)} /></div>
             <div className="iw-field"><label>Email</label><input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></div>
-            <div className="iw-field"><label>Phone number</label><input value={form.phone} onChange={(e) => set('phone', e.target.value)} /></div>
+            <div className="iw-field">
+              <label>Phone number</label>
+              <input
+                value={form.phone}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set('phone', val);
+                  if (val.replace(/[^\d+]/g, '').length >= 10) {
+                    sendLeadAutosave({
+                      phoneNumber: val,
+                      fullName: form.name,
+                      email: form.email,
+                      journeyType: 'team',
+                      currentStep: 0,
+                      dropOffStage: 'contact_captured',
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  if (e.target.value.replace(/[^\d+]/g, '').length >= 7) {
+                    sendLeadAutosave({
+                      phoneNumber: e.target.value,
+                      fullName: form.name,
+                      email: form.email,
+                      journeyType: 'team',
+                      currentStep: 0,
+                      dropOffStage: 'contact_captured',
+                    });
+                  }
+                }}
+                placeholder="Your phone number"
+              />
+            </div>
             <div className="iw-field"><label>What would you like help with?</label><textarea value={form.reason} onChange={(e) => set('reason', e.target.value)} /></div>
           </>
         )}

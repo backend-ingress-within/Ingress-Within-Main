@@ -59,6 +59,7 @@ import AnalyticsDashboardView from './AnalyticsDashboardView';
 import TherapyRelationshipsView from './TherapyRelationshipsView';
 import TherapistOverviewView from './TherapistOverviewView';
 import ManualMatchingReviewsView from './ManualMatchingReviewsView';
+import LeadPipelineView from './LeadPipelineView';
 
 export default function AdminDashboardShell({ admin, onLogout, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -373,6 +374,7 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     { id: 'applications', label: 'Application Queue', icon: FileText, badge: overviewMetrics?.pendingApplications },
     { id: 'therapy-relationships', label: 'Therapy Relationships', icon: HeartHandshake },
     { id: 'matching-reviews', label: 'Matching Reviews', icon: ClipboardList },
+    { id: 'leads', label: 'Lead Pipeline & Drop-offs', icon: TrendingUp },
     { id: 'clients', label: 'Client Directory', icon: User },
     { id: 'sessions', label: 'Clinical Sessions', icon: Calendar },
     { id: 'payments', label: 'Revenue & Orders', icon: CreditCard },
@@ -2694,6 +2696,13 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
           {/* ========================================================================= */}
           {activeTab === 'matching-reviews' && (
             <ManualMatchingReviewsView showToast={showToast} />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: LEAD PIPELINE & INTAKE DROP-OFFS */}
+          {/* ========================================================================= */}
+          {activeTab === 'leads' && (
+            <LeadPipelineView showToast={showToast} />
           )}
 
           {/* ========================================================================= */}

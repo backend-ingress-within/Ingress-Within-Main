@@ -54,6 +54,7 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
         city,
         state,
         gender,
+        profile_image_url,
         availability_hours
       ),
       therapist_applications (
@@ -144,6 +145,7 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
       specialties,
       modalities,
       primaryModalities,
+      profileImageUrl: (profile as any).profile_image_url || appAnswers.profileImageUrl || appAnswers.photoUrl || null,
       ageGroups: Array.isArray(appAnswers.ageGroups) ? appAnswers.ageGroups : ['Adults'],
       gender: (profile as any).gender || appAnswers.gender || null,
       capacity: {

@@ -60,6 +60,33 @@ function initials(name) {
     .toUpperCase();
 }
 
+function TherapistAvatar({ name, imageUrl, isBest }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const sizeClass = isBest ? 'w-14 h-14 text-xl' : 'w-12 h-12 text-base';
+
+  if (imageUrl && !imgFailed) {
+    return (
+      <div className={`shrink-0 rounded-full overflow-hidden bg-[#DDE9E2] border border-[#CBD5E1] shadow-xs ${sizeClass}`}>
+        <img
+          src={imageUrl}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`shrink-0 rounded-full bg-[#DDE9E2] text-[#144A41] font-semibold grid place-items-center shadow-xs ${sizeClass}`}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </div>
+  );
+}
+
 function shortName(name) {
   if (!name) return 'Therapist';
   if (/^Dr\.\s/i.test(name)) return 'Dr. ' + name.split(/\s+/).pop();
@@ -445,16 +472,7 @@ export default function TherapyMatchResultsView({
                 >
                   {/* Card Head */}
                   <div className="flex items-center gap-4">
-                    <div
-                      className={`shrink-0 rounded-full bg-[#DDE9E2] text-[#144A41] font-semibold grid place-items-center ${
-                        isBest
-                          ? 'w-14 h-14 text-xl'
-                          : 'w-12 h-12 text-base'
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {initials(t.name)}
-                    </div>
+                    <TherapistAvatar name={t.name} imageUrl={t.profileImageUrl} isBest={isBest} />
                     <div className="min-w-0 flex-1">
                       <h3
                         className={`font-serif font-semibold leading-tight text-[#0F2F2B] truncate ${
