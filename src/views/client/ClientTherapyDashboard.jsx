@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  ChevronDown,
   BookOpen,
   CreditCard,
   PhoneCall,
@@ -54,8 +55,21 @@ export default function ClientTherapyDashboard({
   pendingRequest,
   history = [],
 }) {
-  const [activeTab, setActiveTab] = useState('overview'); // overview | sessions | therapist | journey | homework | billing | support
+  const [activeTab, setActiveTab] = useState('overview'); // overview | therapeutic_profile | sessions | therapist | journey | homework | billing | support
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const handleClickOutside = (event) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [moreMenuOpen]);
 
   // Sessions state
   const [sessions, setSessions] = useState([]);
@@ -477,56 +491,57 @@ export default function ClientTherapyDashboard({
   return (
     <div className="min-h-screen bg-[#F4F1EC] text-[#263238] font-sans antialiased">
       {/* 1. TOP CLIENT THERAPY NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-[#F4F1EC]/90 backdrop-blur-md border-b border-[#263238]/10 px-4 sm:px-6 py-3.5 transition-all">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-[#F4F1EC]/95 backdrop-blur-md border-b border-[#263238]/10 px-4 sm:px-6 h-16 flex items-center transition-all">
+        <div className="max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
           {/* Logo & Return */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
-                else window.location.href = '/dashboard';
-              }}
-              className="flex items-center gap-2 text-xs font-semibold text-[#66747A] hover:text-[#263238] transition-colors"
-              title="Return to Ingress Within Dashboard"
-            >
-              <img src="/logo-mark-transparent.png" alt="Ingress Within" className="w-6 h-6 object-contain" />
-              <span className="hidden sm:inline font-serif text-sm text-[#132A24] tracking-tight">
-                ingress <span className="font-semibold text-[#8B5E66]">within</span>
-              </span>
-              <span className="text-[#A0AAB0] mx-1">/</span>
-              <span className="font-semibold text-[#132A24]">Therapy Portal</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
+              else window.location.href = '/dashboard';
+            }}
+            className="flex items-center gap-2 text-xs font-medium text-[#66747A] hover:text-[#132A24] transition-colors shrink-0 whitespace-nowrap cursor-pointer"
+            title="Return to Ingress Within Dashboard"
+          >
+            <img src="/logo-mark-transparent.png" alt="Ingress Within" className="w-6 h-6 object-contain shrink-0" />
+            <span className="hidden sm:inline font-serif text-[15px] text-[#132A24] tracking-tight whitespace-nowrap">
+              ingress <span className="font-semibold text-[#8B5E66]">within</span>
+            </span>
+            <span className="hidden sm:inline text-[#A0AAB0]/70 mx-0.5">/</span>
+            <span className="font-semibold text-[13px] text-[#132A24] whitespace-nowrap">Therapy Portal</span>
+          </button>
 
-          {/* Desktop Tab Links */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+          {/* Desktop Primary Nav (Concise 5 tabs + More dropdown — strictly single-line) */}
+          <nav
+            aria-label="Therapy Portal Navigation"
+            className="hidden lg:flex items-center gap-0.5 bg-white/80 border border-[#263238]/10 rounded-xl p-1 shadow-2xs"
+          >
             {[
               { id: 'overview', label: 'Overview' },
-              { id: 'therapeutic_profile', label: 'Therapeutic Profile' },
               { id: 'sessions', label: 'Sessions', count: upcomingSessionsList.length },
               { id: 'therapist', label: 'My Therapist' },
-              { id: 'journey', label: 'My Journey' },
+              { id: 'therapeutic_profile', label: 'Care Profile' },
               { id: 'homework', label: 'Self-Work', count: pendingHomeworkList.length },
-              { id: 'billing', label: 'Billing' },
-              { id: 'support', label: 'Support' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setMoreMenuOpen(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
                       ? 'bg-[#132A24] text-white shadow-2xs font-semibold'
-                      : 'text-[#66747A] hover:text-[#263238] hover:bg-[#263238]/5'
+                      : 'text-[#526066] hover:text-[#132A24] hover:bg-[#132A24]/5'
                   }`}
                 >
                   <span>{tab.label}</span>
                   {tab.count !== undefined && tab.count > 0 && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-bold ${
                         isActive ? 'bg-white/20 text-white' : 'bg-[#132A24]/10 text-[#132A24]'
                       }`}
                     >
@@ -536,24 +551,126 @@ export default function ClientTherapyDashboard({
                 </button>
               );
             })}
+
+            {/* Secondary Utilities Dropdown: My Journey, Billing, Support */}
+            <div className="relative" ref={moreMenuRef}>
+              {(() => {
+                const secondaryActive = ['journey', 'billing', 'support'].includes(activeTab);
+                const secondaryLabel =
+                  activeTab === 'journey'
+                    ? 'My Journey'
+                    : activeTab === 'billing'
+                    ? 'Billing'
+                    : activeTab === 'support'
+                    ? 'Support'
+                    : 'More';
+
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setMoreMenuOpen((prev) => !prev)}
+                      aria-expanded={moreMenuOpen}
+                      aria-haspopup="menu"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer ${
+                        secondaryActive
+                          ? 'bg-[#132A24] text-white shadow-2xs font-semibold'
+                          : 'text-[#526066] hover:text-[#132A24] hover:bg-[#132A24]/5'
+                      }`}
+                    >
+                      <span>{secondaryLabel}</span>
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-150 ${moreMenuOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {moreMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 mt-2 w-56 bg-white border border-[#263238]/12 rounded-xl shadow-lg py-1.5 z-50"
+                      >
+                        {[
+                          {
+                            id: 'journey',
+                            label: 'My Journey',
+                            sub: 'Milestones & care timeline',
+                            icon: HeartHandshake,
+                          },
+                          {
+                            id: 'billing',
+                            label: 'Billing & Invoices',
+                            sub: 'Session payments & receipts',
+                            icon: CreditCard,
+                          },
+                          {
+                            id: 'support',
+                            label: 'Support & Helplines',
+                            sub: 'Care team & 24/7 crisis lines',
+                            icon: PhoneCall,
+                          },
+                        ].map((item) => {
+                          const IconComp = item.icon;
+                          const isItemActive = activeTab === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setActiveTab(item.id);
+                                setMoreMenuOpen(false);
+                              }}
+                              className={`w-full text-left px-3.5 py-2 flex items-start gap-2.5 transition-colors cursor-pointer ${
+                                isItemActive
+                                  ? 'bg-[#EAF2EE] text-[#132A24]'
+                                  : 'text-[#263238] hover:bg-[#F7F9F8]'
+                              }`}
+                            >
+                              <IconComp
+                                size={15}
+                                className={`mt-0.5 shrink-0 ${
+                                  isItemActive ? 'text-[#1B5E52]' : 'text-[#66747A]'
+                                }`}
+                              />
+                              <div className="min-w-0">
+                                <div className={`text-xs ${isItemActive ? 'font-semibold' : 'font-medium'}`}>
+                                  {item.label}
+                                </div>
+                                <div className="text-[11px] text-[#66747A] leading-tight">
+                                  {item.sub}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           </nav>
 
-          {/* Right Action: Notifications Bell, Book Session CTA & Mobile Menu Toggle */}
-          <div className="flex items-center gap-2">
+          {/* Right Action: Notifications Bell, Book Session CTA & Tablet/Mobile Menu Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setActiveTab('notifications')}
-              className={`p-2 rounded-lg border transition-all relative cursor-pointer ${
+              onClick={() => {
+                setActiveTab('notifications');
+                setMoreMenuOpen(false);
+              }}
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all relative shrink-0 cursor-pointer ${
                 activeTab === 'notifications'
                   ? 'bg-[#132A24] text-white border-[#132A24]'
-                  : 'bg-white border-[#263238]/10 text-[#263238] hover:bg-[#263238]/5'
+                  : 'bg-white border-[#263238]/12 text-[#263238] hover:bg-[#263238]/5'
               }`}
               title="Notifications"
               aria-label={`Notifications ${unreadNotificationsCount > 0 ? `(${unreadNotificationsCount} unread)` : ''}`}
             >
               <Bell size={16} />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-white text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-emerald-700 text-white text-[9px] font-bold flex items-center justify-center">
                   {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
                 </span>
               )}
@@ -562,38 +679,40 @@ export default function ClientTherapyDashboard({
             <button
               type="button"
               onClick={() => handleStartBooking(therapist)}
-              className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3.5 h-9 rounded-xl text-xs font-semibold tracking-wide flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all shadow-2xs cursor-pointer"
             >
-              <CalendarIcon size={13} />
-              <span className="hidden sm:inline">Book Consultation</span>
+              <CalendarIcon size={14} className="shrink-0" />
+              <span className="hidden sm:inline">Book Session</span>
               <span className="sm:hidden">Book</span>
             </button>
 
-            {/* Mobile Menu Button */}
+            {/* Tablet / Mobile Menu Button */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 rounded-lg border border-[#263238]/10 text-[#263238] hover:bg-[#263238]/5"
+              className="lg:hidden w-9 h-9 rounded-xl border border-[#263238]/12 bg-white text-[#263238] hover:bg-[#263238]/5 flex items-center justify-center shrink-0 cursor-pointer"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-[#263238]/10 pt-3 pb-2 mt-2 space-y-1">
+      {/* Tablet / Mobile Drawer Menu (placed cleanly below sticky bar) */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden sticky top-16 z-30 bg-[#F4F1EC]/98 backdrop-blur-md border-b border-[#263238]/10 px-4 py-3 shadow-md">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {[
               { id: 'overview', label: 'Overview' },
-              { id: 'therapeutic_profile', label: 'Therapeutic Profile' },
               { id: 'sessions', label: 'Sessions', count: upcomingSessionsList.length },
               { id: 'therapist', label: 'My Therapist' },
-              { id: 'journey', label: 'My Journey' },
+              { id: 'therapeutic_profile', label: 'Care Profile' },
               { id: 'homework', label: 'Self-Work / Homework', count: pendingHomeworkList.length },
+              { id: 'journey', label: 'My Journey' },
               { id: 'billing', label: 'Billing & Invoices' },
               { id: 'notifications', label: 'Notifications', count: unreadNotificationsCount },
-              { id: 'support', label: 'Care & Emergency Helplines' },
+              { id: 'support', label: 'Support & Helplines' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -602,23 +721,29 @@ export default function ClientTherapyDashboard({
                   setActiveTab(tab.id);
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition-colors ${
                   activeTab === tab.id
                     ? 'bg-[#132A24] text-white font-semibold'
-                    : 'text-[#263238] hover:bg-[#263238]/5'
+                    : 'bg-white/70 text-[#263238] hover:bg-white'
                 }`}
               >
                 <span>{tab.label}</span>
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      activeTab === tab.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
                     {tab.count}
                   </span>
                 )}
               </button>
             ))}
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* 2. MAIN DASHBOARD CONTENT AREA */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
