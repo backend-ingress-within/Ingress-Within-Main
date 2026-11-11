@@ -148,7 +148,7 @@ export class DashboardService {
 
     if (cached !== null) {
       if (revalidateOnCache && !inFlight) {
-        void this.runDedupedRequest(key, fetchFresh).catch(() => {});
+        void this.runDedupedRequest(key, fetchFresh).catch(() => { });
       }
       return Promise.resolve(cached);
     }
@@ -323,7 +323,7 @@ export class DashboardService {
             daysRemaining = cycle.daysRemaining !== undefined ? cycle.daysRemaining : (totalDays - currentDay);
             userId = cycle.userId || cycle.user_id || userId;
             cycleId = cycle.id || cycleId;
-            
+
             if (cycle.startDate) {
               const startDateObj = new Date(cycle.startDate);
               if (!isNaN(startDateObj.getTime())) {
@@ -338,8 +338,8 @@ export class DashboardService {
           const entryDate = new Date(entry.created_at);
           const today = new Date();
           return entryDate.getDate() === today.getDate() &&
-                 entryDate.getMonth() === today.getMonth() &&
-                 entryDate.getFullYear() === today.getFullYear();
+            entryDate.getMonth() === today.getMonth() &&
+            entryDate.getFullYear() === today.getFullYear();
         });
 
         if (hasWrittenFreeWriteToday) {
@@ -393,7 +393,7 @@ export class DashboardService {
     if (!res.ok) {
       throw new Error(data?.error?.message || 'Failed to save journal entry.');
     }
-    
+
     // Invalidate only the current user/cycle scope on write.
     this.invalidateScopedCache();
 
@@ -781,14 +781,14 @@ export class DashboardService {
       }
       const duration = performance.now() - startTime;
       this.trackLatency('fetchWeeklyReports', duration);
-      
+
       const reports = data.reports || [];
       const hasPendingOrFailed = reports.some((r: any) => r.status !== 'READY');
       if (hasPendingOrFailed) {
         const scopedKey = this.getScopedCacheKey(cacheKey);
         setTimeout(() => { delete this.cache[scopedKey]; }, 0);
       }
-      
+
       return reports;
     });
   }
@@ -813,12 +813,12 @@ export class DashboardService {
       }
       const duration = performance.now() - startTime;
       this.trackLatency('fetchWeeklyReportDetail', duration);
-      
+
       if (data.report && data.report.status !== 'READY') {
         const scopedKey = this.getScopedCacheKey(cacheKey);
         setTimeout(() => { delete this.cache[scopedKey]; }, 0);
       }
-      
+
       return data.report;
     });
   }

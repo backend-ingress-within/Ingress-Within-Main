@@ -23,6 +23,9 @@
  */
 
 import { getAIProvider } from '../ai/factory';
+import { citiesMatch, normalizeCity } from './cityUtils';
+
+export { citiesMatch, normalizeCity };
 
 // ---------------------------------------------------------------------
 // 1. Types & Interfaces
@@ -324,12 +327,7 @@ export function tagInList(tag: string, list?: string[] | null): boolean {
   return (list || []).some((item) => tagsMatch(tag, item));
 }
 
-export function citiesMatch(a?: string | null, b?: string | null): boolean {
-  const na = normalizeTag(a);
-  const nb = normalizeTag(b);
-  if (!na || !nb) return false;
-  return na === nb || na.includes(nb) || nb.includes(na);
-}
+// City normalization and dual-relationship city comparison live in ./cityUtils.ts.
 
 export function normalizeBudgetBand(b?: string | null): string | null {
   if (!b) return null;
@@ -464,7 +462,8 @@ export function hardFilter(
     }
   }
 
-  if (!relax.city && profile.city && citiesMatch(profile.city, t.city)) {
+  // Same-city exclusion is mandatory (never relaxed) to avoid dual relationships.
+  if (profile.city && citiesMatch(profile.city, t.city)) {
     fails.push('Same city as you — excluded to avoid a dual relationship, not a quality issue');
   }
 
@@ -532,8 +531,7 @@ export function matchTherapists(
 
 export const RELAX_TIERS = [
   { relax: {}, label: null },
-  { relax: { city: true }, label: 'including practitioners in your city offering telehealth' },
-  { relax: { language: true, city: true }, label: 'including some therapists outside your stated language preference' },
+  { relax: { language: true }, label: 'including some therapists outside your stated language preference' },
 ] as const;
 
 export function getGuaranteedMatches(

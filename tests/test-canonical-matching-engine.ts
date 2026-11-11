@@ -234,6 +234,19 @@ async function run() {
 
     const fails = hardFilter(profileDelhi, sameCityTherapist);
     assert(fails.some((f) => f.includes('Same city as you')), 'Must fail same-city exclusion');
+
+    const failsAlias = hardFilter(
+      { ...profileDelhi, city: 'Bangalore, Karnataka' },
+      { ...baseTherapist, city: 'Bengaluru' }
+    );
+    assert(failsAlias.some((f) => f.includes('Same city as you')), 'Must fail same-city exclusion across aliases/suffixes');
+
+    const relaxedAttempt = getGuaranteedMatches(
+      { ...profileDelhi, city: 'Mumbai' },
+      [{ ...baseTherapist, city: 'Bombay, Maharashtra' }]
+    );
+    assert.strictEqual(relaxedAttempt.guaranteedHandoff, true, 'Same-city exclusion must never be relaxed');
+    assert.strictEqual(relaxedAttempt.results.filter((r) => r.qualifies).length, 0);
   });
 
   it('Minors cannot match with therapists restricted to adult clients', () => {

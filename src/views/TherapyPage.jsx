@@ -22,6 +22,7 @@ import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
 import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
 import ConversationalIntake from '../components/therapy/ConversationalIntake';
 import ClientTherapyDashboard from './client/ClientTherapyDashboard';
+import { citiesMatch } from '../lib/therapy/cityUtils';
 
 /*
  * Ingress Within — Therapy intake
@@ -1237,9 +1238,16 @@ function Guided({ exit, onBookSession, user, profile }) {
     });
   }, [eligibleTherapists]);
 
+  // Dual-relationship safeguard: strictly exclude any therapist practicing in the client's city
+  const cityFilteredTherapists = useMemo(() => {
+    const clientCity = (d.city || '').trim();
+    if (!clientCity) return normalizedTherapists;
+    return normalizedTherapists.filter((t) => !citiesMatch(clientCity, t.city));
+  }, [normalizedTherapists, d.city]);
+
   // Calculate dynamic options from actual therapist roster to prevent "no therapist found" dead-ends
   const dynamicBudgetOptions = useMemo(() => {
-    if (!normalizedTherapists.length) {
+    if (!cityFilteredTherapists.length) {
       return [
         { value: 'Flexible', label: 'Flexible · All available clinicians (Recommended)' },
         { value: '₹1,200–₹1,800', label: '₹1,200 – ₹1,800 per session' },
@@ -1248,13 +1256,13 @@ function Guided({ exit, onBookSession, user, profile }) {
       ];
     }
 
-    const under1500 = normalizedTherapists.filter((t) => (t.fee || 1500) <= 1500).length;
-    const between1200and1800 = normalizedTherapists.filter((t) => (t.fee || 1500) <= 1800).length;
-    const between1800and2500 = normalizedTherapists.filter((t) => (t.fee || 1500) > 1800 && (t.fee || 1500) <= 2500).length;
-    const above2500 = normalizedTherapists.filter((t) => (t.fee || 1500) > 2500).length;
+    const under1500 = cityFilteredTherapists.filter((t) => (t.fee || 1500) <= 1500).length;
+    const between1200and1800 = cityFilteredTherapists.filter((t) => (t.fee || 1500) <= 1800).length;
+    const between1800and2500 = cityFilteredTherapists.filter((t) => (t.fee || 1500) > 1800 && (t.fee || 1500) <= 2500).length;
+    const above2500 = cityFilteredTherapists.filter((t) => (t.fee || 1500) > 2500).length;
 
     const list = [
-      { value: 'Flexible', label: `Flexible · All ${normalizedTherapists.length} clinicians (Recommended)` }
+      { value: 'Flexible', label: `Flexible · All ${cityFilteredTherapists.length} clinicians (Recommended)` }
     ];
 
     if (under1500 > 0) {
@@ -1271,27 +1279,27 @@ function Guided({ exit, onBookSession, user, profile }) {
     }
 
     return list;
-  }, [normalizedTherapists]);
+  }, [cityFilteredTherapists]);
 
   const dynamicGenderOptions = useMemo(() => {
-    const femaleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'female').length;
-    const maleCount = normalizedTherapists.filter((t) => (t.gender || '').toLowerCase() === 'male').length;
-    const nbCount = normalizedTherapists.filter((t) => ['non-binary', 'other'].includes((t.gender || '').toLowerCase())).length;
+    const femaleCount = cityFilteredTherapists.filter((t) => (t.gender || '').toLowerCase() === 'female').length;
+    const maleCount = cityFilteredTherapists.filter((t) => (t.gender || '').toLowerCase() === 'male').length;
+    const nbCount = cityFilteredTherapists.filter((t) => ['non-binary', 'other'].includes((t.gender || '').toLowerCase())).length;
 
     const list = [
       { value: 'Female', label: femaleCount > 0 ? `Female (${femaleCount} available)` : 'Female' },
       { value: 'Male', label: maleCount > 0 ? `Male (${maleCount} available)` : 'Male' },
-      { value: 'No preference', label: `No preference (${normalizedTherapists.length || 'All'} clinicians)` },
+      { value: 'No preference', label: `No preference (${cityFilteredTherapists.length || 'All'} clinicians)` },
     ];
     if (nbCount > 0) {
       list.push({ value: 'Non-binary', label: `Non-binary (${nbCount} available)` });
     }
     return list;
-  }, [normalizedTherapists]);
+  }, [cityFilteredTherapists]);
 
   const dynamicLanguageOptions = useMemo(() => {
     const counts = {};
-    normalizedTherapists.forEach((t) => {
+    cityFilteredTherapists.forEach((t) => {
       const langs = Array.isArray(t.languages)
         ? t.languages
         : (Array.isArray(t.preferred_languages) ? t.preferred_languages : ['English', 'Hindi']);
@@ -1329,14 +1337,14 @@ function Guided({ exit, onBookSession, user, profile }) {
     });
 
     return [
-      { value: 'No preference', label: `No preference (Any language · ${normalizedTherapists.length || 'All'} clinicians)` },
+      { value: 'No preference', label: `No preference (Any language · ${cityFilteredTherapists.length || 'All'} clinicians)` },
       ...allLangs.map((lang) => ({
         value: lang,
         label: counts[lang] ? `${lang} (${counts[lang]} available)` : lang,
         count: counts[lang] || 0,
       })),
     ];
-  }, [normalizedTherapists]);
+  }, [cityFilteredTherapists]);
   
   const createSession = async () => {
     try {
@@ -1433,7 +1441,7 @@ function Guided({ exit, onBookSession, user, profile }) {
   }, [safety]);
 
   const matches = useMemo(() => {
-    if (!normalizedTherapists.length) return [];
+    if (!cityFilteredTherapists.length) return [];
 
     const maxBudget = {
       'Under ₹500': 500,
@@ -1446,7 +1454,7 @@ function Guided({ exit, onBookSession, user, profile }) {
     const selectedLanguage = (d.language || '').trim().toLowerCase();
     const hasLanguagePref = selectedLanguage && selectedLanguage !== 'no preference' && selectedLanguage !== 'any language';
 
-    return normalizedTherapists
+    return cityFilteredTherapists
       .filter((t) => {
         if (t.capacity && typeof t.capacity.current === 'number' && typeof t.capacity.max === 'number') {
           return t.capacity.current < t.capacity.max;
@@ -1504,7 +1512,7 @@ function Guided({ exit, onBookSession, user, profile }) {
         return b.score - a.score;
       })
       .slice(0, 3);
-  }, [normalizedTherapists, d, triageTier]);
+  }, [cityFilteredTherapists, d, triageTier]);
 
   const ensureSession = async () => {
     if (therapySessionId) return therapySessionId;
