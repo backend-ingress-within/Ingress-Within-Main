@@ -1,4 +1,9 @@
 import { supabase } from '../db';
+import {
+  pickRawTherapistPhoto,
+  resolveTherapistPhotoUrl,
+  resolveTherapistPhotoUrlsBatch,
+} from '../therapist/photoUrlResolver';
 
 export type TherapyJourney = 'conversation' | 'guided' | 'team';
 
@@ -626,7 +631,7 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
             ? app.answers.spokenLanguages
             : ['English', 'Hindi'])),
       sessionFormats: Array.isArray(profile.session_formats) ? profile.session_formats : ['telehealth'],
-      profileImageUrl: profile.profile_image_url || null,
+      profileImageUrl: pickRawTherapistPhoto(profile.profile_image_url, app?.answers),
       city: profile.city || null,
       state: profile.state || null,
       fee: resolvedFee,
@@ -634,6 +639,16 @@ export async function getEligibleTherapists(): Promise<PublicTherapistProfile[]>
       availability: availabilityText,
       gender: (profile as any).gender || app?.answers?.gender || app?.answers?.therapistGender || 'Not specified',
     });
+  }
+
+  // Batch-sign any private Storage paths so photos load cleanly in intake & match previews
+  const eligiblePhotoMap = await resolveTherapistPhotoUrlsBatch(
+    eligible.map((item) => item.profileImageUrl)
+  );
+  for (const item of eligible) {
+    if (item.profileImageUrl) {
+      item.profileImageUrl = eligiblePhotoMap.get(item.profileImageUrl) ?? null;
+    }
   }
 
   return eligible;
@@ -776,6 +791,21 @@ export async function getClientConnectedTherapist(userId: string) {
     ? account.therapist_profiles[0]
     : account?.therapist_profiles;
 
+  let appAnswers: Record<string, any> | null = null;
+  if (!profile?.profile_image_url) {
+    const { data: appRow } = await supabase
+      .from('therapist_applications')
+      .select('answers')
+      .eq('therapist_account_id', relationship.therapist_account_id)
+      .maybeSingle();
+    appAnswers = (appRow?.answers as any) || null;
+  }
+
+  const resolvedPhotoUrl = await resolveTherapistPhotoUrl(
+    profile?.profile_image_url,
+    appAnswers
+  );
+
   return {
     relationshipId: relationship.id,
     careStage: relationship.care_stage,
@@ -792,7 +822,7 @@ export async function getClientConnectedTherapist(userId: string) {
       specializations: profile?.specializations || [],
       languages: profile?.languages || ['English', 'Hindi'],
       sessionFormats: profile?.session_formats || ['telehealth'],
-      profileImageUrl: profile?.profile_image_url || null,
+      profileImageUrl: resolvedPhotoUrl,
       city: profile?.city || null,
       state: profile?.state || null,
       bio: profile?.bio || '',
@@ -872,11 +902,58 @@ export async function getClientTherapyDashboardSummary(userId: string) {
   const allRel = relationships || [];
   const activeRel = allRel.find((r) => r.status === 'active');
 
+  // Collect all relationship therapist IDs + raw photo paths and batch-sign private URLs
+  const relTherapistIds = Array.from(
+    new Set(allRel.map((r) => r.therapist_account_id).filter(Boolean))
+  );
+  const relMissingPhotoIds = allRel
+    .filter((r) => {
+      const acc = r.therapist_accounts as any;
+      const prof = Array.isArray(acc?.therapist_profiles)
+        ? acc.therapist_profiles[0]
+        : acc?.therapist_profiles;
+      return !prof?.profile_image_url;
+    })
+    .map((r) => r.therapist_account_id)
+    .filter(Boolean);
+
+  const appAnswersByTherapist = new Map<string, Record<string, any>>();
+  if (relMissingPhotoIds.length > 0) {
+    try {
+      const { data: appRows } = await supabase
+        .from('therapist_applications')
+        .select('therapist_account_id, answers')
+        .in('therapist_account_id', relMissingPhotoIds);
+      for (const row of appRows || []) {
+        if (row.therapist_account_id && row.answers) {
+          appAnswersByTherapist.set(row.therapist_account_id, row.answers as any);
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  const rawPhotosToResolve: Array<string | null> = relTherapistIds.map((tId) => {
+    const rel = allRel.find((r) => r.therapist_account_id === tId);
+    const acc = rel?.therapist_accounts as any;
+    const prof = Array.isArray(acc?.therapist_profiles)
+      ? acc.therapist_profiles[0]
+      : acc?.therapist_profiles;
+    return pickRawTherapistPhoto(prof?.profile_image_url, appAnswersByTherapist.get(tId));
+  });
+  const relPhotoMap = await resolveTherapistPhotoUrlsBatch(rawPhotosToResolve);
+
   const mapTherapistProfile = (rel: any) => {
     const account = rel.therapist_accounts as any;
     const profile = Array.isArray(account?.therapist_profiles)
       ? account.therapist_profiles[0]
       : account?.therapist_profiles;
+    const rawPhoto = pickRawTherapistPhoto(
+      profile?.profile_image_url,
+      appAnswersByTherapist.get(rel.therapist_account_id)
+    );
+    const resolvedPhoto = rawPhoto ? (relPhotoMap.get(rawPhoto) ?? null) : null;
 
     return {
       id: rel.therapist_account_id,
@@ -890,7 +967,7 @@ export async function getClientTherapyDashboardSummary(userId: string) {
       specializations: profile?.specializations || [],
       languages: profile?.languages || ['English', 'Hindi'],
       sessionFormats: profile?.session_formats || ['telehealth'],
-      profileImageUrl: profile?.profile_image_url || null,
+      profileImageUrl: resolvedPhoto,
       city: profile?.city || null,
       state: profile?.state || null,
       bio: profile?.bio || '',
@@ -1026,7 +1103,7 @@ export async function getClientTherapyDashboardSummary(userId: string) {
         : acc?.therapist_profiles;
       requestedTherapistName = prof?.full_name || null;
       requestedTherapistTitle = prof?.title || null;
-      requestedTherapistImage = prof?.profile_image_url || null;
+      requestedTherapistImage = await resolveTherapistPhotoUrl(prof?.profile_image_url);
     } else if (activeSubmission?.metadata) {
       requestedTherapistName = (activeSubmission.metadata as any)?.selectedTherapistName || null;
     }
@@ -1288,6 +1365,8 @@ export async function getClientCareJourney(userId: string) {
   // Sort timeline newest first
   timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+  const resolvedCarePhotoUrl = await resolveTherapistPhotoUrl(profile?.profile_image_url);
+
   return {
     relationshipId: relationship.id,
     careStage: relationship.care_stage,
@@ -1299,7 +1378,7 @@ export async function getClientCareJourney(userId: string) {
       name: profile?.full_name || 'Assigned Clinician',
       title: profile?.title || 'Consultant Psychologist',
       qualification: profile?.qualification || '',
-      profileImageUrl: profile?.profile_image_url || null,
+      profileImageUrl: resolvedCarePhotoUrl,
     },
     stageHistory: (stageHistory || []).map((h) => ({
       id: h.id,

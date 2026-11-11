@@ -58,6 +58,7 @@ export default function ClientTherapyDashboard({
   const [activeTab, setActiveTab] = useState('overview'); // overview | therapeutic_profile | sessions | therapist | journey | homework | billing | support
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [overviewImgFailed, setOverviewImgFailed] = useState(false);
   const moreMenuRef = useRef(null);
 
   useEffect(() => {
@@ -807,10 +808,11 @@ export default function ClientTherapyDashboard({
 
                 {/* Therapist Mini Pill */}
                 <div className="shrink-0 bg-[#F4F1EC] border border-[#263238]/8 rounded-xl p-4 flex items-center gap-3.5 max-w-sm">
-                  {therapist?.profileImageUrl ? (
+                  {therapist?.profileImageUrl && !overviewImgFailed ? (
                     <img
                       src={therapist.profileImageUrl}
                       alt={clinicianName}
+                      onError={() => setOverviewImgFailed(true)}
                       className="w-12 h-12 rounded-xl object-cover border border-[#263238]/10 shrink-0"
                     />
                   ) : (

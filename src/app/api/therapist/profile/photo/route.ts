@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { requireTherapistProfile } from '../../../../../lib/therapist/therapistAuthHelper';
 import { TherapistPlatformService } from '../../../../../lib/therapist/therapistPlatformService';
+import {
+  VERIFICATION_BUCKET,
+  resolveTherapistPhotoUrl,
+} from '../../../../../lib/therapist/photoUrlResolver';
 import { supabase } from '../../../../../lib/db';
 
 export const runtime = 'nodejs';
 
-const BUCKET = 'therapist-verification';
+const BUCKET = VERIFICATION_BUCKET;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -64,10 +68,8 @@ export async function POST(request: NextRequest) {
           // Fallback to safe base64 data uri if bucket upload fails in dev
           imageUrl = `data:${file.type};base64,${buffer.toString('base64')}`;
         } else {
-          const { data: publicUrlData } = supabase.storage
-            .from(BUCKET)
-            .getPublicUrl(storagePath);
-          imageUrl = publicUrlData?.publicUrl || storagePath;
+          // Persist canonical storage path in DB so future reads always generate fresh signed URLs
+          imageUrl = storagePath;
         }
       } catch (err: any) {
         console.warn('[ProfilePhotoRoute] Upload exception, fallback to data URI:', err.message);
@@ -89,10 +91,15 @@ export async function POST(request: NextRequest) {
       profile_image_url: imageUrl,
     });
 
+    const displayUrl = await resolveTherapistPhotoUrl(imageUrl);
+
     return NextResponse.json({
       success: true,
-      profile_image_url: imageUrl,
-      profile: updatedProfile,
+      profile_image_url: displayUrl || imageUrl,
+      profile: {
+        ...updatedProfile,
+        profile_image_url: displayUrl || updatedProfile.profile_image_url,
+      },
     });
   } catch (err: any) {
     return NextResponse.json(

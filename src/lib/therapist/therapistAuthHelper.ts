@@ -3,6 +3,7 @@ import { supabase } from '../db';
 import { verifyJwt } from '../../utils/crypto';
 import { COOKIE_THERAPIST_ACCESS_NAME } from '../../utils/cookies';
 import { TherapistAuthService } from './therapistAuthService';
+import { resolveTherapistPhotoUrl } from './photoUrlResolver';
 
 export interface AuthenticatedTherapist {
   therapistId: string;
@@ -190,6 +191,10 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
 
   const isAccountActive = account.status !== 'suspended' && account.status !== 'rejected';
 
+  const resolvedProfileImageUrl = profile?.profile_image_url
+    ? await resolveTherapistPhotoUrl(profile.profile_image_url)
+    : null;
+
   const profileData: AuthenticatedTherapistProfileData = profile ? {
     id: profile.id,
     phone_number: profile.phone || account.phone_number,
@@ -216,7 +221,7 @@ export async function requireTherapistProfile(request: NextRequest): Promise<Aut
       return (norm.length > 0 ? norm : ['telehealth']) as string[];
     })(),
     availability_hours: profile.availability_hours || {},
-    profile_image_url: profile.profile_image_url || null,
+    profile_image_url: resolvedProfileImageUrl,
     city: profile.city || null,
     state: profile.state || null,
     practice_name: profile.practice_name || '',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../../lib/db';
 import { RelationshipBookingLinkService } from '../../../../../lib/therapy/relationshipBookingLinkService';
 import { SessionBookingService } from '../../../../../lib/therapy/sessionBookingService';
+import { resolveTherapistPhotoUrl } from '../../../../../lib/therapist/photoUrlResolver';
 import { getClientIp } from '../../../../../utils/ip';
 
 /**
@@ -103,6 +104,8 @@ export async function GET(
       availableSlots = [];
     }
 
+    const resolvedPhotoUrl = await resolveTherapistPhotoUrl(profile?.profile_image_url);
+
     // 5. Construct sanitized response DTO (zero client/relationship ID disclosure)
     const sanitizedResponse = {
       success: true,
@@ -114,7 +117,7 @@ export async function GET(
         experienceYears: profile?.experience_years ?? 0,
         specializations: Array.isArray(profile?.specializations) ? profile.specializations : [],
         languages: Array.isArray(profile?.languages) ? profile.languages : ['English', 'Hindi'],
-        photoUrl: profile?.profile_image_url || null,
+        photoUrl: resolvedPhotoUrl,
         timezone: profile?.timezone || 'Asia/Kolkata',
       },
       session: {

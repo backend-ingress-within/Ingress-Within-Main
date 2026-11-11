@@ -61,6 +61,11 @@ export default function ClientTherapyMyTherapistView({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState({});
+  const markPhotoFailed = (url) => {
+    if (!url) return;
+    setFailedPhotoUrls((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
+  };
 
   // Transition Modal State (Change Therapist or Quit Therapy)
   const [transitionModal, setTransitionModal] = useState({
@@ -692,10 +697,11 @@ export default function ClientTherapyMyTherapistView({
         {/* Historical Clinician Profile Card */}
         <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {therapist?.profileImageUrl ? (
+            {therapist?.profileImageUrl && !failedPhotoUrls[therapist.profileImageUrl] ? (
               <img
                 src={therapist.profileImageUrl}
                 alt={clinicianName}
+                onError={() => markPhotoFailed(therapist.profileImageUrl)}
                 className="w-20 h-20 rounded-2xl object-cover border border-[#263238]/10 shrink-0 shadow-xs filter grayscale-[30%]"
               />
             ) : (
@@ -804,10 +810,11 @@ export default function ClientTherapyMyTherapistView({
       {/* Main Profile Card */}
       <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          {therapist?.profileImageUrl ? (
+          {therapist?.profileImageUrl && !failedPhotoUrls[therapist.profileImageUrl] ? (
             <img
               src={therapist.profileImageUrl}
               alt={clinicianName}
+              onError={() => markPhotoFailed(therapist.profileImageUrl)}
               className="w-24 h-24 rounded-2xl object-cover border border-[#263238]/10 shrink-0 shadow-xs"
             />
           ) : (
@@ -1424,10 +1431,11 @@ export default function ClientTherapyMyTherapistView({
                           className="p-4 sm:p-5 rounded-xl bg-[#FAF9F7] border border-[#263238]/10 hover:border-[#132A24]/30 transition-all space-y-3"
                         >
                           <div className="flex items-start gap-3.5">
-                            {t.profileImageUrl ? (
+                            {t.profileImageUrl && !failedPhotoUrls[t.profileImageUrl] ? (
                               <img
                                 src={t.profileImageUrl}
                                 alt={t.displayName || t.name}
+                                onError={() => markPhotoFailed(t.profileImageUrl)}
                                 className="w-13 h-13 rounded-xl object-cover border border-[#263238]/10 shrink-0"
                               />
                             ) : (

@@ -1,5 +1,9 @@
 import { supabase } from '../db';
 import {
+  pickRawTherapistPhoto,
+  resolveTherapistPhotoUrlsBatch,
+} from '../therapist/photoUrlResolver';
+import {
   ClientProfile,
   TherapistRecord,
   ScoredMatch,
@@ -145,7 +149,7 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
       specialties,
       modalities,
       primaryModalities,
-      profileImageUrl: (profile as any).profile_image_url || appAnswers.profileImageUrl || appAnswers.photoUrl || null,
+      profileImageUrl: pickRawTherapistPhoto((profile as any).profile_image_url, appAnswers),
       ageGroups: Array.isArray(appAnswers.ageGroups) ? appAnswers.ageGroups : ['Adults'],
       gender: (profile as any).gender || appAnswers.gender || null,
       capacity: {
@@ -160,6 +164,16 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
       acuityClearance,
       email: (profile as any).contact_email || null,
     });
+  }
+
+  // Batch-sign any private Supabase Storage photo paths for the eligible roster
+  const photoMap = await resolveTherapistPhotoUrlsBatch(
+    roster.map((r) => r.profileImageUrl)
+  );
+  for (const r of roster) {
+    if (r.profileImageUrl) {
+      r.profileImageUrl = photoMap.get(r.profileImageUrl) ?? null;
+    }
   }
 
   return roster;
