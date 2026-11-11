@@ -383,4 +383,78 @@ export class LeadPipelineService {
 
     return lead;
   }
+
+  /**
+   * Finds a single lead by its primary ID across memory and Supabase.
+   */
+  static async getLeadById(id: string): Promise<IntakeLeadRecord | null> {
+    const mem = inMemoryLeads.get(id);
+    try {
+      const { data, error } = await supabase
+        .from('therapy_intake_leads')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (!error && data) {
+        return data as IntakeLeadRecord;
+      }
+    } catch {
+      // Fallback to memory store
+    }
+    return mem || null;
+  }
+
+  /**
+   * Records a manually matched clinician onto a lead and updates follow-up state.
+   */
+  static async assignTherapistToLead(
+    id: string,
+    payload: {
+      therapistId: string;
+      therapistName: string;
+      followUpStatus?: IntakeLeadRecord['follow_up_status'];
+      internalNotes?: string;
+      isCompleted?: boolean;
+    }
+  ): Promise<IntakeLeadRecord | null> {
+    const existing = await this.getLeadById(id);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    const updated: IntakeLeadRecord = {
+      ...existing,
+      selected_therapist_id: payload.therapistId,
+      selected_therapist_name: payload.therapistName,
+      follow_up_status: payload.followUpStatus || existing.follow_up_status,
+      internal_notes:
+        payload.internalNotes !== undefined
+          ? payload.internalNotes
+          : existing.internal_notes,
+      is_completed:
+        payload.isCompleted !== undefined
+          ? payload.isCompleted
+          : existing.is_completed,
+      updated_at: now,
+    };
+
+    inMemoryLeads.set(updated.id, updated);
+
+    try {
+      await supabase
+        .from('therapy_intake_leads')
+        .update({
+          selected_therapist_id: updated.selected_therapist_id,
+          selected_therapist_name: updated.selected_therapist_name,
+          follow_up_status: updated.follow_up_status,
+          internal_notes: updated.internal_notes,
+          is_completed: updated.is_completed,
+          updated_at: now,
+        })
+        .eq('id', id);
+    } catch (err) {
+      console.warn('[LeadPipelineService] assignTherapistToLead DB update note:', err);
+    }
+
+    return updated;
+  }
 }

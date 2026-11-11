@@ -1033,6 +1033,7 @@ function Guided({ exit, onBookSession, user, profile }) {
     if (cleanDigits.length < 7) return;
 
     sendLeadAutosave({
+      sessionId: therapySessionId || undefined,
       phoneNumber: phone,
       fullName: (extra.name !== undefined ? extra.name : d.name || '').trim(),
       email: (extra.email !== undefined ? extra.email : d.email || '').trim(),
@@ -1186,6 +1187,12 @@ function Guided({ exit, onBookSession, user, profile }) {
               credentials: m.therapist?.credentials,
             }));
             autosaveGuidedLead('matches_shown', 16, { matchesShown: matchesSummary });
+          } else {
+            autosaveGuidedLead('no_matches_found', 16, { matchesShown: [] });
+            if (therapySessionId) {
+              saveGuidedIntake(therapySessionId).catch(() => {});
+              saveGuidedSafety(therapySessionId).catch(() => {});
+            }
           }
         })
         .catch((err) => {
@@ -1737,8 +1744,9 @@ function Guided({ exit, onBookSession, user, profile }) {
     return data;
   };
 
-  const handleTalkToTeam = async () => {
+  const handleTalkToTeam = async (triggerReasonArg) => {
     if (teamRequestSubmitting) return;
+    const isNoMatchTrigger = triggerReasonArg === 'no_match_found';
     setTeamRequestSubmitting(true);
     setSessionError('');
     try {
@@ -1757,14 +1765,22 @@ function Guided({ exit, onBookSession, user, profile }) {
           therapySessionId: sessionId,
           submissionType: 'team',
           callbackPreference: 'As soon as possible',
-          notes: d.ownWords?.trim() || d.reason?.trim() || 'Client requested team review from matches screen because none of the suggested matches suited them.',
+          notes:
+            d.ownWords?.trim() ||
+            d.reason?.trim() ||
+            (isNoMatchTrigger
+              ? 'No automated matches found on Step 16; submitted for manual matching by care team.'
+              : 'Client requested team review from matches screen because none of the suggested matches suited them.'),
           metadata: {
             source: 'therapy_matches_fallback',
-            reason: 'Client indicated none of the automated therapist matches suited them',
+            reason: isNoMatchTrigger
+              ? 'Zero automated clinician matches found; submitted for manual care-team matching'
+              : 'Client indicated none of the automated therapist matches suited them',
             clientIntakeSummary: {
               name: d.name,
               email: d.email,
               phone: d.phone,
+              city: d.city,
               concerns: d.concerns,
               language: d.language,
               genderPreference: d.therapistGender,
@@ -1781,6 +1797,10 @@ function Guided({ exit, onBookSession, user, profile }) {
       if (!response.ok) {
         throw new Error(data?.error?.message || data?.error || 'Failed to submit care team request');
       }
+
+      autosaveGuidedLead('team_review_requested', 16, {
+        matchesShown: [],
+      });
 
       const refCode = data?.referenceId || `TEAM-${Date.now().toString(36).toUpperCase()}`;
       setTeamReferenceCode(refCode);
@@ -2821,14 +2841,25 @@ function Guided({ exit, onBookSession, user, profile }) {
             </button>
           )}
           {step === 16 && (
-            <button
-              type="button"
-              className="iw-primary"
-              disabled={triageTier === 'standard' && !selectedTherapist}
-              onClick={() => setStep(17)}
-            >
-              {triageTier === 'standard' ? 'Continue to Sharing' : 'Continue to review'} <ArrowRight size={16} />
-            </button>
+            triageTier === 'standard' && matchOutcome && (!matchOutcome.matches || matchOutcome.matches.length === 0) ? (
+              <button
+                type="button"
+                className="iw-primary"
+                disabled={teamRequestSubmitting}
+                onClick={() => handleTalkToTeam('no_match_found')}
+              >
+                {teamRequestSubmitting ? 'Submitting…' : 'Request Personal Match'} <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="iw-primary"
+                disabled={triageTier === 'standard' && !selectedTherapist}
+                onClick={() => setStep(17)}
+              >
+                {triageTier === 'standard' ? 'Continue to Sharing' : 'Continue to review'} <ArrowRight size={16} />
+              </button>
+            )
           )}
           {step === 17 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

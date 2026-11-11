@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthorizedAdmin } from '../../../../../lib/auth/adminAuthHelper';
 import { getInMemoryManualReviews } from '../../../../../lib/therapy/conversationalIntakeService';
-import { validateEligibleTherapist } from '../../../../../lib/therapy/therapyService';
+import { assignTherapistToClient } from '../../../../../lib/admin/adminManualMatchService';
 import { supabase } from '../../../../../lib/db';
-import { EmailService } from '../../../../../lib/email/emailService';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,35 +53,88 @@ export async function PATCH(
       );
     }
 
-    let therapistName = 'Assigned Clinician';
-    let therapistEmail: string | null = null;
+    // 1. Fetch existing review to extract client context
+    let clientUserId: string | null = null;
+    let therapySessionId: string | null = null;
+    let clientEmail: string | null = null;
+    let clientPhone: string | null = null;
 
-    if (identifiedTherapistId) {
-      const val = await validateEligibleTherapist(identifiedTherapistId);
-      if (!val.valid) {
-        return NextResponse.json(
-          { error: { code: 'THERAPIST_NOT_ELIGIBLE', message: 'Assigned therapist is not verified or currently active.' } },
-          { status: 409 }
-        );
-      }
-
-      // Fetch therapist profile for notification and audit
-      const { data: thProfile } = await supabase
-        .from('therapist_profiles')
-        .select('full_name, contact_email')
-        .eq('therapist_account_id', identifiedTherapistId)
+    try {
+      const { data: dbReview } = await supabase
+        .from('manual_matching_reviews')
+        .select('user_id, therapy_session_id, client_preferences')
+        .or(`id.eq.${id},reference_id.eq.${id}`)
         .maybeSingle();
 
-      if (thProfile?.full_name) therapistName = thProfile.full_name;
-      therapistEmail = thProfile?.contact_email || null;
+      if (dbReview) {
+        clientUserId = dbReview.user_id;
+        therapySessionId = dbReview.therapy_session_id;
+        clientEmail = (dbReview.client_preferences as any)?.email || null;
+        clientPhone = (dbReview.client_preferences as any)?.phone || null;
+      }
+    } catch {
+      // Fallback
+    }
 
-      if (!therapistEmail) {
-        const { data: thApp } = await supabase
-          .from('therapist_applications')
-          .select('contact_email, answers')
-          .eq('therapist_account_id', identifiedTherapistId)
-          .maybeSingle();
-        therapistEmail = thApp?.contact_email || (thApp?.answers as any)?.contact_email || null;
+    // Also check in-memory record
+    const memoryReviews = getInMemoryManualReviews();
+    const memoryRecord = memoryReviews.find((r) => r.id === id || r.reference_id === id);
+    if (memoryRecord) {
+      if (!clientUserId) clientUserId = memoryRecord.user_id;
+      if (!therapySessionId) therapySessionId = memoryRecord.therapy_session_id || null;
+      if (!clientEmail) clientEmail = memoryRecord.client_preferences?.email || null;
+      if (!clientPhone) clientPhone = memoryRecord.client_preferences?.phone || null;
+    }
+
+    // 2. Delegate therapist validation, match creation, direct relationship activation, & email
+    let therapistName = 'Assigned Clinician';
+    let createdMatchId: string | null = null;
+    let createdRelationshipId: string | null = null;
+
+    if (identifiedTherapistId) {
+      const result = await assignTherapistToClient({
+        therapistId: identifiedTherapistId,
+        clientUserId,
+        therapySessionId,
+        clientEmail,
+        clientPhone,
+        connectDirectly: Boolean(connectDirectly),
+        source: 'admin_manual_matching_review',
+        referenceId: id,
+        internalNotes: internalNotes || null,
+        admin: {
+          adminId: admin.adminId,
+          email: admin.email,
+          fullName: admin.fullName,
+        },
+      });
+      therapistName = result.therapistName;
+      createdMatchId = result.createdMatchId;
+      createdRelationshipId = result.createdRelationshipId;
+      if (!clientUserId && result.clientUserId) clientUserId = result.clientUserId;
+
+      // Update Lead Pipeline record if client exists in leads
+      if (clientUserId || clientEmail || clientPhone) {
+        try {
+          const filters: string[] = [];
+          if (clientEmail) filters.push(`email.eq.${clientEmail}`);
+          if (clientPhone) filters.push(`phone_number.eq.${clientPhone}`);
+          if (clientUserId) filters.push(`phone_number.eq.${clientUserId}`);
+          if (filters.length > 0) {
+            await supabase
+              .from('therapy_intake_leads')
+              .update({
+                selected_therapist_id: identifiedTherapistId,
+                selected_therapist_name: therapistName,
+                follow_up_status: connectDirectly ? 'converted' : 'contacted',
+                internal_notes: `Manual match assigned: ${therapistName}. ${internalNotes || ''}`.trim(),
+                updated_at: new Date().toISOString(),
+              })
+              .or(filters.join(','));
+          }
+        } catch {
+          // Continue
+        }
       }
     }
 
@@ -97,32 +149,7 @@ export async function PATCH(
         : `Updated status to ${targetStatus || 'unchanged'}. Notes: ${internalNotes || 'None'}`,
     };
 
-    // 1. Fetch existing review to extract client context
-    let clientUserId: string | null = null;
-    let therapySessionId: string | null = null;
-
-    try {
-      const { data: dbReview } = await supabase
-        .from('manual_matching_reviews')
-        .select('user_id, therapy_session_id')
-        .or(`id.eq.${id},reference_id.eq.${id}`)
-        .maybeSingle();
-
-      if (dbReview) {
-        clientUserId = dbReview.user_id;
-        therapySessionId = dbReview.therapy_session_id;
-      }
-    } catch {
-      // Fallback
-    }
-
-    // Also check in-memory record
-    const memoryReviews = getInMemoryManualReviews();
-    const memoryRecord = memoryReviews.find((r) => r.id === id || r.reference_id === id);
     if (memoryRecord) {
-      if (!clientUserId) clientUserId = memoryRecord.user_id;
-      if (!therapySessionId) therapySessionId = memoryRecord.therapy_session_id || null;
-
       if (targetStatus) memoryRecord.review_status = targetStatus as any;
       if (internalNotes !== undefined) memoryRecord.internal_notes = internalNotes;
       if (identifiedTherapistId) memoryRecord.identified_therapist_id = identifiedTherapistId;
@@ -130,113 +157,6 @@ export async function PATCH(
       memoryRecord.assigned_reviewer_id = admin.adminId;
       memoryRecord.audit_trail.push(auditEntry);
       memoryRecord.updated_at = new Date().toISOString();
-    }
-
-    // 2. Perform Single Clinician Match & Care Relationship Creation
-    let createdMatchId: string | null = null;
-    let createdRelationshipId: string | null = null;
-
-    if (identifiedTherapistId && clientUserId) {
-      // A. Remove any old / stale candidate matches for this user to guarantee exclusivity
-      try {
-        await supabase
-          .from('therapy_matches')
-          .delete()
-          .eq('user_id', clientUserId)
-          .neq('therapist_account_id', identifiedTherapistId);
-      } catch (delErr) {
-        console.warn('[PATCH Manual Review] Old match cleanup note:', delErr);
-      }
-
-      // B. Create / upsert single authoritative match in therapy_matches
-      try {
-        const { data: matchRecord } = await supabase
-          .from('therapy_matches')
-          .upsert({
-            user_id: clientUserId,
-            therapy_session_id: therapySessionId,
-            therapist_account_id: identifiedTherapistId,
-            match_status: connectDirectly ? 'selected' : 'shortlisted',
-            match_rank: 1,
-            match_score: 95,
-            match_reasons: ['Manually matched by Ingress Within Care Team'],
-            matching_metadata: {
-              source: 'admin_manual_matching_review',
-              reviewId: id,
-              assignedBy: admin.fullName || admin.email,
-              assignedAt: new Date().toISOString(),
-            },
-          })
-          .select('id')
-          .maybeSingle();
-
-        if (matchRecord?.id) {
-          createdMatchId = matchRecord.id;
-        }
-      } catch (matchErr) {
-        console.warn('[PATCH Manual Review] therapy_matches upsert note:', matchErr);
-      }
-
-      // C. If connectDirectly: create or activate relationship in therapy_care_relationships
-      if (connectDirectly) {
-        try {
-          const { data: relRecord } = await supabase
-            .from('therapy_care_relationships')
-            .upsert({
-              user_id: clientUserId,
-              therapist_account_id: identifiedTherapistId,
-              therapy_session_id: therapySessionId,
-              status: 'active',
-              care_stage: 'matched',
-              started_at: new Date().toISOString(),
-              metadata: {
-                source: 'admin_direct_manual_connection',
-                assignedBy: admin.fullName || admin.email,
-                confirmedAt: new Date().toISOString(),
-              },
-            })
-            .select('id')
-            .maybeSingle();
-
-          if (relRecord?.id) {
-            createdRelationshipId = relRecord.id;
-          }
-        } catch (relErr) {
-          console.warn('[PATCH Manual Review] therapy_care_relationships creation note:', relErr);
-        }
-      }
-
-      // D. Dispatch notification email to assigned therapist
-      if (therapistEmail && (createdMatchId || connectDirectly)) {
-        try {
-          await EmailService.notifyTherapistMatchRequest({
-            matchId: createdMatchId || `match_${Date.now()}`,
-            therapistId: identifiedTherapistId,
-            therapistName,
-            therapistEmail,
-            rank: 1,
-            score: 95,
-          });
-        } catch (emailErr) {
-          console.warn('[PATCH Manual Review] Therapist notification email dispatch note:', emailErr);
-        }
-      }
-
-      // E. Update Lead Pipeline record if client exists in leads
-      try {
-        await supabase
-          .from('therapy_intake_leads')
-          .update({
-            selected_therapist_id: identifiedTherapistId,
-            selected_therapist_name: therapistName,
-            follow_up_status: connectDirectly ? 'converted' : 'contacted',
-            internal_notes: `Manual match assigned: ${therapistName}. ${internalNotes || ''}`.trim(),
-            updated_at: new Date().toISOString(),
-          })
-          .or(`phone_number.eq.${clientUserId}`);
-      } catch {
-        // Continue
-      }
     }
 
     // 3. Update Supabase record in manual_matching_reviews

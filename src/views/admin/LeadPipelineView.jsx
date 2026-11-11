@@ -21,7 +21,9 @@ import {
   Calendar,
   Sparkles,
   ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
+import { citiesMatch } from '../../lib/therapy/cityUtils';
 
 export default function LeadPipelineView({ showToast }) {
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,12 @@ export default function LeadPipelineView({ showToast }) {
   const [editStatus, setEditStatus] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Manual Matching states
+  const [therapists, setTherapists] = useState([]);
+  const [selectedTherapistId, setSelectedTherapistId] = useState('');
+  const [connectDirectly, setConnectDirectly] = useState(true);
+  const [isMatching, setIsMatching] = useState(false);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -65,6 +73,22 @@ export default function LeadPipelineView({ showToast }) {
     }
   };
 
+  const fetchTherapists = async () => {
+    try {
+      const res = await fetch('/api/admin/therapists?status=active&limit=100');
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.therapists)) {
+        setTherapists(data.therapists.filter((t) => t.verification_status === 'verified' || t.status === 'active'));
+      }
+    } catch {
+      // Non-blocking
+    }
+  };
+
+  useEffect(() => {
+    fetchTherapists();
+  }, []);
+
   useEffect(() => {
     fetchLeads();
   }, [stageFilter, statusFilter]);
@@ -78,6 +102,44 @@ export default function LeadPipelineView({ showToast }) {
     setSelectedLead(lead);
     setEditStatus(lead.follow_up_status || 'new');
     setEditNotes(lead.internal_notes || '');
+    setSelectedTherapistId(lead.selected_therapist_id || '');
+    setConnectDirectly(true);
+  };
+
+  const handleManualMatchLead = async () => {
+    if (!selectedLead || !selectedTherapistId) return;
+    setIsMatching(true);
+    try {
+      const res = await fetch(`/api/admin/leads/${selectedLead.id}/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapistId: selectedTherapistId,
+          connectDirectly,
+          internalNotes: editNotes.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const msg = connectDirectly
+          ? `Matched & directly connected ${selectedLead.full_name || 'client'} with ${data.therapistName}`
+          : `Assigned ${data.therapistName} and sent clinician match request`;
+        if (showToast) showToast(msg, 'success');
+        if (data.lead) {
+          setSelectedLead(data.lead);
+          setEditStatus(data.lead.follow_up_status || editStatus);
+          setEditNotes(data.lead.internal_notes || editNotes);
+        }
+        fetchLeads();
+      } else {
+        if (showToast) showToast(data.error || 'Failed to manually match client', 'error');
+      }
+    } catch (err) {
+      console.error('Error manually matching lead:', err);
+      if (showToast) showToast('Network error while matching client', 'error');
+    } finally {
+      setIsMatching(false);
+    }
   };
 
   const handleSaveLeadStatus = async () => {
@@ -120,6 +182,10 @@ export default function LeadPipelineView({ showToast }) {
         return `Preferences Set (Step ${step || 13})`;
       case 'matches_shown':
         return `Matches Shown (Step ${step || 16})`;
+      case 'no_matches_found':
+        return `No Match Found (Step ${step || 16})`;
+      case 'team_review_requested':
+        return `Manual Match Requested (Step ${step || 16})`;
       case 'booking_initiated':
         return `Booking Started (Step ${step || 17})`;
       case 'completed':
@@ -133,6 +199,9 @@ export default function LeadPipelineView({ showToast }) {
     switch (stage) {
       case 'matches_shown':
         return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'no_matches_found':
+      case 'team_review_requested':
+        return 'bg-orange-50 text-orange-800 border-orange-200';
       case 'completed':
         return 'bg-emerald-50 text-emerald-800 border-emerald-200';
       case 'booking_initiated':
@@ -243,6 +312,8 @@ export default function LeadPipelineView({ showToast }) {
               <option value="concerns_selected">Concerns Selected</option>
               <option value="safety_evaluated">Safety Evaluated</option>
               <option value="preferences_set">Preferences Set</option>
+              <option value="no_matches_found">No Match Found (Needs Manual Match)</option>
+              <option value="team_review_requested">Manual Match Requested</option>
               <option value="matches_shown">Matches Shown (High Value Lead)</option>
               <option value="completed">Completed Intakes</option>
             </select>
@@ -342,9 +413,16 @@ export default function LeadPipelineView({ showToast }) {
                         </div>
                       </td>
 
-                      {/* Matches Viewed */}
+                      {/* Matches Viewed / Assigned */}
                       <td className="py-3.5 px-4">
-                        {hasMatches ? (
+                        {lead.selected_therapist_name ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Matched: {lead.selected_therapist_name}
+                            </span>
+                          </div>
+                        ) : hasMatches ? (
                           <div className="space-y-1">
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1B5E52]">
                               <Sparkles className="w-3 h-3 text-amber-500" />
@@ -354,6 +432,10 @@ export default function LeadPipelineView({ showToast }) {
                               {lead.matches_shown.map((m) => m.name).join(', ')}
                             </div>
                           </div>
+                        ) : lead.drop_off_stage === 'no_matches_found' || lead.drop_off_stage === 'team_review_requested' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-orange-50 text-orange-800 border border-orange-200">
+                            0 Auto-Matches · Needs Manual Match
+                          </span>
                         ) : (
                           <span className="text-[#132A24]/40 text-[11px]">None shown</span>
                         )}
@@ -400,6 +482,16 @@ export default function LeadPipelineView({ showToast }) {
                           >
                             <PhoneCall className="w-3.5 h-3.5" />
                           </a>
+
+                          {/* Manually match client & therapist */}
+                          <button
+                            onClick={() => handleOpenLead(lead)}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] font-semibold text-[#1B5E52] bg-[#EAF2EE] hover:bg-[#D5E6DE] border border-[#1B5E52]/25 rounded-lg transition-colors cursor-pointer"
+                            title="Manually Match Therapist"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>{lead.selected_therapist_name ? 'Rematch' : 'Match'}</span>
+                          </button>
 
                           {/* View details & edit modal */}
                           <button
@@ -496,6 +588,14 @@ export default function LeadPipelineView({ showToast }) {
                   <span className="text-[#132A24]/60 block text-[11px]">Therapist Gender Preference</span>
                   <strong className="text-[#132A24]">{selectedLead.therapist_gender_pref || 'No preference'}</strong>
                 </div>
+                <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
+                  <span className="text-[#132A24]/60 block text-[11px]">Client City</span>
+                  <strong className="text-[#132A24]">{selectedLead.answers?.city || 'Not provided'}</strong>
+                </div>
+                <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
+                  <span className="text-[#132A24]/60 block text-[11px]">Budget Range</span>
+                  <strong className="text-[#132A24]">{selectedLead.answers?.budget || (selectedLead.budget ? `₹${selectedLead.budget}` : 'Flexible')}</strong>
+                </div>
               </div>
 
               {selectedLead.concerns && selectedLead.concerns.length > 0 && (
@@ -527,6 +627,138 @@ export default function LeadPipelineView({ showToast }) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Manual Client–Therapist Matching */}
+            <div className="space-y-3 pt-3 border-t border-[#132A24]/10">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-[#132A24] uppercase tracking-wider flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-[#1B5E52]" />
+                  <span>Manual Client–Therapist Matching</span>
+                </h4>
+                {selectedLead.selected_therapist_name && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Matched: {selectedLead.selected_therapist_name}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-[#132A24]/65 leading-relaxed">
+                Manually assign a verified active clinician when automated matching finds no fit or a client drops off before booking.
+              </p>
+
+              <div className="space-y-2.5 bg-[#F7F9F8] p-3.5 rounded-xl border border-[#132A24]/10">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#132A24] mb-1">
+                    Select Verified Therapist
+                  </label>
+                  <select
+                    value={selectedTherapistId}
+                    onChange={(e) => setSelectedTherapistId(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-white border border-[#132A24]/20 rounded-xl text-[#132A24]"
+                  >
+                    <option value="">-- Choose an active therapist --</option>
+                    {therapists.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.full_name} ({t.qualification || t.title || 'Consultant'} · {t.city || 'Telehealth'} · ₹{t.per_session_fee || 1500}/session)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTherapistId && (() => {
+                  const chosen = therapists.find((th) => th.id === selectedTherapistId);
+                  if (!chosen) return null;
+                  const leadLang = selectedLead.preferred_language || selectedLead.answers?.language;
+                  const leadGender = selectedLead.therapist_gender_pref || selectedLead.answers?.therapistGender;
+                  const leadCity = selectedLead.answers?.city;
+                  const matchesLang =
+                    leadLang &&
+                    leadLang !== 'No preference' &&
+                    Array.isArray(chosen.languages) &&
+                    chosen.languages.some((l) => String(l || '').toLowerCase().includes(String(leadLang).toLowerCase()));
+                  const matchesGender =
+                    leadGender &&
+                    leadGender !== 'No preference' &&
+                    String(chosen.gender || '').toLowerCase() === String(leadGender).toLowerCase();
+                  const isSameCity = Boolean(leadCity && chosen.city && citiesMatch(leadCity, chosen.city));
+
+                  return (
+                    <div className="p-3 bg-white border border-[#D5DFDA] rounded-xl text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-[#132A24] font-semibold">{chosen.full_name}</strong>
+                        <span className="font-mono text-[#1B5E52] font-semibold">
+                          ₹{chosen.per_session_fee || 1500}/session
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#4E635E]">
+                        {chosen.qualification || chosen.title || 'Consultant Psychologist'} · {chosen.gender || 'Clinician'} · {chosen.city || 'Telehealth'}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {Array.isArray(chosen.languages) && chosen.languages.length > 0 && (
+                          <span className="text-[11px] text-[#132A24]/70">
+                            Languages: {chosen.languages.join(', ')}
+                          </span>
+                        )}
+                        {matchesLang && (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                            ✓ Matches Language
+                          </span>
+                        )}
+                        {matchesGender && (
+                          <span className="px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                            ✓ Matches Gender
+                          </span>
+                        )}
+                        {isSameCity && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-900 text-[10px] font-semibold">
+                            <AlertTriangle className="w-3 h-3" />
+                            Same City ({chosen.city}) — Dual Relationship Caution
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {selectedTherapistId && (
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={connectDirectly}
+                      onChange={(e) => setConnectDirectly(e.target.checked)}
+                      className="mt-0.5 rounded text-emerald-600"
+                    />
+                    <div>
+                      <span className="font-semibold text-emerald-950 block">
+                        Directly connect care relationship
+                      </span>
+                      <span className="text-[11px] text-emerald-800/80 block">
+                        Immediately establishes an active therapy relationship and marks this lead converted, instead of waiting for therapist acceptance.
+                      </span>
+                    </div>
+                  </label>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleManualMatchLead}
+                    disabled={!selectedTherapistId || isMatching}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#1B5E52] hover:bg-[#144A41] rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>
+                      {isMatching
+                        ? 'Matching Client…'
+                        : connectDirectly
+                        ? 'Confirm & Directly Match Client'
+                        : 'Assign & Request Clinician'}
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Follow-up controls */}

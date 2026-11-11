@@ -867,8 +867,7 @@ export default function TherapyMatchResultsView({
                 for, and we’d rather not show you a poor match.
               </p>
               <p className="text-[#4E635E] text-[16px] leading-relaxed mb-5">
-                A member of our clinical team will look at what you shared and get
-                in touch. You don’t need to do anything else.
+                Use <strong>Request Personal Match</strong> below so our clinical team can review what you shared and match you personally—or adjust your preferences anytime.
               </p>
               {onEditAnswers && (
                 <button
