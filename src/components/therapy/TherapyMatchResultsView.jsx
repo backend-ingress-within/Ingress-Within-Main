@@ -460,6 +460,154 @@ export default function TherapyMatchResultsView({
               const whyOpen = openWhy[t.id] ?? index === 0;
               const moreOpen = openMore[t.id] ?? false;
 
+              const ledgerRows = (
+                <div className="ledger-box border-t border-[#D5DFDA] pt-3 divide-y divide-[#D5DFDA] text-[14.5px]">
+                  {/* Concerns row */}
+                  {matchedConcerns.length > 0 && (
+                    <div className="py-2.5 flex items-start gap-3">
+                      <span className="shrink-0 mt-0.5 text-[#1B5E52]">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </span>
+                      <div className="w-1/3 min-w-[120px] text-[#4E635E]">
+                        Concerns
+                        <div className="text-[#0F2F2B] font-medium">
+                          {joinList(ctx.concerns)}
+                        </div>
+                      </div>
+                      <div className="flex-1 font-semibold text-[#0F2F2B]">
+                        Works with {joinList(matchedConcerns)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Modalities row */}
+                  {(match.why?.modalities || []).length > 0 && (
+                    <div className="py-2.5 flex items-start gap-3">
+                      <span className="shrink-0 mt-0.5 text-[#1B5E52]">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </span>
+                      <div className="w-1/3 min-w-[120px] text-[#4E635E]">
+                        Style
+                        <div className="text-[#0F2F2B] font-medium">
+                          {ctx.styleText}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <span className="font-semibold text-[#0F2F2B]">
+                          {joinList((match.why.modalities || []).slice(0, 2))}
+                        </span>
+                        {MODALITY_BLURB[match.why.modalities[0]] && (
+                          <div className="text-[13px] font-normal text-[#4E635E] mt-0.5">
+                            {MODALITY_BLURB[match.why.modalities[0]]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Language row */}
+                  <div className="py-2.5 flex items-start gap-3">
+                    <span
+                      className={`shrink-0 mt-0.5 ${
+                        missingLang.length
+                          ? sharedLang.length
+                            ? 'text-[#6B4A0B]'
+                            : 'text-[#8A3320]'
+                          : 'text-[#1B5E52]'
+                      }`}
+                    >
+                      {missingLang.length ? (
+                        <Info className="w-4 h-4" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
+                    </span>
+                    <div className="w-1/3 min-w-[120px] text-[#4E635E]">
+                      Language
+                      <div className="text-[#0F2F2B] font-medium">
+                        {joinList(ctx.languages)}
+                      </div>
+                    </div>
+                    <div className="flex-1 font-semibold text-[#0F2F2B]">
+                      {!missingLang.length
+                        ? `Sessions in ${joinList(t.languages)}`
+                        : sharedLang.length
+                        ? `Speaks ${joinList(sharedLang)}. Doesn't list ${joinList(
+                            missingLang
+                          )}.`
+                        : `Speaks ${joinList(t.languages)}`}
+                    </div>
+                  </div>
+
+                  {/* Budget row */}
+                  <div className="py-2.5 flex items-start gap-3">
+                    <span
+                      className={`shrink-0 mt-0.5 ${
+                        withinBudget === false
+                          ? 'text-[#8A3320]'
+                          : 'text-[#1B5E52]'
+                      }`}
+                    >
+                      {withinBudget === false ? (
+                        <AlertTriangle className="w-4 h-4" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
+                    </span>
+                    <div className="w-1/3 min-w-[120px] text-[#4E635E]">
+                      Budget
+                      <div className="text-[#0F2F2B] font-medium">
+                        {ctx.budgetBand
+                          ? `${ctx.budgetBand} per session`
+                          : 'Not specified'}
+                      </div>
+                    </div>
+                    <div
+                      className={`flex-1 font-semibold ${
+                        withinBudget === false
+                          ? 'text-[#8A3320]'
+                          : 'text-[#0F2F2B]'
+                      }`}
+                    >
+                      {rupees(t.fee)} per session
+                      {withinBudget === false && (
+                        <span className="font-normal text-[13px] ml-1">
+                          (above your stated budget)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gender row if stated */}
+                  {ctx.genderPref && (
+                    <div className="py-2.5 flex items-start gap-3">
+                      <span
+                        className={`shrink-0 mt-0.5 ${
+                          genderStatus === 'match'
+                            ? 'text-[#1B5E52]'
+                            : 'text-[#8A3320]'
+                        }`}
+                      >
+                        {genderStatus === 'match' ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <Info className="w-4 h-4" />
+                        )}
+                      </span>
+                      <div className="w-1/3 min-w-[120px] text-[#4E635E]">
+                        Gender
+                        <div className="text-[#0F2F2B] font-medium">
+                          {ctx.genderPref} preferred
+                        </div>
+                      </div>
+                      <div className="flex-1 font-semibold text-[#0F2F2B]">
+                        {t.gender || 'Not specified'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+
               return (
                 <article
                   key={t.id}
@@ -562,151 +710,7 @@ export default function TherapyMatchResultsView({
                       )}
 
                       {/* Ledger rows */}
-                      <div className="ledger-box border-t border-[#D5DFDA] pt-3 divide-y divide-[#D5DFDA] text-[14.5px]">
-                        {/* Concerns row */}
-                        {matchedConcerns.length > 0 && (
-                          <div className="py-2.5 flex items-start gap-3">
-                            <span className="shrink-0 mt-0.5 text-[#1B5E52]">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </span>
-                            <div className="w-1/3 min-w-[120px] text-[#4E635E]">
-                              Concerns
-                              <div className="text-[#0F2F2B] font-medium">
-                                {joinList(ctx.concerns)}
-                              </div>
-                            </div>
-                            <div className="flex-1 font-semibold text-[#0F2F2B]">
-                              Works with {joinList(matchedConcerns)}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Modalities row */}
-                        {(match.why?.modalities || []).length > 0 && (
-                          <div className="py-2.5 flex items-start gap-3">
-                            <span className="shrink-0 mt-0.5 text-[#1B5E52]">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </span>
-                            <div className="w-1/3 min-w-[120px] text-[#4E635E]">
-                              Style
-                              <div className="text-[#0F2F2B] font-medium">
-                                {ctx.styleText}
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-semibold text-[#0F2F2B]">
-                                {joinList((match.why.modalities || []).slice(0, 2))}
-                              </span>
-                              {MODALITY_BLURB[match.why.modalities[0]] && (
-                                <div className="text-[13px] font-normal text-[#4E635E] mt-0.5">
-                                  {MODALITY_BLURB[match.why.modalities[0]]}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Language row */}
-                        <div className="py-2.5 flex items-start gap-3">
-                          <span
-                            className={`shrink-0 mt-0.5 ${
-                              missingLang.length
-                                ? sharedLang.length
-                                  ? 'text-[#6B4A0B]'
-                                  : 'text-[#8A3320]'
-                                : 'text-[#1B5E52]'
-                            }`}
-                          >
-                            {missingLang.length ? (
-                              <Info className="w-4 h-4" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4" />
-                            )}
-                          </span>
-                          <div className="w-1/3 min-w-[120px] text-[#4E635E]">
-                            Language
-                            <div className="text-[#0F2F2B] font-medium">
-                              {joinList(ctx.languages)}
-                            </div>
-                          </div>
-                          <div className="flex-1 font-semibold text-[#0F2F2B]">
-                            {!missingLang.length
-                              ? `Sessions in ${joinList(t.languages)}`
-                              : sharedLang.length
-                              ? `Speaks ${joinList(sharedLang)}. Doesn't list ${joinList(
-                                  missingLang
-                                )}.`
-                              : `Speaks ${joinList(t.languages)}`}
-                          </div>
-                        </div>
-
-                        {/* Budget row */}
-                        <div className="py-2.5 flex items-start gap-3">
-                          <span
-                            className={`shrink-0 mt-0.5 ${
-                              withinBudget === false
-                                ? 'text-[#8A3320]'
-                                : 'text-[#1B5E52]'
-                            }`}
-                          >
-                            {withinBudget === false ? (
-                              <AlertTriangle className="w-4 h-4" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4" />
-                            )}
-                          </span>
-                          <div className="w-1/3 min-w-[120px] text-[#4E635E]">
-                            Budget
-                            <div className="text-[#0F2F2B] font-medium">
-                              {ctx.budgetBand
-                                ? `${ctx.budgetBand} per session`
-                                : 'Not specified'}
-                            </div>
-                          </div>
-                          <div
-                            className={`flex-1 font-semibold ${
-                              withinBudget === false
-                                ? 'text-[#8A3320]'
-                                : 'text-[#0F2F2B]'
-                            }`}
-                          >
-                            {rupees(t.fee)} per session
-                            {withinBudget === false && (
-                              <span className="font-normal text-[13px] ml-1">
-                                (above your stated budget)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Gender row if stated */}
-                        {ctx.genderPref && (
-                          <div className="py-2.5 flex items-start gap-3">
-                            <span
-                              className={`shrink-0 mt-0.5 ${
-                                genderStatus === 'match'
-                                  ? 'text-[#1B5E52]'
-                                  : 'text-[#8A3320]'
-                              }`}
-                            >
-                              {genderStatus === 'match' ? (
-                                <CheckCircle2 className="w-4 h-4" />
-                              ) : (
-                                <Info className="w-4 h-4" />
-                              )}
-                            </span>
-                            <div className="w-1/3 min-w-[120px] text-[#4E635E]">
-                              Gender
-                              <div className="text-[#0F2F2B] font-medium">
-                                {ctx.genderPref} preferred
-                              </div>
-                            </div>
-                            <div className="flex-1 font-semibold text-[#0F2F2B]">
-                              {t.gender || 'Not specified'}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      {ledgerRows}
 
                       {/* Bio */}
                       {t.bio && (
@@ -747,8 +751,9 @@ export default function TherapyMatchResultsView({
                               {sentences.join(' ')}
                             </p>
                           )}
+                          {ledgerRows}
                           {t.bio && (
-                            <p className="font-serif text-[16px] text-[#0F2F2B] leading-relaxed mb-3">
+                            <p className="font-serif text-[16px] text-[#0F2F2B] leading-relaxed mt-4 pt-3 border-t border-[#D5DFDA] mb-3">
                               {t.bio}
                             </p>
                           )}
