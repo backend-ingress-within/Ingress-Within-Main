@@ -1297,6 +1297,38 @@ function Guided({ exit, onBookSession, user, profile }) {
   const [teamRequestSubmitting, setTeamRequestSubmitting] = useState(false);
   const [teamReferenceCode, setTeamReferenceCode] = useState('');
   const [showUnder18Modal, setShowUnder18Modal] = useState(false);
+  const [hasSelfHelpActive, setHasSelfHelpActive] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setHasSelfHelpActive(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/billing/access', { cache: 'no-store' });
+        if (!res.ok) {
+          if (!cancelled) setHasSelfHelpActive(false);
+          return;
+        }
+        const data = await res.json();
+        const active = Boolean(
+          data?.access &&
+          data.access.state !== 'DORMANT' &&
+          data.access.selfHelp?.canWrite
+        );
+        if (!cancelled) setHasSelfHelpActive(active);
+      } catch {
+        if (!cancelled) setHasSelfHelpActive(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (step === 16 && !matchOutcome && !loadingMatches) {
@@ -2877,113 +2909,174 @@ function Guided({ exit, onBookSession, user, profile }) {
         )}
 
         {step === 17 && (
-          <div className="space-y-6">
-            <div className="iw-k">Care Continuity &amp; Privacy</div>
-            <h2>Share Insights with {selectedTherapist?.name || 'Your Therapist'}</h2>
-            <p className="text-sm text-stone-600 leading-relaxed">
-              Help your therapist understand your emotional context and progress from day one. You can optionally share high-level summaries derived from your self-reflection activity.
-            </p>
+          hasSelfHelpActive ? (
+            <div className="space-y-6">
+              <div className="iw-k">Care Continuity &amp; Privacy</div>
+              <h2>Share Insights with {selectedTherapist?.name || 'Your Therapist'}</h2>
+              <p className="text-sm text-stone-600 leading-relaxed">
+                Help your therapist understand your emotional context and progress from day one. You can optionally share high-level summaries derived from your self-reflection activity.
+              </p>
 
-            <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-3">
-              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">
-                <strong>Completely optional &amp; confidential.</strong> Sharing these insights is strictly voluntary and never blocks therapy booking. Raw journal entries, audio recordings, and confidential reflection notes are <em>never</em> shared. You can change preferences or revoke access anytime under Settings.
+              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong>Completely optional &amp; confidential.</strong> Sharing these insights is strictly voluntary and never blocks therapy booking. Raw journal entries, audio recordings, and confidential reflection notes are <em>never</em> shared. You can change preferences or revoke access anytime under Settings.
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 pb-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+                  Sharing Permissions (Explicit Consent)
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-emerald-700 hover:underline font-medium cursor-pointer"
+                  onClick={() => {
+                    const allActive = sharePatterns && shareVocab && shareWeekly && shareMonthly;
+                    setSharePatterns(!allActive);
+                    setShareVocab(!allActive);
+                    setShareWeekly(!allActive);
+                    setShareMonthly(!allActive);
+                  }}
+                >
+                  {sharePatterns && shareVocab && shareWeekly && shareMonthly ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${sharePatterns ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                    checked={sharePatterns}
+                    onChange={(e) => setSharePatterns(e.target.checked)}
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-stone-900">Pattern Summary</span>
+                    </div>
+                    <div className="text-xs text-stone-500 leading-normal">
+                      Share high-level recurring emotional and behavioral theme summaries from your platform activity (cycle visualizer details remain private).
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareVocab ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                    checked={shareVocab}
+                    onChange={(e) => setShareVocab(e.target.checked)}
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-stone-900">Emotional Vocabulary Summary</span>
+                    </div>
+                    <div className="text-xs text-stone-500 leading-normal">
+                      Share your emotional vocabulary distribution and primary emotional descriptors identified during check-ins.
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareWeekly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                    checked={shareWeekly}
+                    onChange={(e) => setShareWeekly(e.target.checked)}
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-stone-900">Weekly Reports</span>
+                    </div>
+                    <div className="text-xs text-stone-500 leading-normal">
+                      Share your periodic weekly self-reflection summaries to help your therapist track week-over-week shifts.
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareMonthly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                    checked={shareMonthly}
+                    onChange={(e) => setShareMonthly(e.target.checked)}
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-stone-900">Monthly Reports</span>
+                    </div>
+                    <div className="text-xs text-stone-500 leading-normal">
+                      Share your comprehensive monthly reflection and progress reports.
+                    </div>
+                  </div>
+                </label>
               </div>
             </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="iw-k">Review &amp; Confirm</div>
+              <h2>Confirm your therapy request</h2>
+              <p className="text-sm text-stone-600 leading-relaxed">
+                You&apos;re ready to submit your intake. We&apos;ll share your preferences with{' '}
+                <strong>{selectedTherapist?.name || 'your matched clinician'}</strong> so they can review your request and confirm your first session.
+              </p>
 
-            <div className="flex items-center justify-between pt-2 pb-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                Sharing Permissions (Explicit Consent)
-              </span>
-              <button
-                type="button"
-                className="text-xs text-emerald-700 hover:underline font-medium cursor-pointer"
-                onClick={() => {
-                  const allActive = sharePatterns && shareVocab && shareWeekly && shareMonthly;
-                  setSharePatterns(!allActive);
-                  setShareVocab(!allActive);
-                  setShareWeekly(!allActive);
-                  setShareMonthly(!allActive);
-                }}
-              >
-                {sharePatterns && shareVocab && shareWeekly && shareMonthly ? 'Deselect All' : 'Select All'}
-              </button>
+              <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-950 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong>Private &amp; confidential.</strong> No account login is required to submit this intake. Your details are shared only with your selected clinician and our care team to coordinate your therapy request.
+                </div>
+              </div>
+
+              <div className="iw-summary">
+                {selectedTherapist && (
+                  <>
+                    <div className="iw-row">
+                      <span>Selected Therapist</span>
+                      <strong>{selectedTherapist.name}</strong>
+                    </div>
+                    {selectedTherapist.fee != null && (
+                      <div className="iw-row">
+                        <span>Session Fee</span>
+                        <strong>₹{selectedTherapist.fee} / session</strong>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="iw-row">
+                  <span>Name</span>
+                  <strong>{d.name || '—'}</strong>
+                </div>
+                <div className="iw-row">
+                  <span>Email</span>
+                  <strong>{d.email || '—'}</strong>
+                </div>
+                <div className="iw-row">
+                  <span>Phone</span>
+                  <strong>{d.phone || '—'}</strong>
+                </div>
+                <div className="iw-row">
+                  <span>Preferred Language</span>
+                  <strong>{d.language || 'No preference'}</strong>
+                </div>
+                <div className="iw-row">
+                  <span>Session Format</span>
+                  <strong>Online video consultation</strong>
+                </div>
+                {d.concerns?.length > 0 && (
+                  <div className="iw-row">
+                    <span>Focus Areas</span>
+                    <strong style={{ textAlign: 'right', maxWidth: '60%' }}>{d.concerns.join(', ')}</strong>
+                  </div>
+                )}
+              </div>
             </div>
-
-            <div className="space-y-3">
-              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${sharePatterns ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={sharePatterns}
-                  onChange={(e) => setSharePatterns(e.target.checked)}
-                />
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-600" />
-                    <span className="text-sm font-medium text-stone-900">Pattern Summary</span>
-                  </div>
-                  <div className="text-xs text-stone-500 leading-normal">
-                    Share high-level recurring emotional and behavioral theme summaries from your platform activity (cycle visualizer details remain private).
-                  </div>
-                </div>
-              </label>
-
-              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareVocab ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={shareVocab}
-                  onChange={(e) => setShareVocab(e.target.checked)}
-                />
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-emerald-600" />
-                    <span className="text-sm font-medium text-stone-900">Emotional Vocabulary Summary</span>
-                  </div>
-                  <div className="text-xs text-stone-500 leading-normal">
-                    Share your emotional vocabulary distribution and primary emotional descriptors identified during check-ins.
-                  </div>
-                </div>
-              </label>
-
-              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareWeekly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={shareWeekly}
-                  onChange={(e) => setShareWeekly(e.target.checked)}
-                />
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-emerald-600" />
-                    <span className="text-sm font-medium text-stone-900">Weekly Reports</span>
-                  </div>
-                  <div className="text-xs text-stone-500 leading-normal">
-                    Share your periodic weekly self-reflection summaries to help your therapist track week-over-week shifts.
-                  </div>
-                </div>
-              </label>
-
-              <label className={`flex items-start gap-3.5 p-4 rounded-xl border transition-all cursor-pointer ${shareMonthly ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-stone-200 bg-white hover:border-stone-300'}`}>
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                  checked={shareMonthly}
-                  onChange={(e) => setShareMonthly(e.target.checked)}
-                />
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    <span className="text-sm font-medium text-stone-900">Monthly Reports</span>
-                  </div>
-                  <div className="text-xs text-stone-500 leading-normal">
-                    Share your comprehensive monthly reflection and progress reports.
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
+          )
         )}
 
         {sessionError && (
@@ -3026,38 +3119,49 @@ function Guided({ exit, onBookSession, user, profile }) {
                 disabled={triageTier === 'standard' && !selectedTherapist}
                 onClick={() => setStep(17)}
               >
-                {triageTier === 'standard' ? 'Continue to Sharing' : 'Continue to review'} <ArrowRight size={16} />
+                {triageTier === 'standard' ? (hasSelfHelpActive ? 'Continue to Sharing' : 'Continue to Review') : 'Continue to review'} <ArrowRight size={16} />
               </button>
             )
           )}
           {step === 17 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                className="iw-secondary"
-                disabled={loading}
-                onClick={() => {
-                  setSharePatterns(false);
-                  setShareVocab(false);
-                  setShareWeekly(false);
-                  setShareMonthly(false);
-                  handleSaveConsentAndFinish(false);
-                }}
-              >
-                Skip &amp; Keep Private
-              </button>
+            hasSelfHelpActive ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="iw-secondary"
+                  disabled={loading}
+                  onClick={() => {
+                    setSharePatterns(false);
+                    setShareVocab(false);
+                    setShareWeekly(false);
+                    setShareMonthly(false);
+                    handleSaveConsentAndFinish(false);
+                  }}
+                >
+                  Skip &amp; Keep Private
+                </button>
+                <button
+                  type="button"
+                  className="iw-primary"
+                  disabled={loading}
+                  onClick={() => {
+                    const anySelected = sharePatterns || shareVocab || shareWeekly || shareMonthly;
+                    handleSaveConsentAndFinish(anySelected);
+                  }}
+                >
+                  {loading ? 'Submitting…' : (sharePatterns || shareVocab || shareWeekly || shareMonthly ? 'Save Sharing & Submit' : 'Submit Intake')} <Check size={16} />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
                 className="iw-primary"
                 disabled={loading}
-                onClick={() => {
-                  const anySelected = sharePatterns || shareVocab || shareWeekly || shareMonthly;
-                  handleSaveConsentAndFinish(anySelected);
-                }}
+                onClick={finish}
               >
-                {loading ? 'Submitting…' : (sharePatterns || shareVocab || shareWeekly || shareMonthly ? 'Save Sharing & Submit' : 'Submit Intake')} <Check size={16} />
+                {loading ? 'Submitting…' : 'Submit Intake'} <Check size={16} />
               </button>
-            </div>
+            )
           )}
         </div>
       </div>
