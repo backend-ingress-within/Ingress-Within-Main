@@ -421,6 +421,163 @@ function Safety({ value, setValue, allowEmergencyExit = true }) {
   );
 }
 
+function Under18NoticeModal({ open, onClose, onExit }) {
+  if (!open) return null;
+
+  const helplines = [
+    { name: 'Tele-MANAS (24/7 National Mental Health)', number: '14416 / 1-800-891-4416', href: 'tel:14416' },
+    { name: 'KIRAN (24/7 Mental Health Helpline)', number: '1800-599-0019', href: 'tel:18005990019' },
+    { name: 'CHILDLINE India (Under 18 Support)', number: '1098', href: 'tel:1098' },
+    { name: 'National Emergency Services', number: '112', href: 'tel:112' },
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="under18-modal-title"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        backgroundColor: 'rgba(19, 42, 36, 0.45)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #D5DFDA',
+          borderRadius: 20,
+          maxWidth: 500,
+          width: '100%',
+          padding: '28px 26px',
+          boxShadow: '0 20px 50px rgba(19, 42, 36, 0.18)',
+          color: '#263238',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              backgroundColor: '#EAF2EE',
+              color: '#1B5E52',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <ShieldCheck size={20} />
+          </div>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#1B5E52',
+            }}
+          >
+            Age Eligibility Notice
+          </span>
+        </div>
+
+        <h3
+          id="under18-modal-title"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 24,
+            fontWeight: 400,
+            color: '#132A24',
+            margin: '0 0 10px',
+            lineHeight: 1.25,
+          }}
+        >
+          Currently serving 18+ clients only
+        </h3>
+
+        <p style={{ fontSize: 14, lineHeight: 1.6, color: '#4E635E', margin: '0 0 18px' }}>
+          Thank you for reaching out. At this time, Ingress Within only serves adults aged 18 and
+          older, so we are not able to take this intake conversation forward.
+        </p>
+
+        <div
+          style={{
+            backgroundColor: '#FAF8F5',
+            border: '1px solid #E5DFD6',
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#132A24',
+              marginBottom: 8,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <Phone size={14} style={{ color: '#1B5E52' }} />
+            <span>Immediate Support &amp; Emergency Helplines</span>
+          </div>
+          <p style={{ fontSize: 12.5, lineHeight: 1.5, color: '#66747A', margin: '0 0 12px' }}>
+            If you need someone to talk to right away or are in immediate distress, please reach out
+            to any of these free, confidential support lines:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {helplines.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '9px 12px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid rgba(38, 50, 56, 0.12)',
+                  borderRadius: 10,
+                  color: '#132A24',
+                  textDecoration: 'none',
+                  fontSize: 13,
+                }}
+              >
+                <span style={{ color: '#4E635E', fontWeight: 500 }}>{item.name}</span>
+                <strong style={{ color: '#1B5E52', whiteSpace: 'nowrap' }}>{item.number}</strong>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="iw-secondary" onClick={onClose}>
+            Back
+          </button>
+          {onExit && (
+            <button type="button" className="iw-primary" onClick={onExit}>
+              Return to Therapy Home
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getOrCreateLeadSessionId() {
   if (typeof window === 'undefined') return 'sess_' + Date.now();
   let id = sessionStorage.getItem('iw_lead_session_id');
@@ -472,6 +629,7 @@ function Conversation({ exit, user, profile }) {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
+  const [showUnder18Modal, setShowUnder18Modal] = useState(false);
 
   const createSession = async () => {
     if (therapySessionId) return therapySessionId;
@@ -810,8 +968,13 @@ function Conversation({ exit, user, profile }) {
             <p>This therapy intake is currently designed for adults 18 and over.</p>
             <div className="iw-optiongrid">
               <Option onClick={() => setStep(2)}>I am 18 or older</Option>
-              <Option onClick={() => setStep(0)}>I am under 18</Option>
+              <Option onClick={() => setShowUnder18Modal(true)}>I am under 18</Option>
             </div>
+            <Under18NoticeModal
+              open={showUnder18Modal}
+              onClose={() => setShowUnder18Modal(false)}
+              onExit={exit}
+            />
           </>
         )}
 
@@ -1133,6 +1296,7 @@ function Guided({ exit, onBookSession, user, profile }) {
   const [teamRequestSubmitted, setTeamRequestSubmitted] = useState(false);
   const [teamRequestSubmitting, setTeamRequestSubmitting] = useState(false);
   const [teamReferenceCode, setTeamReferenceCode] = useState('');
+  const [showUnder18Modal, setShowUnder18Modal] = useState(false);
 
   useEffect(() => {
     if (step === 16 && !matchOutcome && !loadingMatches) {
@@ -2202,8 +2366,13 @@ function Guided({ exit, onBookSession, user, profile }) {
             <p>This intake is currently designed for adults 18 and over.</p>
             <div className="iw-optiongrid">
               <Option onClick={() => setStep(3)}>I am 18 or older</Option>
-              <Option onClick={() => setStep(1)}>I am under 18</Option>
+              <Option onClick={() => setShowUnder18Modal(true)}>I am under 18</Option>
             </div>
+            <Under18NoticeModal
+              open={showUnder18Modal}
+              onClose={() => setShowUnder18Modal(false)}
+              onExit={exit}
+            />
           </>
         )}
 
