@@ -322,7 +322,19 @@ export default function App({ initialRoute = 'home' }) {
       }
     } else if (isUserAuthRoute(path, currentRoute) && user) {
       console.log('[App.jsx] Redirect Engine: Authenticated user attempting to access auth/login/signup. Redirecting forward.');
-      window.navigateTo('/dashboard');
+      let targetDestination = '/dashboard';
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectParam = urlParams.get('redirect');
+        if (redirectParam && (redirectParam.startsWith('/therapy') || redirectParam.startsWith('/dashboard'))) {
+          targetDestination = redirectParam;
+        } else if (user?.is_therapy_client) {
+          targetDestination = '/therapy';
+        }
+      } else if (user?.is_therapy_client) {
+        targetDestination = '/therapy';
+      }
+      window.navigateTo(targetDestination);
     } else {
       console.log('[App.jsx] Redirect Engine: Public route or unauthenticated user on auth path. No redirect needed.');
     }

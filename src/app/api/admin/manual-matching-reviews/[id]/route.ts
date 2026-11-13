@@ -90,6 +90,8 @@ export async function PATCH(
     let therapistName = 'Assigned Clinician';
     let createdMatchId: string | null = null;
     let createdRelationshipId: string | null = null;
+    let bookingLink: string | null = null;
+    let bookingToken: string | null = null;
 
     if (identifiedTherapistId) {
       const result = await assignTherapistToClient({
@@ -111,6 +113,8 @@ export async function PATCH(
       therapistName = result.therapistName;
       createdMatchId = result.createdMatchId;
       createdRelationshipId = result.createdRelationshipId;
+      bookingLink = result.bookingLink || null;
+      bookingToken = result.bookingToken || null;
       if (!clientUserId && result.clientUserId) clientUserId = result.clientUserId;
 
       // Update Lead Pipeline record if client exists in leads
@@ -186,6 +190,8 @@ export async function PATCH(
       therapistName,
       createdMatchId,
       createdRelationshipId,
+      bookingLink,
+      bookingToken,
       auditEntry,
     });
   } catch (error: any) {

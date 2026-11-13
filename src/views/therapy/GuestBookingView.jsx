@@ -36,6 +36,7 @@ export default function GuestBookingView({ token }) {
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [clientNotes, setClientNotes] = useState('');
+  const [consentAgreed, setConsentAgreed] = useState(true);
   const [formErrors, setFormErrors] = useState({});
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderError, setOrderError] = useState(null);
@@ -82,6 +83,12 @@ export default function GuestBookingView({ token }) {
       }
 
       setBookingData(data);
+
+      if (data.clientPrefill) {
+        if (data.clientPrefill.name) setGuestName((prev) => prev || data.clientPrefill.name);
+        if (data.clientPrefill.phone) setGuestPhone((prev) => prev || data.clientPrefill.phone);
+        if (data.clientPrefill.email) setGuestEmail((prev) => prev || data.clientPrefill.email);
+      }
 
       // Pre-select the first date with open slots if available
       const slots = data.availability?.slots || [];
@@ -288,6 +295,9 @@ export default function GuestBookingView({ token }) {
     const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
     if (!guestPhone.trim() || !phoneRegex.test(guestPhone.trim())) {
       errors.phone = 'Please provide a valid phone number (at least 7 digits).';
+    }
+    if (!consentAgreed) {
+      errors.consent = 'Please confirm the clinical telehealth consent before proceeding.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -1042,6 +1052,25 @@ export default function GuestBookingView({ token }) {
                               disabled={isSubmittingOrder}
                               className="w-full px-3 py-2 text-xs rounded-xl border border-[#132A24]/15 bg-white focus:outline-hidden focus:ring-1 focus:ring-emerald-700 transition-colors"
                             />
+                          </div>
+
+                          {/* Clinical Telehealth & Informed Consent */}
+                          <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#132A24]/10 text-[11px] text-[#132A24]/80 space-y-1.5">
+                            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={consentAgreed}
+                                onChange={(e) => setConsentAgreed(e.target.checked)}
+                                className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-600"
+                                required
+                              />
+                              <span className="leading-relaxed">
+                                I confirm I am 18+, agree to the <span className="font-semibold text-emerald-950">Telehealth Clinical Consent</span>, and consent to my consultation being conducted securely via Google Meet with {bookingData?.practitioner?.name || 'my therapist'}.
+                              </span>
+                            </label>
+                            {formErrors.consent && (
+                              <p className="text-[10px] text-red-600 pl-6">{formErrors.consent}</p>
+                            )}
                           </div>
 
                           <div className="pt-2">

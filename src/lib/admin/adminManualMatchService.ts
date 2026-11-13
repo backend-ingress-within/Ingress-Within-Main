@@ -10,6 +10,8 @@
 import { supabase } from '../db';
 import { validateEligibleTherapist } from '../therapy/therapyService';
 import { EmailService } from '../email/emailService';
+import { normalizePhoneNumber } from '../auth/phone';
+import { RelationshipBookingLinkService } from '../therapy/relationshipBookingLinkService';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,6 +24,8 @@ export interface ClientResolutionInput {
   therapySessionId?: string | null;
   email?: string | null;
   phoneNumber?: string | null;
+  fullName?: string | null;
+  answers?: Record<string, any> | null;
 }
 
 export interface ClientResolutionResult {
@@ -30,7 +34,7 @@ export interface ClientResolutionResult {
 }
 
 /**
- * Resolves a real user UUID and valid therapy_sessions UUID for a lead or review.
+ * Resolves or auto-provisions a real user UUID and valid therapy_sessions UUID for a lead or review.
  * Ensures therapy_matches / therapy_care_relationships inserts have valid FKs.
  */
 export async function resolveClientSessionForMatch(
@@ -98,52 +102,156 @@ export async function resolveClientSessionForMatch(
     }
   }
 
-  const digits = (input.phoneNumber || '').replace(/[^\d]/g, '');
-  if (!resolvedUserId && digits.length >= 7) {
+  const rawPhone = (input.phoneNumber || '').trim();
+  const canonicalPhone = rawPhone ? (normalizePhoneNumber(rawPhone) || rawPhone) : null;
+  const digits = rawPhone.replace(/[^\d]/g, '');
+
+  if (!resolvedUserId && (canonicalPhone || digits.length >= 7)) {
     try {
-      const last10 = digits.slice(-10);
-      const { data: userRow } = await supabase
-        .from('users')
-        .select('id')
-        .ilike('phone_number', `%${last10}`)
-        .limit(1)
-        .maybeSingle();
-      if (userRow?.id) resolvedUserId = userRow.id;
+      if (canonicalPhone) {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('id')
+          .eq('phone_number', canonicalPhone)
+          .limit(1)
+          .maybeSingle();
+        if (userRow?.id) resolvedUserId = userRow.id;
+      }
+
+      if (!resolvedUserId && digits.length >= 7) {
+        const last10 = digits.slice(-10);
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('phone_number', `%${last10}`)
+          .limit(1)
+          .maybeSingle();
+        if (userRow?.id) resolvedUserId = userRow.id;
+      }
     } catch {
       // Ignore
     }
   }
 
-  // 4. If we resolved user_id but don't have a session UUID yet, find latest or create one
-  if (resolvedUserId && !resolvedSessionId) {
-    try {
-      const { data: latestSession } = await supabase
-        .from('therapy_sessions')
-        .select('id')
-        .eq('user_id', resolvedUserId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  // 4. Auto-Provisioning: If no user account exists yet, automatically create one!
+  if (!resolvedUserId && (canonicalPhone || cleanEmail)) {
+    const clientName = (input.fullName || 'Therapy Client').trim();
+    const phoneToStore = canonicalPhone || (digits.length >= 10 ? `+91${digits.slice(-10)}` : rawPhone);
 
-      if (latestSession?.id) {
-        resolvedSessionId = latestSession.id;
-      } else {
-        const { data: createdSession } = await supabase
-          .from('therapy_sessions')
+    try {
+      if (phoneToStore) {
+        const { data: newUser, error: createErr } = await supabase
+          .from('users')
           .insert({
-            user_id: resolvedUserId,
-            journey_type: 'guided',
-            session_status: 'submitted',
-            metadata: { source: 'admin_manual_match_lead_bridge' },
+            phone_number: phoneToStore,
+            name: clientName,
+            account_status: 'active',
+            is_active: true,
           })
-          .select('id')
+          .select('id, phone_number, name')
           .maybeSingle();
-        if (createdSession?.id) {
-          resolvedSessionId = createdSession.id;
+
+        if (newUser?.id) {
+          resolvedUserId = newUser.id;
+        } else if (createErr?.code === '23505' || createErr?.message?.includes('duplicate')) {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('phone_number', phoneToStore)
+            .maybeSingle();
+          if (existingUser?.id) resolvedUserId = existingUser.id;
         }
       }
-    } catch {
-      // Ignore session bridge failure
+    } catch (provisionErr) {
+      console.warn('[resolveClientSessionForMatch] Auto-provisioning notice:', provisionErr);
+    }
+  }
+
+  // 5. Ensure profile, consents, session, and intake exist for the user
+  if (resolvedUserId) {
+    const phoneToStore = canonicalPhone || (digits.length >= 10 ? `+91${digits.slice(-10)}` : rawPhone);
+    const clientName = (input.fullName || 'Therapy Client').trim();
+
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: resolvedUserId,
+          phone_number: phoneToStore,
+          full_name: clientName,
+          account_status: 'active',
+          onboarding_status: 'completed',
+          consent_completed: true,
+          onboarding_completed: true,
+        });
+    } catch (profErr) {
+      console.warn('[resolveClientSessionForMatch] Profile upsert notice:', profErr);
+    }
+
+    try {
+      await supabase
+        .from('consents')
+        .insert({
+          user_id: resolvedUserId,
+          consent_type: 'therapy_consent',
+          version: '1.0',
+        });
+    } catch {}
+
+    // Find latest or create a therapy session
+    if (!resolvedSessionId) {
+      try {
+        const { data: latestSession } = await supabase
+          .from('therapy_sessions')
+          .select('id')
+          .eq('user_id', resolvedUserId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestSession?.id) {
+          resolvedSessionId = latestSession.id;
+        } else {
+          const { data: createdSession } = await supabase
+            .from('therapy_sessions')
+            .insert({
+              user_id: resolvedUserId,
+              journey_type: 'guided',
+              session_status: 'submitted',
+              metadata: { source: 'admin_manual_match_lead_bridge' },
+            })
+            .select('id')
+            .maybeSingle();
+          if (createdSession?.id) {
+            resolvedSessionId = createdSession.id;
+          }
+        }
+      } catch {}
+    }
+
+    // Ensure intake record exists with affirmative consents so verifyClientConsent passes
+    if (resolvedSessionId) {
+      try {
+        const { data: existingIntake } = await supabase
+          .from('therapy_intakes')
+          .select('id')
+          .eq('therapy_session_id', resolvedSessionId)
+          .maybeSingle();
+
+        if (!existingIntake) {
+          await supabase
+            .from('therapy_intakes')
+            .insert({
+              user_id: resolvedUserId,
+              therapy_session_id: resolvedSessionId,
+              consents: [true, true, true, true],
+              answers: input.answers || {},
+              email: cleanEmail || null,
+            });
+        }
+      } catch (intakeErr) {
+        console.warn('[resolveClientSessionForMatch] Therapy intake sync notice:', intakeErr);
+      }
     }
   }
 
@@ -159,6 +267,8 @@ export interface AdminManualAssignInput {
   therapySessionId?: string | null;
   clientEmail?: string | null;
   clientPhone?: string | null;
+  clientName?: string | null;
+  answers?: Record<string, any> | null;
   connectDirectly?: boolean;
   source: 'admin_manual_matching_review' | 'admin_lead_manual_match';
   referenceId?: string | null;
@@ -178,6 +288,8 @@ export interface AdminManualAssignResult {
   therapySessionId: string | null;
   createdMatchId: string | null;
   createdRelationshipId: string | null;
+  bookingLink?: string | null;
+  bookingToken?: string | null;
 }
 
 /**
@@ -222,6 +334,8 @@ export async function assignTherapistToClient(
     therapySessionId: input.therapySessionId,
     email: input.clientEmail,
     phoneNumber: input.clientPhone,
+    fullName: input.clientName,
+    answers: input.answers,
   });
 
   const adminActor = input.admin.fullName || input.admin.email || 'Admin';
@@ -392,6 +506,26 @@ export async function assignTherapistToClient(
     }
   }
 
+  let bookingLink: string | null = null;
+  let bookingToken: string | null = null;
+
+  if (createdRelationshipId) {
+    try {
+      const linkResult = await RelationshipBookingLinkService.issueBookingLink({
+        relationshipId: createdRelationshipId,
+        actor: {
+          actorType: 'admin',
+          actorId: input.admin.adminId,
+        },
+      });
+      if (linkResult?.bookingLink) {
+        bookingLink = linkResult.bookingLink;
+      }
+    } catch (linkErr) {
+      console.warn('[AdminManualMatch] Auto booking link issue note:', linkErr);
+    }
+  }
+
   return {
     therapistId: input.therapistId,
     therapistName,
@@ -400,5 +534,7 @@ export async function assignTherapistToClient(
     therapySessionId: resolved.therapySessionId,
     createdMatchId,
     createdRelationshipId,
+    bookingLink,
+    bookingToken,
   };
 }

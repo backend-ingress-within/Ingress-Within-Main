@@ -47,6 +47,8 @@ export async function POST(
       therapySessionId: lead.session_id,
       clientEmail: lead.email,
       clientPhone: lead.phone_number,
+      clientName: lead.full_name,
+      answers: lead.answers,
       connectDirectly,
       source: 'admin_lead_manual_match',
       referenceId: lead.id,
@@ -193,11 +195,12 @@ export async function POST(
     }
 
     // Build updated lead notes without clobbering prior notes
+    const bookingNote = assignResult.bookingLink ? ` Booking link: ${assignResult.bookingLink}` : '';
     const combinedNotes = internalNotes
-      ? internalNotes
+      ? `${internalNotes}${bookingNote}`
       : lead.internal_notes
-      ? `${lead.internal_notes}\n${reviewNote}`
-      : reviewNote;
+      ? `${lead.internal_notes}\n${reviewNote}${bookingNote}`
+      : `${reviewNote}${bookingNote}`;
 
     const updatedLead = await LeadPipelineService.assignTherapistToLead(id, {
       therapistId,
@@ -205,6 +208,9 @@ export async function POST(
       followUpStatus: connectDirectly ? 'converted' : 'contacted',
       internalNotes: combinedNotes,
       isCompleted: connectDirectly ? true : lead.is_completed,
+      bookingLink: assignResult.bookingLink || undefined,
+      bookingToken: assignResult.bookingToken || undefined,
+      clientUserId: assignResult.clientUserId || undefined,
     });
 
     return NextResponse.json({
@@ -214,6 +220,9 @@ export async function POST(
       clientUserLinked: Boolean(assignResult.clientUserId),
       createdMatchId: assignResult.createdMatchId,
       createdRelationshipId: assignResult.createdRelationshipId,
+      bookingLink: assignResult.bookingLink,
+      bookingToken: assignResult.bookingToken,
+      clientUserId: assignResult.clientUserId,
     });
   } catch (error: any) {
     if (error?.status === 401 || error?.status === 403 || error?.status === 409) {

@@ -22,6 +22,11 @@ import {
   Sparkles,
   ExternalLink,
   AlertTriangle,
+  Link,
+  Copy,
+  Check,
+  Key,
+  Share2,
 } from 'lucide-react';
 import { citiesMatch } from '../../lib/therapy/cityUtils';
 
@@ -48,6 +53,79 @@ export default function LeadPipelineView({ showToast }) {
   const [selectedTherapistId, setSelectedTherapistId] = useState('');
   const [connectDirectly, setConnectDirectly] = useState(true);
   const [isMatching, setIsMatching] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCredentials, setCopiedCredentials] = useState(false);
+
+  const getFullBookingUrl = (relativeLink) => {
+    if (!relativeLink) return '';
+    if (relativeLink.startsWith('http')) return relativeLink;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://ingresswithin.com';
+    return `${origin}${relativeLink.startsWith('/') ? '' : '/'}${relativeLink}`;
+  };
+
+  const handleCopyBookingLink = async (link) => {
+    const full = getFullBookingUrl(link);
+    try {
+      await navigator.clipboard.writeText(full);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      if (showToast) showToast('Booking link copied to clipboard!', 'success');
+    } catch {
+      if (showToast) showToast('Failed to copy to clipboard', 'error');
+    }
+  };
+
+  const handleCopyCredentials = async (lead) => {
+    const therapistName = lead.selected_therapist_name || 'your assigned therapist';
+    const message = `Hi ${lead.full_name || 'there'}, your Ingress Within Therapy Portal with ${therapistName} is ready. You can log in securely using your phone number (${lead.phone_number}) to access your session recaps, clinical notes, and assigned reflections at: https://ingresswithin.com/auth?redirect=/therapy`;
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiedCredentials(true);
+      setTimeout(() => setCopiedCredentials(false), 2000);
+      if (showToast) showToast('Portal access message copied to clipboard!', 'success');
+    } catch {
+      if (showToast) showToast('Failed to copy to clipboard', 'error');
+    }
+  };
+
+  const getBookingWhatsAppLink = (lead, link) => {
+    const digits = String(lead.phone_number || '').replace(/[^\d]/g, '');
+    const therapistName = lead.selected_therapist_name || 'your therapist';
+    const fullUrl = getFullBookingUrl(link);
+    const text = encodeURIComponent(`Hi ${lead.full_name || 'there'}, your therapy consultation with ${therapistName} at Ingress Within is ready. Please review their clinical credentials, confirm the telehealth consent terms, and schedule your first session here: ${fullUrl}`);
+    return `https://wa.me/${digits}?text=${text}`;
+  };
+
+  const handleGenerateBookingLink = async () => {
+    if (!selectedLead) return;
+    setIsMatching(true);
+    try {
+      const res = await fetch(`/api/admin/leads/${selectedLead.id}/booking-link`);
+      const data = await res.json();
+      if (res.ok && data.bookingLink) {
+        if (showToast) showToast('Booking link generated successfully!', 'success');
+        const updatedAnswers = {
+          ...(selectedLead.answers || {}),
+          booking_link: data.bookingLink,
+          booking_token: data.bookingToken,
+        };
+        const updatedLead = {
+          ...selectedLead,
+          answers: updatedAnswers,
+          selected_therapist_name: data.therapistName || selectedLead.selected_therapist_name,
+        };
+        setSelectedLead(updatedLead);
+        fetchLeads();
+      } else {
+        if (showToast) showToast(data.error || 'Failed to generate booking link', 'error');
+      }
+    } catch (err) {
+      console.error('Error generating booking link:', err);
+      if (showToast) showToast('Network error generating booking link', 'error');
+    } finally {
+      setIsMatching(false);
+    }
+  };
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -126,7 +204,15 @@ export default function LeadPipelineView({ showToast }) {
           : `Assigned ${data.therapistName} and sent clinician match request`;
         if (showToast) showToast(msg, 'success');
         if (data.lead) {
-          setSelectedLead(data.lead);
+          const leadToSet = {
+            ...data.lead,
+            answers: {
+              ...(data.lead.answers || {}),
+              booking_link: data.bookingLink || data.lead.answers?.booking_link,
+              booking_token: data.bookingToken || data.lead.answers?.booking_token,
+            },
+          };
+          setSelectedLead(leadToSet);
           setEditStatus(data.lead.follow_up_status || editStatus);
           setEditNotes(data.lead.internal_notes || editNotes);
         }
@@ -483,6 +569,18 @@ export default function LeadPipelineView({ showToast }) {
                             <PhoneCall className="w-3.5 h-3.5" />
                           </a>
 
+                          {/* Quick copy booking link if issued */}
+                          {lead.answers?.booking_link && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyBookingLink(lead.answers.booking_link)}
+                              className="p-1.5 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors cursor-pointer"
+                              title="Copy Client Booking Link"
+                            >
+                              <Link className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           {/* Manually match client & therapist */}
                           <button
                             onClick={() => handleOpenLead(lead)}
@@ -563,6 +661,104 @@ export default function LeadPipelineView({ showToast }) {
                 </a>
               </div>
             </div>
+
+            {/* Dedicated Booking & Consent Link Banner */}
+            {(selectedLead.selected_therapist_name || selectedLead.answers?.booking_link) && (
+              <div className="bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white p-4 rounded-xl border border-emerald-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#1B5E52] text-white flex items-center justify-center shadow-xs">
+                      <Link className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-emerald-950 uppercase tracking-wider">
+                        Client Consent &amp; First Session Link
+                      </h4>
+                      <p className="text-[11px] text-emerald-800/80">
+                        Zero login required for client. Enables practitioner review, clinical consent, and slot payment.
+                      </p>
+                    </div>
+                  </div>
+                  {selectedLead.answers?.booking_link ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                      Active Token
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleGenerateBookingLink}
+                      disabled={isMatching}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#1B5E52] hover:bg-[#144A41] rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {isMatching ? 'Generating Link…' : 'Generate Booking Link'}
+                    </button>
+                  )}
+                </div>
+
+                {selectedLead.answers?.booking_link && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={getFullBookingUrl(selectedLead.answers.booking_link)}
+                        className="flex-1 px-3 py-2 text-xs bg-white border border-emerald-300/80 rounded-lg text-[#132A24] font-mono select-all focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleCopyBookingLink(selectedLead.answers.booking_link)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-950 bg-white border border-emerald-300 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                        title="Copy Link to Clipboard"
+                      >
+                        {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      <a
+                        href={selectedLead.answers.booking_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 text-emerald-800 bg-white border border-emerald-300 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Test Booking Link in New Tab"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <a
+                        href={getBookingWhatsAppLink(selectedLead, selectedLead.answers.booking_link)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-900 bg-emerald-100/90 border border-emerald-300 hover:bg-emerald-200 rounded-lg transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
+                        Send Booking Link via WhatsApp
+                      </a>
+                      {selectedLead.email && (
+                        <a
+                          href={`mailto:${selectedLead.email}?subject=${encodeURIComponent(`Your Ingress Within Therapy Consultation with ${selectedLead.selected_therapist_name || 'Practitioner'}`)}&body=${encodeURIComponent(`Hi ${selectedLead.full_name || 'there'},\n\nYour therapy intake with Ingress Within has been assigned to ${selectedLead.selected_therapist_name || 'your clinician'}.\n\nPlease review their clinical credentials, confirm the telehealth consent terms, and schedule your first session date & time here:\n${getFullBookingUrl(selectedLead.answers.booking_link)}\n\nBest regards,\nIngress Within Care Team`)}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#132A24] bg-white border border-stone-300 hover:bg-stone-50 rounded-lg transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-[#132A24]/70" />
+                          Send via Email
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCredentials(selectedLead)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1B5E52] bg-white border border-[#1B5E52]/30 hover:bg-[#EAF2EE] rounded-lg transition-colors cursor-pointer"
+                        title="Copy message sharing login instructions to client for post-session portal access"
+                      >
+                        {copiedCredentials ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Key className="w-3.5 h-3.5 text-[#1B5E52]" />}
+                        <span>{copiedCredentials ? 'Portal Message Copied' : 'Share Portal Access'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Intake progress summary */}
             <div className="space-y-3">

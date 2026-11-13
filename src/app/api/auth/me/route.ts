@@ -184,10 +184,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 6. Return user profile and onboarding state
+    // 6. Check if user is an active therapy client
+    let isTherapyClient = false;
+    try {
+      const { data: therapyRel } = await supabase
+        .from('therapy_care_relationships')
+        .select('id, status, care_stage')
+        .eq('user_id', payload.uid)
+        .in('status', ['active', 'paused'])
+        .limit(1)
+        .maybeSingle();
+
+      if (therapyRel?.id) {
+        isTherapyClient = true;
+      }
+    } catch {
+      // Non-blocking
+    }
+
+    // 7. Return user profile and onboarding state
     return NextResponse.json({
       success: true,
-      user,
+      user: {
+        ...user,
+        is_therapy_client: isTherapyClient,
+      },
       profile: profileRecord
     });
 

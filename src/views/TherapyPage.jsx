@@ -1216,13 +1216,45 @@ function Guided({ exit, onBookSession, user, profile }) {
       answers: {
         age: d.age,
         gender: d.gender === 'Self-describe' ? d.genderOther : d.gender,
+        genderOther: d.genderOther,
+        occupation: d.occupation === 'Other' ? d.occupationOther : d.occupation,
+        occupationOther: d.occupationOther,
         city: d.city,
+        living: d.living === 'Other' ? d.livingOther : d.living,
+        livingOther: d.livingOther,
         budget: d.budget,
         language: d.language,
         therapistGender: d.therapistGender,
         frequency: d.frequency,
         reason: d.reason,
         duration: d.duration,
+        concerns: d.concerns,
+        concernSeverity: d.concernSeverity,
+        concernsOther: d.concernsOther,
+        bodySignal: d.bodySignal,
+        lifeArea: d.lifeArea,
+        ownWords: d.ownWords,
+        talked: d.talked,
+        priorTherapy: d.priorTherapy,
+        stopped: d.stopped,
+        stoppedOther: d.stoppedOther,
+        medication: d.medication,
+        prescribed: d.prescribed,
+        diagnosed: d.diagnosed,
+        currentSupport: d.currentSupport,
+        satisfaction: d.satisfaction,
+        coping: d.coping,
+        copingOther: d.copingOther,
+        support: d.support,
+        scenarios: d.scenarios,
+        improve: d.improve,
+        worry: d.worry,
+        styleStructure: d.styleStructure,
+        stylePace: d.stylePace,
+        styleLead: d.styleLead,
+        termApproach: d.termApproach,
+        finalNotes: d.finalNotes,
+        consentsAcknowledged: consents.every(Boolean),
         ...(extra.answers || {}),
       },
       concerns: Array.isArray(d.concerns) ? d.concerns : [],
@@ -1255,11 +1287,11 @@ function Guided({ exit, onBookSession, user, profile }) {
 
     if (cleanDigits.length >= 10) {
       // Instant autosave once full phone number is typed
-      autosaveGuidedLead('contact_captured', 3, { phone: newPhone });
+      autosaveGuidedLead('contact_captured', 1, { phone: newPhone });
     } else if (cleanDigits.length >= 7) {
       // Debounce autosave while typing
       phoneDebounceTimerRef.current = setTimeout(() => {
-        autosaveGuidedLead('contact_captured', 3, { phone: newPhone });
+        autosaveGuidedLead('contact_captured', 1, { phone: newPhone });
       }, 700);
     }
   };
@@ -1614,7 +1646,13 @@ function Guided({ exit, onBookSession, user, profile }) {
   };
 
   const valid = useMemo(() => {
-    if (step === 3) return d.name && d.email && d.phone && consents.every(Boolean);
+    if (step === 1) {
+      const cleanDigits = (d.phone || '').replace(/[^\d+]/g, '');
+      const validEmail = (d.email || '').includes('@') && (d.email || '').includes('.');
+      return Boolean(d.name && d.name.trim().length >= 2 && cleanDigits.length >= 10 && validEmail);
+    }
+    if (step === 2) return true;
+    if (step === 3) return consents.every(Boolean);
     if (step === 4) return d.age && d.gender && (d.gender !== 'Self-describe' || d.genderOther) &&
       d.occupation && (d.occupation !== 'Other' || d.occupationOther) && d.city &&
       d.living && (d.living !== 'Other' || d.livingOther);
@@ -2073,16 +2111,19 @@ function Guided({ exit, onBookSession, user, profile }) {
         await saveGuidedMatches(sessionId);
       }
 
-      // Auto-save lead drop-off progression
-      if (step === 3) {
-        autosaveGuidedLead('contact_captured', 4);
-      } else if (step === 5) {
-        autosaveGuidedLead('concerns_selected', 6);
-      } else if (step === 10) {
-        autosaveGuidedLead('safety_evaluated', 11);
-      } else if (step === 13) {
-        autosaveGuidedLead('preferences_set', 14);
-      }
+      // Continuous auto-save lead drop-off progression on EVERY step transition
+      const nextStepNum = Math.min(total - 1, step + 1);
+      const stage =
+        nextStepNum >= 16
+          ? 'matches_shown'
+          : nextStepNum >= 13
+          ? 'preferences_set'
+          : nextStepNum >= 10
+          ? 'safety_evaluated'
+          : nextStepNum >= 5
+          ? 'concerns_selected'
+          : 'contact_captured';
+      autosaveGuidedLead(stage, nextStepNum);
 
       setStep((value) => Math.min(total - 1, value + 1));
     } catch (error) {
@@ -2397,12 +2438,51 @@ function Guided({ exit, onBookSession, user, profile }) {
       <div className="iw-card">
         {step === 1 && (
           <>
-            <div className="iw-k">Guided form</div>
+            <div className="iw-k">Step 1 · Contact Details</div>
             <h2>Mental Health Intake Form</h2>
-            <p>Estimated time: 12–15 minutes, across 6 short sections. Please answer honestly — there are no right or wrong answers.</p>
-            <div className="iw-note">
-              This covers your background, current concerns and impact on daily life, mental health history,
-              everyday functioning, scenarios and therapy preferences.
+            <p>Please share your details below so we can securely save your progress, match you with verified therapists, and coordinate your first consultation.</p>
+            <div className="iw-field">
+              <label>Full name *</label>
+              <input
+                value={d.name}
+                onChange={(e) => set('name', e.target.value)}
+                onBlur={(e) => {
+                  if (d.phone) autosaveGuidedLead('contact_captured', 1, { name: e.target.value });
+                }}
+                placeholder="e.g. Priyanshu Sharma"
+                required
+              />
+            </div>
+            <div className="iw-field">
+              <label>Phone number *</label>
+              <input
+                type="tel"
+                value={d.phone}
+                onChange={(e) => handlePhoneChangeWithAutosave(e.target.value)}
+                onBlur={(e) => {
+                  if (e.target.value.replace(/[^\d+]/g, '').length >= 7) {
+                    autosaveGuidedLead('contact_captured', 1, { phone: e.target.value });
+                  }
+                }}
+                placeholder="+91 98765 43210"
+                required
+              />
+              <span style={{ fontSize: 11, color: '#7D8E87', marginTop: 4, display: 'block' }}>
+                Used for instant progress save, therapist matching, and coordination via WhatsApp/SMS.
+              </span>
+            </div>
+            <div className="iw-field">
+              <label>Email address *</label>
+              <input
+                type="email"
+                value={d.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={(e) => {
+                  if (d.phone) autosaveGuidedLead('contact_captured', 1, { email: e.target.value });
+                }}
+                placeholder="you@example.com"
+                required
+              />
             </div>
           </>
         )}
@@ -2427,15 +2507,15 @@ function Guided({ exit, onBookSession, user, profile }) {
         {step === 3 && (
           <>
             <div className="iw-k">Before we begin</div>
-            <h2>A few things to confirm</h2>
-            <p>Please read and check each of these — they matter.</p>
+            <h2>Clinical agreements &amp; consent</h2>
+            <p>Please read and confirm each of these clinical standards before answering the questions.</p>
             {[
               'I understand this form prepares a summary for therapist matching — it does not diagnose or treat any condition.',
               'I understand my therapist will form their own independent clinical assessment.',
               'I consent to my answers being stored securely and shared only with the therapist I choose to book.',
               'I understand this is not a crisis service and I will contact emergency/helpline support if I am in crisis.',
             ].map((text, index) => (
-              <label key={text} style={{ display: 'flex', gap: 9, marginBottom: 13, fontSize: 13, color: '#263238' }}>
+              <label key={text} style={{ display: 'flex', gap: 9, marginBottom: 13, fontSize: 13, color: '#263238', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={consents[index]}
@@ -2445,45 +2525,9 @@ function Guided({ exit, onBookSession, user, profile }) {
                     setConsents(nextConsents);
                   }}
                 />
-                {text}
+                <span>{text}</span>
               </label>
             ))}
-            <div className="iw-field">
-              <label>Full name</label>
-              <input
-                value={d.name}
-                onChange={(e) => set('name', e.target.value)}
-                onBlur={(e) => {
-                  if (d.phone) autosaveGuidedLead('contact_captured', 3, { name: e.target.value });
-                }}
-                placeholder="Your name"
-              />
-            </div>
-            <div className="iw-field">
-              <label>Email</label>
-              <input
-                type="email"
-                value={d.email}
-                onChange={(e) => set('email', e.target.value)}
-                onBlur={(e) => {
-                  if (d.phone) autosaveGuidedLead('contact_captured', 3, { email: e.target.value });
-                }}
-                placeholder="you@example.com"
-              />
-            </div>
-            <div className="iw-field">
-              <label>Phone number</label>
-              <input
-                value={d.phone}
-                onChange={(e) => handlePhoneChangeWithAutosave(e.target.value)}
-                onBlur={(e) => {
-                  if (e.target.value.replace(/[^\d+]/g, '').length >= 7) {
-                    autosaveGuidedLead('contact_captured', 3, { phone: e.target.value });
-                  }
-                }}
-                placeholder="Your phone number"
-              />
-            </div>
           </>
         )}
 
@@ -3112,7 +3156,7 @@ function Guided({ exit, onBookSession, user, profile }) {
             <button
               type="button"
               className="iw-primary"
-              disabled={!valid || loading || !therapySessionId || (step === 10 && safety.needSupport === 'Yes')}
+              disabled={!valid || loading || (step !== 1 && !therapySessionId) || (step === 10 && safety.needSupport === 'Yes')}
               onClick={next}
             >
               {loading ? 'Saving…' : 'Continue'} <ArrowRight size={16} />

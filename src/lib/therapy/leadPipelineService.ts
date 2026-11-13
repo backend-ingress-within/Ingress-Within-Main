@@ -415,12 +415,22 @@ export class LeadPipelineService {
       followUpStatus?: IntakeLeadRecord['follow_up_status'];
       internalNotes?: string;
       isCompleted?: boolean;
+      bookingLink?: string;
+      bookingToken?: string;
+      clientUserId?: string;
     }
   ): Promise<IntakeLeadRecord | null> {
     const existing = await this.getLeadById(id);
     if (!existing) return null;
 
     const now = new Date().toISOString();
+    const updatedAnswers = {
+      ...(existing.answers || {}),
+      ...(payload.bookingLink ? { booking_link: payload.bookingLink } : {}),
+      ...(payload.bookingToken ? { booking_token: payload.bookingToken } : {}),
+      ...(payload.clientUserId ? { client_user_id: payload.clientUserId } : {}),
+    };
+
     const updated: IntakeLeadRecord = {
       ...existing,
       selected_therapist_id: payload.therapistId,
@@ -434,6 +444,7 @@ export class LeadPipelineService {
         payload.isCompleted !== undefined
           ? payload.isCompleted
           : existing.is_completed,
+      answers: updatedAnswers,
       updated_at: now,
     };
 
@@ -448,6 +459,7 @@ export class LeadPipelineService {
           follow_up_status: updated.follow_up_status,
           internal_notes: updated.internal_notes,
           is_completed: updated.is_completed,
+          answers: updated.answers,
           updated_at: now,
         })
         .eq('id', id);

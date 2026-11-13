@@ -73,6 +73,28 @@ export async function GET(
     // 3. Fetch authoritative pricing and GST breakdown directly from backend service
     const pricing = await SessionBookingService.getAuthoritativePricing(resolved.therapistAccountId);
 
+    // 3b. Fetch client prefill info for frictionless checkout
+    let clientPrefill: { name: string; phone: string; email: string } | null = null;
+    if (resolved.userId) {
+      try {
+        const { data: clientUser } = await supabase
+          .from('users')
+          .select('name, phone_number, email')
+          .eq('id', resolved.userId)
+          .maybeSingle();
+
+        if (clientUser) {
+          clientPrefill = {
+            name: clientUser.name || '',
+            phone: clientUser.phone_number || '',
+            email: (clientUser as any).email || '',
+          };
+        }
+      } catch {
+        // Non-blocking prefill
+      }
+    }
+
     // 4. Fetch real-time bookable availability
     const searchParams = request.nextUrl.searchParams;
     const now = new Date();
@@ -162,6 +184,7 @@ export async function GET(
         slotsCount: availableSlots.length,
         slots: availableSlots,
       },
+      clientPrefill,
     };
 
     return NextResponse.json(sanitizedResponse, {
