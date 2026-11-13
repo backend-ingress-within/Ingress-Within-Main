@@ -1547,9 +1547,9 @@ export class TherapistPlatformService {
               .in('match_status', ['candidate', 'shortlisted', 'proposed']),
             supabase
               .from('therapy_submissions')
-              .update({ submission_status: 'completed', updated_at: now })
+              .update({ submission_status: 'closed', updated_at: now })
               .or(`therapy_session_id.eq.${match.therapy_session_id},user_id.eq.${match.user_id}`)
-              .in('submission_status', ['submitted', 'under_review']),
+              .in('submission_status', ['submitted', 'under_review', 'manual_review_required']),
           ]);
           markClientRequestsAsClaimed(match.user_id);
         } catch (invalidationErr) {
@@ -1666,6 +1666,143 @@ export class TherapistPlatformService {
       });
 
       if (!rpcError && rpcResult) {
+        // Sync decline with Admin Manual Matching Reviews & Leads Pipeline
+        try {
+          const nowIso = new Date().toISOString();
+          const [tProfileRes, tAppRes, clientUserRes, clientIntakeRes, clientUserIntakeRes] = await Promise.all([
+            supabase.from('therapist_profiles').select('full_name').eq('therapist_account_id', therapistAccountId).maybeSingle(),
+            supabase.from('therapist_applications').select('answers').eq('therapist_account_id', therapistAccountId).maybeSingle(),
+            match.user_id ? supabase.from('users').select('id, email, phone_number, name').eq('id', match.user_id).maybeSingle() : { data: null },
+            match.therapy_session_id ? supabase.from('therapy_intakes').select('*').eq('therapy_session_id', match.therapy_session_id).maybeSingle() : { data: null },
+            match.user_id ? supabase.from('therapy_intakes').select('*').eq('user_id', match.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
+          ]);
+
+          const therapistName = tProfileRes.data?.full_name || (tAppRes.data?.answers as any)?.fullName || 'Assigned Therapist';
+          const clientUser = clientUserRes.data;
+          const clientIntake = clientIntakeRes?.data || clientUserIntakeRes?.data;
+          const clientEmail = clientIntake?.email || (clientIntake?.contact_preferences as any)?.email || (clientIntake?.answers as any)?.email || clientUser?.email || null;
+          const clientPhone = clientIntake?.phone_number || (clientIntake?.contact_preferences as any)?.phone || (clientIntake?.answers as any)?.phone || clientUser?.phone_number || null;
+          const clientName = clientIntake?.full_name || clientUser?.name || 'Client';
+          const reasonStr = reason ? String(reason).trim() : 'No specific reason provided';
+          const declineNote = `Declined by therapist ${therapistName}. Reason: ${reasonStr}`;
+
+          const { recordInMemoryManualReview, getInMemoryManualReviews } = await import('../therapy/conversationalIntakeService');
+
+          // Check if an existing review matches this session or client
+          const memReviews = getInMemoryManualReviews();
+          let targetReview = memReviews.find(
+            (r) => (match.therapy_session_id && r.therapy_session_id === match.therapy_session_id) || (match.user_id && r.user_id === match.user_id)
+          );
+
+          if (!targetReview) {
+            const { data: dbReview } = await supabase
+              .from('manual_matching_reviews')
+              .select('*')
+              .or(`therapy_session_id.eq.${match.therapy_session_id || '00000000-0000-0000-0000-000000000000'},user_id.eq.${match.user_id || '00000000-0000-0000-0000-000000000000'}`)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (dbReview) {
+              targetReview = dbReview as any;
+            }
+          }
+
+          const auditEntry = {
+            timestamp: nowIso,
+            action: 'therapist_declined',
+            actor: `Therapist: ${therapistName}`,
+            details: `Therapist declined request. Reason: ${reasonStr}. Case marked unresolved for admin manual rematching.`,
+          };
+
+          if (targetReview) {
+            const updatedAudit = Array.isArray(targetReview.audit_trail) ? [...targetReview.audit_trail, auditEntry] : [auditEntry];
+            const updatedNotes = `${targetReview.internal_notes ? targetReview.internal_notes + '\n' : ''}[${nowIso.slice(0, 10)}] ${declineNote}`;
+            recordInMemoryManualReview({
+              ...targetReview,
+              review_status: 'manual_review_required',
+              identified_therapist_id: null,
+              no_match_reason: `Therapist declined: ${reasonStr}`,
+              internal_notes: updatedNotes,
+              audit_trail: updatedAudit,
+              updated_at: nowIso,
+            });
+
+            await supabase
+              .from('manual_matching_reviews')
+              .update({
+                review_status: 'manual_review_required',
+                identified_therapist_id: null,
+                no_match_reason: `Therapist declined: ${reasonStr}`,
+                internal_notes: updatedNotes,
+                audit_trail: updatedAudit,
+                updated_at: nowIso,
+              })
+              .eq('id', targetReview.id);
+          } else {
+            const refId = `TEAM-${Date.now().toString(36).toUpperCase()}`;
+            const newReview = {
+              id: `rev_${Date.now()}`,
+              reference_id: refId,
+              user_id: match.user_id || `usr_guest_${Date.now()}`,
+              therapy_session_id: match.therapy_session_id || null,
+              therapy_type: 'Individual',
+              matching_requirements: {},
+              client_preferences: {
+                name: clientName,
+                contact_name: clientName,
+                email: clientEmail,
+                contact_email: clientEmail,
+                phone: clientPhone,
+                contact_phone: clientPhone,
+              },
+              no_match_reason: `Therapist declined request: ${reasonStr}`,
+              unmet_criteria: [],
+              review_status: 'manual_review_required' as const,
+              assigned_reviewer_id: null,
+              assigned_reviewer_name: null,
+              identified_therapist_id: null,
+              internal_notes: declineNote,
+              audit_trail: [auditEntry],
+              created_at: nowIso,
+              updated_at: nowIso,
+            };
+
+            recordInMemoryManualReview(newReview);
+            try {
+              await supabase.from('manual_matching_reviews').insert({
+                reference_id: refId,
+                user_id: match.user_id,
+                therapy_session_id: match.therapy_session_id,
+                therapy_type: 'Individual',
+                matching_requirements: {},
+                client_preferences: newReview.client_preferences,
+                no_match_reason: newReview.no_match_reason,
+                unmet_criteria: [],
+                review_status: 'manual_review_required',
+                internal_notes: declineNote,
+                audit_trail: [auditEntry],
+              });
+            } catch {}
+          }
+
+          // Also update Lead Pipeline follow-up status to 'contacted' / unresolved with decline note
+          const leadFilters: string[] = [];
+          if (clientEmail) leadFilters.push(`email.eq.${clientEmail}`);
+          if (clientPhone) leadFilters.push(`phone_number.eq.${clientPhone}`);
+          if (leadFilters.length > 0) {
+            await supabase
+              .from('therapy_intake_leads')
+              .update({
+                follow_up_status: 'contacted',
+                internal_notes: declineNote,
+                updated_at: nowIso,
+              })
+              .or(leadFilters.join(','));
+          }
+        } catch (syncErr) {
+          console.warn('[TherapistPlatformService] Decline admin sync warning:', syncErr);
+        }
+
         return {
           success: true,
           action: 'decline',

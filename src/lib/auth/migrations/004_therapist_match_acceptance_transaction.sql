@@ -154,12 +154,12 @@ BEGIN
       AND id != v_match.id
       AND match_status IN ('candidate', 'shortlisted', 'proposed');
 
-    -- Update any pending submissions for this intake/session to completed
+    -- Update any pending submissions for this intake/session to closed
     UPDATE public.therapy_submissions
-    SET submission_status = 'completed',
+    SET submission_status = 'closed',
         updated_at = v_now
     WHERE (therapy_session_id = v_match.therapy_session_id OR user_id = v_match.user_id)
-      AND submission_status IN ('submitted', 'under_review');
+      AND submission_status IN ('submitted', 'under_review', 'manual_review_required');
 
     -- 7. Atomically insert therapist notification
     INSERT INTO public.therapist_notifications (
