@@ -181,12 +181,20 @@ export default function SupportPage() {
                 <p className="text-[13px] text-mid leading-relaxed font-light">
                   If what you're carrying feels like more than you can manage alone, speaking to a trained therapist is worth it. It's not a sign that things are beyond repair — often the opposite.
                 </p>
-                <button 
-                  onClick={() => window.open('https://docs.google.com/spreadsheets/d/1pzckT6ns2H1IlMwYwJa8ghdf_h-uTr9cM1HJ_17B3vQ/edit', '_blank')}
-                  className="text-[12px] font-semibold text-accent hover:text-[#654652] transition-colors flex items-center gap-1 border-none bg-transparent cursor-pointer"
+                <a 
+                  href="/therapy"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (typeof window !== 'undefined' && window.navigateTo) {
+                      window.navigateTo('/therapy');
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = '/therapy';
+                    }
+                  }}
+                  className="text-[12px] font-semibold text-accent hover:text-[#654652] transition-colors inline-flex items-center gap-1 cursor-pointer"
                 >
-                  Find a therapist in India <ArrowLeft size={11} className="rotate-180" />
-                </button>
+                  Find a therapist with Ingress Within <ArrowLeft size={11} className="rotate-180" />
+                </a>
               </div>
 
               <div className="bg-white-paper border border-primary/10 rounded-2xl p-5 sm:p-6 shadow-xs">

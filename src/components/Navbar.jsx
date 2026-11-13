@@ -66,12 +66,21 @@ export default function Navbar({ user, profile }) {
       {/* Nav Links */}
       <ul className="nav-links hidden md:flex items-center gap-6 list-none">
         <li><a href="/" className={getLinkClass('/')}>Home</a></li>
+        <li><a href="/therapy" className={getLinkClass('/therapy')}>Therapy</a></li>
         <li><a href="/what-it-is" className={getLinkClass('/what-it-is')}>What it is</a></li>
         <li><a href="/how-it-works" className={getLinkClass('/how-it-works')}>How it works</a></li>
         {/* <li><a href="/about" className={getLinkClass('/about')}>About</a></li> */}
         <li><a href="/pricing" className={getLinkClass('/pricing')}>Pricing</a></li>
         <li><a href="/ai-data" className={getLinkClass('/ai-data')}>AI &amp; Data</a></li>
         {/* <li><a href="/contact" className={getLinkClass('/contact')}>Contact</a></li> */}
+        <li>
+          <a
+            href="/therapy"
+            className="nav-cta bg-white text-accent border border-accent/40 hover:bg-accent/5 px-[16px] py-[8px] rounded font-medium tracking-[0.03em] transition-all no-underline shadow-xs mr-2"
+          >
+            Therapy
+          </a>
+        </li>
         <li>
           <a
             href={user ? '/dashboard' : '/auth'}
@@ -95,6 +104,7 @@ export default function Navbar({ user, profile }) {
       {mobileMenuOpen && (
         <div className="absolute top-[68px] left-0 right-0 bg-mint-grey border-b border-primary/8 shadow-md flex flex-col p-6 gap-4 md:hidden animate-[fadeIn_0.2s_ease-out]">
           <a href="/" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/')}>Home</a>
+          <a href="/therapy" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/therapy')}>Therapy</a>
           <a href="/what-it-is" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/what-it-is')}>What it is</a>
           <a href="/how-it-works" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/how-it-works')}>How it works</a>
           <a href="/about" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/about')}>About</a>
@@ -102,9 +112,16 @@ export default function Navbar({ user, profile }) {
           <a href="/ai-data" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/ai-data')}>AI &amp; Data</a>
           <a href="/contact" onClick={() => setMobileMenuOpen(false)} className={getMobileLinkClass('/contact')}>Contact</a>
           <a
+            href="/therapy"
+            onClick={() => setMobileMenuOpen(false)}
+            className="border border-accent/40 text-accent py-2.5 rounded text-center font-medium tracking-wide mt-2"
+          >
+            Start Therapy →
+          </a>
+          <a
             href={user ? '/dashboard' : '/auth'}
             onClick={handleStartWriting}
-            className="bg-primary text-mint-grey py-3 rounded text-center font-medium tracking-wide mt-2"
+            className="bg-primary text-mint-grey py-3 rounded text-center font-medium tracking-wide mt-1"
           >
             {user ? 'Dashboard' : 'Start writing'}
           </a>

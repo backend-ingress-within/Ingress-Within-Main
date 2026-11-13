@@ -27,6 +27,10 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
   }
 
   const handleSelectTab = (tabId) => {
+    if (tabId === 'therapy') {
+      handleTherapyRedirect();
+      return;
+    }
     setActiveTab(tabId);
     if (typeof window !== 'undefined') {
       const urlMap = {
@@ -202,14 +206,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 <span>Reflect on these moments on your own</span>
                 <span>→</span>
               </a>
-              <button
-                type="button"
-                onClick={() => handleSelectTab('start')}
+              <a
+                href="/therapy"
+                onClick={handleTherapyRedirect}
                 className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
               >
                 <span>Talk through this with a therapist</span>
                 <span className="text-[#795663]">→</span>
-              </button>
+              </a>
             </div>
           </div>
         </motion.div>
@@ -301,14 +305,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Begin private self-reflection</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Book a confidential therapy session</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -489,13 +493,13 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                   Licensed, verified therapists. Shared milestone dashboards and homework continuity. No lock-in packages.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSelectTab('start')}
-                className="w-full text-center py-3 bg-[#FAF7F2] hover:bg-[#162723] hover:text-white text-[#162723] border border-[#E7DECF] rounded-full text-xs font-semibold cursor-pointer transition-all font-zen"
+              <a
+                href="/therapy"
+                onClick={handleTherapyRedirect}
+                className="w-full text-center py-3 bg-[#FAF7F2] hover:bg-[#162723] hover:text-white text-[#162723] border border-[#E7DECF] rounded-full text-xs font-semibold cursor-pointer transition-all font-zen inline-block"
               >
                 Book therapist session →
-              </button>
+              </a>
             </motion.div>
           </div>
 
@@ -545,13 +549,13 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
             >
               <span>Walk your own path first</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3.5 rounded-full transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
             >
               <span>Begin with therapist guidance</span>
-            </button>
+            </a>
           </div>
         </motion.div>
       </section>
@@ -645,16 +649,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Explore Self-Work</span>
               <span>&rarr;</span>
             </button>
-            <button
-              onClick={() => {
-                const el = document.getElementById('sol-collaborative');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs font-mono-code font-medium tracking-wider uppercase bg-white/90 border border-[#E7DECF] text-[#162723] hover:border-[#795663] transition-all cursor-pointer shadow-2xs"
             >
               <span>Explore Therapy</span>
-              <span>&darr;</span>
-            </button>
+              <span>&rarr;</span>
+            </a>
           </div>
         </div>
       </section>
@@ -988,14 +990,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 <span>Start guided daily journaling</span>
                 <span>→</span>
               </a>
-              <button
-                type="button"
-                onClick={() => handleSelectTab('start')}
+              <a
+                href="/therapy"
+                onClick={handleTherapyRedirect}
                 className="h-[38px] px-5 inline-flex items-center justify-center gap-2 bg-[#FAF8F5] hover:bg-[#F3ECE0] text-[#162723] border border-[#D9CEBF] hover:border-[#162723]/40 font-zen text-xs font-medium rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
               >
                 <span>Bring your journal into therapy</span>
                 <span className="text-[#B8964A]">→</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -1192,14 +1194,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Begin private self-work</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2 bg-white hover:bg-[#FAF7F2] text-[#162723] border border-[#E7DECF] font-zen text-xs sm:text-sm font-medium px-6 py-2.5 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center"
             >
               <span>Start with a therapist</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1297,14 +1299,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Explore modules via self-work</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Have a therapist assign your modules</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1411,14 +1413,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Start self-work independently</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Start with a licensed therapist</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1714,14 +1716,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 </div>
               </div>
               <div className="pt-4 mt-4 border-t border-[#E7DECF]/60">
-                <button
-                  type="button"
-                  onClick={() => handleSelectTab('start')}
+                <a
+                  href="/therapy"
+                  onClick={handleTherapyRedirect}
                   className="w-full py-3 px-5 rounded-full font-mono-code text-xs tracking-wider uppercase font-semibold text-center bg-[#795663] text-white hover:bg-[#654652] transition-all cursor-pointer inline-flex items-center justify-center gap-2"
                 >
                   <span>Book your therapist orientation</span>
                   <span>→</span>
-                </button>
+                </a>
               </div>
             </motion.div>
           </div>
@@ -1803,14 +1805,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                     </a>
                   </td>
                   <td className="py-5 pl-6">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectTab('start')}
+                    <a
+                      href="/therapy"
+                      onClick={handleTherapyRedirect}
                       className="w-full inline-flex items-center justify-center gap-1.5 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs font-semibold py-2.5 px-4 rounded-full shadow-xs hover:shadow transition-all cursor-pointer whitespace-nowrap text-center"
                     >
                       <span>With a therapist</span>
                       <span className="text-[#795663]">→</span>
-                    </button>
+                    </a>
                   </td>
                 </tr>
               </tbody>
@@ -2162,14 +2164,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 <span>Begin private self-work</span>
                 <span>→</span>
               </a>
-              <button
-                type="button"
-                onClick={() => handleSelectTab('start')}
+              <a
+                href="/therapy"
+                onClick={handleTherapyRedirect}
                 className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
               >
                 <span>Work with a therapist</span>
                 <span className="text-[#795663]">→</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -2250,14 +2252,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Start self-work on your terms</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Start therapist sessions</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -2461,13 +2463,13 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 </p>
               </div>
               <div className="pt-6">
-                <button
-                  type="button"
-                  onClick={() => handleSelectTab('start')}
-                  className="w-full text-center py-3.5 bg-[#795663] hover:bg-[#654652] text-white rounded-full font-mono-code text-xs uppercase tracking-wider font-semibold shadow-xs cursor-pointer transition-colors"
+                <a
+                  href="/therapy"
+                  onClick={handleTherapyRedirect}
+                  className="w-full text-center py-3.5 bg-[#795663] hover:bg-[#654652] text-white rounded-full font-mono-code text-xs uppercase tracking-wider font-semibold shadow-xs cursor-pointer transition-colors inline-block"
                 >
                   Book a pay-per-session therapist &rarr;
-                </button>
+                </a>
               </div>
             </motion.div>
           </div>
@@ -2542,14 +2544,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Track your patterns with self-work</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Let a therapist assign your modules</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -2623,14 +2625,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Start 7-day free self-work trial</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Book your first session</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -2865,14 +2867,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Use AI as your private mirror</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 sm:px-7 py-3 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Bring AI pattern summaries to therapy</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -2948,14 +2950,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Start private, agency-led self-work</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Work with a human psychologist</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -3202,14 +3204,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Practice evidence-based self-reflection</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Work with a licensed psychologist</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </div>
@@ -3319,14 +3321,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Explore your thoughts privately</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Speak to an Indian psychologist</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -3455,14 +3457,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Try self-reflection first</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2 bg-[#FAF7F2] hover:bg-[#F2ECE1] text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full shadow-xs hover:shadow transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Browse verified therapists</span>
               <span className="text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -3655,14 +3657,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Take the first step on your own</span>
               <span>→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[260px] inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 rounded-full text-xs sm:text-sm font-zen font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/25 hover:border-white/50 transition-all cursor-pointer text-center whitespace-nowrap"
             >
               <span>Take the first step with a therapist</span>
               <span>→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>

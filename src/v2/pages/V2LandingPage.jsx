@@ -13,6 +13,13 @@ export default function V2LandingPage({ initialTab = 'home' }) {
   }
 
   const go = (id) => {
+    if (id === 'intake' || id === 'therapy') {
+      if (typeof window !== 'undefined') {
+        if (window.navigateTo) window.navigateTo('/therapy');
+        else window.location.href = '/therapy';
+      }
+      return;
+    }
     setActiveTab(id);
     setMobileMenuOpen(false);
     window.scrollTo(0, 0);

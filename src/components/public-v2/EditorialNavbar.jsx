@@ -75,6 +75,13 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
   const handleNavClick = (item, e) => {
     e.preventDefault();
     setMobileMenuOpen(false);
+    if (item.id === 'therapy' || item.path === '/therapy') {
+      if (typeof window !== 'undefined') {
+        if (window.navigateTo) window.navigateTo('/therapy');
+        else window.location.href = '/therapy';
+      }
+      return;
+    }
     if (onSelectTab) {
       onSelectTab(item.id);
     } else if (typeof window !== 'undefined') {
@@ -202,7 +209,26 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
         </nav>
 
         {/* Desktop CTA / Login Buttons */}
-        <div className="hidden sm:flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-3">
+          <a
+            href="/therapy"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof window !== 'undefined') {
+                if (window.navigateTo) window.navigateTo('/therapy');
+                else window.location.href = '/therapy';
+              }
+            }}
+            className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-4 py-2 rounded-full border transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+              isOnBlue
+                ? 'border-[#E8A598]/60 text-[#E8A598] hover:bg-[#E8A598]/10'
+                : 'border-[#795663]/40 text-[#795663] hover:border-[#795663] hover:bg-[#795663]/5'
+            }`}
+          >
+            <span>Therapy</span>
+            <span className="text-[13px]">→</span>
+          </a>
+
           {user ? (
             <a
               href="/dashboard"
@@ -247,6 +273,23 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
 
         {/* Mobile Menu Toggle Button */}
         <div className="flex items-center gap-2 sm:hidden">
+          <a
+            href="/therapy"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof window !== 'undefined') {
+                if (window.navigateTo) window.navigateTo('/therapy');
+                else window.location.href = '/therapy';
+              }
+            }}
+            className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors duration-300 ${
+              isOnBlue
+                ? 'border-[#E8A598]/60 text-[#E8A598]'
+                : 'border-[#795663]/50 text-[#795663]'
+            }`}
+          >
+            Therapy
+          </a>
           <a
             href={user ? '/dashboard' : '/login'}
             onClick={(e) => handleAuthClick(user ? '/dashboard' : '/login', e)}
@@ -346,6 +389,22 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
             ))}
           </div>
           <div className={`pt-4 border-t flex flex-col gap-2 ${isOnBlue ? 'border-white/10' : 'border-[#E7DECF]'}`}>
+            <a
+              href="/therapy"
+              onClick={(e) => {
+                e.preventDefault();
+                setMobileMenuOpen(false);
+                if (typeof window !== 'undefined') {
+                  if (window.navigateTo) window.navigateTo('/therapy');
+                  else window.location.href = '/therapy';
+                }
+              }}
+              className={`w-full text-center py-2.5 text-xs font-semibold rounded-full border transition-colors ${
+                isOnBlue ? 'border-[#E8A598]/60 text-[#E8A598] hover:bg-white/5' : 'border-[#795663]/40 text-[#795663] hover:bg-[#795663]/5'
+              }`}
+            >
+              Start with a Therapist →
+            </a>
             <a
               href={user ? '/dashboard' : '/login'}
               onClick={(e) => handleAuthClick(user ? '/dashboard' : '/login', e)}
