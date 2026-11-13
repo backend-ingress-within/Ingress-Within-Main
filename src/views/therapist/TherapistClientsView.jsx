@@ -10,7 +10,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Plus,
-  ChevronRight
+  ChevronRight,
+  Link2,
+  CheckCircle2,
 } from 'lucide-react';
 import TherapistClientModal from './TherapistClientModal';
 
@@ -114,19 +116,40 @@ export default function TherapistClientsView({ onOpenSchedule, onOpenSoap }) {
                       {c.name.charAt(0)}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-serif text-base font-medium text-[#132A24]">{c.name}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${getStageColor(c.careStage)}`}>
                           {c.careStage.replace('_', ' ')}
                         </span>
+                        {c.hasConsent ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <ShieldCheck size={11} className="text-emerald-700" /> Consent Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                            <Clock size={11} className="text-amber-700" /> Pending Consent
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] text-[#132A24]/50 mt-0.5 block">
-                        Client since {startedDate} &bull; {c.totalSessions} sessions completed
+                        Client since {startedDate} &bull; {c.totalSessions} sessions completed {c.phone && c.phone !== 'Confidential' ? `\u2022 ${c.phone}` : ''}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedClientId(c.clientId);
+                        setSelectedClientTab('overview');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-950 hover:bg-emerald-100 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                      title="Manage client consent, generate booking links, and share via WhatsApp or Email"
+                    >
+                      <Link2 size={13} className="text-emerald-700" />
+                      <span>Consent &amp; Booking</span>
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

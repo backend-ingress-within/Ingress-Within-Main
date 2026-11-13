@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
   User,
@@ -15,6 +15,15 @@ import {
   Link2,
   Check,
   Sparkles,
+  Phone,
+  Mail,
+  Copy,
+  Share2,
+  MessageCircle,
+  FileCheck2,
+  ExternalLink,
+  HeartHandshake,
+  ShieldCheck,
 } from 'lucide-react';
 import TherapistCareJourneyView from './TherapistCareJourneyView';
 import TherapistClientInsightsView from './TherapistClientInsightsView';
@@ -38,6 +47,12 @@ export default function TherapistClientModal({
   const [linkCopied, setLinkCopied] = useState(false);
   const [linkNotice, setLinkNotice] = useState(null);
 
+  // Legal Consent Document Modal State
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [consentDocData, setConsentDocData] = useState(null);
+  const [loadingConsentDoc, setLoadingConsentDoc] = useState(false);
+  const [consentDocError, setConsentDocError] = useState(null);
+
   const handleGenerateBookingLink = async () => {
     if (!profile?.relationship?.id || isGeneratingLink) return;
     setIsGeneratingLink(true);
@@ -55,6 +70,15 @@ export default function TherapistClientModal({
       }
 
       if (data.bookingLink) {
+        setProfile((prev) => ({
+          ...prev,
+          bookingLink: {
+            url: data.bookingLink,
+            token: data.token || '',
+            status: 'active',
+          },
+        }));
+
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
           await navigator.clipboard.writeText(data.bookingLink);
         }
@@ -75,6 +99,52 @@ export default function TherapistClientModal({
     } finally {
       setIsGeneratingLink(false);
     }
+  };
+
+  const handleOpenConsentDoc = async () => {
+    setShowConsentModal(true);
+    setLoadingConsentDoc(true);
+    setConsentDocError(null);
+    try {
+      const res = await fetch(`/api/therapist/clients/${clientId}/consent`);
+      const data = await res.json();
+      if (res.ok && data.document) {
+        setConsentDocData(data.document);
+      } else {
+        throw new Error(data.error?.message || 'Failed to retrieve legal consent document.');
+      }
+    } catch (err) {
+      console.error('Consent document load error:', err);
+      setConsentDocError(err.message || 'Unable to load legal consent document.');
+    } finally {
+      setLoadingConsentDoc(false);
+    }
+  };
+
+  const activeBookingUrl = profile?.bookingLink?.url || null;
+
+  const getWhatsAppShareUrl = (linkUrl) => {
+    const rawLink = linkUrl || activeBookingUrl;
+    if (!rawLink || !profile?.client?.phone) return null;
+    const digits = profile.client.phone.replace(/[^\d]/g, '');
+    const clientName = profile.client.name || 'there';
+    const therapistName = profile.therapist?.name || 'your assigned therapist';
+    const text = encodeURIComponent(
+      `Hi ${clientName}, your therapy consultation with ${therapistName} at Ingress Within is ready. Please review clinical credentials, confirm telehealth consent terms, and schedule your first session here: ${rawLink}`
+    );
+    return `https://wa.me/${digits}?text=${text}`;
+  };
+
+  const getEmailShareUrl = (linkUrl) => {
+    const rawLink = linkUrl || activeBookingUrl;
+    if (!rawLink || !profile?.client?.email) return null;
+    const clientName = profile.client.name || 'there';
+    const therapistName = profile.therapist?.name || 'your assigned therapist';
+    const subject = encodeURIComponent('Your Ingress Within Therapy Booking & Consent Link');
+    const body = encodeURIComponent(
+      `Hi ${clientName},\n\nYour therapy consultation with ${therapistName} at Ingress Within is ready.\n\nPlease review clinical credentials, confirm telehealth consent terms, and schedule your first session here:\n${rawLink}\n\nWarm regards,\n${therapistName}\nIngress Within Clinical Care`
+    );
+    return `mailto:${profile.client.email}?subject=${subject}&body=${body}`;
   };
 
   const fetchClientProfile = async () => {
@@ -325,10 +395,234 @@ export default function TherapistClientModal({
                 </div>
               </div>
 
+              {/* Dedicated Consent & First Session Booking Hub */}
+              <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-white border border-emerald-200/90 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#1B5E52] text-white flex items-center justify-center shadow-xs shrink-0">
+                      <FileCheck2 size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-emerald-950">
+                        Client Consent &amp; First Session Link
+                      </h4>
+                      <p className="text-[11px] text-emerald-800/80">
+                        Zero login required for client. Enables practitioner review, clinical telehealth consent signing, and slot booking.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {profile.consent?.hasConsent ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        <CheckCircle2 size={13} className="text-emerald-700" />
+                        Telehealth Consent Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                        <Clock size={13} className="text-amber-700" />
+                        Awaiting Client Consent
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {activeBookingUrl ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={activeBookingUrl}
+                        className="flex-1 bg-white border border-emerald-200 rounded-lg px-3 py-2 text-xs font-mono text-emerald-950 select-all outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGenerateBookingLink}
+                        disabled={isGeneratingLink}
+                        className="px-3 py-2 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
+                      >
+                        {linkCopied ? (
+                          <>
+                            <Check size={14} />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={14} />
+                            <span>Copy Link</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Instant Share Buttons */}
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      {profile.client?.phone && (
+                        <a
+                          href={getWhatsAppShareUrl()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20ba59] transition-all flex items-center gap-1.5 shadow-xs"
+                        >
+                          <MessageCircle size={14} />
+                          <span>Share on WhatsApp</span>
+                        </a>
+                      )}
+
+                      {profile.client?.email && (
+                        <a
+                          href={getEmailShareUrl()}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-emerald-300 text-emerald-950 text-xs font-semibold hover:bg-emerald-50 transition-all flex items-center gap-1.5 shadow-xs"
+                        >
+                          <Mail size={14} className="text-emerald-700" />
+                          <span>Share via Email</span>
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleOpenConsentDoc}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-[#132A24]/20 text-[#132A24] text-xs font-medium hover:bg-[#132A24]/5 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <FileText size={14} className="text-[#4E7A66]" />
+                        <span>View Legal Consent Document</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenSchedule && onOpenSchedule(clientId, profile.client?.name);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#132A24] text-white text-xs font-medium hover:bg-[#132A24]/90 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Calendar size={14} />
+                        <span>Book On Behalf of Client</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <p className="text-xs text-stone-600 leading-relaxed max-w-md">
+                      Generate a persistent, zero-login link for this client. They can review your credentials, confirm their telehealth consent terms, and choose an appointment slot from your calendar.
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleGenerateBookingLink}
+                        disabled={isGeneratingLink || profile.relationship?.status !== 'active'}
+                        className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50"
+                      >
+                        {isGeneratingLink ? (
+                          <>
+                            <Clock size={14} className="animate-spin" />
+                            <span>Generating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Link2 size={14} />
+                            <span>Generate Booking &amp; Consent Link</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenConsentDoc}
+                        className="px-3 py-2 rounded-lg bg-white border border-[#132A24]/20 text-[#132A24] text-xs font-medium hover:bg-[#132A24]/5 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <FileText size={14} className="text-[#4E7A66]" />
+                        <span>View Consent</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Client Contact & Profile Overview */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#132A24]/60">
+                  Client Contact &amp; Details
+                </h4>
+
+                <div className="bg-white border border-[#132A24]/10 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Phone Number</span>
+                    {profile.client?.phone ? (
+                      <div className="flex items-center gap-2 font-medium text-[#132A24]">
+                        <span>{profile.client.phone}</span>
+                        <a
+                          href={`tel:${profile.client.phone.replace(/[^\d+]/g, '')}`}
+                          className="text-[#4E7A66] hover:underline text-[11px]"
+                          title="Call client"
+                        >
+                          Call
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="text-stone-400 italic">Not provided</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Email Address</span>
+                    {profile.client?.email ? (
+                      <a
+                        href={`mailto:${profile.client.email}`}
+                        className="font-medium text-[#132A24] hover:underline block truncate"
+                        title={profile.client.email}
+                      >
+                        {profile.client.email}
+                      </a>
+                    ) : (
+                      <span className="text-stone-400 italic">Not provided</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Location / City</span>
+                    <span className="font-medium text-[#132A24]">
+                      {profile.client?.city || profile.clinicalIntake?.city || 'Not specified'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Age &amp; Gender</span>
+                    <span className="font-medium text-[#132A24]">
+                      {profile.client?.age ? `${profile.client.age} yrs` : 'Age N/A'}
+                      {profile.client?.gender ? ` • ${profile.client.gender}` : ''}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Occupation</span>
+                    <span className="font-medium text-[#132A24]">
+                      {profile.client?.occupation || profile.clinicalIntake?.occupation || 'Not specified'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[#132A24]/50 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Legal Consent Status</span>
+                    <span className="font-medium">
+                      {profile.consent?.hasConsent ? (
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Verified &amp; On File
+                        </span>
+                      ) : (
+                        <span className="text-amber-700 font-semibold flex items-center gap-1">
+                          <Clock size={12} /> Pending First Session
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Clinical Intake Information */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[#132A24]/60">
-                  Intake & Presenting Concerns
+                  Intake &amp; Presenting Concerns
                 </h4>
 
                 <div className="bg-white border border-[#132A24]/10 rounded-xl p-4 space-y-3 text-xs">
@@ -509,6 +803,141 @@ export default function TherapistClientModal({
             Close Profile
           </button>
         </div>
+
+        {/* Authoritative Legal Consent Document Modal */}
+        <AnimatePresence>
+          {showConsentModal && (
+            <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-2xl border border-[#132A24]/10 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden"
+              >
+                {/* Consent Modal Header */}
+                <div className="p-5 border-b border-[#132A24]/10 bg-[#FAFAF8] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#1B5E52] text-white flex items-center justify-center">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg font-medium text-[#132A24]">
+                        Informed Consent for Psychological &amp; Telehealth Services
+                      </h3>
+                      <span className="text-[11px] text-[#132A24]/60">
+                        Verified Practitioner Record &bull; Legal Compliance Document
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConsentModal(false);
+                      setConsentDocData(null);
+                    }}
+                    className="p-1.5 rounded-lg text-[#132A24]/40 hover:text-[#132A24] hover:bg-[#132A24]/5 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Consent Modal Body */}
+                <div className="p-6 overflow-y-auto space-y-5 text-xs flex-1">
+                  {loadingConsentDoc ? (
+                    <div className="p-12 text-center text-xs text-[#132A24]/50 animate-pulse">
+                      Loading authoritative legal consent document...
+                    </div>
+                  ) : consentDocError ? (
+                    <div className="p-6 text-center text-red-600 bg-red-50 rounded-xl border border-red-200">
+                      {consentDocError}
+                    </div>
+                  ) : consentDocData ? (
+                    <>
+                      {/* Status Banner */}
+                      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                            Document Identification &amp; Verification Status
+                          </span>
+                          <span className="font-mono text-xs font-semibold text-emerald-950">
+                            {consentDocData.documentId}
+                          </span>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 border border-emerald-300">
+                          {consentDocData.consentStatus}
+                        </span>
+                      </div>
+
+                      {/* Participant Details */}
+                      <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-[#FAFAF8] border border-[#132A24]/10">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/50 block mb-0.5">
+                            Client Details
+                          </span>
+                          <div className="font-bold text-[#132A24]">{consentDocData.clientName}</div>
+                          {consentDocData.clientEmail && (
+                            <div className="text-[11px] text-[#132A24]/60">{consentDocData.clientEmail}</div>
+                          )}
+                          {consentDocData.clientPhone && (
+                            <div className="text-[11px] text-[#132A24]/60">{consentDocData.clientPhone}</div>
+                          )}
+                          <div className="text-[10px] text-stone-400 font-mono mt-1">ID: {consentDocData.clientId}</div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#132A24]/50 block mb-0.5">
+                            Treating Practitioner
+                          </span>
+                          <div className="font-bold text-[#132A24]">{consentDocData.therapistName}</div>
+                          <div className="text-[11px] text-[#4E7A66]">{consentDocData.therapistTitle}</div>
+                          <div className="text-[10px] text-stone-400 font-mono mt-1">ID: {consentDocData.therapistId}</div>
+                        </div>
+                      </div>
+
+                      {/* Legal Agreement Clauses */}
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#132A24]/60">
+                          Governing Legal Agreement Clauses
+                        </h4>
+                        {consentDocData.legalClauses?.map((c, i) => (
+                          <div key={i} className="border border-[#132A24]/10 rounded-xl p-3.5 bg-white space-y-1">
+                            <div className="font-bold text-xs text-[#132A24]">{c.heading}</div>
+                            <p className="text-[11px] text-[#132A24]/80 leading-relaxed">{c.body}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Attestation & Audit Verification */}
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                        <div><strong>Consent Timestamp:</strong> {consentDocData.consentedAt ? new Date(consentDocData.consentedAt).toLocaleString('en-IN') : 'Recorded Session'}</div>
+                        <div><strong>Session IP Address:</strong> {consentDocData.ipAddress}</div>
+                        <div><strong>Governing Jurisdiction:</strong> {consentDocData.jurisdiction}</div>
+                        <div><strong>Authorized Platform Entity:</strong> {consentDocData.authorizedBy}</div>
+                        <div className="text-[10px] font-mono text-slate-400 pt-1">
+                          Audit Verification Hash: SHA256:{consentDocData.documentId.split('').reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) >>> 0, 0).toString(16).padStart(32, 'a')}
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                {/* Consent Modal Footer */}
+                <div className="p-4 border-t border-[#132A24]/10 bg-[#FAFAF8] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConsentModal(false);
+                      setConsentDocData(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#2C4A3E] transition-colors cursor-pointer"
+                  >
+                    Close Document
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

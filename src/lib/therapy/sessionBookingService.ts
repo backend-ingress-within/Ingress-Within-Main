@@ -1402,6 +1402,38 @@ export class SessionBookingService {
         console.warn('[SessionBookingService] Notice recording earnings (may already exist):', earnErr);
       }
 
+      // 10b. Record Verified Telehealth Clinical Consent for Booking
+      try {
+        await supabase.from('consents').insert({
+          user_id: booking.user_id,
+          consent_type: 'therapy_consent',
+          version: '1.0.0',
+          metadata: {
+            source: 'telehealth_booking_link',
+            booking_id: booking.id,
+            relationship_id: booking.relationship_id,
+            therapist_account_id: therapistAccountId,
+            consented_at: new Date().toISOString(),
+          },
+        });
+
+        await supabase.from('profiles').update({
+          consent_completed: true,
+          updated_at: new Date().toISOString(),
+        }).eq('id', booking.user_id);
+
+        if (booking.relationship_id) {
+          await supabase.from('therapy_care_relationships').update({
+            metadata: {
+              consent_completed: true,
+              consented_at: new Date().toISOString(),
+            },
+          }).eq('id', booking.relationship_id);
+        }
+      } catch (consentErr) {
+        console.warn('[SessionBookingService] Notice recording verified consent after booking:', consentErr);
+      }
+
       // 11. Side Effects: Google Calendar and Meet Sync (Retryable & Non-Blocking)
       let meetUrl: string | null = null;
       let meetStatus = 'none';

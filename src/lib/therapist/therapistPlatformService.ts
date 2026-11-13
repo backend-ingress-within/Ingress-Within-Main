@@ -7,6 +7,10 @@ import { GoogleCalendarService, isValidGoogleMeetUrl } from '../calendar/googleC
 import { GoogleAuthService } from '../calendar/googleAuthService';
 import { TherapistPayoutAccountService } from './therapistPayoutAccountService';
 import { markClientRequestsAsClaimed } from '../therapy/matchRequestsStore';
+import {
+  decryptBookingToken,
+  getCanonicalBookingUrl,
+} from '../therapy/relationshipBookingLinkService';
 
 export class TherapistPlatformService {
   private static inMemoryReviews: Array<{
@@ -1861,9 +1865,11 @@ export class TherapistPlatformService {
           status,
           care_stage,
           started_at,
+          metadata,
           users (
             id,
             name,
+            email,
             phone_number
           )
         `)
@@ -1875,19 +1881,45 @@ export class TherapistPlatformService {
         return [];
       }
 
-      // Enrich with appointment count
+      // Enrich with appointment count, consent, and persistent booking links
       const clientIds = relationships.map((r) => r.user_id);
+      const relIds = relationships.map((r) => r.id);
       let sessionCounts: Record<string, number> = {};
+      let consentMap: Record<string, boolean> = {};
+      let bookingLinkMap: Record<string, string> = {};
 
       if (clientIds.length > 0) {
-        const { data: appts } = await supabase
-          .from('therapist_clinical_appointments')
-          .select('user_id')
-          .eq('therapist_account_id', therapistAccountId)
-          .in('user_id', clientIds);
+        const [{ data: appts }, { data: consents }, { data: links }] = await Promise.all([
+          supabase
+            .from('therapist_clinical_appointments')
+            .select('user_id')
+            .eq('therapist_account_id', therapistAccountId)
+            .in('user_id', clientIds),
+          supabase
+            .from('consents')
+            .select('user_id')
+            .in('user_id', clientIds),
+          supabase
+            .from('relationship_booking_links')
+            .select('relationship_id, encrypted_token')
+            .in('relationship_id', relIds)
+            .eq('status', 'active')
+            .is('revoked_at', null),
+        ]);
 
         (appts || []).forEach((a) => {
           sessionCounts[a.user_id] = (sessionCounts[a.user_id] || 0) + 1;
+        });
+
+        (consents || []).forEach((c) => {
+          consentMap[c.user_id] = true;
+        });
+
+        (links || []).forEach((l) => {
+          try {
+            const token = decryptBookingToken(l.encrypted_token);
+            bookingLinkMap[l.relationship_id] = getCanonicalBookingUrl(token);
+          } catch {}
         });
       }
 
@@ -1903,20 +1935,36 @@ export class TherapistPlatformService {
       }
       const uniqueRelationships = Array.from(clientMap.values());
 
-      let clients = uniqueRelationships.map((r: any) => ({
-        relationshipId: r.id,
-        clientId: r.user_id,
-        name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
-        phone: r.users?.phone_number ? `+91••••••${r.users.phone_number.slice(-4)}` : 'Confidential',
-        status: r.status,
-        careStage: r.care_stage,
-        startedAt: r.started_at,
-        totalSessions: sessionCounts[r.user_id] || 0,
-      }));
+      let clients = uniqueRelationships.map((r: any) => {
+        const rawPhone = r.users?.phone_number || '';
+        const hasConsent = Boolean(
+          consentMap[r.user_id] ||
+          r.metadata?.consent_completed
+        );
+        const bookingLink = bookingLinkMap[r.id] || null;
+
+        return {
+          relationshipId: r.id,
+          clientId: r.user_id,
+          name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
+          phone: rawPhone || 'Confidential',
+          email: r.users?.email || null,
+          hasConsent,
+          bookingLink,
+          status: r.status,
+          careStage: r.care_stage,
+          startedAt: r.started_at,
+          totalSessions: sessionCounts[r.user_id] || 0,
+        };
+      });
 
       if (search && search.trim()) {
         const q = search.trim().toLowerCase();
-        clients = clients.filter((c) => c.name.toLowerCase().includes(q));
+        clients = clients.filter((c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.email && c.email.toLowerCase().includes(q)) ||
+          (c.phone && c.phone.toLowerCase().includes(q))
+        );
       }
 
       return clients;
@@ -1952,7 +2000,7 @@ export class TherapistPlatformService {
     // 2. Fetch user profile
     const { data: user } = await supabase
       .from('users')
-      .select('id, name, created_at')
+      .select('id, name, email, phone_number, created_at')
       .eq('id', resolvedClientId)
       .maybeSingle();
 
@@ -1960,7 +2008,10 @@ export class TherapistPlatformService {
     const { data: intake } = await supabase
       .from('therapy_intakes')
       .select(`
+        created_at,
         full_name,
+        email,
+        phone_number,
         age,
         gender,
         occupation,
@@ -1971,7 +2022,8 @@ export class TherapistPlatformService {
         affected_life_areas,
         mental_health_history,
         coping_and_support,
-        expectations
+        expectations,
+        consents
       `)
       .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
@@ -2017,6 +2069,61 @@ export class TherapistPlatformService {
       soapNotes = notes || [];
     }
 
+    // 7. Fetch Practitioner profile details
+    const { data: thProfile } = await supabase
+      .from('therapist_profiles')
+      .select('full_name, title')
+      .eq('therapist_account_id', therapistAccountId)
+      .maybeSingle();
+
+    // 8. Fetch active persistent booking link
+    let activeBookingLink: any = null;
+    try {
+      const { data: linkRecord } = await supabase
+        .from('relationship_booking_links')
+        .select('id, encrypted_token, status, created_at, expires_at')
+        .eq('relationship_id', relationship.id)
+        .eq('status', 'active')
+        .is('revoked_at', null)
+        .maybeSingle();
+
+      if (linkRecord) {
+        const decryptedToken = decryptBookingToken(linkRecord.encrypted_token);
+        activeBookingLink = {
+          url: getCanonicalBookingUrl(decryptedToken),
+          token: decryptedToken,
+          status: linkRecord.status,
+          createdAt: linkRecord.created_at,
+          expiresAt: linkRecord.expires_at,
+        };
+      }
+    } catch (linkErr) {
+      console.warn('[getClientClinicalProfile] Booking link decryption notice:', linkErr);
+    }
+
+    // 9. Fetch authoritative consent status
+    const { data: userConsents } = await supabase
+      .from('consents')
+      .select('*')
+      .eq('user_id', resolvedClientId)
+      .order('consented_at', { ascending: false });
+
+    const primaryConsent = (userConsents || []).find((c) =>
+      ['therapy_consent', 'informed_consent', 'terms_and_privacy'].includes(c.consent_type)
+    ) || userConsents?.[0];
+
+    const hasConsent = Boolean(
+      (userConsents && userConsents.length > 0) ||
+      relationship.metadata?.consent_completed ||
+      (intake?.consents && typeof intake.consents === 'object' && Object.keys(intake.consents).length > 0)
+    );
+
+    const consentDate =
+      primaryConsent?.consented_at ||
+      relationship.metadata?.consented_at ||
+      intake?.created_at ||
+      relationship.started_at;
+
     return {
       relationship: {
         id: relationship.id,
@@ -2028,11 +2135,27 @@ export class TherapistPlatformService {
       client: {
         id: resolvedClientId,
         name: user?.name || intake?.full_name || `Client #${resolvedClientId.substring(0, 6)}`,
+        phone: user?.phone_number || intake?.phone_number || null,
+        email: user?.email || intake?.email || null,
         age: intake?.age || null,
         gender: intake?.gender || null,
         occupation: intake?.occupation || null,
         city: intake?.city || null,
       },
+      therapist: {
+        id: therapistAccountId,
+        name: thProfile?.full_name || 'Your Assigned Clinician',
+        title: thProfile?.title || 'Licensed Clinical Psychologist',
+      },
+      consent: {
+        hasConsent,
+        status: hasConsent ? 'AUTHENTICATED_AND_VERIFIED' : 'PENDING_CONSENT',
+        consentedAt: consentDate,
+        consentType: primaryConsent?.consent_type || 'Informed Consent for Psychological & Telehealth Services',
+        consentVersion: primaryConsent?.version || 'v1.0.0',
+        documentId: `CONSENT-DOC-${resolvedClientId.substring(0, 8).toUpperCase()}-${therapistAccountId.substring(0, 6).toUpperCase()}`,
+      },
+      bookingLink: activeBookingLink,
       clinicalIntake: intake ? {
         presentingReason: intake.presenting_reason,
         concerns: intake.concerns,

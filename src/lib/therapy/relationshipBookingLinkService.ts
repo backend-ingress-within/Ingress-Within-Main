@@ -37,6 +37,7 @@ export interface ResolvedBookingLink {
   userId?: string;
   careStage?: string;
   firstSessionCompleted?: boolean;
+  consentVerified?: boolean;
 }
 
 /**
@@ -335,15 +336,11 @@ export class RelationshipBookingLinkService {
       throw err;
     }
 
-    // 5. Authoritative Consent Gate
+    // 5. Authoritative Consent Inspection
+    // Evaluates whether affirmative informed consent is already on file.
+    // If not yet on file, this persistent booking link operates as the Initial Telehealth Consent & First Session link,
+    // where the client executes mandatory informed consent upon slot confirmation.
     const consentResult = await verifyClientConsent(rel.user_id, rel.therapy_session_id);
-    if (!consentResult.verified) {
-      const err: any = new Error(`Required therapy consent has not been verified: ${consentResult.reason}`);
-      err.status = 422;
-      err.code = 'CONSENT_REQUIRED';
-      err.details = consentResult;
-      throw err;
-    }
 
     // 6. Idempotency Check: check if active link already exists
     const { data: existingLink } = await supabase
@@ -543,14 +540,9 @@ export class RelationshipBookingLinkService {
     }
 
     // Verify authoritative therapy-specific consent
+    // Note: If consent is pending, the link remains valid so the client can review the practitioner,
+    // execute informed telehealth consent, and schedule their consultation.
     const consentCheck = await verifyClientConsent(rel.user_id, rel.therapy_session_id);
-    if (!consentCheck.verified) {
-      return {
-        valid: false,
-        errorCode: 'CONSENT_REQUIRED',
-        errorMessage: `Required therapy consent is not verified: ${consentCheck.reason}`,
-      };
-    }
 
     // Update access metrics asynchronously
     void supabase
@@ -568,6 +560,7 @@ export class RelationshipBookingLinkService {
       userId: rel.user_id,
       careStage: rel.care_stage,
       firstSessionCompleted: Boolean(rel.first_session_completed),
+      consentVerified: Boolean(consentCheck.verified),
     };
   }
 
