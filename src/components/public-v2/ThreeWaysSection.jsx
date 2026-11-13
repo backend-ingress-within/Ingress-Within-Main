@@ -39,6 +39,7 @@ export default function ThreeWaysSection({ onSelectTab }) {
       badgeColor: 'text-[#795663]',
       eyebrowColor: 'text-[#795663]',
       targetTab: 'start',
+      href: '/therapy',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-5 h-5">
           <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" strokeLinecap="round" strokeLinejoin="round" />
@@ -106,7 +107,17 @@ export default function ThreeWaysSection({ onSelectTab }) {
               {/* Paper Card with Splitting Motion */}
               <motion.div
                 {...getCardEmergence(idx, 3)}
-                onClick={() => onSelectTab && onSelectTab(card.targetTab)}
+                onClick={() => {
+                  if (card.href) {
+                    if (typeof window !== 'undefined' && window.navigateTo) {
+                      window.navigateTo(card.href);
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = card.href;
+                    }
+                  } else if (onSelectTab) {
+                    onSelectTab(card.targetTab);
+                  }
+                }}
                 className="group relative rounded-xl p-6 sm:p-7 min-h-[250px] sm:min-h-[270px] bg-[#FDFBF8] hover:bg-white border border-[#E7DECF] hover:border-[#162723]/35 flex flex-col justify-between transition-[background-color,border-color,box-shadow] duration-200 shadow-2xs hover:shadow-xs cursor-pointer"
               >
                 <div>

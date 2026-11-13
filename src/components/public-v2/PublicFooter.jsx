@@ -89,6 +89,11 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
             <div className="font-editorial text-sm text-white font-medium">Explore</div>
             <ul className="space-y-2 text-xs font-zen text-[#8D98A3]">
               <li>
+                <a href="/therapy" onClick={(e) => { e.preventDefault(); if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/therapy'); else window.location.href = '/therapy'; }} className="hover:text-white transition-colors">
+                  Therapy Intake
+                </a>
+              </li>
+              <li>
                 <a href="/solution" onClick={(e) => handleNav('solution', e)} className="hover:text-white transition-colors">
                   Our Solution
                 </a>

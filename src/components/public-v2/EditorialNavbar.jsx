@@ -63,6 +63,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
 
   const navItems = [
     { id: 'solution', label: 'Our Solution', path: '/solution' },
+    { id: 'therapy', label: 'Therapy', path: '/therapy' },
     { id: 'how', label: 'How It Works', path: '/how-it-works' },
     { id: 'pricing', label: 'Pricing', path: '/pricing' },
     { id: 'ai', label: 'AI & Data', path: '/ai-data' },

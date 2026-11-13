@@ -2345,9 +2345,17 @@ function Guided({ exit, onBookSession, user, profile }) {
                 type="button"
                 className="iw-primary"
                 style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
-                onClick={exit}
+                onClick={() => {
+                  if (user) {
+                    exit();
+                  } else if (typeof window !== 'undefined' && window.navigateTo) {
+                    window.navigateTo('/');
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = '/';
+                  }
+                }}
               >
-                Return to Dashboard
+                {user ? 'Return to Dashboard' : 'Return to Home'}
               </button>
             </>
           ) : (
@@ -2360,9 +2368,17 @@ function Guided({ exit, onBookSession, user, profile }) {
                 type="button"
                 className="iw-primary"
                 style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
-                onClick={exit}
+                onClick={() => {
+                  if (user) {
+                    exit();
+                  } else if (typeof window !== 'undefined' && window.navigateTo) {
+                    window.navigateTo('/');
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = '/';
+                  }
+                }}
               >
-                Return to Dashboard
+                {user ? 'Return to Dashboard' : 'Return to Home'}
               </button>
             </>
           )}
@@ -3649,8 +3665,15 @@ export default function TherapyPage({ user, profile, onSignOut }) {
   };
 
   const dashboard = () => {
-    if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
-    else if (typeof window !== 'undefined') window.history.back();
+    if (typeof window !== 'undefined' && window.navigateTo) {
+      if (user) {
+        window.navigateTo('/dashboard');
+      } else {
+        window.navigateTo('/');
+      }
+    } else if (typeof window !== 'undefined') {
+      window.history.back();
+    }
   };
 
   if (loadingConnection) {
@@ -3722,7 +3745,7 @@ export default function TherapyPage({ user, profile, onSignOut }) {
         <div className="iw-shell">
           <div className="iw-top">
             <button type="button" className="iw-back" onClick={dashboard}>
-              <ArrowLeft size={15} /> Dashboard
+              <ArrowLeft size={15} /> {user ? 'Dashboard' : 'Home'}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {showIntakeOverride && connectionStatus === 'connected' && (
@@ -3869,7 +3892,7 @@ export default function TherapyPage({ user, profile, onSignOut }) {
                     style={{ width: 'auto', padding: '10px 18px', fontSize: 13 }}
                     onClick={dashboard}
                   >
-                    Return to Dashboard
+                    {user ? 'Return to Dashboard' : 'Return to Home'}
                   </button>
                 </div>
               </div>

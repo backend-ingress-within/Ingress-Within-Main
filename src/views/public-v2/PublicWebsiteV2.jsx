@@ -68,6 +68,18 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
     }
   };
 
+  const handleTherapyRedirect = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const destination = '/therapy';
+    if (typeof window !== 'undefined') {
+      if (window.navigateTo) {
+        window.navigateTo(destination);
+      } else {
+        window.location.href = destination;
+      }
+    }
+  };
+
   // -------------------------------------------------------------
   // TAB 1: HOME
   // -------------------------------------------------------------
@@ -104,14 +116,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 <span>Start your independent journey</span>
                 <span className="text-base">→</span>
               </a>
-              <button
-                type="button"
-                onClick={() => handleSelectTab('start')}
+              <a
+                href="/therapy"
+                onClick={handleTherapyRedirect}
                 className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
               >
                 <span>Start with a professional</span>
                 <span className="text-base text-[#795663]">→</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -1493,14 +1505,14 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
               <span>Start your independent journey</span>
               <span className="text-base">→</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleSelectTab('start')}
+            <a
+              href="/therapy"
+              onClick={handleTherapyRedirect}
               className="w-full sm:w-auto min-w-[270px] inline-flex items-center justify-center gap-2.5 bg-[#FAF7F2] hover:bg-white text-[#162723] border border-[#795663]/30 hover:border-[#795663]/60 font-zen text-sm sm:text-[15px] font-semibold px-7 sm:px-8 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] text-center whitespace-nowrap"
             >
               <span>Start with a professional</span>
               <span className="text-base text-[#795663]">→</span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -3897,6 +3909,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
 
             <motion.div
               {...getCardEmergence(1, 3)}
+              onClick={handleTherapyRedirect}
               className="group relative rounded-xl p-7 sm:p-8 bg-[#FDFBF8] hover:bg-white border border-[#795663]/40 hover:border-[#795663] transition-[background-color,border-color,box-shadow] duration-200 shadow-2xs hover:shadow-xs flex flex-col justify-between cursor-pointer"
             >
               <div>
@@ -3916,11 +3929,13 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 </p>
               </div>
               <div className="pt-5 mt-6 border-t border-[#E7DECF]/60">
-                <span
-                  className="w-full text-center py-3.5 px-6 bg-[#795663] text-white rounded-full text-sm font-semibold shadow-2xs inline-block cursor-default select-none"
+                <a
+                  href="/therapy"
+                  onClick={handleTherapyRedirect}
+                  className="w-full text-center py-3.5 px-6 bg-[#795663] hover:bg-[#654652] text-white rounded-full text-sm font-semibold transition-all hover:scale-[1.01] shadow-2xs inline-block cursor-pointer"
                 >
-                  Coming Soon
-                </span>
+                  Start with a professional →
+                </a>
               </div>
             </motion.div>
 
