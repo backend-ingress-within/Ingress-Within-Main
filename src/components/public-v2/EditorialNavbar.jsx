@@ -63,7 +63,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
 
   const navItems = [
     { id: 'solution', label: 'Our Solution', path: '/solution' },
-    { id: 'therapy', label: 'Therapy', path: '/therapy' },
+    { id: 'therapy', label: 'Therapy', path: '/therapy', isTherapy: true },
     { id: 'how', label: 'How It Works', path: '/how-it-works' },
     { id: 'pricing', label: 'Pricing', path: '/pricing' },
     { id: 'ai', label: 'AI & Data', path: '/ai-data' },
@@ -131,31 +131,31 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
       }}
       className="sticky top-0 z-50 w-full"
     >
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-20 sm:h-22 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 h-16 sm:h-[68px] flex items-center justify-between gap-4">
         
-        {/* Brand Logo: Logo Mark slightly heightened relative to Ingress Within and tagline combined */}
+        {/* Brand Logo: Clean, proportional editorial emblem */}
         <a
           href="/"
           onClick={(e) => handleNavClick({ id: 'home', path: '/' }, e)}
-          className="flex items-center gap-3.5 group text-left cursor-pointer select-none py-0.5"
+          className="flex items-center gap-2.5 group text-left cursor-pointer select-none py-0.5 shrink-0"
         >
-          {/* Logo Mark: Dynamically switches to light version on dark blue background */}
+          {/* Logo Mark */}
           <img
             src={isOnBlue ? "/logo-mark-light.png" : "/logo-mark-transparent.png"}
             alt="Ingress Within"
-            className="w-[44px] h-[44px] sm:w-[48px] sm:h-[48px] object-contain flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
+            className="w-7 h-7 sm:w-8 sm:h-8 object-contain flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
           />
 
           {/* Wordmark + Tagline Combined Block */}
           <div className="flex flex-col justify-center">
             <div
-              className={`font-editorial text-[22px] sm:text-[24px] tracking-tight leading-none transition-colors duration-300 ${
+              className={`font-editorial text-base sm:text-[18px] tracking-tight leading-none transition-colors duration-200 ${
                 isOnBlue ? 'text-white' : 'text-[#162723]'
               }`}
             >
               Ingress{' '}
               <span
-                className={`font-medium transition-colors duration-300 ${
+                className={`font-medium transition-colors duration-200 ${
                   isOnBlue ? 'text-[#E8A598]' : 'text-[#795663]'
                 }`}
               >
@@ -163,7 +163,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
               </span>
             </div>
             <div
-              className={`font-mono-code text-[8px] sm:text-[8.5px] tracking-[0.16em] uppercase transition-colors duration-300 mt-1.5 leading-none ${
+              className={`font-mono-code text-[7px] sm:text-[7.5px] tracking-[0.14em] uppercase transition-colors duration-200 mt-1 leading-none ${
                 isOnBlue ? 'text-[#9AAAB8]' : 'text-[#7D8E87]'
               }`}
             >
@@ -173,7 +173,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
         </a>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7 text-[13.5px]">
+        <nav className="hidden lg:flex items-center gap-3.5 xl:gap-5 2xl:gap-6 text-[12.5px] xl:text-[13px]">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -181,24 +181,28 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                 key={item.id}
                 href={item.path}
                 onClick={(e) => handleNavClick(item, e)}
-                className={`relative py-2 font-medium transition-colors duration-300 cursor-pointer ${
+                className={`relative py-1.5 whitespace-nowrap transition-colors duration-200 cursor-pointer ${
                   item.highlight
                     ? isOnBlue
                       ? 'text-[#FF8A7A] hover:text-[#FFA092] font-semibold'
                       : 'text-[#9A4232] hover:text-[#7A2F22] font-semibold'
+                    : item.isTherapy
+                    ? isOnBlue
+                      ? 'text-[#E8A598] hover:text-white font-semibold'
+                      : 'text-[#795663] hover:text-[#162723] font-semibold'
                     : isActive
                     ? isOnBlue
                       ? 'text-white font-semibold'
                       : 'text-[#162723] font-semibold'
                     : isOnBlue
-                    ? 'text-[#C2D1DE] hover:text-white'
-                    : 'text-[#4F635E] hover:text-[#162723]'
+                    ? 'text-[#C2D1DE] hover:text-white font-normal'
+                    : 'text-[#4F635E] hover:text-[#162723] font-normal'
                 }`}
               >
                 {item.label}
                 {isActive && (
                   <span
-                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
                       isOnBlue ? 'bg-white' : 'bg-[#162723]'
                     }`}
                   />
@@ -209,45 +213,26 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
         </nav>
 
         {/* Desktop CTA / Login Buttons */}
-        <div className="hidden sm:flex items-center gap-3">
-          <a
-            href="/therapy"
-            onClick={(e) => {
-              e.preventDefault();
-              if (typeof window !== 'undefined') {
-                if (window.navigateTo) window.navigateTo('/therapy');
-                else window.location.href = '/therapy';
-              }
-            }}
-            className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-4 py-2 rounded-full border transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
-              isOnBlue
-                ? 'border-[#E8A598]/60 text-[#E8A598] hover:bg-[#E8A598]/10'
-                : 'border-[#795663]/40 text-[#795663] hover:border-[#795663] hover:bg-[#795663]/5'
-            }`}
-          >
-            <span>Therapy</span>
-            <span className="text-[13px]">→</span>
-          </a>
-
+        <div className="hidden sm:flex items-center gap-2.5 shrink-0">
           {user ? (
             <a
               href="/dashboard"
               onClick={(e) => handleAuthClick('/dashboard', e)}
-              className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-5 py-2.5 rounded-full shadow-sm hover:shadow transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                 isOnBlue
                   ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
                   : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
               }`}
             >
               <span>Dashboard</span>
-              <span className="text-[14px]">→</span>
+              <span className="text-[13px]">→</span>
             </a>
           ) : (
             <>
               <a
                 href="/login"
                 onClick={(e) => handleAuthClick('/login', e)}
-                className={`text-xs sm:text-[13px] font-medium px-3 py-2 transition-colors duration-300 cursor-pointer ${
+                className={`text-xs sm:text-[13px] font-medium px-2.5 py-1.5 transition-colors duration-200 cursor-pointer whitespace-nowrap ${
                   isOnBlue
                     ? 'text-[#C2D1DE] hover:text-white'
                     : 'text-[#4F635E] hover:text-[#162723]'
@@ -258,14 +243,14 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
               <a
                 href="/login"
                 onClick={(e) => handleAuthClick('/login', e)}
-                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-5 py-2.5 rounded-full shadow-sm hover:shadow transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
                     ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
                     : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
                 }`}
               >
                 <span>Get Started</span>
-                <span className="text-[14px]">→</span>
+                <span className="text-[13px]">→</span>
               </a>
             </>
           )}
@@ -345,21 +330,21 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           }`}
         >
           <div className={`pb-3 border-b ${isOnBlue ? 'border-white/10' : 'border-[#E7DECF]/40'}`}>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <img
                 src={isOnBlue ? "/logo-mark-light.png" : "/logo-mark-transparent.png"}
                 alt="Ingress Within"
-                className="w-10 h-10 object-contain flex-shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain flex-shrink-0"
               />
               <div className="flex flex-col justify-center">
-                <div className={`font-editorial text-lg leading-none ${isOnBlue ? 'text-white' : 'text-[#162723]'}`}>
+                <div className={`font-editorial text-base leading-none ${isOnBlue ? 'text-white' : 'text-[#162723]'}`}>
                   Ingress{' '}
                   <span className={`font-medium ${isOnBlue ? 'text-[#E8A598]' : 'text-[#795663]'}`}>
                     Within
                   </span>
                 </div>
                 <div
-                  className={`font-mono-code text-[8px] tracking-[0.14em] uppercase mt-1 leading-none ${
+                  className={`font-mono-code text-[7px] tracking-[0.14em] uppercase mt-0.5 leading-none ${
                     isOnBlue ? 'text-[#9AAAB8]' : 'text-[#7D8E87]'
                   }`}
                 >

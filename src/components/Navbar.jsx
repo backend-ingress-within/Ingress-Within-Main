@@ -64,28 +64,18 @@ export default function Navbar({ user, profile }) {
       </a>
 
       {/* Nav Links */}
-      <ul className="nav-links hidden md:flex items-center gap-6 list-none">
+      <ul className="nav-links hidden md:flex items-center gap-5 list-none">
         <li><a href="/" className={getLinkClass('/')}>Home</a></li>
         <li><a href="/therapy" className={getLinkClass('/therapy')}>Therapy</a></li>
         <li><a href="/what-it-is" className={getLinkClass('/what-it-is')}>What it is</a></li>
         <li><a href="/how-it-works" className={getLinkClass('/how-it-works')}>How it works</a></li>
-        {/* <li><a href="/about" className={getLinkClass('/about')}>About</a></li> */}
         <li><a href="/pricing" className={getLinkClass('/pricing')}>Pricing</a></li>
         <li><a href="/ai-data" className={getLinkClass('/ai-data')}>AI &amp; Data</a></li>
-        {/* <li><a href="/contact" className={getLinkClass('/contact')}>Contact</a></li> */}
-        <li>
-          <a
-            href="/therapy"
-            className="nav-cta bg-white text-accent border border-accent/40 hover:bg-accent/5 px-[16px] py-[8px] rounded font-medium tracking-[0.03em] transition-all no-underline shadow-xs mr-2"
-          >
-            Therapy
-          </a>
-        </li>
         <li>
           <a
             href={user ? '/dashboard' : '/auth'}
             onClick={handleStartWriting}
-            className="nav-cta bg-accent text-white hover:bg-[#654652] hover:translate-y-[-1px] px-[22px] py-[9px] rounded font-medium tracking-[0.03em] transition-all no-underline shadow-xs"
+            className="nav-cta bg-accent text-white hover:bg-[#654652] hover:translate-y-[-1px] px-[20px] py-[8px] rounded font-medium tracking-[0.03em] transition-all no-underline shadow-xs whitespace-nowrap"
           >
             {user ? 'Dashboard' : 'Start writing'}
           </a>
