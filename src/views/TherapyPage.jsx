@@ -637,6 +637,12 @@ function Conversation({ exit, user, profile }) {
     try {
       setSessionError('');
 
+      if (!user) {
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
+      }
+
       const response = await fetch('/api/therapy/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -649,20 +655,25 @@ function Conversation({ exit, user, profile }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to create therapy session');
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
       }
 
       const sessionId = data?.session?.id || data?.id;
       if (!sessionId) {
-        throw new Error('Therapy session ID was not returned');
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
       }
 
       setTherapySessionId(sessionId);
       return sessionId;
     } catch (error) {
-      console.error('Therapy session creation failed:', error);
-      setSessionError(error instanceof Error ? error.message : 'Unable to start therapy session');
-      return null;
+      console.warn('Therapy session creation fallback to guest session:', error);
+      const guestId = getOrCreateLeadSessionId();
+      setTherapySessionId(guestId);
+      return guestId;
     }
   };
 
@@ -1118,7 +1129,7 @@ function Conversation({ exit, user, profile }) {
           </>
         )}
 
-        {sessionError && <div className="iw-error">{sessionError}</div>}
+        {sessionError && <div className="iw-error">{typeof sessionError === 'object' ? (sessionError?.message || JSON.stringify(sessionError)) : String(sessionError)}</div>}
 
         <div className="iw-nav">
           <button
@@ -1582,8 +1593,17 @@ function Guided({ exit, onBookSession, user, profile }) {
   }, [cityFilteredTherapists]);
   
   const createSession = async () => {
+    if (therapySessionId) return therapySessionId;
+
     try {
       setSessionError('');
+
+      // If client is not authenticated (guest visitor), initialize using guest lead session ID
+      if (!user) {
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
+      }
 
       const response = await fetch('/api/therapy/session', {
         method: 'POST',
@@ -1597,27 +1617,27 @@ function Guided({ exit, onBookSession, user, profile }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(
-          data?.error || 'Failed to create therapy session'
-        );
+        // Fallback gracefully for guests/expired sessions
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
       }
 
       const sessionId = data?.session?.id || data?.id;
 
       if (!sessionId) {
-        throw new Error('Therapy session ID was not returned');
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
       }
 
       setTherapySessionId(sessionId);
       return sessionId;
     } catch (error) {
-      console.error('Guided therapy session creation failed:', error);
-      setSessionError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to start guided therapy session'
-      );
-      return null;
+      console.warn('Guided therapy session fallback to guest session:', error);
+      const guestId = getOrCreateLeadSessionId();
+      setTherapySessionId(guestId);
+      return guestId;
     }
   };
 
@@ -1761,83 +1781,89 @@ function Guided({ exit, onBookSession, user, profile }) {
   };
 
   const saveGuidedIntake = async (sessionId) => {
-    const response = await fetch('/api/therapy/intake', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        therapySessionId: sessionId,
-        fullName: d.name.trim(),
-        email: d.email.trim(),
-        phoneNumber: d.phone.trim(),
-        age: d.age,
-        gender: d.gender === 'Self-describe' ? d.genderOther : d.gender,
-        occupation: d.occupation === 'Other' ? d.occupationOther : d.occupation,
-        city: d.city.trim(),
-        livingSituation: d.living === 'Other' ? d.livingOther : d.living,
-        presentingReason: d.reason,
-        concerns: {
-          selected: d.concerns,
-          other: d.concernsOther,
-          severity: d.concernSeverity,
-          bodySignal: d.bodySignal,
-          duration: d.duration,
-        },
-        affectedLifeAreas: d.lifeArea,
-        ownWords: d.ownWords.trim(),
-        mentalHealthHistory: {
-          talked: d.talked,
-          priorTherapy: d.priorTherapy,
-          stopped: d.stopped,
-          stoppedOther: d.stoppedOther,
-          medication: d.medication,
-          prescribed: d.prescribed,
-          diagnosed: d.diagnosed,
-          currentSupport: d.currentSupport,
-        },
-        copingAndSupport: {
-          coping: d.coping,
-          copingOther: d.copingOther,
-          support: d.support,
-        },
-        expectations: {
-          improve: d.improve,
-          worry: d.worry,
-          therapistGender: d.therapistGender,
-          language: d.language,
-          budget: d.budget,
-          frequency: d.frequency,
-          styleStructure: d.styleStructure,
-          stylePace: d.stylePace,
-          styleLead: d.styleLead,
-          termApproach: d.termApproach,
-          finalNotes: d.finalNotes,
-        },
-        contactPreferences: {
+    if (!user) return; // In guest mode, all intake answers are continuously persisted via autosaveGuidedLead!
+
+    try {
+      const response = await fetch('/api/therapy/intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapySessionId: sessionId,
+          fullName: d.name.trim(),
           email: d.email.trim(),
-          phone: d.phone.trim(),
-        },
-        consents,
-        answers: {
-          satisfaction: d.satisfaction,
-          scenarios: d.scenarios,
-          language: d.language,
-          clientlanguage: d.language && d.language !== 'No preference' ? [d.language] : ['English'],
-        },
-      }),
-    });
+          phoneNumber: d.phone.trim(),
+          age: d.age,
+          gender: d.gender === 'Self-describe' ? d.genderOther : d.gender,
+          occupation: d.occupation === 'Other' ? d.occupationOther : d.occupation,
+          city: d.city.trim(),
+          livingSituation: d.living === 'Other' ? d.livingOther : d.living,
+          presentingReason: d.reason,
+          concerns: {
+            selected: d.concerns,
+            other: d.concernsOther,
+            severity: d.concernSeverity,
+            bodySignal: d.bodySignal,
+            duration: d.duration,
+          },
+          affectedLifeAreas: d.lifeArea,
+          ownWords: d.ownWords.trim(),
+          mentalHealthHistory: {
+            talked: d.talked,
+            priorTherapy: d.priorTherapy,
+            stopped: d.stopped,
+            stoppedOther: d.stoppedOther,
+            medication: d.medication,
+            prescribed: d.prescribed,
+            diagnosed: d.diagnosed,
+            currentSupport: d.currentSupport,
+          },
+          copingAndSupport: {
+            coping: d.coping,
+            copingOther: d.copingOther,
+            support: d.support,
+          },
+          expectations: {
+            improve: d.improve,
+            worry: d.worry,
+            therapistGender: d.therapistGender,
+            language: d.language,
+            budget: d.budget,
+            frequency: d.frequency,
+            styleStructure: d.styleStructure,
+            stylePace: d.stylePace,
+            styleLead: d.styleLead,
+            termApproach: d.termApproach,
+            finalNotes: d.finalNotes,
+          },
+          contactPreferences: {
+            email: d.email.trim(),
+            phone: d.phone.trim(),
+          },
+          consents,
+          answers: {
+            satisfaction: d.satisfaction,
+            scenarios: d.scenarios,
+            language: d.language,
+            clientlanguage: d.language && d.language !== 'No preference' ? [d.language] : ['English'],
+          },
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error || 'Failed to save guided therapy intake'
-      );
+      if (!response.ok) {
+        console.warn('Authenticated intake save notice:', data?.error);
+      }
+
+      return data;
+    } catch (err) {
+      console.warn('saveGuidedIntake notice:', err);
     }
-
-    return data;
   };
 
   const saveGuidedSafety = async (sessionId) => {
+    if (!user) return; // In guest mode, all safety answers are continuously persisted via autosaveGuidedLead!
+
     const answer = safety.answer;
 
     const safetyStatus =
@@ -1864,38 +1890,41 @@ function Guided({ exit, onBookSession, user, profile }) {
           ? 'priority'
           : 'standard';
 
-    const response = await fetch('/api/therapy/safety', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        therapySessionId: sessionId,
-        safetyStatus,
-        triageLevel,
-        recentTiming: safety.recency || null,
-        planOrMeans: safety.plan || null,
-        priorAttempt: safety.attempt || null,
-        physicalSafety: safety.physical || null,
-        psychiatricCare: safety.psych || null,
-        answers: safety,
-        evaluatedBy: 'deterministic',
-        evaluationMetadata: {
-          source: 'therapy_guided_frontend',
-        },
-      }),
-    });
+    try {
+      const response = await fetch('/api/therapy/safety', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapySessionId: sessionId,
+          safetyStatus,
+          triageLevel,
+          recentTiming: safety.recency || null,
+          planOrMeans: safety.plan || null,
+          priorAttempt: safety.attempt || null,
+          physicalSafety: safety.physical || null,
+          psychiatricCare: safety.psych || null,
+          answers: safety,
+          evaluatedBy: 'deterministic',
+          evaluationMetadata: {
+            source: 'therapy_guided_frontend',
+          },
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error || 'Failed to save guided safety assessment'
-      );
+      if (!response.ok) {
+        console.warn('Authenticated safety save notice:', data?.error);
+      }
+
+      return data;
+    } catch (err) {
+      console.warn('saveGuidedSafety notice:', err);
     }
-
-    return data;
   };
 
   const saveGuidedMatches = async (sessionId) => {
+    if (!user) return; // In guest mode, matches are persisted via autosaveGuidedLead!
 
     const payload = matches.map((therapist, index) => ({
       therapistAccountId: therapist.id,
@@ -1957,25 +1986,27 @@ function Guided({ exit, onBookSession, user, profile }) {
 
     if (!payload.length) return;
 
-    const response = await fetch('/api/therapy/matches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId,
-        matches: payload,
-        selectedTherapistAccountId: selectedTherapist?.id || null,
-      }),
-    });
+    try {
+      const response = await fetch('/api/therapy/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          matches: payload,
+          selectedTherapistAccountId: selectedTherapist?.id || null,
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error?.message || data?.error || 'Failed to save therapist matches'
-      );
+      if (!response.ok) {
+        console.warn('Authenticated matches save notice:', data?.error);
+      }
+
+      return data;
+    } catch (err) {
+      console.warn('saveGuidedMatches notice:', err);
     }
-
-    return data;
   };
 
   const handleTalkToTeam = async (triggerReasonArg) => {
@@ -1991,6 +2022,23 @@ function Guided({ exit, onBookSession, user, profile }) {
 
       await saveGuidedIntake(sessionId);
       await saveGuidedSafety(sessionId);
+
+      if (!user) {
+        autosaveGuidedLead('team_review_requested', 16, {
+          matchesShown: [],
+          notes:
+            d.ownWords?.trim() ||
+            d.reason?.trim() ||
+            (isNoMatchTrigger
+              ? 'No automated matches found on Step 16; submitted for manual matching by care team.'
+              : 'Client requested team review from matches screen because none of the suggested matches suited them.'),
+        });
+
+        const refCode = `TEAM-${Date.now().toString(36).toUpperCase()}`;
+        setTeamReferenceCode(refCode);
+        setTeamRequestSubmitted(true);
+        return;
+      }
 
       const response = await fetch('/api/therapy/submission', {
         method: 'POST',
@@ -2029,7 +2077,7 @@ function Guided({ exit, onBookSession, user, profile }) {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error?.message || data?.error || 'Failed to submit care team request');
+        throw new Error(data?.error?.message || (typeof data?.error === 'string' ? data.error : 'Failed to submit care team request'));
       }
 
       autosaveGuidedLead('team_review_requested', 16, {
@@ -2041,7 +2089,7 @@ function Guided({ exit, onBookSession, user, profile }) {
       setTeamRequestSubmitted(true);
     } catch (err) {
       console.error('Failed to submit care team request from matches:', err);
-      setSessionError(err instanceof Error ? err.message : 'Unable to submit care team request');
+      setSessionError(err instanceof Error ? err.message : (typeof err === 'object' ? (err?.message || JSON.stringify(err)) : 'Unable to submit care team request'));
     } finally {
       setTeamRequestSubmitting(false);
     }
@@ -2055,6 +2103,17 @@ function Guided({ exit, onBookSession, user, profile }) {
     await saveGuidedIntake(sessionId);
     await saveGuidedSafety(sessionId);
     await saveGuidedMatches(sessionId);
+
+    if (!user) {
+      autosaveGuidedLead('matches_shown', 16, {
+        selectedTherapistAccountId: selectedTherapist?.id || null,
+        selectedTherapistPrototypeId: selectedTherapist?.id || null,
+        selectedTherapistName: selectedTherapist?.name || null,
+        triageLevel: triageTier,
+        matchCount: matches.length,
+      });
+      return true;
+    }
 
     const response = await fetch('/api/therapy/submission', {
       method: 'POST',
@@ -2076,7 +2135,7 @@ function Guided({ exit, onBookSession, user, profile }) {
 
     if (!response.ok) {
       throw new Error(
-        data?.error || 'Failed to submit guided therapy intake'
+        data?.error?.message || (typeof data?.error === 'string' ? data.error : 'Failed to submit guided therapy intake')
       );
     }
 
@@ -2128,11 +2187,8 @@ function Guided({ exit, onBookSession, user, profile }) {
       setStep((value) => Math.min(total - 1, value + 1));
     } catch (error) {
       console.error('Guided therapy step save failed:', error);
-      setSessionError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to save your therapy intake'
-      );
+      const errMsg = error instanceof Error ? error.message : (typeof error === 'object' ? (error?.message || JSON.stringify(error)) : 'Unable to save your therapy intake');
+      setSessionError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -2183,11 +2239,8 @@ function Guided({ exit, onBookSession, user, profile }) {
       }
     } catch (error) {
       console.error('Guided therapy submission failed:', error);
-      setSessionError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to submit your therapy intake'
-      );
+      const errMsg = error instanceof Error ? error.message : (typeof error === 'object' ? (error?.message || JSON.stringify(error)) : 'Unable to submit your therapy intake');
+      setSessionError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -2208,11 +2261,8 @@ function Guided({ exit, onBookSession, user, profile }) {
       }
     } catch (error) {
       console.error('Guided therapy submission failed:', error);
-      setSessionError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to submit your therapy intake'
-      );
+      const errMsg = error instanceof Error ? error.message : (typeof error === 'object' ? (error?.message || JSON.stringify(error)) : 'Unable to submit your therapy intake');
+      setSessionError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -3140,7 +3190,7 @@ function Guided({ exit, onBookSession, user, profile }) {
         )}
 
         {sessionError && (
-          <div className="iw-error">{sessionError}</div>
+          <div className="iw-error">{typeof sessionError === 'object' ? (sessionError?.message || JSON.stringify(sessionError)) : String(sessionError)}</div>
         )}
 
         <div className="iw-nav">
@@ -3251,6 +3301,12 @@ function Team({ exit, user, profile }) {
 
     try {
       setSessionError('');
+      if (!user) {
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
+      }
+
       const response = await fetch('/api/therapy/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3262,18 +3318,25 @@ function Team({ exit, user, profile }) {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to create therapy session');
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
       }
 
       const sessionId = data?.session?.id || data?.id;
-      if (!sessionId) throw new Error('Therapy session ID was not returned');
+      if (!sessionId) {
+        const guestId = getOrCreateLeadSessionId();
+        setTherapySessionId(guestId);
+        return guestId;
+      }
 
       setTherapySessionId(sessionId);
       return sessionId;
     } catch (error) {
-      console.error('Team therapy session creation failed:', error);
-      setSessionError(error instanceof Error ? error.message : 'Unable to start therapy request');
-      return null;
+      console.warn('Team therapy session creation fallback to guest session:', error);
+      const guestId = getOrCreateLeadSessionId();
+      setTherapySessionId(guestId);
+      return guestId;
     }
   };
 
@@ -3282,31 +3345,39 @@ function Team({ exit, user, profile }) {
   }, []);
 
   const saveTeamIntake = async (sessionId) => {
-    const response = await fetch('/api/therapy/intake', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        therapySessionId: sessionId,
-        fullName: form.name.trim(),
-        email: form.email.trim(),
-        phoneNumber: form.phone.trim(),
-        presentingReason: form.reason.trim(),
-        contactPreferences: {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/therapy/intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapySessionId: sessionId,
+          fullName: form.name.trim(),
           email: form.email.trim(),
-          phone: form.phone.trim(),
-          callbackPreference: form.callback,
-        },
-        consents: { teamContact: true },
-        answers: { journey: 'team' },
-      }),
-    });
+          phoneNumber: form.phone.trim(),
+          presentingReason: form.reason.trim(),
+          contactPreferences: {
+            email: form.email.trim(),
+            phone: form.phone.trim(),
+            callbackPreference: form.callback,
+          },
+          consents: { teamContact: true },
+          answers: { journey: 'team' },
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || 'Failed to save team intake');
-    return data;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.warn('saveTeamIntake notice:', data?.error);
+      }
+      return data;
+    } catch (err) {
+      console.warn('saveTeamIntake notice:', err);
+    }
   };
 
   const saveTeamSafety = async (sessionId) => {
+    if (!user) return;
     const answer = safety.answer;
     const safetyStatus =
       answer === 'Yes'
@@ -3328,32 +3399,56 @@ function Team({ exit, user, profile }) {
           ? 'priority'
           : 'standard';
 
-    const response = await fetch('/api/therapy/safety', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        therapySessionId: sessionId,
-        safetyStatus,
-        triageLevel,
-        recentTiming: safety.recency || null,
-        planOrMeans: safety.plan || null,
-        priorAttempt: safety.attempt || null,
-        physicalSafety: safety.physical || null,
-        psychiatricCare: safety.psych || null,
-        answers: safety,
-        evaluatedBy: 'deterministic',
-        evaluationMetadata: { source: 'therapy_team_frontend' },
-      }),
-    });
+    try {
+      const response = await fetch('/api/therapy/safety', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapySessionId: sessionId,
+          safetyStatus,
+          triageLevel,
+          recentTiming: safety.recency || null,
+          planOrMeans: safety.plan || null,
+          priorAttempt: safety.attempt || null,
+          physicalSafety: safety.physical || null,
+          psychiatricCare: safety.psych || null,
+          answers: safety,
+          evaluatedBy: 'deterministic',
+          evaluationMetadata: { source: 'therapy_team_frontend' },
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || 'Failed to save team safety assessment');
-    return data;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.warn('saveTeamSafety notice:', data?.error);
+      }
+      return data;
+    } catch (err) {
+      console.warn('saveTeamSafety notice:', err);
+    }
   };
 
   const submitTeamRequest = async () => {
     const sessionId = therapySessionId || await createSession();
     if (!sessionId) return false;
+
+    if (!user) {
+      sendLeadAutosave({
+        sessionId,
+        phoneNumber: form.phone.trim(),
+        fullName: form.name.trim(),
+        email: form.email.trim(),
+        journeyType: 'team',
+        currentStep: 3,
+        dropOffStage: 'team_review_requested',
+        answers: {
+          reason: form.reason.trim(),
+          callbackPreference: form.callback,
+          safety,
+        },
+      });
+      return { referenceId: `TEAM-${Date.now().toString(36).toUpperCase()}` };
+    }
 
     await saveTeamIntake(sessionId);
     await saveTeamSafety(sessionId);
@@ -3374,7 +3469,9 @@ function Team({ exit, user, profile }) {
     });
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || 'Failed to submit team request');
+    if (!response.ok) {
+      throw new Error(data?.error?.message || (typeof data?.error === 'string' ? data.error : 'Failed to submit team request'));
+    }
     return data;
   };
 
@@ -3502,7 +3599,7 @@ function Team({ exit, user, profile }) {
     <div className="iw-flow">
       <Header name="Talk to the team" step={step + 1} total={4} onBack={step ? () => setStep((value) => value - 1) : exit} />
       <div className="iw-card">
-        {sessionError && <div className="iw-note" style={{ marginTop: 0, marginBottom: 18 }}>{sessionError}</div>}
+        {sessionError && <div className="iw-note" style={{ marginTop: 0, marginBottom: 18 }}>{typeof sessionError === 'object' ? (sessionError?.message || JSON.stringify(sessionError)) : String(sessionError)}</div>}
 
         {step === 0 && (
           <>

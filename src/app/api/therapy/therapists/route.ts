@@ -4,20 +4,6 @@ import { getEligibleTherapists } from '../../../../lib/therapy/therapyService';
 
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthenticatedUser(request);
-
-    if (!authUser) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'AUTH_REQUIRED',
-            message: 'Authentication is required to view therapist matches.',
-          },
-        },
-        { status: 401 }
-      );
-    }
-
     const therapists = await getEligibleTherapists();
 
     return NextResponse.json({
