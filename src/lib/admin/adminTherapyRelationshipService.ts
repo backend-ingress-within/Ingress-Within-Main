@@ -43,6 +43,8 @@ export interface RelationshipOverviewItem {
   firstSessionBooked: boolean;
   firstSessionDate: string | null;
   firstSessionId: string | null;
+  bookingLinkGenerated?: boolean;
+  bookingLinkStatus?: string;
   
   // 6. Number of Sessions
   totalSessions: number;
@@ -193,6 +195,7 @@ export class AdminTherapyRelationshipService {
       { data: consents },
       { data: insightConsents },
       { data: appointments },
+      { data: bookingLinks },
     ] = await Promise.all([
       allUserIds.length > 0
         ? supabase.from('users').select('id, name, phone_number, created_at').in('id', allUserIds)
@@ -224,6 +227,9 @@ export class AdminTherapyRelationshipService {
       allUserIds.length > 0
         ? supabase.from('therapist_clinical_appointments').select('*').in('user_id', allUserIds).order('scheduled_start', { ascending: true })
         : Promise.resolve({ data: [] }),
+      careRels.length > 0
+        ? supabase.from('relationship_booking_links').select('id, relationship_id, status, revoked_at, created_at').in('relationship_id', careRels.map((r) => r.id))
+        : Promise.resolve({ data: [] }),
     ]);
 
     // Fast lookup dictionaries
@@ -231,6 +237,13 @@ export class AdminTherapyRelationshipService {
     const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
     const thAccountMap = new Map((therapistAccounts || []).map((a) => [a.id, a]));
     const thProfileMap = new Map((therapistProfiles || []).map((p) => [p.therapist_account_id, p]));
+    const bookingLinksMap = new Map<string, any[]>();
+    ((bookingLinks as any)?.data || (bookingLinks as any) || []).forEach((b: any) => {
+      if (!b?.relationship_id) return;
+      const arr = bookingLinksMap.get(b.relationship_id) || [];
+      arr.push(b);
+      bookingLinksMap.set(b.relationship_id, arr);
+    });
 
     // 5. Transform care relationships
     const transformedItems: RelationshipOverviewItem[] = [];
@@ -378,6 +391,16 @@ export class AdminTherapyRelationshipService {
         firstSessionBooked,
         firstSessionDate,
         firstSessionId,
+        bookingLinkGenerated: Boolean(
+          (bookingLinksMap.get(rel.id) || []).length > 0 ||
+          rel.metadata?.consent_session_link_generated ||
+          rel.metadata?.booking_token ||
+          rel.metadata?.booking_link
+        ),
+        bookingLinkStatus:
+          (bookingLinksMap.get(rel.id) || [])[0]?.status ||
+          rel.metadata?.booking_link_status ||
+          (rel.metadata?.consent_session_link_generated ? 'active' : 'none'),
         totalSessions: validAppointments.length,
         lastSessionDate,
         status: normalizedStatus,
@@ -606,6 +629,7 @@ export class AdminTherapyRelationshipService {
       { data: consents },
       { data: insightConsents },
       { data: appointments },
+      { data: bookingLinks },
     ] = await Promise.all([
       supabase.from('users').select('*').eq('id', userId).maybeSingle(),
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
@@ -617,6 +641,9 @@ export class AdminTherapyRelationshipService {
       supabase.from('consents').select('*').eq('user_id', userId).order('consented_at', { ascending: false }),
       supabase.from('client_insight_sharing_consents').select('*').eq('client_id', userId).order('created_at', { ascending: false }),
       supabase.from('therapist_clinical_appointments').select('*').eq('user_id', userId).order('scheduled_start', { ascending: true }),
+      relRecord?.id
+        ? supabase.from('relationship_booking_links').select('id, relationship_id, status, revoked_at, created_at').eq('relationship_id', relRecord.id)
+        : Promise.resolve({ data: [] }),
     ]);
 
     // Authoritative intake selection
@@ -843,6 +870,16 @@ export class AdminTherapyRelationshipService {
       firstSessionBooked,
       firstSessionDate,
       firstSessionId,
+      bookingLinkGenerated: Boolean(
+        ((bookingLinks as any)?.data || (bookingLinks as any) || []).length > 0 ||
+        relRecord?.metadata?.consent_session_link_generated ||
+        relRecord?.metadata?.booking_token ||
+        relRecord?.metadata?.booking_link
+      ),
+      bookingLinkStatus:
+        ((bookingLinks as any)?.data || (bookingLinks as any) || [])[0]?.status ||
+        relRecord?.metadata?.booking_link_status ||
+        (relRecord?.metadata?.consent_session_link_generated ? 'active' : 'none'),
       totalSessions: validAppointments.length,
       lastSessionDate,
       status: normalizedStatus,

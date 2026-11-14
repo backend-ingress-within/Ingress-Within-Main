@@ -217,7 +217,7 @@ export async function resolveClientSessionForMatch(
             .insert({
               user_id: resolvedUserId,
               journey_type: 'guided',
-              session_status: 'submitted',
+              status: 'submitted',
               metadata: { source: 'admin_manual_match_lead_bridge' },
             })
             .select('id')
@@ -229,9 +229,37 @@ export async function resolveClientSessionForMatch(
       } catch {}
     }
 
-    // Ensure intake record exists with affirmative consents so verifyClientConsent passes
+    // Ensure intake record exists with demographic fields and affirmative consents
     if (resolvedSessionId) {
       try {
+        const answers = input.answers || {};
+        const parsedAge = parseInt(String(answers.age || ''), 10);
+        const cleanAge = !isNaN(parsedAge) && parsedAge >= 18 && parsedAge <= 120 ? parsedAge : null;
+        const cleanGender = (answers.gender === 'Self-describe' ? answers.genderOther : answers.gender) || answers.genderOther || null;
+        const cleanOccupation = (answers.occupation === 'Other' ? answers.occupationOther : answers.occupation) || answers.occupationOther || null;
+        const cleanCity = answers.city ? String(answers.city).trim() : null;
+        const cleanLiving = (answers.living === 'Other' ? answers.livingOther : answers.living) || answers.livingSituation || null;
+        const cleanReason = answers.reason ? String(answers.reason).trim() : answers.ownWords ? String(answers.ownWords).trim() : null;
+        const cleanConcerns = Array.isArray(answers.concerns) ? answers.concerns : [];
+
+        const intakePayload: Record<string, any> = {
+          user_id: resolvedUserId,
+          therapy_session_id: resolvedSessionId,
+          full_name: clientName || null,
+          phone_number: phoneToStore || null,
+          email: cleanEmail || null,
+          age: cleanAge,
+          gender: cleanGender,
+          occupation: cleanOccupation,
+          city: cleanCity,
+          living_situation: cleanLiving,
+          presenting_reason: cleanReason,
+          concerns: cleanConcerns,
+          consents: [true, true, true, true],
+          answers,
+          updated_at: new Date().toISOString(),
+        };
+
         const { data: existingIntake } = await supabase
           .from('therapy_intakes')
           .select('id')
@@ -241,13 +269,12 @@ export async function resolveClientSessionForMatch(
         if (!existingIntake) {
           await supabase
             .from('therapy_intakes')
-            .insert({
-              user_id: resolvedUserId,
-              therapy_session_id: resolvedSessionId,
-              consents: [true, true, true, true],
-              answers: input.answers || {},
-              email: cleanEmail || null,
-            });
+            .insert(intakePayload);
+        } else {
+          await supabase
+            .from('therapy_intakes')
+            .update(intakePayload)
+            .eq('id', existingIntake.id);
         }
       } catch (intakeErr) {
         console.warn('[resolveClientSessionForMatch] Therapy intake sync notice:', intakeErr);
@@ -418,6 +445,13 @@ export async function assignTherapistToClient(
     // 3. When connectDirectly is enabled, activate therapy_care_relationships with valid care_stage ('intake')
     if (input.connectDirectly) {
       try {
+        const answers = input.answers || {};
+        const parsedAge = parseInt(String(answers.age || ''), 10);
+        const clientAge = !isNaN(parsedAge) && parsedAge >= 18 && parsedAge <= 120 ? parsedAge : null;
+        const clientGender = (answers.gender === 'Self-describe' ? answers.genderOther : answers.gender) || answers.genderOther || null;
+        const clientOccupation = (answers.occupation === 'Other' ? answers.occupationOther : answers.occupation) || answers.occupationOther || null;
+        const clientCity = answers.city ? String(answers.city).trim() : null;
+
         const relMeta = {
           source:
             input.source === 'admin_lead_manual_match'
@@ -429,6 +463,11 @@ export async function assignTherapistToClient(
           client_email: input.clientEmail || null,
           client_phone: input.clientPhone || null,
           client_name: input.clientName || null,
+          client_age: clientAge,
+          client_gender: clientGender,
+          client_occupation: clientOccupation,
+          client_city: clientCity,
+          intake_answers: answers,
           consent_completed: true,
         };
 

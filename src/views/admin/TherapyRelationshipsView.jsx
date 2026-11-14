@@ -509,11 +509,18 @@ export default function TherapyRelationshipsView({ showToast }) {
                       {rel.firstSessionBooked ? (
                         <div>
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 text-[10px] font-semibold border border-emerald-500/20 mb-1">
-                            Yes
+                            Booked
                           </span>
                           <div className="text-[11px] font-medium text-[#132A24] leading-tight">
                             {formatDate(rel.firstSessionDate, true)}
                           </div>
+                        </div>
+                      ) : rel.bookingLinkGenerated ? (
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200 mb-0.5">
+                            Link Generated
+                          </span>
+                          <span className="text-[10px] text-blue-600/80 block mt-0.5">Awaiting Booking</span>
                         </div>
                       ) : (
                         <div>

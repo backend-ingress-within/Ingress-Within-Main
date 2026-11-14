@@ -380,25 +380,37 @@ export default function GuestBookingView({ token }) {
 
   // 2. Unavailable / Invalid Link State
   if (error || !bookingData) {
+    const isAlreadyBooked = error?.code === 'BOOKING_ALREADY_CONFIRMED';
     return (
       <div className="min-h-screen bg-[#FAFAF8] text-[#132A24] flex items-center justify-center p-6 font-sans">
-        <div className="max-w-md w-full bg-white border border-red-200 rounded-2xl p-8 shadow-sm text-center space-y-4">
-          <div className="w-12 h-12 mx-auto rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600">
-            <AlertCircle className="w-6 h-6" />
+        <div className="max-w-md w-full bg-white border border-[#132A24]/10 rounded-2xl p-8 shadow-sm text-center space-y-4">
+          <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center ${isAlreadyBooked ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-red-50 border border-red-100 text-red-600'}`}>
+            {isAlreadyBooked ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
           </div>
           <div className="space-y-2">
-            <h2 className="text-lg font-serif font-medium text-[#132A24]">Booking Link Unavailable</h2>
+            <h2 className="text-lg font-serif font-medium text-[#132A24]">
+              {isAlreadyBooked ? 'Consultation Already Booked' : 'Booking Link Unavailable'}
+            </h2>
             <p className="text-xs text-[#132A24]/70 leading-relaxed">
               {error?.message || 'This booking link is invalid, has expired, or the associated care relationship is no longer active.'}
             </p>
           </div>
           <div className="pt-2 flex flex-col gap-2">
-            <button
-              onClick={fetchBookingData}
-              className="w-full py-2.5 px-4 bg-[#132A24] hover:bg-[#132A24]/90 text-white text-xs font-medium rounded-xl transition-colors cursor-pointer"
-            >
-              Retry
-            </button>
+            {isAlreadyBooked ? (
+              <a
+                href="/therapy/login"
+                className="w-full py-2.5 px-4 bg-[#132A24] hover:bg-[#132A24]/90 text-white text-xs font-semibold rounded-xl transition-colors block text-center"
+              >
+                Sign in to your Therapy Account →
+              </a>
+            ) : (
+              <button
+                onClick={fetchBookingData}
+                className="w-full py-2.5 px-4 bg-[#132A24] hover:bg-[#132A24]/90 text-white text-xs font-medium rounded-xl transition-colors cursor-pointer"
+              >
+                Retry
+              </button>
+            )}
             <a
               href="/"
               className="text-xs text-[#4E7A66] hover:text-[#132A24] underline transition-colors block py-1"
@@ -500,18 +512,19 @@ export default function GuestBookingView({ token }) {
               </p>
             </div>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmedAppointment(null);
-                  setSelectedSlot(null);
-                  fetchBookingData();
-                }}
-                className="text-xs text-[#4E7A66] hover:text-[#132A24] underline transition-colors cursor-pointer"
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href="/therapy/login"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#132A24] text-white text-xs font-semibold hover:bg-[#1C3E35] transition-all text-center shadow-xs"
               >
-                Schedule another consultation
-              </button>
+                Go to Therapy Portal →
+              </a>
+              <a
+                href="/"
+                className="text-xs text-[#4E7A66] hover:text-[#132A24] underline transition-colors"
+              >
+                Return to Ingress Within
+              </a>
             </div>
           </div>
         </main>

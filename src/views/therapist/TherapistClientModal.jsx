@@ -157,7 +157,12 @@ export default function TherapistClientModal({
     }
   };
 
-  const activeBookingUrl = profile?.bookingLink?.url || null;
+  const isLinkConsumed = Boolean(
+    profile?.bookingLink?.isConsumed ||
+    profile?.bookingLink?.status === 'consumed' ||
+    (profile?.appointments && profile.appointments.length > 0)
+  );
+  const activeBookingUrl = (!isLinkConsumed && profile?.bookingLink?.url) || null;
 
   const getWhatsAppShareUrl = (linkUrl) => {
     const rawLink = linkUrl || activeBookingUrl;
@@ -463,7 +468,31 @@ export default function TherapistClientModal({
                   </div>
                 </div>
 
-                {activeBookingUrl ? (
+                {isLinkConsumed ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 size={12} className="text-emerald-700" />
+                          First Session Booked (Link Consumed)
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-600 leading-relaxed max-w-md">
+                        The client has booked their initial consultation. The one-time link has been securely consumed to prevent duplicate bookings.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleOpenConsentDoc}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-[#132A24]/20 text-[#132A24] text-xs font-medium hover:bg-[#132A24]/5 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <FileText size={14} className="text-[#4E7A66]" />
+                        <span>View Consent</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : activeBookingUrl ? (
                   <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-2">
                       <input

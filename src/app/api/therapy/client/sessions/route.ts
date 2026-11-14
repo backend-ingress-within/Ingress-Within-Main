@@ -62,6 +62,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Fetch SOAP notes for these sessions
+    const apptIds = (appts || []).map((a) => a.id);
+    let soapNotesMap: Record<string, any> = {};
+    if (apptIds.length > 0) {
+      try {
+        const { data: soapNotes } = await supabase
+          .from('therapist_soap_notes')
+          .select('id, appointment_id, subjective, objective, assessment, plan, is_draft, finalized_at, created_at')
+          .in('appointment_id', apptIds)
+          .eq('user_id', authUser.userId);
+
+        (soapNotes || []).forEach((sn: any) => {
+          if (!soapNotesMap[sn.appointment_id] || sn.finalized_at) {
+            soapNotesMap[sn.appointment_id] = sn;
+          }
+        });
+      } catch (soapErr) {
+        console.warn('[client/sessions] SOAP notes fetch notice:', soapErr);
+      }
+    }
+
     const now = Date.now();
     const formatted = (appts || []).map((appt) => {
       const startTime = new Date(appt.scheduled_start).getTime();
@@ -111,6 +132,15 @@ export async function GET(request: NextRequest) {
           joinOpensAtFormatted: meetingWindow.joinOpensAtFormatted,
           hoursUntilSession: Math.round(hoursRemaining * 10) / 10,
         },
+        soapNote: soapNotesMap[appt.id] ? {
+          id: soapNotesMap[appt.id].id,
+          subjective: soapNotesMap[appt.id].subjective,
+          objective: soapNotesMap[appt.id].objective,
+          assessment: soapNotesMap[appt.id].assessment,
+          plan: soapNotesMap[appt.id].plan,
+          isDraft: soapNotesMap[appt.id].is_draft,
+          finalizedAt: soapNotesMap[appt.id].finalized_at || soapNotesMap[appt.id].created_at,
+        } : null,
       };
     });
 

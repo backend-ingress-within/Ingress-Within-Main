@@ -1423,15 +1423,40 @@ export class SessionBookingService {
         }).eq('id', booking.user_id);
 
         if (booking.relationship_id) {
+          const nowIso = new Date().toISOString();
+          // Invalidate the single-use booking link immediately upon booking confirmation
+          await supabase
+            .from('relationship_booking_links')
+            .update({
+              status: 'consumed',
+              revoked_at: nowIso,
+              revocation_reason: 'First session booked successfully',
+              updated_at: nowIso,
+            })
+            .eq('relationship_id', booking.relationship_id);
+
+          const { data: existingRel } = await supabase
+            .from('therapy_care_relationships')
+            .select('metadata')
+            .eq('id', booking.relationship_id)
+            .maybeSingle();
+
           await supabase.from('therapy_care_relationships').update({
             metadata: {
+              ...(existingRel?.metadata || {}),
               consent_completed: true,
-              consented_at: new Date().toISOString(),
+              consented_at: nowIso,
+              consent_session_link_generated: true,
+              booking_link_status: 'booked',
+              first_session_booked_at: nowIso,
+              first_session_appointment_id: newAppt.id,
+              first_session_scheduled_start: booking.slot_start,
             },
+            updated_at: nowIso,
           }).eq('id', booking.relationship_id);
         }
       } catch (consentErr) {
-        console.warn('[SessionBookingService] Notice recording verified consent after booking:', consentErr);
+        console.warn('[SessionBookingService] Notice recording verified consent and consuming booking link:', consentErr);
       }
 
       // 11. Side Effects: Google Calendar and Meet Sync (Retryable & Non-Blocking)

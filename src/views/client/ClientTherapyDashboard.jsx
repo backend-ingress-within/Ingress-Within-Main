@@ -77,6 +77,7 @@ export default function ClientTherapyDashboard({
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [sessionsError, setSessionsError] = useState(null);
   const [sessionFilter, setSessionFilter] = useState('upcoming'); // upcoming | past | cancelled
+  const [viewingSoapNoteSession, setViewingSoapNoteSession] = useState(null);
 
   // Reschedule / Cancel modals
   const [rescheduleModalAppt, setRescheduleModalAppt] = useState(null);
@@ -1103,6 +1104,66 @@ export default function ClientTherapyDashboard({
               </div>
             </div>
 
+            {/* First Session Notes & Action Plan Summary Card */}
+            {(() => {
+              const completedSession = sessions.find((s) => s.status === 'completed' && s.soapNote);
+              if (!completedSession) return null;
+              return (
+                <div className="bg-[#FAF7F2] border border-[#283D38]/15 rounded-2xl p-6 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#283D38]/10">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                        <Sparkles size={14} className="text-emerald-700" /> Clinical Encounter Takeaways
+                      </span>
+                      <h3 className="font-serif text-lg text-[#132A24] mt-0.5">
+                        First Consultation Notes &amp; Action Plan
+                      </h3>
+                      <p className="text-xs text-[#66747A] mt-0.5">
+                        Documented by {completedSession.therapist?.name || clinicianName} on{' '}
+                        {new Date(completedSession.soapNote?.finalizedAt || completedSession.scheduledStart).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingSoapNoteSession(completedSession)}
+                      className="shrink-0 bg-[#132A24] text-white hover:bg-[#1C3E35] px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <FileText size={13} />
+                      <span>View Full Clinical Notes</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    {completedSession.soapNote?.assessment && (
+                      <div className="bg-white border border-[#263238]/10 rounded-xl p-4 space-y-1.5">
+                        <span className="font-bold text-[#132A24] text-[11px] uppercase tracking-wider block text-emerald-900">
+                          Clinician Assessment &amp; Focus Areas
+                        </span>
+                        <p className="text-[#263238]/90 leading-relaxed line-clamp-4">
+                          {completedSession.soapNote.assessment}
+                        </p>
+                      </div>
+                    )}
+
+                    {completedSession.soapNote?.plan && (
+                      <div className="bg-white border border-[#263238]/10 rounded-xl p-4 space-y-1.5">
+                        <span className="font-bold text-[#132A24] text-[11px] uppercase tracking-wider block text-emerald-900">
+                          Agreed Plan &amp; Daily Practice
+                        </span>
+                        <p className="text-[#263238]/90 leading-relaxed line-clamp-4">
+                          {completedSession.soapNote.plan}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Therapeutic Profile Compact Overview Card */}
             <div className="bg-white border border-[#263238]/10 rounded-2xl p-6 shadow-2xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#263238]/8">
@@ -1532,6 +1593,17 @@ export default function ClientTherapyDashboard({
                               Cancel
                             </button>
                           )}
+
+                          {s.status === 'completed' && (
+                            <button
+                              type="button"
+                              onClick={() => setViewingSoapNoteSession(s)}
+                              className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                            >
+                              <FileText size={13} />
+                              <span>View Session Notes &amp; Plan</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1869,6 +1941,121 @@ export default function ClientTherapyDashboard({
         }}
         user={user}
       />
+
+      {/* 7. CLINICAL ENCOUNTER SOAP NOTES MODAL */}
+      {viewingSoapNoteSession && (
+        <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#FAFAF8] border border-[#283D38]/15 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-8">
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#283D38]/10">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-emerald-700" /> Official Clinical Documentation
+                </span>
+                <h2 className="font-serif text-2xl text-[#132A24] mt-1">
+                  Consultation Notes &amp; Action Plan
+                </h2>
+                <p className="text-xs text-[#66747A] mt-1">
+                  Encounter on {new Date(viewingSoapNoteSession.scheduledStart).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })} with {viewingSoapNoteSession.therapist?.name || clinicianName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingSoapNoteSession(null)}
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Clinician & Session details */}
+              <div className="bg-white border border-[#263238]/10 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-500 block">Clinician</span>
+                  <span className="font-semibold text-sm text-[#132A24]">
+                    {viewingSoapNoteSession.therapist?.name || clinicianName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-500 block">Session Format</span>
+                  <span className="font-medium text-[#132A24] capitalize">
+                    {viewingSoapNoteSession.sessionType || 'Video Telehealth'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-500 block">Documentation Status</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                    <CheckCircle2 size={12} /> Finalized by Clinician
+                  </span>
+                </div>
+              </div>
+
+              {viewingSoapNoteSession.soapNote ? (
+                <div className="space-y-4">
+                  {viewingSoapNoteSession.soapNote.subjective && (
+                    <div className="bg-white border border-[#263238]/10 rounded-2xl p-5 space-y-2">
+                      <h4 className="font-bold text-[#132A24] text-xs uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                        <User size={14} className="text-emerald-700" />
+                        Client Reflections &amp; Themes Discussed
+                      </h4>
+                      <p className="text-[#263238]/90 leading-relaxed whitespace-pre-line text-xs">
+                        {viewingSoapNoteSession.soapNote.subjective}
+                      </p>
+                    </div>
+                  )}
+
+                  {viewingSoapNoteSession.soapNote.assessment && (
+                    <div className="bg-white border border-[#263238]/10 rounded-2xl p-5 space-y-2">
+                      <h4 className="font-bold text-[#132A24] text-xs uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                        <Sparkles size={14} className="text-emerald-700" />
+                        Clinician Assessment &amp; Growth Observations
+                      </h4>
+                      <p className="text-[#263238]/90 leading-relaxed whitespace-pre-line text-xs">
+                        {viewingSoapNoteSession.soapNote.assessment}
+                      </p>
+                    </div>
+                  )}
+
+                  {viewingSoapNoteSession.soapNote.plan && (
+                    <div className="bg-emerald-50/50 border border-emerald-200/60 rounded-2xl p-5 space-y-2">
+                      <h4 className="font-bold text-emerald-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <BookOpen size={14} className="text-emerald-700" />
+                        Agreed Action Plan &amp; Daily Strategies
+                      </h4>
+                      <p className="text-emerald-950/90 leading-relaxed whitespace-pre-line text-xs">
+                        {viewingSoapNoteSession.soapNote.plan}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white border border-[#263238]/10 rounded-2xl p-8 text-center space-y-2">
+                  <Clock size={24} className="mx-auto text-amber-600" />
+                  <h4 className="font-semibold text-sm text-[#132A24]">Clinical Notes Being Finalized</h4>
+                  <p className="text-xs text-[#66747A] max-w-sm mx-auto">
+                    Your clinician is finalizing their clinical SOAP documentation for this encounter. The summary and action plan will be available here shortly.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setViewingSoapNoteSession(null)}
+                className="px-5 py-2.5 rounded-xl bg-[#132A24] text-white text-xs font-semibold hover:bg-[#1C3E35] transition-all cursor-pointer shadow-xs"
+              >
+                Close Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

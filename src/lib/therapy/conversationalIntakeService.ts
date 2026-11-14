@@ -220,12 +220,24 @@ export class ConversationalIntakeService {
 
     // Persist to database (best effort, non-blocking for tests)
     try {
+      const parsedAge = parseInt(String(updatedAnswers.age || ''), 10);
+      const cleanAge = !isNaN(parsedAge) && parsedAge >= 18 && parsedAge <= 120 ? parsedAge : null;
+      const cleanGender = (updatedAnswers.gender === 'Self-describe' ? updatedAnswers.genderOther : updatedAnswers.gender) || updatedAnswers.genderOther || null;
+      const cleanOccupation = (updatedAnswers.occupation === 'Other' ? updatedAnswers.occupationOther : updatedAnswers.occupation) || updatedAnswers.occupationOther || null;
+      const cleanCity = updatedAnswers.city ? String(updatedAnswers.city).trim() : null;
+      const cleanLiving = (updatedAnswers.living === 'Other' ? updatedAnswers.livingOther : updatedAnswers.living) || updatedAnswers.livingSituation || null;
+
       await supabase.from('therapy_intakes').upsert({
         therapy_session_id: sessionId,
         user_id: userId,
         full_name: updatedAnswers.contact_name || updatedAnswers.contact_consent?.fullName || null,
         email: updatedAnswers.contact_email || updatedAnswers.contact_consent?.email || null,
         phone_number: updatedAnswers.contact_phone || updatedAnswers.contact_consent?.phone || null,
+        age: cleanAge,
+        gender: cleanGender,
+        occupation: cleanOccupation,
+        city: cleanCity,
+        living_situation: cleanLiving,
         presenting_reason: updatedAnswers.reason || null,
         concerns: updatedAnswers.concerns || [],
         answers: updatedAnswers,

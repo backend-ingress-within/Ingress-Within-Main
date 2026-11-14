@@ -41,6 +41,17 @@ export async function GET(
     const resolved = await RelationshipBookingLinkService.resolveBookingLinkByToken(token.trim());
 
     if (!resolved.valid || !resolved.therapistAccountId) {
+      if (resolved.errorCode === 'BOOKING_ALREADY_CONFIRMED') {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'BOOKING_ALREADY_CONFIRMED',
+              message: resolved.errorMessage || 'Your consultation has already been booked. Please sign in to your therapy account.',
+            },
+          },
+          { status: 409 }
+        );
+      }
       // Return uniform generic error to prevent link/client enumeration or revealing failure rationale
       return NextResponse.json(
         {

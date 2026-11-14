@@ -537,7 +537,7 @@ export default function TherapistCalendarView({
   };
 
   const handleCompleteSession = async (appointmentId) => {
-    if (!window.confirm('Mark this clinical session as completed?')) return;
+    if (!window.confirm('Mark this clinical session as completed? Writing a SOAP note is mandatory after completing the session.')) return;
     setCompletingId(appointmentId);
     try {
       const res = await fetch(`/api/therapist/sessions/${appointmentId}/complete`, {
@@ -548,6 +548,9 @@ export default function TherapistCalendarView({
         throw new Error(errJson.error?.message || 'Failed to complete session.');
       }
       await fetchCalendar();
+      if (onOpenSoap) {
+        onOpenSoap(appointmentId);
+      }
     } catch (err) {
       alert(`Error completing session: ${err.message}`);
     } finally {

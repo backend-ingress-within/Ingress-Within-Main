@@ -2086,12 +2086,53 @@ export class TherapistPlatformService {
         mental_health_history,
         coping_and_support,
         expectations,
-        consents
+        consents,
+        answers
       `)
       .eq('user_id', resolvedClientId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // Resolve fallback demographic and intake data from answers, relationship metadata, or leads
+    const intakeAnswers = (intake?.answers && typeof intake.answers === 'object') ? intake.answers : (relationship.metadata?.intake_answers || {});
+    let fallbackLead: any = null;
+    const clientPhone = user?.phone_number || intake?.phone_number || relationship.metadata?.client_phone;
+    if (!intake?.age || !intake?.city || !intake?.occupation || !intake?.gender) {
+      try {
+        if (clientPhone) {
+          const digits = String(clientPhone).replace(/[^\d]/g, '').slice(-10);
+          if (digits.length >= 7) {
+            const { data: leadRow } = await supabase
+              .from('therapy_intake_leads')
+              .select('*')
+              .ilike('phone_number', `%${digits}`)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            fallbackLead = leadRow;
+          }
+        }
+      } catch (leadLookupErr) {
+        // Non-blocking fallback
+      }
+    }
+
+    const leadAnswers = (fallbackLead?.answers && typeof fallbackLead.answers === 'object') ? fallbackLead.answers : {};
+    const parsedAge = parseInt(String(intake?.age || intakeAnswers.age || relationship.metadata?.client_age || leadAnswers.age || ''), 10);
+    const resolvedAge = !isNaN(parsedAge) && parsedAge >= 18 && parsedAge <= 120 ? parsedAge : null;
+    const resolvedGender = intake?.gender || intakeAnswers.gender || intakeAnswers.genderOther || relationship.metadata?.client_gender || leadAnswers.gender || null;
+    const resolvedOccupation = intake?.occupation || intakeAnswers.occupation || intakeAnswers.occupationOther || relationship.metadata?.client_occupation || leadAnswers.occupation || null;
+    const resolvedCity = intake?.city || intakeAnswers.city || relationship.metadata?.client_city || leadAnswers.city || null;
+    const resolvedLiving = intake?.living_situation || intakeAnswers.living || intakeAnswers.livingSituation || relationship.metadata?.client_living || leadAnswers.living || null;
+    const resolvedReason = intake?.presenting_reason || intakeAnswers.reason || intakeAnswers.ownWords || relationship.metadata?.intake_reason || leadAnswers.reason || leadAnswers.ownWords || null;
+    const resolvedConcerns = (Array.isArray(intake?.concerns) && intake.concerns.length > 0)
+      ? intake.concerns
+      : Array.isArray(intakeAnswers.concerns)
+      ? intakeAnswers.concerns
+      : Array.isArray(leadAnswers.concerns)
+      ? leadAnswers.concerns
+      : [];
 
     // 4. Fetch triage / safety summary (if evaluated)
     const { data: safety } = await supabase
@@ -2144,20 +2185,37 @@ export class TherapistPlatformService {
     try {
       const { data: linkRecord } = await supabase
         .from('relationship_booking_links')
-        .select('id, encrypted_token, status, created_at, expires_at')
+        .select('id, encrypted_token, status, created_at, expires_at, revoked_at, revocation_reason')
         .eq('relationship_id', relationship.id)
-        .eq('status', 'active')
-        .is('revoked_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (linkRecord) {
-        const decryptedToken = decryptBookingToken(linkRecord.encrypted_token);
+        let decryptedToken: string | null = null;
+        try {
+          decryptedToken = decryptBookingToken(linkRecord.encrypted_token);
+        } catch {
+          decryptedToken = relationship.metadata?.booking_token || null;
+        }
+
+        const isConsumed = linkRecord.status === 'consumed' || Boolean(linkRecord.revoked_at && linkRecord.revocation_reason?.toLowerCase().includes('booked')) || relationship.metadata?.booking_link_status === 'booked';
         activeBookingLink = {
-          url: getCanonicalBookingUrl(decryptedToken),
+          url: decryptedToken ? getCanonicalBookingUrl(decryptedToken) : (relationship.metadata?.booking_link || null),
           token: decryptedToken,
-          status: linkRecord.status,
+          status: isConsumed ? 'consumed' : linkRecord.status,
           createdAt: linkRecord.created_at,
           expiresAt: linkRecord.expires_at,
+          isConsumed,
+        };
+      } else if (relationship.metadata?.booking_link || relationship.metadata?.consent_session_link_generated || relationship.metadata?.booking_token) {
+        const isBooked = relationship.metadata?.booking_link_status === 'booked';
+        activeBookingLink = {
+          url: relationship.metadata?.booking_link || (relationship.metadata?.booking_token ? getCanonicalBookingUrl(relationship.metadata.booking_token) : null),
+          token: relationship.metadata?.booking_token || null,
+          status: isBooked ? 'consumed' : 'active',
+          createdAt: relationship.metadata?.link_generated_at || relationship.started_at,
+          isConsumed: isBooked,
         };
       }
     } catch (linkErr) {
@@ -2205,13 +2263,14 @@ export class TherapistPlatformService {
       },
       client: {
         id: resolvedClientId,
-        name: user?.name || intake?.full_name || relationship.metadata?.client_name || `Client #${resolvedClientId.substring(0, 6)}`,
-        phone: user?.phone_number || intake?.phone_number || relationship.metadata?.client_phone || null,
-        email: intake?.email || relationship.metadata?.client_email || clientAccount?.email || null,
-        age: intake?.age || null,
-        gender: intake?.gender || null,
-        occupation: intake?.occupation || null,
-        city: intake?.city || null,
+        name: user?.name || intake?.full_name || relationship.metadata?.client_name || fallbackLead?.full_name || `Client #${resolvedClientId.substring(0, 6)}`,
+        phone: clientPhone || fallbackLead?.phone_number || null,
+        email: intake?.email || relationship.metadata?.client_email || clientAccount?.email || fallbackLead?.email || null,
+        age: resolvedAge,
+        gender: resolvedGender,
+        occupation: resolvedOccupation,
+        city: resolvedCity,
+        livingSituation: resolvedLiving,
       },
       therapist: {
         id: therapistAccountId,
@@ -2233,13 +2292,15 @@ export class TherapistPlatformService {
         documentId: `CONSENT-DOC-${resolvedClientId.substring(0, 8).toUpperCase()}-${therapistAccountId.substring(0, 6).toUpperCase()}`,
       },
       bookingLink: activeBookingLink,
-      clinicalIntake: intake ? {
-        presentingReason: intake.presenting_reason,
-        concerns: intake.concerns,
-        affectedLifeAreas: intake.affected_life_areas,
-        mentalHealthHistory: intake.mental_health_history,
-        copingAndSupport: intake.coping_and_support,
-        expectations: intake.expectations,
+      clinicalIntake: (intake || resolvedReason || resolvedConcerns.length > 0) ? {
+        presentingReason: resolvedReason,
+        concerns: resolvedConcerns,
+        affectedLifeAreas: intake?.affected_life_areas || intakeAnswers.lifeArea || leadAnswers.scenarios || [],
+        mentalHealthHistory: intake?.mental_health_history || {},
+        copingAndSupport: intake?.coping_and_support || {},
+        expectations: intake?.expectations || {},
+        city: resolvedCity,
+        occupation: resolvedOccupation,
       } : null,
       safetyAssessment: safety ? {
         safetyStatus: safety.safety_status,

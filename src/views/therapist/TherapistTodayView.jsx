@@ -55,6 +55,10 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSessi
       });
       if (res.ok) {
         await fetchTodayData();
+        // Immediately open SOAP note documentation modal - writing a SOAP note is mandatory after completion
+        if (onOpenSoap) {
+          onOpenSoap(appointmentId);
+        }
       }
     } catch (err) {
       console.error('Failed to complete session:', err);
@@ -372,16 +376,38 @@ export default function TherapistTodayView({ onNavigate, onOpenSoap, onOpenSessi
                           }
                           return null;
                         })()}
-                        {session.status !== 'completed' && session.status !== 'cancelled' && (
+                        {session.status !== 'completed' && session.status !== 'cancelled' && (() => {
+                          const isEnded = session.scheduledEnd && new Date() > new Date(session.scheduledEnd);
+                          return (
+                            <button
+                              onClick={() => handleCompleteSession(session.id)}
+                              disabled={completingId === session.id}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isEnded
+                                  ? 'bg-amber-700 hover:bg-amber-800 text-white shadow-xs'
+                                  : 'border border-[#132A24]/15 text-[#132A24]/80 hover:bg-[#132A24]/5'
+                              }`}
+                              title={isEnded ? 'Session scheduled time ended: Mark complete and document mandatory SOAP note' : 'Mark complete and document session'}
+                            >
+                              <CheckCircle2 size={13} />
+                              {completingId === session.id
+                                ? 'Completing...'
+                                : isEnded
+                                ? 'Meeting Ended — Mark Complete & Write SOAP Note'
+                                : 'Mark Complete'}
+                            </button>
+                          );
+                        })()}
+                        {session.status === 'completed' && notesDue.some((n) => n.id === session.id) && onOpenSoap && (
                           <button
-                            onClick={() => handleCompleteSession(session.id)}
-                            disabled={completingId === session.id}
-                            className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 text-xs text-[#132A24]/80 hover:bg-[#132A24]/5 transition-colors cursor-pointer"
+                            onClick={() => onOpenSoap(session.id)}
+                            className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                           >
-                            {completingId === session.id ? 'Completing...' : 'Mark Complete'}
+                            <FileText size={13} />
+                            Mandatory SOAP Note Pending
                           </button>
                         )}
-                        {onOpenSoap && (
+                        {onOpenSoap && (!notesDue.some((n) => n.id === session.id) || session.status !== 'completed') && (
                           <button
                             onClick={() => onOpenSoap(session.id)}
                             className="px-3 py-1.5 rounded-lg border border-[#132A24]/15 text-xs text-[#132A24]/80 hover:bg-[#132A24]/5 transition-colors cursor-pointer"

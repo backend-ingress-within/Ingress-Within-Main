@@ -486,7 +486,7 @@ export class RelationshipBookingLinkService {
 
     const { data: linkRecord, error: linkErr } = await supabase
       .from('relationship_booking_links')
-      .select('id, relationship_id, status, revoked_at')
+      .select('id, relationship_id, status, revoked_at, revocation_reason')
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
@@ -495,7 +495,14 @@ export class RelationshipBookingLinkService {
     }
 
     if (linkRecord.status !== 'active' || linkRecord.revoked_at !== null) {
-      return { valid: false, errorCode: 'LINK_REVOKED', errorMessage: 'Booking link is no longer active' };
+      const isConsumed = linkRecord.status === 'consumed' || Boolean(linkRecord.revocation_reason?.toLowerCase().includes('booked'));
+      return {
+        valid: false,
+        errorCode: isConsumed ? 'BOOKING_ALREADY_CONFIRMED' : 'LINK_REVOKED',
+        errorMessage: isConsumed
+          ? 'Your consultation with this clinician has already been booked and confirmed. Please sign in to your therapy portal to view session details.'
+          : 'Booking link is no longer active',
+      };
     }
 
     // Verify relationship
