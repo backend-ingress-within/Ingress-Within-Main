@@ -211,20 +211,21 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           })}
         </nav>
 
-        {/* Desktop CTA / Login Buttons */}
-        <div className="hidden sm:flex items-center gap-2.5 shrink-0">
+        {/* Desktop CTA Buttons: Both Highlighted in Focus */}
+        <div className="hidden sm:flex items-center gap-2 xl:gap-2.5 shrink-0">
           {user ? (
             <>
               <a
                 href="/dashboard"
                 onClick={(e) => handleAuthClick('/dashboard', e)}
-                className={`text-xs sm:text-[13px] font-medium px-2.5 py-1.5 transition-colors duration-200 cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
-                    ? 'text-[#C2D1DE] hover:text-white'
-                    : 'text-[#4F635E] hover:text-[#162723]'
+                    ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
+                    : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
                 }`}
               >
-                Dashboard
+                <span>Dashboard</span>
+                <span className="text-[13px]">→</span>
               </a>
               <a
                 href="/therapy"
@@ -235,10 +236,10 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                     else window.location.href = '/therapy';
                   }
                 }}
-                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
-                    ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
-                    : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
+                    ? 'bg-[#E8A598] hover:bg-[#F0B5A9] text-[#011627]'
+                    : 'bg-[#795663] hover:bg-[#684753] text-[#FAF7F2]'
                 }`}
               >
                 <span>Start therapy</span>
@@ -250,13 +251,14 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
               <a
                 href="/login"
                 onClick={(e) => handleAuthClick('/login', e)}
-                className={`text-xs sm:text-[13px] font-medium px-2.5 py-1.5 transition-colors duration-200 cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
-                    ? 'text-[#C2D1DE] hover:text-white'
-                    : 'text-[#4F635E] hover:text-[#162723]'
+                    ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
+                    : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
                 }`}
               >
-                Start self help
+                <span>Start self help</span>
+                <span className="text-[13px]">→</span>
               </a>
               <a
                 href="/therapy"
@@ -267,10 +269,10 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                     else window.location.href = '/therapy';
                   }
                 }}
-                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
-                    ? 'bg-white hover:bg-[#FAF7F2] text-[#011627]'
-                    : 'bg-[#162723] hover:bg-[#203631] text-[#FAF7F2]'
+                    ? 'bg-[#E8A598] hover:bg-[#F0B5A9] text-[#011627]'
+                    : 'bg-[#795663] hover:bg-[#684753] text-[#FAF7F2]'
                 }`}
               >
                 <span>Start therapy</span>
@@ -280,8 +282,19 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           )}
         </div>
 
-        {/* Mobile Menu Toggle Button */}
-        <div className="flex items-center gap-2 sm:hidden">
+        {/* Mobile Header Quick Actions & Menu Toggle Button */}
+        <div className="flex items-center gap-1.5 sm:hidden">
+          <a
+            href="/login"
+            onClick={(e) => handleAuthClick('/login', e)}
+            className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors ${
+              isOnBlue
+                ? 'bg-white text-[#011627]'
+                : 'bg-[#162723] text-white'
+            }`}
+          >
+            Self-help
+          </a>
           <a
             href="/therapy"
             onClick={(e) => {
@@ -291,13 +304,13 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                 else window.location.href = '/therapy';
               }
             }}
-            className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full transition-colors duration-300 ${
+            className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors ${
               isOnBlue
-                ? 'bg-white text-[#011627]'
-                : 'bg-[#162723] text-white'
+                ? 'bg-[#E8A598] text-[#011627]'
+                : 'bg-[#795663] text-white'
             }`}
           >
-            Start therapy →
+            Therapy
           </a>
           <button
             type="button"
@@ -386,7 +399,16 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
               </a>
             ))}
           </div>
-          <div className={`pt-4 border-t flex flex-col gap-2 ${isOnBlue ? 'border-white/10' : 'border-[#E7DECF]'}`}>
+          <div className={`pt-4 border-t flex flex-col gap-2.5 ${isOnBlue ? 'border-white/10' : 'border-[#E7DECF]'}`}>
+            <a
+              href={user ? '/dashboard' : '/login'}
+              onClick={(e) => handleAuthClick(user ? '/dashboard' : '/login', e)}
+              className={`w-full text-center py-2.5 text-xs font-semibold rounded-full shadow-xs transition-all ${
+                isOnBlue ? 'bg-white text-[#011627]' : 'bg-[#162723] hover:bg-[#203631] text-white'
+              }`}
+            >
+              {user ? 'Go to Dashboard →' : 'Start self help →'}
+            </a>
             <a
               href="/therapy"
               onClick={(e) => {
@@ -397,20 +419,11 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                   else window.location.href = '/therapy';
                 }
               }}
-              className={`w-full text-center py-2.5 text-xs font-semibold rounded-full ${
-                isOnBlue ? 'bg-white text-[#011627]' : 'text-white bg-[#162723]'
+              className={`w-full text-center py-2.5 text-xs font-semibold rounded-full shadow-xs transition-all ${
+                isOnBlue ? 'bg-[#E8A598] text-[#011627]' : 'bg-[#795663] hover:bg-[#684753] text-white'
               }`}
             >
               Start therapy →
-            </a>
-            <a
-              href={user ? '/dashboard' : '/login'}
-              onClick={(e) => handleAuthClick(user ? '/dashboard' : '/login', e)}
-              className={`w-full text-center py-2.5 text-xs font-semibold rounded-full border transition-colors ${
-                isOnBlue ? 'border-white/20 text-white hover:bg-white/5' : 'border-[#162723]/20 text-[#162723] hover:bg-black/5'
-              }`}
-            >
-              {user ? 'Go to Dashboard →' : 'Start self help'}
             </a>
           </div>
         </div>
