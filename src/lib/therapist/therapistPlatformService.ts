@@ -1698,7 +1698,7 @@ export class TherapistPlatformService {
           const [tProfileRes, tAppRes, clientUserRes, clientIntakeRes, clientUserIntakeRes] = await Promise.all([
             supabase.from('therapist_profiles').select('full_name').eq('therapist_account_id', therapistAccountId).maybeSingle(),
             supabase.from('therapist_applications').select('answers').eq('therapist_account_id', therapistAccountId).maybeSingle(),
-            match.user_id ? supabase.from('users').select('id, email, phone_number, name').eq('id', match.user_id).maybeSingle() : { data: null },
+            match.user_id ? supabase.from('users').select('id, phone_number, name').eq('id', match.user_id).maybeSingle() : { data: null },
             match.therapy_session_id ? supabase.from('therapy_intakes').select('*').eq('therapy_session_id', match.therapy_session_id).maybeSingle() : { data: null },
             match.user_id ? supabase.from('therapy_intakes').select('*').eq('user_id', match.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
           ]);
@@ -1706,7 +1706,7 @@ export class TherapistPlatformService {
           const therapistName = tProfileRes.data?.full_name || (tAppRes.data?.answers as any)?.fullName || 'Assigned Therapist';
           const clientUser = clientUserRes.data;
           const clientIntake = clientIntakeRes?.data || clientUserIntakeRes?.data;
-          const clientEmail = clientIntake?.email || (clientIntake?.contact_preferences as any)?.email || (clientIntake?.answers as any)?.email || clientUser?.email || null;
+          const clientEmail = clientIntake?.email || (clientIntake?.contact_preferences as any)?.email || (clientIntake?.answers as any)?.email || (clientUser as any)?.email || null;
           const clientPhone = clientIntake?.phone_number || (clientIntake?.contact_preferences as any)?.phone || (clientIntake?.answers as any)?.phone || clientUser?.phone_number || null;
           const clientName = clientIntake?.full_name || clientUser?.name || 'Client';
           const reasonStr = reason ? String(reason).trim() : 'No specific reason provided';
@@ -1891,7 +1891,6 @@ export class TherapistPlatformService {
           users (
             id,
             name,
-            email,
             phone_number
           )
         `)
@@ -1909,9 +1908,11 @@ export class TherapistPlatformService {
       let sessionCounts: Record<string, number> = {};
       let consentMap: Record<string, boolean> = {};
       let bookingLinkMap: Record<string, string> = {};
+      let intakeMap: Record<string, any> = {};
+      let clientAccountMap: Record<string, any> = {};
 
       if (clientIds.length > 0) {
-        const [{ data: appts }, { data: consents }, { data: links }] = await Promise.all([
+        const [{ data: appts }, { data: consents }, { data: links }, { data: intakes }, { data: clientAccounts }] = await Promise.all([
           supabase
             .from('therapist_clinical_appointments')
             .select('user_id')
@@ -1927,6 +1928,14 @@ export class TherapistPlatformService {
             .in('relationship_id', relIds)
             .eq('status', 'active')
             .is('revoked_at', null),
+          supabase
+            .from('therapy_intakes')
+            .select('user_id, email, phone_number, full_name, consents')
+            .in('user_id', clientIds),
+          supabase
+            .from('therapy_client_accounts')
+            .select('id, email, phone_number, full_name')
+            .in('id', clientIds),
         ]);
 
         (appts || []).forEach((a) => {
@@ -1935,6 +1944,14 @@ export class TherapistPlatformService {
 
         (consents || []).forEach((c) => {
           consentMap[c.user_id] = true;
+        });
+
+        (intakes || []).forEach((it) => {
+          if (it.user_id && !intakeMap[it.user_id]) intakeMap[it.user_id] = it;
+        });
+
+        (clientAccounts || []).forEach((ca) => {
+          if (ca.id && !clientAccountMap[ca.id]) clientAccountMap[ca.id] = ca;
         });
 
         (links || []).forEach((l) => {
@@ -1958,19 +1975,43 @@ export class TherapistPlatformService {
       const uniqueRelationships = Array.from(clientMap.values());
 
       let clients = uniqueRelationships.map((r: any) => {
-        const rawPhone = r.users?.phone_number || '';
+        const intake = intakeMap[r.user_id];
+        const clientAcc = clientAccountMap[r.user_id];
+
+        const rawPhone =
+          r.users?.phone_number ||
+          r.metadata?.client_phone ||
+          intake?.phone_number ||
+          clientAcc?.phone_number ||
+          '';
+
+        const clientEmail =
+          r.metadata?.client_email ||
+          intake?.email ||
+          clientAcc?.email ||
+          null;
+
+        const clientName =
+          r.users?.name ||
+          r.metadata?.client_name ||
+          intake?.full_name ||
+          clientAcc?.full_name ||
+          `Client #${r.user_id.substring(0, 6)}`;
+
         const hasConsent = Boolean(
           consentMap[r.user_id] ||
-          r.metadata?.consent_completed
+          r.metadata?.consent_completed ||
+          r.metadata?.consented_at ||
+          intake?.consents
         );
         const bookingLink = bookingLinkMap[r.id] || null;
 
         return {
           relationshipId: r.id,
           clientId: r.user_id,
-          name: r.users?.name || `Client #${r.user_id.substring(0, 6)}`,
+          name: clientName,
           phone: rawPhone || 'Confidential',
-          email: r.users?.email || null,
+          email: clientEmail,
           hasConsent,
           bookingLink,
           status: r.status,
@@ -2022,7 +2063,7 @@ export class TherapistPlatformService {
     // 2. Fetch user profile
     const { data: user } = await supabase
       .from('users')
-      .select('id, name, email, phone_number, created_at')
+      .select('id, name, phone_number, created_at')
       .eq('id', resolvedClientId)
       .maybeSingle();
 
@@ -2126,7 +2167,7 @@ export class TherapistPlatformService {
     // 9. Fetch authoritative consent status
     const { data: clientAccount } = await supabase
       .from('therapy_client_accounts')
-      .select('id, metadata, status, phone_number')
+      .select('id, email, metadata, status, phone_number')
       .or(`user_id.eq.${resolvedClientId},id.eq.${resolvedClientId}`)
       .maybeSingle();
 
@@ -2164,9 +2205,9 @@ export class TherapistPlatformService {
       },
       client: {
         id: resolvedClientId,
-        name: user?.name || intake?.full_name || `Client #${resolvedClientId.substring(0, 6)}`,
-        phone: user?.phone_number || intake?.phone_number || null,
-        email: user?.email || intake?.email || null,
+        name: user?.name || intake?.full_name || relationship.metadata?.client_name || `Client #${resolvedClientId.substring(0, 6)}`,
+        phone: user?.phone_number || intake?.phone_number || relationship.metadata?.client_phone || null,
+        email: intake?.email || relationship.metadata?.client_email || clientAccount?.email || null,
         age: intake?.age || null,
         gender: intake?.gender || null,
         occupation: intake?.occupation || null,
@@ -3439,26 +3480,20 @@ export class TherapistPlatformService {
 
     // 8. Dispatch notification emails
     try {
-      const { data: clientUser } = await supabase
-        .from('users')
-        .select('email, full_name')
-        .eq('id', appt.user_id)
-        .maybeSingle();
-
-      const { data: therapistAccount } = await supabase
-        .from('therapist_accounts')
-        .select('email, full_name')
-        .eq('id', therapistAccountId)
-        .maybeSingle();
+      const [{ data: clientUser }, { data: clientIntake }, { data: therapistProfile }] = await Promise.all([
+        supabase.from('users').select('id, name, phone_number').eq('id', appt.user_id).maybeSingle(),
+        supabase.from('therapy_intakes').select('email, full_name').eq('user_id', appt.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('therapist_profiles').select('full_name, contact_email').eq('therapist_account_id', therapistAccountId).maybeSingle(),
+      ]);
 
       await EmailService.notifySessionRescheduled({
         appointmentId,
         oldStart: appt.scheduled_start,
         newStart: newStartIso,
-        clientEmail: clientUser?.email || 'client@ingresswithin.com',
-        therapistEmail: therapistAccount?.email || 'therapist@ingresswithin.com',
-        clientName: clientUser?.full_name || 'Client',
-        therapistName: therapistAccount?.full_name || 'Therapist',
+        clientEmail: clientIntake?.email || 'client@ingresswithin.com',
+        therapistEmail: therapistProfile?.contact_email || 'therapist@ingresswithin.com',
+        clientName: clientIntake?.full_name || clientUser?.name || 'Client',
+        therapistName: therapistProfile?.full_name || 'Therapist',
         googleMeetUrl: appt.google_meet_url || appt.meeting_link,
       });
     } catch (mailErr) {

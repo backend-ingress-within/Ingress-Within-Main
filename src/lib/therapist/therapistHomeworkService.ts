@@ -82,7 +82,7 @@ export class TherapistHomeworkService {
         submitted_at,
         reviewed_at,
         created_at,
-        users:user_id (id, full_name, email)
+        users:user_id (id, name, phone_number)
       `)
       .eq('therapist_account_id', therapistAccountId)
       .order('created_at', { ascending: false });
@@ -141,7 +141,7 @@ export class TherapistHomeworkService {
       .from('client_homework_assignments')
       .select(`
         *,
-        users:user_id (id, full_name, email),
+        users:user_id (id, name, phone_number),
         submission:client_homework_submissions (*)
       `)
       .eq('id', assignmentId)

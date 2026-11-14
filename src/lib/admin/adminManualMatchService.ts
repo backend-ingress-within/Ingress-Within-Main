@@ -426,6 +426,10 @@ export async function assignTherapistToClient(
           assignedBy: adminActor,
           confirmedAt: nowIso,
           notes: input.internalNotes || null,
+          client_email: input.clientEmail || null,
+          client_phone: input.clientPhone || null,
+          client_name: input.clientName || null,
+          consent_completed: true,
         };
 
         const { data: existingRel } = await supabase
@@ -532,11 +536,12 @@ export async function assignTherapistToClient(
 
   if (!clientEmailToNotify && resolved.userId) {
     try {
-      const { data: u } = await supabase.from('users').select('email, name').eq('id', resolved.userId).maybeSingle();
-      if (u?.email) {
-        clientEmailToNotify = u.email;
-        if (u.name) clientNameToNotify = u.name;
-      }
+      const [{ data: u }, { data: it }] = await Promise.all([
+        supabase.from('users').select('name').eq('id', resolved.userId).maybeSingle(),
+        supabase.from('therapy_intakes').select('email').eq('user_id', resolved.userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      if (u?.name) clientNameToNotify = u.name;
+      if (it?.email) clientEmailToNotify = it.email;
     } catch {
       // Non-blocking
     }
