@@ -33,6 +33,7 @@ import {
   FileCheck,
   Download,
   AlertCircle,
+  KeyRound,
   MapPin,
   Mail,
   Phone,
@@ -626,6 +627,35 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
       showToast(err.message || 'Failed to generate booking link', true);
     } finally {
       setGeneratingLinkId(null);
+    }
+  };
+
+  const [generatingMagicUserId, setGeneratingMagicUserId] = useState(null);
+  const [copiedMagicUserId, setCopiedMagicUserId] = useState(null);
+
+  const handleGenerateMagicLink = async (userId) => {
+    if (!userId || generatingMagicUserId) return;
+    setGeneratingMagicUserId(userId);
+    try {
+      const res = await fetch(`/api/admin/clients/${userId}/magic-link`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate magic setup link');
+      }
+      if (data.claimUrl) {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(data.claimUrl);
+        }
+        setCopiedMagicUserId(userId);
+        showToast('Magic setup link copied to clipboard!');
+        setTimeout(() => setCopiedMagicUserId(null), 3000);
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to generate setup link', true);
+    } finally {
+      setGeneratingMagicUserId(null);
     }
   };
 
@@ -2796,40 +2826,73 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                             )}
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            {c.relationship?.id ? (
+                            <div className="flex items-center justify-end gap-2 flex-wrap">
+                              {/* Magic Setup Link */}
                               <button
                                 type="button"
-                                onClick={() => handleGenerateBookingLink(c.relationship.id)}
-                                disabled={generatingLinkId === c.relationship.id}
+                                onClick={() => handleGenerateMagicLink(c.id)}
+                                disabled={generatingMagicUserId === c.id}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                                  copiedLinkId === c.relationship.id
+                                  copiedMagicUserId === c.id
                                     ? 'bg-emerald-600 border-emerald-600 text-white'
                                     : 'bg-white border-[#132A24]/20 text-[#132A24] hover:bg-[#132A24]/5'
                                 }`}
-                                title="Generate or copy persistent booking link for this care relationship"
+                                title="Generate and copy client magic setup link for creating password"
                               >
-                                {copiedLinkId === c.relationship.id ? (
+                                {copiedMagicUserId === c.id ? (
                                   <>
                                     <Check className="w-3.5 h-3.5 text-white" />
-                                    <span>Copied Link!</span>
+                                    <span>Copied Setup!</span>
                                   </>
-                                ) : generatingLinkId === c.relationship.id ? (
+                                ) : generatingMagicUserId === c.id ? (
                                   <>
                                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#132A24]/60" />
-                                    <span>Generating...</span>
+                                    <span>Setup...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Link2 className="w-3.5 h-3.5 text-[#4E7A66]" />
-                                    <span>Generate / Copy Link</span>
+                                    <KeyRound className="w-3.5 h-3.5 text-[#4E7A66]" />
+                                    <span>Setup Link</span>
                                   </>
                                 )}
                               </button>
-                            ) : (
-                              <span className="text-[10px] text-[#132A24]/30 uppercase tracking-wider font-semibold">
-                                Unavailable
-                              </span>
-                            )}
+
+                              {/* Booking Link */}
+                              {c.relationship?.id ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateBookingLink(c.relationship.id)}
+                                  disabled={generatingLinkId === c.relationship.id}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                                    copiedLinkId === c.relationship.id
+                                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                                      : 'bg-white border-blue-200 text-blue-900 hover:bg-blue-50'
+                                  }`}
+                                  title="Generate or copy persistent booking link for this care relationship"
+                                >
+                                  {copiedLinkId === c.relationship.id ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-white" />
+                                      <span>Copied Link!</span>
+                                    </>
+                                  ) : generatingLinkId === c.relationship.id ? (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                                      <span>Booking...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                                      <span>Booking Link</span>
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-[#132A24]/30 uppercase tracking-wider font-semibold">
+                                  No Match
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))

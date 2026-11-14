@@ -12,6 +12,11 @@ import {
   Shield,
   CheckCircle2,
   RefreshCw,
+  KeyRound,
+  Link2,
+  Copy,
+  Check,
+  MessageCircle,
 } from 'lucide-react';
 
 export default function RelationshipDetailModal({ relationshipId, onClose, showToast }) {
@@ -22,6 +27,66 @@ export default function RelationshipDetailModal({ relationshipId, onClose, showT
   const [showConsentDoc, setShowConsentDoc] = useState(false);
   const [consentDocData, setConsentDocData] = useState(null);
   const [consentDocLoading, setConsentDocLoading] = useState(false);
+
+  // Magic Setup Link state
+  const [magicLink, setMagicLink] = useState(null);
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [magicLinkCopied, setMagicLinkCopied] = useState(false);
+
+  // Booking Link state
+  const [bookingLink, setBookingLink] = useState(null);
+  const [isGeneratingBookingLink, setIsGeneratingBookingLink] = useState(false);
+  const [bookingLinkCopied, setBookingLinkCopied] = useState(false);
+
+  const handleGenerateMagicLink = async () => {
+    if (!detailData?.userId) return;
+    setIsGeneratingMagicLink(true);
+    try {
+      const res = await fetch(`/api/admin/clients/${detailData.userId}/magic-link`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate magic setup link');
+      }
+      setMagicLink(data.claimUrl);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(data.claimUrl);
+        setMagicLinkCopied(true);
+        setTimeout(() => setMagicLinkCopied(false), 2500);
+      }
+      if (showToast) showToast('Magic setup link generated and copied to clipboard!');
+    } catch (err) {
+      if (showToast) showToast(err.message || 'Failed to generate setup link', true);
+    } finally {
+      setIsGeneratingMagicLink(false);
+    }
+  };
+
+  const handleGenerateBookingLink = async () => {
+    if (!detailData?.id) return;
+    setIsGeneratingBookingLink(true);
+    try {
+      const res = await fetch(`/api/therapy/relationships/${detailData.id}/booking-link`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate booking link');
+      }
+      setBookingLink(data.bookingLink);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(data.bookingLink);
+        setBookingLinkCopied(true);
+        setTimeout(() => setBookingLinkCopied(false), 2500);
+      }
+      if (showToast) showToast('Booking & consent link generated and copied to clipboard!');
+    } catch (err) {
+      if (showToast) showToast(err.message || 'Failed to generate booking link', true);
+    } finally {
+      setIsGeneratingBookingLink(false);
+    }
+  };
 
   useEffect(() => {
     if (!relationshipId) return;
@@ -247,6 +312,150 @@ export default function RelationshipDetailModal({ relationshipId, onClose, showT
                         </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Zero-Login Care Links Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card 1: Client Portal Account & Magic Setup Link */}
+                  <div className="border border-[#132A24]/10 rounded-2xl p-4 bg-[#FAF7F2] space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#132A24] uppercase tracking-wider">
+                        <KeyRound className="w-4 h-4 text-[#4E7A66]" />
+                        <span>Client Magic Setup Link</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Password &amp; Portal Setup
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#132A24]/70 leading-relaxed">
+                      Share this one-time link with the client to create their password and access their therapy dashboard.
+                    </p>
+
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <button
+                        type="button"
+                        onClick={handleGenerateMagicLink}
+                        disabled={isGeneratingMagicLink}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#203631] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                      >
+                        {isGeneratingMagicLink ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Generating…</span>
+                          </>
+                        ) : magicLinkCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-white" />
+                            <span>Copied Setup Link!</span>
+                          </>
+                        ) : (
+                          <>
+                            <KeyRound className="w-3.5 h-3.5" />
+                            <span>{magicLink ? 'Copy Setup Link' : 'Generate Setup Link'}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <a
+                        href={`https://wa.me/${(detailData.clientDetails?.phone || '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                          `Hi ${detailData.clientDetails?.name || 'there'}, here is your secure link to set your password and access your Ingress Within Therapy portal: ${magicLink || ''}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (!magicLink) {
+                            e.preventDefault();
+                            handleGenerateMagicLink();
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#25D366] text-white hover:bg-[#20ba59] transition-all cursor-pointer shadow-xs"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Share on WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Telehealth Consent & First Session Booking Link */}
+                  <div className="border border-[#132A24]/10 rounded-2xl p-4 bg-[#FAF7F2] space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#132A24] uppercase tracking-wider">
+                        <Link2 className="w-4 h-4 text-[#4E7A66]" />
+                        <span>First Session Booking Link</span>
+                      </div>
+                      {detailData.firstSessionBooked ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Booked
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                          Awaiting Booking
+                        </span>
+                      )}
+                    </div>
+
+                    {detailData.firstSessionBooked ? (
+                      <div className="space-y-1 text-xs text-[#132A24]/80">
+                        <p className="leading-relaxed">
+                          First consultation confirmed for <strong>{formatDate(detailData.firstSessionDate, true)}</strong>. The booking link has been safely consumed.
+                        </p>
+                        <div className="text-[11px] text-[#4E7A66] font-medium pt-1">
+                          Telehealth Meet: {detailData.validAppointments?.[0]?.meetingLink ? 'Configured & Active' : 'Synced on calendar'}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-[#132A24]/70 leading-relaxed">
+                          Zero-login consultation booking link with clinical telehealth consent terms.
+                        </p>
+
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                          <button
+                            type="button"
+                            onClick={handleGenerateBookingLink}
+                            disabled={isGeneratingBookingLink}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-700 text-white hover:bg-emerald-800 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            {isGeneratingBookingLink ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Generating…</span>
+                              </>
+                            ) : bookingLinkCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-white" />
+                                <span>Copied Booking Link!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Link2 className="w-3.5 h-3.5" />
+                                <span>{bookingLink ? 'Copy Booking Link' : 'Generate / Copy Link'}</span>
+                              </>
+                            )}
+                          </button>
+
+                          <a
+                            href={`https://wa.me/${(detailData.clientDetails?.phone || '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                              `Hi ${detailData.clientDetails?.name || 'there'}, here is your secure link to review your clinician, confirm telehealth consent, and book your first session: ${bookingLink || ''}`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              if (!bookingLink) {
+                                e.preventDefault();
+                                handleGenerateBookingLink();
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#25D366] text-white hover:bg-[#20ba59] transition-all cursor-pointer shadow-xs"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Share on WhatsApp</span>
+                          </a>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

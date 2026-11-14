@@ -26,6 +26,9 @@ import {
   Info,
   Trash2,
   AlertTriangle,
+  KeyRound,
+  Link2,
+  Check,
 } from 'lucide-react';
 
 export default function TherapyRelationshipsView({ showToast }) {
@@ -106,6 +109,56 @@ export default function TherapyRelationshipsView({ showToast }) {
     }, 350);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Quick link states
+  const [copiedMagicUserId, setCopiedMagicUserId] = useState(null);
+  const [generatingMagicUserId, setGeneratingMagicUserId] = useState(null);
+  const [copiedBookingRelId, setCopiedBookingRelId] = useState(null);
+  const [generatingBookingRelId, setGeneratingBookingRelId] = useState(null);
+
+  const handleCopyMagicLink = async (userId) => {
+    if (!userId) return;
+    setGeneratingMagicUserId(userId);
+    try {
+      const res = await fetch(`/api/admin/clients/${userId}/magic-link`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate setup link');
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(data.claimUrl);
+        setCopiedMagicUserId(userId);
+        setTimeout(() => setCopiedMagicUserId(null), 2000);
+      }
+      showToast('Magic setup link copied to clipboard!');
+    } catch (err) {
+      showToast(err.message || 'Failed to generate setup link', true);
+    } finally {
+      setGeneratingMagicUserId(null);
+    }
+  };
+
+  const handleCopyBookingLink = async (relId) => {
+    if (!relId) return;
+    setGeneratingBookingRelId(relId);
+    try {
+      const res = await fetch(`/api/therapy/relationships/${relId}/booking-link`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate booking link');
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(data.bookingLink);
+        setCopiedBookingRelId(relId);
+        setTimeout(() => setCopiedBookingRelId(null), 2000);
+      }
+      showToast('Booking & consent link copied to clipboard!');
+    } catch (err) {
+      showToast(err.message || 'Failed to generate booking link', true);
+    } finally {
+      setGeneratingBookingRelId(null);
+    }
+  };
 
   // Open detailed view
   const handleOpenDetail = async (relId) => {
@@ -561,7 +614,69 @@ export default function TherapyRelationshipsView({ showToast }) {
 
                     {/* 10. Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        {/* Setup Link Quick Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMagicLink(rel.userId)}
+                          disabled={generatingMagicUserId === rel.userId}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                            copiedMagicUserId === rel.userId
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'bg-white border-[#132A24]/15 hover:bg-[#132A24]/5 text-[#132A24]'
+                          }`}
+                          title="Generate and copy client magic setup link for creating password"
+                        >
+                          {copiedMagicUserId === rel.userId ? (
+                            <>
+                              <Check className="w-3 h-3 text-white" />
+                              <span>Copied!</span>
+                            </>
+                          ) : generatingMagicUserId === rel.userId ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin text-[#132A24]/60" />
+                              <span>Setup...</span>
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-3 h-3 text-[#4E7A66]" />
+                              <span>Setup Link</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Booking Link Quick Button (when not yet booked) */}
+                        {!rel.firstSessionBooked && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBookingLink(rel.id)}
+                            disabled={generatingBookingRelId === rel.id}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                              copiedBookingRelId === rel.id
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'bg-white border-blue-200 text-blue-900 hover:bg-blue-50'
+                            }`}
+                            title="Generate and copy booking & consent link"
+                          >
+                            {copiedBookingRelId === rel.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-white" />
+                                <span>Copied!</span>
+                              </>
+                            ) : generatingBookingRelId === rel.id ? (
+                              <>
+                                <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+                                <span>Booking...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Link2 className="w-3 h-3 text-blue-600" />
+                                <span>Booking Link</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(rel.id)}
