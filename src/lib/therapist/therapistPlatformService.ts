@@ -132,6 +132,20 @@ export class TherapistPlatformService {
       ...answers,
     };
 
+    if (
+      (!Array.isArray(mergedAnswers.primaryModalities) || mergedAnswers.primaryModalities.length === 0) &&
+      ((Array.isArray(mergedAnswers.modalities) && mergedAnswers.modalities.length > 0) ||
+       (Array.isArray(mergedAnswers.customModalities) && mergedAnswers.customModalities.length > 0))
+    ) {
+      const fallback = [
+        ...(Array.isArray(mergedAnswers.modalities) ? mergedAnswers.modalities : []),
+        ...(Array.isArray(mergedAnswers.customModalities) ? mergedAnswers.customModalities : []),
+      ];
+      if (fallback.length > 0) {
+        mergedAnswers.primaryModalities = fallback.slice(0, 5);
+      }
+    }
+
     const draftEmail = mergedAnswers.contact_email || mergedAnswers.email;
     let normalizedDraftEmail: string | null = null;
     if (draftEmail && typeof draftEmail === 'string' && draftEmail.trim()) {
@@ -210,6 +224,20 @@ export class TherapistPlatformService {
       ...(existing.application?.answers || {}),
       ...answers,
     };
+
+    if (
+      (!Array.isArray(mergedAnswers.primaryModalities) || mergedAnswers.primaryModalities.length === 0) &&
+      ((Array.isArray(mergedAnswers.modalities) && mergedAnswers.modalities.length > 0) ||
+       (Array.isArray(mergedAnswers.customModalities) && mergedAnswers.customModalities.length > 0))
+    ) {
+      const fallback = [
+        ...(Array.isArray(mergedAnswers.modalities) ? mergedAnswers.modalities : []),
+        ...(Array.isArray(mergedAnswers.customModalities) ? mergedAnswers.customModalities : []),
+      ];
+      if (fallback.length > 0) {
+        mergedAnswers.primaryModalities = fallback.slice(0, 5);
+      }
+    }
 
     const requiredChecks = [
       ['fullName', Boolean(mergedAnswers.fullName)],
@@ -652,6 +680,20 @@ export class TherapistPlatformService {
       ...(existing.application?.answers || {}),
       ...answers,
     };
+
+    if (
+      (!Array.isArray(mergedAnswers.primaryModalities) || mergedAnswers.primaryModalities.length === 0) &&
+      ((Array.isArray(mergedAnswers.modalities) && mergedAnswers.modalities.length > 0) ||
+       (Array.isArray(mergedAnswers.customModalities) && mergedAnswers.customModalities.length > 0))
+    ) {
+      const fallback = [
+        ...(Array.isArray(mergedAnswers.modalities) ? mergedAnswers.modalities : []),
+        ...(Array.isArray(mergedAnswers.customModalities) ? mergedAnswers.customModalities : []),
+      ];
+      if (fallback.length > 0) {
+        mergedAnswers.primaryModalities = fallback.slice(0, 5);
+      }
+    }
 
     const requiredChecks = [
       ['fullName', Boolean(mergedAnswers.fullName)],
