@@ -526,6 +526,40 @@ export async function assignTherapistToClient(
     }
   }
 
+  // 5. Notify client via email that a suitable therapist has been assigned with their booking link
+  let clientEmailToNotify = input.clientEmail || null;
+  let clientNameToNotify = input.clientName || 'Valued Client';
+
+  if (!clientEmailToNotify && resolved.userId) {
+    try {
+      const { data: u } = await supabase.from('users').select('email, name').eq('id', resolved.userId).maybeSingle();
+      if (u?.email) {
+        clientEmailToNotify = u.email;
+        if (u.name) clientNameToNotify = u.name;
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  if (clientEmailToNotify && bookingLink) {
+    try {
+      await EmailService.notifyTherapistAssignedToClient({
+        clientId: resolved.userId || `client_${Date.now()}`,
+        clientEmail: clientEmailToNotify,
+        clientName: clientNameToNotify,
+        therapistId: input.therapistId,
+        therapistName,
+        credentials: (thProfile as any)?.title || 'Licensed Clinical Psychologist',
+        bio: (thProfile as any)?.bio || undefined,
+        bookingUrl: bookingLink,
+        matchId: createdMatchId || undefined,
+      });
+    } catch (emailErr) {
+      console.warn('[AdminManualMatch] Client assignment email dispatch note:', emailErr);
+    }
+  }
+
   return {
     therapistId: input.therapistId,
     therapistName,

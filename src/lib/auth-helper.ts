@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from './db';
 import { verifyJwt } from '../utils/crypto';
 import { COOKIE_ACCESS_NAME } from '../utils/cookies';
+import { THERAPY_CLIENT_COOKIE_NAME } from './therapy/therapyClientAuthService';
 
 export interface AuthenticatedUser {
   userId: string;
@@ -42,11 +43,28 @@ export interface AuthenticatedUserProfile {
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthenticatedUser | null> {
   try {
     let token = request.cookies?.get(COOKIE_ACCESS_NAME)?.value;
+    let isTherapyClientCookie = false;
+
+    if (!token) {
+      const therapyCookie = request.cookies?.get(THERAPY_CLIENT_COOKIE_NAME)?.value;
+      if (therapyCookie) {
+        token = therapyCookie;
+        isTherapyClientCookie = true;
+      }
+    }
 
     if (!token) {
       const cookieHeader = request.headers.get('cookie') || '';
       const match = cookieHeader.match(new RegExp(`${COOKIE_ACCESS_NAME}=([^;]+)`));
-      if (match) token = match[1];
+      if (match) {
+        token = match[1];
+      } else {
+        const therapyMatch = cookieHeader.match(new RegExp(`${THERAPY_CLIENT_COOKIE_NAME}=([^;]+)`));
+        if (therapyMatch) {
+          token = therapyMatch[1];
+          isTherapyClientCookie = true;
+        }
+      }
     }
 
     if (!token) {
@@ -62,6 +80,33 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<Authen
     const payload = verifyJwt(token, jwtSecret);
 
     if (!payload || !payload.uid) return null;
+
+    // If therapy client token, validate against therapy_client_accounts
+    if (isTherapyClientCookie || payload.role === 'therapy_client' || payload.type === 'therapy_client') {
+      try {
+        const { data: clientAcc } = await supabase
+          .from('therapy_client_accounts')
+          .select('id, user_id, phone_number')
+          .or(`id.eq.${payload.clientAccountId || payload.uid},user_id.eq.${payload.uid}`)
+          .maybeSingle();
+
+        if (clientAcc) {
+          return {
+            userId: clientAcc.user_id || clientAcc.id,
+            phoneNumber: clientAcc.phone_number || payload.phone || '',
+            deviceId: 'therapy_client',
+          };
+        }
+      } catch (clientErr) {
+        console.warn('[auth-helper] Therapy client session verify note:', clientErr);
+      }
+
+      return {
+        userId: payload.uid,
+        phoneNumber: payload.phone || '',
+        deviceId: 'therapy_client',
+      };
+    }
 
     // Validate that session is still active in database (if database is reachable)
     try {
@@ -122,6 +167,42 @@ export async function requireUserProfile(request: NextRequest): Promise<Authenti
     .single();
 
   if (userError || !user) {
+    // Check if authenticated as a dedicated therapy client account
+    const { data: clientAcc } = await supabase
+      .from('therapy_client_accounts')
+      .select('id, user_id, full_name, phone_number, email, status, created_at')
+      .or(`id.eq.${authUser.userId},user_id.eq.${authUser.userId}`)
+      .maybeSingle();
+
+    if (clientAcc) {
+      const syntheticUser = {
+        id: clientAcc.user_id || clientAcc.id,
+        phone_number: clientAcc.phone_number || authUser.phoneNumber,
+        name: clientAcc.full_name || 'Therapy Client',
+        account_status: clientAcc.status || 'in_care',
+        is_active: true,
+        created_at: clientAcc.created_at || new Date().toISOString(),
+      };
+      const syntheticProfile = {
+        id: syntheticUser.id,
+        phone_number: syntheticUser.phone_number,
+        full_name: syntheticUser.name,
+        account_status: syntheticUser.account_status,
+        onboarding_status: 'completed',
+        consent_completed: true,
+        profile_completed: true,
+        orientation_completed: true,
+        assessment_completed: true,
+        onboarding_completed: true,
+        created_at: syntheticUser.created_at,
+        updated_at: syntheticUser.created_at,
+      };
+      return {
+        user: syntheticUser,
+        profile: syntheticProfile,
+      };
+    }
+
     const error: any = new Error('User account not found or deactivated.');
     error.status = 401;
     error.code = 'AUTH_USER_NOT_FOUND';

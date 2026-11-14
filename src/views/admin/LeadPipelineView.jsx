@@ -76,15 +76,23 @@ export default function LeadPipelineView({ showToast }) {
   };
 
   const handleCopyCredentials = async (lead) => {
-    const therapistName = lead.selected_therapist_name || 'your assigned therapist';
-    const message = `Hi ${lead.full_name || 'there'}, your Ingress Within Therapy Portal with ${therapistName} is ready. You can log in securely using your phone number (${lead.phone_number}) to access your session recaps, clinical notes, and assigned reflections at: https://ingresswithin.com/auth?redirect=/therapy`;
     try {
+      const clientId = lead.user_id || lead.id;
+      const res = await fetch(`/api/admin/clients/${clientId}/magic-link`, { method: 'POST' });
+      const data = await res.json();
+      const setupUrl = data.claimUrl || 'https://ingresswithin.com/therapy/login';
+      const therapistName = lead.selected_therapist_name || 'your assigned therapist';
+      const message = `Hi ${lead.full_name || 'there'}, your Ingress Within Therapy portal with ${therapistName} is ready. Use your secure setup link to create your password and access your therapy consultations and clinician notes:\n${setupUrl}`;
       await navigator.clipboard.writeText(message);
       setCopiedCredentials(true);
       setTimeout(() => setCopiedCredentials(false), 2000);
-      if (showToast) showToast('Portal access message copied to clipboard!', 'success');
+      if (showToast) showToast('Magic Setup Link & portal message copied to clipboard!', 'success');
     } catch {
-      if (showToast) showToast('Failed to copy to clipboard', 'error');
+      const message = `Hi ${lead.full_name || 'there'}, you can sign in to your Ingress Within Therapy portal at https://ingresswithin.com/therapy/login using your phone number (${lead.phone_number}).`;
+      await navigator.clipboard.writeText(message);
+      setCopiedCredentials(true);
+      setTimeout(() => setCopiedCredentials(false), 2000);
+      if (showToast) showToast('Portal login link copied to clipboard', 'success');
     }
   };
 

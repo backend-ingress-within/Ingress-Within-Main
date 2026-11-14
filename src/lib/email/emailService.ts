@@ -422,6 +422,7 @@ export class EmailService {
     clientId: string;
     clientEmail?: string;
     clientName?: string;
+    bookingUrl?: string;
   }) {
     // 1. Client Notice (if client email is known)
     if (data.clientEmail) {
@@ -437,6 +438,7 @@ export class EmailService {
         templateData: {
           clientName: data.clientName,
           therapistName: data.therapistName,
+          bookingUrl: data.bookingUrl,
         },
         entityType: 'match',
         entityId: data.matchId,
@@ -481,6 +483,75 @@ export class EmailService {
       },
       entityType: 'match',
       entityId: data.matchId,
+    });
+  }
+
+  /**
+   * Dispatches therapist assignment notification to client when care team manually matches them.
+   */
+  static async notifyTherapistAssignedToClient(data: {
+    clientId: string;
+    clientEmail: string;
+    clientName?: string;
+    therapistId: string;
+    therapistName: string;
+    credentials?: string;
+    bio?: string;
+    bookingUrl: string;
+    matchId?: string;
+  }) {
+    if (!data.clientEmail) return;
+
+    await this.sendEmail({
+      eventType: EmailEvents.THERAPIST_ASSIGNED_CLIENT,
+      recipient: {
+        email: data.clientEmail,
+        name: data.clientName,
+        type: 'client',
+        id: data.clientId,
+      },
+      templateKey: 'therapist_assigned_client',
+      templateData: {
+        clientName: data.clientName,
+        therapistName: data.therapistName,
+        credentials: data.credentials,
+        bio: data.bio,
+        bookingUrl: data.bookingUrl,
+      },
+      entityType: 'match',
+      entityId: data.matchId || `assign_${Date.now()}`,
+    });
+  }
+
+  /**
+   * Dispatches magic setup link to client upon completing their first session.
+   */
+  static async notifyFirstSessionCompleteMagicLink(data: {
+    clientId: string;
+    clientEmail: string;
+    clientName?: string;
+    therapistName?: string;
+    claimUrl: string;
+    appointmentId?: string;
+  }) {
+    if (!data.clientEmail) return;
+
+    await this.sendEmail({
+      eventType: EmailEvents.FIRST_SESSION_COMPLETED_MAGIC_LINK,
+      recipient: {
+        email: data.clientEmail,
+        name: data.clientName,
+        type: 'client',
+        id: data.clientId,
+      },
+      templateKey: 'first_session_complete_magic_link',
+      templateData: {
+        clientName: data.clientName,
+        therapistName: data.therapistName,
+        claimUrl: data.claimUrl,
+      },
+      entityType: 'appointment',
+      entityId: data.appointmentId || `first_session_${Date.now()}`,
     });
   }
 

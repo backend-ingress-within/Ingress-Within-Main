@@ -197,9 +197,9 @@ export default function TherapyMatchResultsView({
 
       setRequestStatus((prev) => ({
         ...prev,
-        [therapist.id]: `We’ve recorded your interest in ${shortName(
+        [therapist.id]: `We will let you know once ${shortName(
           therapist.name
-        )}. Our team will confirm with them and follow up with you to schedule.`,
+        )} accepts your request. Once accepted, you will receive an email with your Telehealth Consent & Booking link.`,
       }));
     } catch {
       setRequestStatus((prev) => ({
@@ -855,24 +855,19 @@ export default function TherapyMatchResultsView({
             id="handoff-title"
             className="font-serif text-3xl font-semibold leading-snug mb-3"
           >
-            {tier !== 'standard'
-              ? 'We’re finding you a therapist directly'
-              : 'We’ll find someone for you personally'}
+            Our team will assign you a suitable therapist
           </h2>
           {tier !== 'standard' ? (
             <p className="text-[#4E635E] text-[16px] leading-relaxed mb-4">
-              Nobody currently cleared for this is available right now, so our
-              clinical care team is sorting it out by hand rather than leaving you
-              without an option.
+              Our clinical care team is reviewing your intake details by hand to safely pair you with an authorized clinician. Once matched, you will receive an email with your clinician details and booking link.
             </p>
           ) : (
             <>
               <p className="text-[#4E635E] text-[16px] leading-relaxed mb-2">
-                Nobody on our roster is a confident fit for everything you asked
-                for, and we’d rather not show you a poor match.
+                Nobody on the roster is an exact automatic fit for all your criteria right now, but our clinical team will personally match you with a suitable therapist.
               </p>
               <p className="text-[#4E635E] text-[16px] leading-relaxed mb-5">
-                Use <strong>Request Personal Match</strong> below so our clinical team can review what you shared and match you personally—or adjust your preferences anytime.
+                Click <strong>Request Personal Match</strong> below so our clinical care team can assign you an experienced practitioner and email your Telehealth Consent &amp; Booking link.
               </p>
               {onEditAnswers && (
                 <button

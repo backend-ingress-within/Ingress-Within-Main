@@ -1180,6 +1180,7 @@ function Guided({ exit, onBookSession, user, profile }) {
   const [safety, setSafety] = useState({});
   const [loading, setLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
+  const [phoneExistsWarning, setPhoneExistsWarning] = useState(false);
   const [consents, setConsents] = useState([false, false, false, false]);
   const [d, setD] = useState(() => ({
     name: profile?.name || user?.name || user?.full_name || '',
@@ -1299,11 +1300,26 @@ function Guided({ exit, onBookSession, user, profile }) {
     if (cleanDigits.length >= 10) {
       // Instant autosave once full phone number is typed
       autosaveGuidedLead('contact_captured', 1, { phone: newPhone });
-    } else if (cleanDigits.length >= 7) {
-      // Debounce autosave while typing
-      phoneDebounceTimerRef.current = setTimeout(() => {
-        autosaveGuidedLead('contact_captured', 1, { phone: newPhone });
-      }, 700);
+
+      // Check if phone number already registered with a therapy account
+      fetch(`/api/therapy/auth/check-phone?phone=${encodeURIComponent(cleanDigits)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.exists) {
+            setPhoneExistsWarning(true);
+          } else {
+            setPhoneExistsWarning(false);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setPhoneExistsWarning(false);
+      if (cleanDigits.length >= 7) {
+        // Debounce autosave while typing
+        phoneDebounceTimerRef.current = setTimeout(() => {
+          autosaveGuidedLead('contact_captured', 1, { phone: newPhone });
+        }, 700);
+      }
     }
   };
 
@@ -1667,6 +1683,7 @@ function Guided({ exit, onBookSession, user, profile }) {
 
   const valid = useMemo(() => {
     if (step === 1) {
+      if (phoneExistsWarning) return false;
       const cleanDigits = (d.phone || '').replace(/[^\d+]/g, '');
       const validEmail = (d.email || '').includes('@') && (d.email || '').includes('.');
       return Boolean(d.name && d.name.trim().length >= 2 && cleanDigits.length >= 10 && validEmail);
@@ -1691,7 +1708,7 @@ function Guided({ exit, onBookSession, user, profile }) {
       d.styleStructure && d.stylePace && d.styleLead && d.termApproach;
     if (step === 16) return !!selectedTherapist;
     return true;
-  }, [step, d, safety, consents, selectedTherapist]);
+  }, [step, d, safety, consents, selectedTherapist, phoneExistsWarning]);
 
   const triageTier = useMemo(() => {
     if (safety.physical === 'Yes' || safety.answer === 'Yes' && (
@@ -2274,9 +2291,9 @@ function Guided({ exit, onBookSession, user, profile }) {
         <Header name="Care Team Review" step={4} total={4} onBack={exit} />
         <div className="iw-card iw-success" style={{ textAlign: 'center' }}>
           <div className="iw-successicon"><Check /></div>
-          <h2>We have received your query</h2>
+          <h2>Our team will assign you a suitable therapist</h2>
           <p style={{ maxWidth: 540, margin: '0 auto 20px', lineHeight: 1.6, color: '#4A5568', fontSize: 15 }}>
-            Thank you for reaching out. We have submitted your request along with your preferences. Our care team will review your details and reach out soon regarding your clinician matching and next steps.
+            Thank you for completing your intake. Our clinical matching team will personally review your preferences and assign an experienced, verified therapist suited to your needs. Once matched, you will receive an email with your clinician details and direct booking link.
           </p>
 
           <div
@@ -2426,9 +2443,9 @@ function Guided({ exit, onBookSession, user, profile }) {
               <div className="iw-note" style={{ textAlign: 'left', lineHeight: 1.6, marginTop: 14 }}>
                 <strong>What happens next:</strong>
                 <ol style={{ paddingLeft: 18, marginTop: 6, marginBottom: 0 }}>
-                  <li><strong>{selectedTherapist.name}</strong> will review your clinical intake and goals.</li>
-                  <li>Once your therapist accepts the match, you will receive an email confirmation.</li>
-                  <li>You can then schedule and book your first session whenever you are ready.</li>
+                  <li>We will let you know once <strong>{selectedTherapist.name}</strong> accepts your request.</li>
+                  <li>Once accepted, you will receive an email with your Telehealth Consent &amp; Direct Booking Link.</li>
+                  <li>You can then select your preferred slot and receive your Google Meet invitation link!</li>
                 </ol>
               </div>
 
@@ -2488,6 +2505,12 @@ function Guided({ exit, onBookSession, user, profile }) {
       <div className="iw-card">
         {step === 1 && (
           <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '10px 14px', backgroundColor: '#fff', borderRadius: 12, border: '1px solid rgba(38,50,56,0.1)' }}>
+              <span style={{ fontSize: 13, color: '#66747A' }}>Already have a therapy account?</span>
+              <a href="/therapy/login" style={{ fontSize: 13, fontWeight: 700, color: '#795663', textDecoration: 'none' }}>
+                Sign in →
+              </a>
+            </div>
             <div className="iw-k">Step 1 · Contact Details</div>
             <h2>Mental Health Intake Form</h2>
             <p>Please share your details below so we can securely save your progress, match you with verified therapists, and coordinate your first consultation.</p>
@@ -2520,6 +2543,20 @@ function Guided({ exit, onBookSession, user, profile }) {
               <span style={{ fontSize: 11, color: '#7D8E87', marginTop: 4, display: 'block' }}>
                 Used for instant progress save, therapist matching, and coordination via WhatsApp/SMS.
               </span>
+              {phoneExistsWarning && (
+                <div style={{ backgroundColor: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: 12, padding: '12px 14px', marginTop: 10, color: '#C53030' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 3 }}>An account with this phone number already exists</div>
+                  <p style={{ fontSize: 12, lineHeight: 1.5, margin: 0, color: '#9B2C2C' }}>
+                    Only one therapy account is permitted per phone number. Please Sign In to continue your care or book consultations with your clinician.
+                  </p>
+                  <a
+                    href="/therapy/login"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 12px', borderRadius: 8, backgroundColor: '#162723', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    Sign in to your therapy account →
+                  </a>
+                </div>
+              )}
             </div>
             <div className="iw-field">
               <label>Email address *</label>

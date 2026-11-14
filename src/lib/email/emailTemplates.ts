@@ -82,39 +82,140 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
     const clientName = escapeHtml(rawClientName);
     const rawTherapistName = data.therapistName || 'Your Therapist';
     const therapistName = escapeHtml(rawTherapistName);
-    const therapyUrl = data.therapyUrl || data.dashboardUrl || APP_URLS.THERAPY_DASHBOARD;
+    const bookingUrl = data.bookingUrl || data.bookingLink || data.therapyUrl || APP_URLS.THERAPY_DASHBOARD;
+    const hasDirectBooking = Boolean(data.bookingUrl || data.bookingLink);
 
     const contentHtml = `
       <p style="margin: 0 0 12px 0;">Hello <strong>${clientName}</strong>,</p>
-      <p style="margin: 0 0 16px 0;">We are pleased to share that <strong>${therapistName}</strong> has accepted your care connection request on Ingress Within.</p>
+      <p style="margin: 0 0 16px 0;">Great news! <strong>${therapistName}</strong> has accepted your care connection request on Ingress Within.</p>
       
       <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px 18px; margin: 20px 0; border-radius: 6px;">
-        <p style="margin: 0; font-weight: 600; color: #166534; font-size: 14px;">Next Step: First Session Coordination</p>
+        <p style="margin: 0; font-weight: 600; color: #166534; font-size: 14px;">Next Step: Telehealth Consent &amp; Slot Selection</p>
         <p style="margin: 6px 0 0 0; font-size: 13px; color: #15803d; line-height: 1.5;">
-          Our clinical coordination team will connect with you shortly to finalize your first session time and provide your booking link.
+          ${hasDirectBooking 
+            ? 'Your therapist has shared a direct booking invitation. Click the button below to review telehealth consent and select a convenient consultation time.'
+            : 'You will receive your direct booking invitation link shortly to schedule your first consultation.'}
         </p>
       </div>
 
       <p style="margin: 0; font-size: 13.5px; color: #475569;">
-        You can log in to your <a href="${escapeHtml(therapyUrl)}" style="color: #4E7A66; font-weight: 600; text-decoration: underline;">Therapy Dashboard</a> anytime to view your care team status, upcoming sessions, and care progress.
+        If you have any questions before your session, you can reach out directly to our clinical support team.
       </p>
     `;
 
     return {
-      subject: `Ingress Within: ${rawTherapistName} has accepted your care connection`,
+      subject: `Ingress Within: ${rawTherapistName} has accepted your request — Book your consultation`,
       html: renderBaseEmailLayout({
         title: 'Care Connection Accepted',
         badge: 'Care Connection Accepted',
         badgeVariant: 'success',
         heading: 'Care Connection Accepted',
-        preheader: `${rawTherapistName} has accepted your care connection request on Ingress Within.`,
+        preheader: `${rawTherapistName} has accepted your care connection request. Book your consultation on Ingress Within.`,
         contentHtml,
         ctaButton: {
-          label: 'Open Therapy Dashboard',
-          url: therapyUrl,
+          label: hasDirectBooking ? 'Review Consent & Book Session' : 'Open Therapy Portal',
+          url: bookingUrl,
         },
       }),
-      text: `Hello ${rawClientName},\n\nWe are pleased to inform you that ${rawTherapistName} has accepted your care connection request.\n\nNext Step: Our clinical coordination team will connect with you shortly to finalize your first session time.\n\nOpen Therapy Dashboard:\n${therapyUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
+      text: `Hello ${rawClientName},\n\nWe are pleased to inform you that ${rawTherapistName} has accepted your care connection request on Ingress Within.\n\nNext Step: Please review telehealth consent and select your first session time using your booking link:\n${bookingUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
+    };
+  },
+
+  therapist_assigned_client: (data) => {
+    const rawClientName = data.clientName || 'Valued Client';
+    const clientName = escapeHtml(rawClientName);
+    const rawTherapistName = data.therapistName || 'Your Clinician';
+    const therapistName = escapeHtml(rawTherapistName);
+    const credentials = escapeHtml(data.credentials || 'Licensed Clinical Psychologist');
+    const bookingUrl = data.bookingUrl || data.bookingLink || data.therapyUrl || APP_URLS.THERAPY_DASHBOARD;
+    const bio = data.bio ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #475569; font-style: italic;">"${escapeHtml(data.bio)}"</p>` : '';
+
+    const contentHtml = `
+      <p style="margin: 0 0 12px 0;">Hello <strong>${clientName}</strong>,</p>
+      <p style="margin: 0 0 16px 0;">Our clinical care team has carefully reviewed your intake requirements and assigned a suitable therapist to guide your care.</p>
+      
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <p style="margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700;">Assigned Clinician</p>
+        <p style="margin: 0; font-size: 17px; font-weight: 700; color: #0f172a;">${therapistName}</p>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #4E7A66; font-weight: 600;">${credentials}</p>
+        ${bio}
+      </div>
+
+      <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px 18px; margin: 20px 0; border-radius: 6px;">
+        <p style="margin: 0; font-weight: 600; color: #166534; font-size: 14px;">Next Step: Telehealth Consent &amp; Scheduling</p>
+        <p style="margin: 6px 0 0 0; font-size: 13px; color: #15803d; line-height: 1.5;">
+          Click below to review the clinical telehealth consent agreement and select your preferred first consultation slot.
+        </p>
+      </div>
+    `;
+
+    return {
+      subject: `Ingress Within: You have been assigned a therapist (${rawTherapistName})`,
+      html: renderBaseEmailLayout({
+        title: 'Therapist Assigned',
+        badge: 'Care Match Assigned',
+        badgeVariant: 'success',
+        heading: 'Therapist Assigned',
+        preheader: `You have been matched with ${rawTherapistName}. Review consent and book your consultation.`,
+        contentHtml,
+        ctaButton: {
+          label: 'Review Consent & Book Session',
+          url: bookingUrl,
+        },
+      }),
+      text: `Hello ${rawClientName},\n\nOur clinical care team has assigned a suitable therapist for you: ${rawTherapistName} (${data.credentials || 'Licensed Practitioner'}).\n\nNext Step: Please review telehealth consent and select your consultation slot at:\n${bookingUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
+    };
+  },
+
+  first_session_complete_magic_link: (data) => {
+    const rawClientName = data.clientName || 'there';
+    const clientName = escapeHtml(rawClientName);
+    const rawTherapistName = data.therapistName || 'your therapist';
+    const therapistName = escapeHtml(rawTherapistName);
+    const claimUrl = data.claimUrl || data.setupUrl || `${APP_URLS.THERAPY_DASHBOARD}/claim-account`;
+
+    const contentHtml = `
+      <p style="margin: 0 0 12px 0;">Hello <strong>${clientName}</strong>,</p>
+      <p style="margin: 0 0 16px 0;">Congratulations on completing your first consultation with <strong>${therapistName}</strong>!</p>
+      
+      <p style="margin: 0 0 16px 0; font-size: 13.5px; color: #334155; line-height: 1.6;">
+        To manage your ongoing care, access assigned exercises, view session summaries, and schedule future consultations with ease, we have prepared your personal <strong>Therapy Client Account</strong>.
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a; font-size: 14px;">Instant One-Click Account Setup</p>
+        <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">
+          Click the secure setup link below to view your details and create a password. Once set, you can sign in anytime using your phone number and password or OTP.
+        </p>
+      </div>
+
+      <div style="margin: 22px 0; text-align: center;">
+        <a href="${escapeHtml(claimUrl)}" target="_blank" style="display: inline-block; background-color: #132A24; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+          Set Up Password &amp; Activate Account →
+        </a>
+      </div>
+
+      <p style="margin: 16px 0 0 0; font-size: 12px; color: #64748b;">
+        Direct link: <a href="${escapeHtml(claimUrl)}" style="color: #4E7A66;">${escapeHtml(claimUrl)}</a><br />
+        <em>Note: This secure link is valid for 30 days.</em>
+      </p>
+    `;
+
+    return {
+      subject: `Ingress Within: Activate your Therapy Account after your first session`,
+      html: renderBaseEmailLayout({
+        title: 'Activate Therapy Account',
+        badge: 'Account Setup',
+        badgeVariant: 'info',
+        heading: 'Activate Your Therapy Account',
+        preheader: `Set up your password and access your therapy portal after completing your first consultation.`,
+        contentHtml,
+        ctaButton: {
+          label: 'Set Up Password & Activate Account',
+          url: claimUrl,
+        },
+      }),
+      text: `Hello ${rawClientName},\n\nCongratulations on completing your first session with ${rawTherapistName}!\n\nTo activate your personal therapy portal and set your password, click your secure link:\n${claimUrl}\n\nThis link is valid for 30 days.\n\nWarm regards,\nThe Ingress Within Care Team`,
     };
   },
 

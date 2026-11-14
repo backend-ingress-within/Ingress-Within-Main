@@ -8,9 +8,11 @@ import { GoogleAuthService } from '../calendar/googleAuthService';
 import { TherapistPayoutAccountService } from './therapistPayoutAccountService';
 import { markClientRequestsAsClaimed } from '../therapy/matchRequestsStore';
 import {
+  RelationshipBookingLinkService,
   decryptBookingToken,
   getCanonicalBookingUrl,
 } from '../therapy/relationshipBookingLinkService';
+import { TherapyClientAuthService } from '../therapy/therapyClientAuthService';
 
 export class TherapistPlatformService {
   private static inMemoryReviews: Array<{
@@ -1463,7 +1465,7 @@ export class TherapistPlatformService {
       let finalMatchId = matchId;
       let finalStatus = 'selected';
       let alreadyAccepted = false;
-      let careRel = null;
+      let careRel: any = null;
 
       if (!rpcError && rpcResult) {
         acceptSuccess = true;
@@ -1590,6 +1592,25 @@ export class TherapistPlatformService {
             therapistName,
           });
 
+          // Generate direct booking & consent link for the client
+          let bookingUrl: string | undefined = undefined;
+          if (careRel?.id) {
+            try {
+              const linkResult = await RelationshipBookingLinkService.issueBookingLink({
+                relationshipId: careRel.id,
+                actor: {
+                  actorType: 'therapist',
+                  actorId: therapistAccountId,
+                },
+              });
+              if (linkResult?.bookingLink) {
+                bookingUrl = linkResult.bookingLink;
+              }
+            } catch (linkErr) {
+              console.warn('[TherapistPlatformService] Booking link generation on accept note:', linkErr);
+            }
+          }
+
           await EmailService.notifyTherapistAccepted({
             matchId,
             therapistId: therapistAccountId,
@@ -1598,6 +1619,7 @@ export class TherapistPlatformService {
             clientId: match.user_id,
             clientEmail,
             clientName,
+            bookingUrl,
           });
         } catch (emailErr) {
           console.warn('[TherapistPlatformService] Email notification on accept notice:', emailErr);
@@ -2102,6 +2124,14 @@ export class TherapistPlatformService {
     }
 
     // 9. Fetch authoritative consent status
+    const { data: clientAccount } = await supabase
+      .from('therapy_client_accounts')
+      .select('id, metadata, status, phone_number')
+      .or(`user_id.eq.${resolvedClientId},id.eq.${resolvedClientId}`)
+      .maybeSingle();
+
+    const isAccountClaimed = Boolean(clientAccount?.metadata?.claimed_at);
+
     const { data: userConsents } = await supabase
       .from('consents')
       .select('*')
@@ -2146,6 +2176,12 @@ export class TherapistPlatformService {
         id: therapistAccountId,
         name: thProfile?.full_name || 'Your Assigned Clinician',
         title: thProfile?.title || 'Licensed Clinical Psychologist',
+      },
+      accountClaim: {
+        isClaimed: isAccountClaimed,
+        hasPassword: Boolean(clientAccount?.metadata?.password_hash),
+        clientAccountId: clientAccount?.id || null,
+        phoneNumber: clientAccount?.phone_number || null,
       },
       consent: {
         hasConsent,
@@ -3658,15 +3694,79 @@ export class TherapistPlatformService {
     });
 
     // 5. Update first_session_completed in care relationship
+    let magicClaimUrl: string | null = null;
     if (appt.user_id) {
       await supabase
         .from('therapy_care_relationships')
         .update({ first_session_completed: true })
         .eq('therapist_account_id', therapistAccountId)
         .eq('user_id', appt.user_id);
+
+      // Check for or create therapy client account & generate magic setup link
+      try {
+        let { data: clientAcc } = await supabase
+          .from('therapy_client_accounts')
+          .select('id, email, full_name, phone_number, metadata')
+          .or(`user_id.eq.${appt.user_id},id.eq.${appt.user_id}`)
+          .maybeSingle();
+
+        // If no therapy_client_account exists yet, create one from user/intake
+        if (!clientAcc) {
+          const { data: u } = await supabase.from('users').select('*').eq('id', appt.user_id).maybeSingle();
+          const { data: intk } = await supabase.from('therapy_intakes').select('*').eq('user_id', appt.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+          const clientEmail = intk?.email || u?.email;
+          if (clientEmail) {
+            const { data: newAcc } = await supabase
+              .from('therapy_client_accounts')
+              .insert({
+                user_id: appt.user_id,
+                email: clientEmail.toLowerCase().trim(),
+                full_name: intk?.full_name || u?.name || 'Client',
+                phone_number: intk?.phone_number || u?.phone_number || null,
+                status: 'in_care',
+                active_therapist_account_id: therapistAccountId,
+                latest_therapy_session_id: appt.id,
+              })
+              .select('id, email, full_name, phone_number, metadata')
+              .single();
+            clientAcc = newAcc;
+          }
+        }
+
+        if (clientAcc && !clientAcc.metadata?.claimed_at) {
+          const claimRes = await TherapyClientAuthService.generateClaimToken(clientAcc.id);
+          magicClaimUrl = claimRes.claimUrl;
+
+          // Fetch therapist profile name
+          const { data: tProf } = await supabase
+            .from('therapist_profiles')
+            .select('full_name')
+            .eq('therapist_account_id', therapistAccountId)
+            .maybeSingle();
+
+          const therapistName = tProf?.full_name || 'Your Therapist';
+
+          if (clientAcc.email) {
+            await EmailService.notifyFirstSessionCompleteMagicLink({
+              clientId: clientAcc.id,
+              clientEmail: clientAcc.email,
+              clientName: clientAcc.full_name || undefined,
+              therapistName,
+              claimUrl: claimRes.claimUrl,
+              appointmentId,
+            });
+          }
+        }
+      } catch (claimErr) {
+        console.warn('[TherapistPlatformService] Magic setup link trigger notice:', claimErr);
+      }
     }
 
-    return updatedAppt;
+    return {
+      ...updatedAppt,
+      magicClaimUrl,
+    };
   }
 
   /**

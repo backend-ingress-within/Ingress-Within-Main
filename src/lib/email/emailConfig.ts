@@ -27,6 +27,8 @@ export interface EmailConfig {
 export const MSG91_TEMPLATE_ENV_KEYS: Record<string, string> = {
   therapist_match_request: 'MSG91_TEMPLATE_THERAPIST_MATCH_REQUEST',
   therapist_accepted_client: 'MSG91_TEMPLATE_THERAPIST_ACCEPTED_CLIENT',
+  therapist_assigned_client: 'MSG91_TEMPLATE_THERAPIST_ASSIGNED_CLIENT',
+  first_session_complete_magic_link: 'MSG91_TEMPLATE_FIRST_SESSION_COMPLETE_MAGIC_LINK',
   therapist_accepted_therapist_confirmation: 'MSG91_TEMPLATE_THERAPIST_ACCEPTED_CONFIRMATION',
   first_session_coordination_team: 'MSG91_TEMPLATE_FIRST_SESSION_COORDINATION_TEAM',
   session_confirmed: 'MSG91_TEMPLATE_SESSION_CONFIRMED',

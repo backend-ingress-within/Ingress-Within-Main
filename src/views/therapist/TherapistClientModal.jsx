@@ -10,6 +10,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Lock,
+  KeyRound,
   Plus,
   Milestone,
   Link2,
@@ -98,6 +99,41 @@ export default function TherapistClientModal({
       });
     } finally {
       setIsGeneratingLink(false);
+    }
+  };
+
+  const [magicLink, setMagicLink] = useState(null);
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [magicLinkCopied, setMagicLinkCopied] = useState(false);
+  const [magicLinkNotice, setMagicLinkNotice] = useState(null);
+
+  const handleGenerateMagicLink = async () => {
+    setIsGeneratingMagicLink(true);
+    setMagicLinkNotice(null);
+    try {
+      const res = await fetch(`/api/therapist/clients/${clientId}/magic-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Failed to generate setup link');
+
+      if (data.claimUrl) {
+        setMagicLink(data.claimUrl);
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(data.claimUrl);
+        }
+        setMagicLinkCopied(true);
+        setMagicLinkNotice({
+          type: 'success',
+          message: 'Magic Account Setup link generated and copied to clipboard!',
+        });
+        setTimeout(() => setMagicLinkCopied(false), 3000);
+      }
+    } catch (err) {
+      setMagicLinkNotice({ type: 'error', message: err.message || 'Unable to generate setup link.' });
+    } finally {
+      setIsGeneratingMagicLink(false);
     }
   };
 
@@ -538,6 +574,62 @@ export default function TherapistClientModal({
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Client Portal Account & Magic Setup Link Card */}
+              <div className="bg-[#FAF7F2] border border-[#162723]/10 rounded-xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <h4 className="font-semibold text-xs text-[#162723] uppercase tracking-wider flex items-center gap-1.5">
+                      <Lock size={13} className="text-[#4E7A66]" />
+                      Client Portal Account &amp; Magic Setup Link
+                    </h4>
+                    <p className="text-[12px] text-[#4F635E] mt-0.5">
+                      Share this secure link so the client can create a password and access their therapy dashboard.
+                    </p>
+                  </div>
+                  <div>
+                    {profile.accountClaim?.isClaimed ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <CheckCircle2 size={12} className="text-emerald-600" /> Account Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <Clock size={12} className="text-amber-600" /> Pending Password Setup
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {magicLinkNotice && (
+                  <div className={`p-2.5 rounded-lg text-xs font-medium ${magicLinkNotice.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    {magicLinkNotice.message}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleGenerateMagicLink}
+                    disabled={isGeneratingMagicLink}
+                    className="px-3.5 py-2 rounded-lg bg-[#162723] text-white text-xs font-semibold hover:bg-[#203631] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    <KeyRound size={13} />
+                    <span>{isGeneratingMagicLink ? 'Generating…' : magicLink ? (magicLinkCopied ? 'Link Copied!' : 'Copy Setup Link') : 'Generate Setup Link'}</span>
+                  </button>
+
+                  {magicLink && profile.client?.phone && (
+                    <a
+                      href={`https://wa.me/${profile.client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hi ${profile.client.name || 'there'}, here is your secure setup link to create your password and access your Ingress Within Therapy portal: ${magicLink}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20ba59] transition-all flex items-center gap-1.5 shadow-xs"
+                    >
+                      <MessageCircle size={13} />
+                      <span>Share Setup Link on WhatsApp</span>
+                    </a>
+                  )}
+                </div>
               </div>
 
               {/* Client Contact & Profile Overview */}
