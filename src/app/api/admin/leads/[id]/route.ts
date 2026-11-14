@@ -44,3 +44,45 @@ export async function PATCH(
     );
   }
 }
+
+/**
+ * DELETE /api/admin/leads/[id]
+ * =============================
+ * Deletes a lead and removes it from pipeline and drop-offs tracking.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAuthorizedAdmin(request);
+    const { id } = await params;
+
+    const result = await LeadPipelineService.deleteLead(id);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to delete lead' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Lead deleted successfully',
+      id,
+    });
+  } catch (error: any) {
+    if (error?.status === 401 || error?.status === 403) {
+      return NextResponse.json(
+        { error: error.message || 'Unauthorized admin access' },
+        { status: error.status }
+      );
+    }
+    console.error('[DELETE /api/admin/leads/[id] Error]:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete lead' },
+      { status: 500 }
+    );
+  }
+}

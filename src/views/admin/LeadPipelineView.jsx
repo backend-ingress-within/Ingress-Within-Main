@@ -27,6 +27,7 @@ import {
   Check,
   Key,
   Share2,
+  Trash2,
 } from 'lucide-react';
 import { citiesMatch } from '../../lib/therapy/cityUtils';
 
@@ -55,6 +56,98 @@ export default function LeadPipelineView({ showToast }) {
   const [isMatching, setIsMatching] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCredentials, setCopiedCredentials] = useState(false);
+
+  // Deletion states
+  const [deletingId, setDeletingId] = useState(null);
+  const [leadToDelete, setLeadToDelete] = useState(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  const handleDeleteLead = async (leadId) => {
+    setDeletingId(leadId);
+    try {
+      const res = await fetch(`/api/admin/leads/${leadId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLeads((prev) => prev.filter((l) => l.id !== leadId));
+        setMetrics((prev) => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+        }));
+        setSelectedLeadIds((prev) => {
+          const next = new Set(prev);
+          next.delete(leadId);
+          return next;
+        });
+        if (selectedLead?.id === leadId) {
+          setSelectedLead(null);
+        }
+        if (showToast) showToast('Lead record deleted successfully', 'success');
+      } else {
+        if (showToast) showToast(data.error || 'Failed to delete lead', 'error');
+      }
+    } catch (err) {
+      console.error('Error deleting lead:', err);
+      if (showToast) showToast('Network error deleting lead', 'error');
+    } finally {
+      setDeletingId(null);
+      setLeadToDelete(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedLeadIds);
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLeads((prev) => prev.filter((l) => !selectedLeadIds.has(l.id)));
+        setMetrics((prev) => ({
+          ...prev,
+          total: Math.max(0, prev.total - ids.length),
+        }));
+        if (selectedLead && selectedLeadIds.has(selectedLead.id)) {
+          setSelectedLead(null);
+        }
+        setSelectedLeadIds(new Set());
+        if (showToast) showToast(`Successfully deleted ${ids.length} lead(s)`, 'success');
+      } else {
+        if (showToast) showToast(data.error || 'Failed to delete selected leads', 'error');
+      }
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      if (showToast) showToast('Network error during bulk delete', 'error');
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const toggleSelectLead = (id) => {
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeadIds.size === leads.length && leads.length > 0) {
+      setSelectedLeadIds(new Set());
+    } else {
+      setSelectedLeadIds(new Set(leads.map((l) => l.id)));
+    }
+  };
 
   const getFullBookingUrl = (relativeLink) => {
     if (!relativeLink) return '';
@@ -429,6 +522,32 @@ export default function LeadPipelineView({ showToast }) {
         </div>
       </div>
 
+      {/* Bulk Delete Floating Bar */}
+      {selectedLeadIds.size > 0 && (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-center justify-between text-xs text-rose-900 mb-4 animate-in fade-in shadow-xs">
+          <div className="font-semibold flex items-center gap-2">
+            <span>{selectedLeadIds.size} lead(s) selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedLeadIds(new Set())}
+              className="px-3 py-1.5 rounded-lg border border-rose-300 text-rose-800 hover:bg-rose-100 font-medium cursor-pointer"
+            >
+              Deselect All
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected ({selectedLeadIds.size})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Leads Table */}
       <div className="bg-white border border-[#132A24]/10 rounded-2xl overflow-hidden shadow-xs">
         {loading ? (
@@ -446,6 +565,15 @@ export default function LeadPipelineView({ showToast }) {
             <table className="w-full text-left text-xs">
               <thead className="bg-[#132A24]/[0.02] border-b border-[#132A24]/10 text-[#132A24]/60 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
+                  <th className="py-3.5 pl-4 pr-1 w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedLeadIds.size === leads.length && leads.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded text-[#1B5E52] focus:ring-[#1B5E52] cursor-pointer"
+                      title="Select all leads"
+                    />
+                  </th>
                   <th className="py-3.5 px-4">Client Contact</th>
                   <th className="py-3.5 px-4">Drop-off Stage</th>
                   <th className="py-3.5 px-4">Key Preferences</th>
@@ -460,6 +588,15 @@ export default function LeadPipelineView({ showToast }) {
                   const hasMatches = Array.isArray(lead.matches_shown) && lead.matches_shown.length > 0;
                   return (
                     <tr key={lead.id} className="hover:bg-[#132A24]/[0.01] transition-colors">
+                      {/* Selection Checkbox */}
+                      <td className="py-3.5 pl-4 pr-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedLeadIds.has(lead.id)}
+                          onChange={() => toggleSelectLead(lead.id)}
+                          className="rounded text-[#1B5E52] focus:ring-[#1B5E52] cursor-pointer"
+                        />
+                      </td>
                       {/* Contact Info */}
                       <td className="py-3.5 px-4">
                         <div className="font-medium text-[#132A24] flex items-center gap-1.5">
@@ -602,10 +739,20 @@ export default function LeadPipelineView({ showToast }) {
                           {/* View details & edit modal */}
                           <button
                             onClick={() => handleOpenLead(lead)}
-                            className="p-1.5 text-[#132A24]/70 hover:text-[#132A24] bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg transition-colors"
+                            className="p-1.5 text-[#132A24]/70 hover:text-[#132A24] bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg transition-colors cursor-pointer"
                             title="View Lead Profile"
                           >
                             <Eye className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Delete Lead button */}
+                          <button
+                            type="button"
+                            onClick={() => setLeadToDelete(lead)}
+                            className="p-1.5 text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Lead Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -1003,23 +1150,132 @@ export default function LeadPipelineView({ showToast }) {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedLead(null)}
-                  className="px-4 py-2 text-xs font-medium text-stone-600 hover:bg-stone-100 rounded-xl"
+                  onClick={() => setLeadToDelete(selectedLead)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors cursor-pointer"
+                  title="Delete this lead"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Lead</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSaveLeadStatus}
-                  disabled={isUpdating}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-[#1B5E52] hover:bg-[#144A41] rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {isUpdating ? 'Saving…' : 'Save Lead Updates'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLead(null)}
+                    className="px-4 py-2 text-xs font-medium text-stone-600 hover:bg-stone-100 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveLeadStatus}
+                    disabled={isUpdating}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-[#1B5E52] hover:bg-[#144A41] rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isUpdating ? 'Saving…' : 'Save Lead Updates'}
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Single Lead Deletion */}
+      {leadToDelete && (
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-100 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="font-serif font-semibold text-base text-[#132A24]">
+                Delete Lead Record?
+              </h3>
+              <p className="text-xs text-[#132A24]/70 mt-1">
+                Are you sure you want to permanently delete the lead record for{' '}
+                <span className="font-semibold text-[#132A24]">
+                  {leadToDelete.full_name || leadToDelete.phone_number || 'this client'}
+                </span>
+                ? This action removes their intake responses and drop-off history and cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={deletingId === leadToDelete.id}
+                onClick={() => setLeadToDelete(null)}
+                className="px-4 py-2 text-xs font-medium text-stone-600 hover:bg-stone-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === leadToDelete.id}
+                onClick={() => handleDeleteLead(leadToDelete.id)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {deletingId === leadToDelete.id ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting…</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Record</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Bulk Lead Deletion */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-100 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="font-serif font-semibold text-base text-[#132A24]">
+                Delete {selectedLeadIds.size} Selected Leads?
+              </h3>
+              <p className="text-xs text-[#132A24]/70 mt-1">
+                You are about to permanently delete <span className="font-semibold text-[#132A24]">{selectedLeadIds.size}</span> intake and drop-off lead records. This will remove their data from both storage and pipeline metrics.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="px-4 py-2 text-xs font-medium text-stone-600 hover:bg-stone-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting…</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Bulk Delete</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

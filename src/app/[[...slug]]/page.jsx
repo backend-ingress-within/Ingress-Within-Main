@@ -171,6 +171,13 @@ export function generateStaticParams() {
     { slug: ['admin', 'feedback'] },
     { slug: ['admin', 'audit-logs'] },
     { slug: ['admin', 'security'] },
+    { slug: ['admin', 'leads'] },
+    { slug: ['admin', 'therapy-relationships'] },
+    { slug: ['admin', 'matching-reviews'] },
+    { slug: ['admin', 'manual-matching-reviews'] },
+    { slug: ['admin', 'therapist-overview'] },
+    { slug: ['admin', 'acuity-clearance'] },
+    { slug: ['admin', 'complimentary-access'] },
     { slug: ['what-it-is'] },
     { slug: ['how-it-works'] },
     { slug: ['about'] },
@@ -245,7 +252,8 @@ export default async function CatchAllPage({ params }) {
     rawPath === 'user/auth' ||
     rawPath === 'user/signup'
   ) initialRoute = 'auth';
-  else if (rawPath === 'therapist' || rawPath === 'therapist/auth' || rawPath === 'therapist/login') initialRoute = 'therapist';
+  else if (rawPath === 'therapist' || rawPath.startsWith('therapist/')) initialRoute = rawPath;
+  else if (rawPath === 'admin' || (rawPath.startsWith('admin/') && !rawPath.startsWith('admin/psychoeducation-lab'))) initialRoute = rawPath;
   else if (rawPath === 'v2') initialRoute = 'v2-home';
   else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
   else if (rawPath) initialRoute = rawPath;

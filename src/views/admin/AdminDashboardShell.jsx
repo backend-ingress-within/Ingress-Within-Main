@@ -62,7 +62,15 @@ import ManualMatchingReviewsView from './ManualMatchingReviewsView';
 import LeadPipelineView from './LeadPipelineView';
 
 export default function AdminDashboardShell({ admin, onLogout, initialTab = 'overview' }) {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+      if (path && path !== 'login') {
+        return path === 'manual-matching-reviews' ? 'matching-reviews' : path;
+      }
+    }
+    return initialTab || 'overview';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -528,6 +536,28 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
     feedbackPriorityFilter,
     feedbackCategoryFilter,
   ]);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+        if (path) {
+          const normalized = path === 'manual-matching-reviews' ? 'matching-reviews' : path;
+          setActiveTab(normalized);
+        } else {
+          setActiveTab('overview');
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);

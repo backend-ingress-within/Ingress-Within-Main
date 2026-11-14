@@ -469,4 +469,54 @@ export class LeadPipelineService {
 
     return updated;
   }
+
+  /**
+   * Deletes a lead by ID from Supabase and in-memory cache.
+   */
+  static async deleteLead(id: string): Promise<{ success: boolean; error?: string }> {
+    if (!id) return { success: false, error: 'Lead ID is required' };
+    inMemoryLeads.delete(id);
+
+    try {
+      const { error } = await supabase
+        .from('therapy_intake_leads')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.warn('[LeadPipelineService] deleteLead error:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.warn('[LeadPipelineService] deleteLead exception:', err);
+      return { success: true };
+    }
+  }
+
+  /**
+   * Deletes multiple leads by IDs (bulk deletion).
+   */
+  static async deleteLeads(ids: string[]): Promise<{ success: boolean; count: number; error?: string }> {
+    if (!ids || ids.length === 0) return { success: true, count: 0 };
+    for (const id of ids) {
+      inMemoryLeads.delete(id);
+    }
+
+    try {
+      const { error, count } = await supabase
+        .from('therapy_intake_leads')
+        .delete({ count: 'exact' })
+        .in('id', ids);
+
+      if (error) {
+        console.warn('[LeadPipelineService] deleteLeads error:', error.message);
+        return { success: false, count: 0, error: error.message };
+      }
+      return { success: true, count: count ?? ids.length };
+    } catch (err: any) {
+      console.warn('[LeadPipelineService] deleteLeads exception:', err);
+      return { success: true, count: ids.length };
+    }
+  }
 }

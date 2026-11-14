@@ -6,7 +6,15 @@ import { Shield, Loader2 } from 'lucide-react';
 export default function AdminPlatformView() {
   const [admin, setAdmin] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [initialTab, setInitialTab] = useState('overview');
+  const [initialTab, setInitialTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+      if (path && path !== 'login') {
+        return path === 'manual-matching-reviews' ? 'matching-reviews' : path;
+      }
+    }
+    return 'overview';
+  });
 
   const checkAdminAuth = async () => {
     setIsLoading(true);
@@ -34,7 +42,8 @@ export default function AdminPlatformView() {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
       if (path && path !== 'login') {
-        setInitialTab(path);
+        const normalizedTab = path === 'manual-matching-reviews' ? 'matching-reviews' : path;
+        setInitialTab(normalizedTab);
       }
     }
     checkAdminAuth();

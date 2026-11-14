@@ -45,3 +45,52 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/admin/leads
+ * =======================
+ * Bulk deletes leads and drop-offs by IDs.
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    await requireAuthorizedAdmin(request);
+
+    const body = await request.json().catch(() => ({}));
+    const ids: string[] = Array.isArray(body?.ids) ? body.ids : (body?.id ? [body.id] : []);
+
+    if (ids.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one lead ID must be provided for deletion.' },
+        { status: 400 }
+      );
+    }
+
+    const result = await LeadPipelineService.deleteLeads(ids);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to delete selected leads.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${result.count} lead(s).`,
+      count: result.count,
+      deletedIds: ids,
+    });
+  } catch (error: any) {
+    if (error?.status === 401 || error?.status === 403) {
+      return NextResponse.json(
+        { error: error.message || 'Unauthorized admin access' },
+        { status: error.status }
+      );
+    }
+    console.error('[DELETE /api/admin/leads Error]:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete leads' },
+      { status: 500 }
+    );
+  }
+}

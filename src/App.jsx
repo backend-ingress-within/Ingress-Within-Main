@@ -671,6 +671,20 @@ export default function App({ initialRoute = 'home' }) {
       return <DatabaseErrorScreen error={authError} onRetry={checkUserStatus} />;
     }
 
+    // Admin Platform routing (handles /admin, /admin/login, /admin/leads, and any other /admin/* subroute)
+    if (
+      currentRoute &&
+      (currentRoute === 'admin' ||
+        (currentRoute.startsWith('admin/') && !currentRoute.startsWith('admin/psychoeducation-lab')))
+    ) {
+      return <AdminPlatformView />;
+    }
+
+    // Therapist Platform routing (handles /therapist, /therapist/auth, and any /therapist/* subroute)
+    if (currentRoute && (currentRoute === 'therapist' || currentRoute.startsWith('therapist/'))) {
+      return <TherapistPlatformView />;
+    }
+
     switch (currentRoute) {
 
       case 'home':
@@ -866,10 +880,17 @@ export default function App({ initialRoute = 'home' }) {
         return <NotFoundPage user={user} profile={profile} />;
       case 'home':
       default:
-        if (currentRoute && currentRoute.startsWith('therapist')) {
+        if (
+          currentRoute &&
+          (currentRoute === 'admin' ||
+            (currentRoute.startsWith('admin/') && !currentRoute.startsWith('admin/psychoeducation-lab')))
+        ) {
+          return <AdminPlatformView />;
+        }
+        if (currentRoute && (currentRoute === 'therapist' || currentRoute.startsWith('therapist/'))) {
           return <TherapistPlatformView />;
         }
-        return <PublicWebsiteV2 initialTab="home" onOpenPolicy={handleOpenPolicy} />;
+        return <PublicWebsiteV2 user={user} profile={profile} initialTab="home" onOpenPolicy={handleOpenPolicy} />;
     }
   };
 
