@@ -486,7 +486,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2 mt-4">
-                  <span className="font-mono-code text-4xl text-[#162723] font-semibold">From ₹999</span>
+                  <span className="font-mono-code text-4xl text-[#162723] font-semibold">From ₹799</span>
                   <span className="font-zen text-xs text-[#5C6873]">/ session</span>
                 </div>
                 <p className="font-zen text-xs sm:text-sm text-[#5C6873] leading-relaxed pt-3">
@@ -1701,7 +1701,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                   Starting with a therapist
                 </h3>
                 <p className="font-zen text-xs sm:text-sm text-[#5C6873] leading-relaxed">
-                  Browse therapist profiles filtered by language, gender, specialty and availability, book a first session at ₹999+ per session, and set up your shared dashboard together in that first session.
+                  Browse therapist profiles filtered by language, gender, specialty and availability, book a first session at ₹799+ per session, and set up your shared dashboard together in that first session.
                 </p>
                 <div className="pt-2 space-y-2 font-zen text-xs sm:text-sm text-[#162723]">
                   <div className="flex items-center gap-2.5">
@@ -1790,7 +1790,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 <tr className="font-semibold text-[#162723] bg-[#FDFBF8]/60">
                   <td className="py-4 pr-6 font-medium text-sm">Typical cost</td>
                   <td className="py-4 px-6 font-mono-code text-sm text-[#795663]">₹499 / month</td>
-                  <td className="py-4 pl-6 font-mono-code text-sm text-[#162723]">From ₹999 / session</td>
+                  <td className="py-4 pl-6 font-mono-code text-sm text-[#162723]">From ₹799 / session</td>
                 </tr>
                 <tr className="border-t border-[#E7DECF]/80">
                   <td className="py-5 pr-6"></td>
@@ -2267,7 +2267,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
   );
 
   // -------------------------------------------------------------
-  // TAB 4: PRICING (Dynamic ₹499/mo & ₹999/session)
+  // TAB 4: PRICING (Dynamic ₹499/mo & ₹799/session)
   // -------------------------------------------------------------
   const renderPricing = () => (
     <div className="w-full space-y-0">
@@ -2433,7 +2433,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                 </div>
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="font-mono-code text-5xl font-semibold text-[#162723]">From ₹999</span>
+                    <span className="font-mono-code text-5xl font-semibold text-[#162723]">From ₹799</span>
                     <span className="font-zen text-sm text-[#5C6873]">/ session</span>
                   </div>
                   <p className="font-zen text-xs text-[#795663] font-medium pt-1">
@@ -2528,7 +2528,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
                   </span>
                 </div>
                 <p className="font-zen text-sm sm:text-base text-[#5C6873] leading-relaxed">
-                  ≈₹999–1,500 × 4 sessions, depending on therapist. No subscription fee on top.
+                  ≈₹799–1,500 × 4 sessions, depending on therapist. No subscription fee on top.
                 </p>
               </div>
             </motion.div>
