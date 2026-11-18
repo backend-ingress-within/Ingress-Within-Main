@@ -91,6 +91,21 @@ export async function loadEligibleTherapistRoster(): Promise<TherapistRecord[]> 
 
     const appAnswers = (application?.answers as Record<string, any>) || {};
 
+    // Internal developer & testing accounts (e.g., Siddhesh Gawade) are strictly reserved
+    // for platform development and manual testing. They must NEVER participate in or be
+    // returned by the client-facing matching engine. They can only be assigned via manual matching.
+    const isDeveloperAccount =
+      account.id === 'ad2ec365-7411-4b4d-88d7-f32bf0b2e4a8' ||
+      (profile as any)?.contact_email === 'siddheshgawade4554@gmail.com' ||
+      (account as any)?.is_developer_account === true ||
+      appAnswers?.isDeveloperAccount === true ||
+      appAnswers?.manualMatchOnly === true ||
+      appAnswers?.hiddenFromMatching === true;
+
+    if (isDeveloperAccount) {
+      continue;
+    }
+
     const modalities = Array.isArray(appAnswers.modalities)
       ? appAnswers.modalities
       : Array.isArray(profile.specializations)

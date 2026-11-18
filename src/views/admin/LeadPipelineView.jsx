@@ -1012,7 +1012,7 @@ export default function LeadPipelineView({ showToast }) {
                     <option value="">-- Choose an active therapist --</option>
                     {therapists.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.full_name} ({t.qualification || t.title || 'Consultant'} · {t.city || 'Telehealth'} · ₹{t.per_session_fee || 1500}/session)
+                        {t.full_name} {t.is_developer_account ? '· [Dev / Manual Match Only]' : ''} ({t.qualification || t.title || 'Consultant'} · {t.city || 'Telehealth'} · ₹{t.per_session_fee || 1500}/session)
                       </option>
                     ))}
                   </select>

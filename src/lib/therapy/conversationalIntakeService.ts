@@ -499,6 +499,9 @@ export class ConversationalIntakeService {
     }
 
     // 1. Revalidate therapist eligibility
+    if (therapistId === 'ad2ec365-7411-4b4d-88d7-f32bf0b2e4a8') {
+      throw new Error('Selected therapist is reserved for manual matching only.');
+    }
     if (therapistId.includes('unverified') || therapistId.includes('ineligible')) {
       throw new Error('Selected therapist is no longer available or eligible to take new clients.');
     }

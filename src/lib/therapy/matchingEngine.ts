@@ -79,6 +79,8 @@ export interface TherapistRecord {
   acuityClearance?: 'none' | 'cleared-for-priority' | 'cleared-for-immediate';
   submittedAt?: string;
   email?: string | null;
+  isDeveloperAccount?: boolean;
+  manualMatchOnly?: boolean;
 }
 
 export interface DimensionScores {
@@ -431,6 +433,16 @@ export function hardFilter(
   relax: { language?: boolean; clientType?: boolean; floor?: boolean; city?: boolean } = {}
 ): string[] {
   const fails: string[] = [];
+
+  // Developer and internal test accounts are strictly reserved for manual matching only
+  if (
+    t.id === 'ad2ec365-7411-4b4d-88d7-f32bf0b2e4a8' ||
+    t.email === 'siddheshgawade4554@gmail.com' ||
+    t.isDeveloperAccount ||
+    t.manualMatchOnly
+  ) {
+    fails.push('Developer/test account — reserved for manual matching only');
+  }
 
   if (t.verificationStatus !== 'verified') {
     fails.push(`Not yet verified (status: ${t.verificationStatus || 'pending'})`);

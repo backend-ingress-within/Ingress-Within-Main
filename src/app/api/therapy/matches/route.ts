@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
         }
         const tId = m.therapistAccountId || m.id;
         if (tId) {
+          if (tId === 'ad2ec365-7411-4b4d-88d7-f32bf0b2e4a8') {
+            return NextResponse.json(
+              { error: { code: 'THERAPIST_UNAVAILABLE', message: 'Submitted therapist is not available for direct client matching.' } },
+              { status: 409 }
+            );
+          }
           const val = await validateEligibleTherapist(tId);
           if (!val.valid) {
             return NextResponse.json(

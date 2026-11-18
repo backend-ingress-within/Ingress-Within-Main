@@ -453,7 +453,7 @@ export default function ManualMatchingReviewsView({ showToast }) {
                   <option value="">-- No Therapist Assigned --</option>
                   {therapists.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.full_name} ({t.qualification || 'Consultant'} · ₹{t.per_session_fee || 1500}/session)
+                      {t.full_name} {t.is_developer_account ? '· [Dev / Manual Match Only]' : ''} ({t.qualification || 'Consultant'} · ₹{t.per_session_fee || 1500}/session)
                     </option>
                   ))}
                 </select>

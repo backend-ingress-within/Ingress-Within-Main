@@ -571,6 +571,12 @@ export class AdminPlatformService {
           fee = 1500;
         }
 
+        const isDeveloperAccount =
+          a.id === 'ad2ec365-7411-4b4d-88d7-f32bf0b2e4a8' ||
+          p.contact_email === 'siddheshgawade4554@gmail.com' ||
+          app?.answers?.isDeveloperAccount === true ||
+          app?.answers?.manualMatchOnly === true;
+
         safeList.push({
           id: a.id,
           phone_number: a.phone_number,
@@ -579,6 +585,7 @@ export class AdminPlatformService {
           application_status: a.application_status,
           verification_status: a.verification_status,
           can_practice: a.can_practice,
+          is_developer_account: isDeveloperAccount,
           rci_registered: !!a.rci_registered,
           rci_number: a.rci_number || null,
           commission_rate: Number(a.commission_rate || 0.20),

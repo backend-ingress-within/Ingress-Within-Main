@@ -1274,7 +1274,17 @@ export default function AdminDashboardShell({ admin, onLogout, initialTab = 'ove
                           return (
                             <tr key={t.id} className="hover:bg-[#132A24]/[0.02] transition-colors">
                               <td className="py-3.5 px-4">
-                                <div className="font-semibold text-[#132A24]">{t.full_name}</div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-[#132A24]">{t.full_name}</span>
+                                  {t.is_developer_account && (
+                                    <span
+                                      className="px-2 py-0.5 rounded-full text-[9px] font-semibold tracking-wide bg-amber-50 border border-amber-200 text-amber-800"
+                                      title="Developer / Test account - Hidden from client matching engine, manual match only"
+                                    >
+                                      Dev / Manual Match Only
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-[10px] text-[#132A24]/50">
                                   {t.email ? `${t.email} • ` : ''}
                                   {t.phone_number}
