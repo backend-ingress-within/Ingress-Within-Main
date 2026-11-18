@@ -48,10 +48,10 @@ export default function TherapyLoginView() {
       if (!response.ok || !data.success) {
         setErrorMessage(data.error || 'Login failed. Please check your credentials.');
       } else {
-        setSuccessMessage('Logged in successfully! Loading your portal…');
+        setSuccessMessage('Logged in successfully! Opening your therapy portal…');
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/dashboard';
+            window.location.href = '/therapy';
           }
         }, 1000);
       }
@@ -116,10 +116,10 @@ export default function TherapyLoginView() {
       if (!response.ok || !data.success) {
         setErrorMessage(data.error || 'Invalid or expired OTP code.');
       } else {
-        setSuccessMessage('Verification complete! Opening your portal…');
+        setSuccessMessage('Verification complete! Opening your therapy portal…');
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/dashboard';
+            window.location.href = '/therapy';
           }
         }, 1000);
       }
@@ -339,6 +339,12 @@ export default function TherapyLoginView() {
               <span className="text-xs text-[#7D8E87]">New to Ingress Within? </span>
               <a href="/therapy" className="text-xs font-semibold text-[#795663] hover:underline">
                 Find a Therapist &amp; Start Intake →
+              </a>
+            </div>
+            <div>
+              <span className="text-xs text-[#7D8E87]">Looking for self-guided journaling? </span>
+              <a href="/auth" className="text-xs font-medium text-[#162723] hover:underline">
+                Self-Help Login →
               </a>
             </div>
             <div>

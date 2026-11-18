@@ -748,6 +748,19 @@ export async function validateEligibleTherapist(
 export async function getClientConnectedTherapist(userId: string) {
   if (!userId) return null;
 
+  const userIds = [userId];
+  try {
+    const { data: clientAcc } = await supabase
+      .from('therapy_client_accounts')
+      .select('id, user_id')
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle();
+    if (clientAcc) {
+      if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+      if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+    }
+  } catch {}
+
   const { data: relationship, error } = await supabase
     .from('therapy_care_relationships')
     .select(`
@@ -776,7 +789,7 @@ export async function getClientConnectedTherapist(userId: string) {
         )
       )
     `)
-    .eq('user_id', userId)
+    .in('user_id', userIds)
     .eq('status', 'active')
     .order('started_at', { ascending: false })
     .limit(1)
@@ -862,6 +875,19 @@ export async function getClientTherapyDashboardSummary(userId: string) {
   }
 
   // 1. Fetch care relationships (both active and historical)
+  const userIds = [userId];
+  try {
+    const { data: clientAcc } = await supabase
+      .from('therapy_client_accounts')
+      .select('id, user_id')
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle();
+    if (clientAcc) {
+      if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+      if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+    }
+  } catch {}
+
   const { data: relationships, error: relError } = await supabase
     .from('therapy_care_relationships')
     .select(`
@@ -892,7 +918,7 @@ export async function getClientTherapyDashboardSummary(userId: string) {
         )
       )
     `)
-    .eq('user_id', userId)
+    .in('user_id', userIds)
     .order('created_at', { ascending: false });
 
   if (relError) {

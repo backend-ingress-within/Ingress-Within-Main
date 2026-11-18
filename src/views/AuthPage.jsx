@@ -481,6 +481,28 @@ export default function AuthPage({ user, profile: propProfile, onOpenPolicy, onA
                     >
                       {isSubmitting ? "Sending..." : "Continue"}
                     </button>
+
+                    {/* Alternate Portals Callout */}
+                    <div className="pt-4 border-t border-primary/10 text-center space-y-1.5">
+                      <p className="font-sans text-[12px] text-mid">
+                        Therapy Client?{' '}
+                        <a 
+                          href="/therapy/login"
+                          className="text-accent font-semibold hover:underline"
+                        >
+                          Sign In to Therapy Portal →
+                        </a>
+                      </p>
+                      <p className="font-sans text-[12px] text-mid/70">
+                        Practitioner?{' '}
+                        <a 
+                          href="/therapist/auth"
+                          className="text-primary/80 font-medium hover:underline"
+                        >
+                          Therapist Workspace →
+                        </a>
+                      </p>
+                    </div>
                   </motion.div>
                 </form>
               </motion.div>

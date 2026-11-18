@@ -172,11 +172,21 @@ export default function App({ initialRoute = 'home' }) {
 
   const handleSignOut = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const isTherapyClient = user?.is_therapy_client;
+      await Promise.allSettled([
+        fetch('/api/auth/logout', { method: 'POST' }),
+        fetch('/api/therapy/auth/logout', { method: 'POST' })
+      ]);
       setUser(null);
       setProfile(null);
       setAuthError(null);
-      window.navigateTo('/auth');
+      if (isTherapyClient) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/therapy/login';
+        }
+      } else {
+        window.navigateTo('/auth');
+      }
     } catch (err) {
       console.error('Logout failed:', err);
     }
@@ -290,6 +300,9 @@ export default function App({ initialRoute = 'home' }) {
       if (!user) {
         console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /auth. Reason: SESSION_INVALID');
         window.navigateTo('/auth');
+      } else if (user?.is_therapy_client) {
+        console.log('[App.jsx] Redirect Engine: Authenticated therapy client on self-help protected route. Redirecting to /therapy.');
+        window.navigateTo('/therapy');
       } else if (profile) {
         console.log('[App.jsx] Redirect Engine: Authenticated user with profile on protected route. Onboarding state:', {
           consent_completed: profile.consent_completed,
@@ -469,7 +482,14 @@ export default function App({ initialRoute = 'home' }) {
       } else if (path === '/dashboard' || path === '/dashboard/') {
         setCurrentRoute('dashboard');
         window.scrollTo(0, 0);
-      } else if (path === '/therapy' || path === '/therapy/') {
+      } else if (
+        path === '/therapy' ||
+        path === '/therapy/' ||
+        path === '/therapy/dashboard' ||
+        path === '/therapy/dashboard/' ||
+        path === '/therapy/portal' ||
+        path === '/therapy/portal/'
+      ) {
         setCurrentRoute('therapy');
         window.scrollTo(0, 0);
       } else if (path === '/settings' || path === '/settings/') {

@@ -78,7 +78,7 @@ export default function TherapyClaimAccountView() {
         setSubmitSuccess(true);
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/dashboard';
+            window.location.href = '/therapy';
           }
         }, 1500);
       }
@@ -120,10 +120,10 @@ export default function TherapyClaimAccountView() {
               </div>
               <h2 className="font-editorial text-2xl text-[#162723] mb-2">Account Activated!</h2>
               <p className="text-sm text-[#4F635E] mb-4">
-                Your password has been saved and your therapy account is ready. Redirecting to your dashboard…
+                Your password has been saved and your therapy account is ready. Redirecting to your therapy portal…
               </p>
               <div className="inline-block animate-pulse text-xs text-[#7D8E87]">
-                Taking you to your dashboard…
+                Taking you to your therapy space…
               </div>
             </div>
           ) : !valid ? (

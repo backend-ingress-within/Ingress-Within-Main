@@ -3844,7 +3844,9 @@ export default function TherapyPage({ user, profile, onSignOut }) {
 
   const dashboard = () => {
     if (typeof window !== 'undefined' && window.navigateTo) {
-      if (user) {
+      if (user?.is_therapy_client) {
+        window.navigateTo('/therapy');
+      } else if (user) {
         window.navigateTo('/dashboard');
       } else {
         window.navigateTo('/');
@@ -3868,8 +3870,8 @@ export default function TherapyPage({ user, profile, onSignOut }) {
 
   const connectionStatus = connectionData?.connectionStatus || (connectionData?.connected ? 'connected' : 'no_therapist');
 
-  // STATE C: Connected therapist -> Show Client Therapy Dashboard
-  if (connectionStatus === 'connected' && !showIntakeOverride && !journey) {
+  // STATE C: Connected therapist or authenticated therapy client -> Show Client Therapy Dashboard
+  if ((connectionStatus === 'connected' || user?.is_therapy_client || connectionData?.connection) && !showIntakeOverride && !journey) {
     return (
       <ClientTherapyDashboard
         user={user}

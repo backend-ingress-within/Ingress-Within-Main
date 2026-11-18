@@ -29,6 +29,7 @@ import {
   Check,
   Lock,
   Bell,
+  LogOut,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
 import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
@@ -499,11 +500,16 @@ export default function ClientTherapyDashboard({
           <button
             type="button"
             onClick={() => {
-              if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
-              else window.location.href = '/dashboard';
+              if (user?.is_therapy_client) {
+                if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/therapy');
+                else window.location.href = '/therapy';
+              } else {
+                if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/dashboard');
+                else window.location.href = '/dashboard';
+              }
             }}
             className="flex items-center gap-2 text-xs font-medium text-[#66747A] hover:text-[#132A24] transition-colors shrink-0 whitespace-nowrap cursor-pointer"
-            title="Return to Ingress Within Dashboard"
+            title="Ingress Within Therapy Portal"
           >
             <img src="/logo-mark-transparent.png" alt="Ingress Within" className="w-6 h-6 object-contain shrink-0" />
             <span className="hidden sm:inline font-serif text-[15px] text-[#132A24] tracking-tight whitespace-nowrap">
@@ -688,6 +694,18 @@ export default function ClientTherapyDashboard({
               <span className="sm:hidden">Book</span>
             </button>
 
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-xl border border-[#263238]/12 bg-white text-[#66747A] hover:text-[#132A24] hover:bg-[#263238]/5 text-xs font-medium transition-all shrink-0 cursor-pointer"
+                title="Sign out of Therapy Portal"
+              >
+                <LogOut size={14} className="shrink-0" />
+                <span>Sign Out</span>
+              </button>
+            )}
+
             {/* Tablet / Mobile Menu Button */}
             <button
               type="button"
@@ -743,6 +761,19 @@ export default function ClientTherapyDashboard({
                 )}
               </button>
             ))}
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onSignOut();
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors bg-rose-50/80 text-rose-700 hover:bg-rose-100 font-medium cursor-pointer"
+              >
+                <LogOut size={14} className="shrink-0" />
+                <span>Sign Out</span>
+              </button>
+            )}
           </div>
         </div>
       )}

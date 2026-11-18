@@ -15,6 +15,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch client appointments
+    const userIds = [authUser.userId];
+    try {
+      const { data: clientAcc } = await supabase
+        .from('therapy_client_accounts')
+        .select('id, user_id')
+        .or(`id.eq.${authUser.userId},user_id.eq.${authUser.userId}`)
+        .maybeSingle();
+      if (clientAcc) {
+        if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+        if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+      }
+    } catch {}
+
     const { data: appts, error } = await supabase
       .from('therapist_clinical_appointments')
       .select(`
@@ -32,7 +45,7 @@ export async function GET(request: NextRequest) {
         created_at,
         therapist_account_id
       `)
-      .eq('user_id', authUser.userId)
+      .in('user_id', userIds)
       .order('scheduled_start', { ascending: false });
 
     if (error) {
@@ -71,7 +84,7 @@ export async function GET(request: NextRequest) {
           .from('therapist_soap_notes')
           .select('id, appointment_id, subjective, objective, assessment, plan, is_draft, finalized_at, created_at')
           .in('appointment_id', apptIds)
-          .eq('user_id', authUser.userId);
+          .in('user_id', userIds);
 
         (soapNotes || []).forEach((sn: any) => {
           if (!soapNotesMap[sn.appointment_id] || sn.finalized_at) {

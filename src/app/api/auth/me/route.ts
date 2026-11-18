@@ -2,9 +2,62 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/db';
 import { verifyJwt } from '../../../../utils/crypto';
 import { COOKIE_ACCESS_NAME } from '../../../../utils/cookies';
+import {
+  THERAPY_CLIENT_COOKIE_NAME,
+  TherapyClientAuthService,
+} from '../../../../lib/therapy/therapyClientAuthService';
 
 export async function GET(request: NextRequest) {
   try {
+    // Helper to authenticate therapy clients if a dedicated therapy token exists
+    const checkTherapyClient = async () => {
+      let therapyToken = request.cookies?.get(THERAPY_CLIENT_COOKIE_NAME)?.value;
+      if (!therapyToken) {
+        const cookieHeader = request.headers.get('cookie') || '';
+        const therapyMatch = cookieHeader.match(new RegExp(`${THERAPY_CLIENT_COOKIE_NAME}=([^;]+)`));
+        if (therapyMatch) therapyToken = therapyMatch[1];
+      }
+      if (therapyToken) {
+        const client = await TherapyClientAuthService.verifyClientToken(therapyToken);
+        if (client) {
+          return NextResponse.json({
+            user: {
+              id: client.userId,
+              client_account_id: client.id,
+              phone_number: client.phoneNumber,
+              name: client.fullName,
+              full_name: client.fullName,
+              email: client.email,
+              role: 'therapy_client',
+              is_therapy_client: true,
+              account_status: client.status,
+              is_active: true,
+              created_at: new Date().toISOString(),
+            },
+            profile: {
+              id: client.id,
+              phone_number: client.phoneNumber,
+              name: client.fullName,
+              full_name: client.fullName,
+              email: client.email,
+              role: 'therapy_client',
+              is_therapy_client: true,
+              account_status: client.status,
+              onboarding_status: 'completed',
+              consent_completed: true,
+              profile_completed: true,
+              orientation_completed: true,
+              assessment_completed: true,
+              onboarding_completed: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          });
+        }
+      }
+      return null;
+    };
+
     // 1. Resolve access token (priority to secure cookie, fallback to Authorization header)
     let token = request.cookies?.get(COOKIE_ACCESS_NAME)?.value;
     
@@ -22,6 +75,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!token) {
+      const therapyRes = await checkTherapyClient();
+      if (therapyRes) return therapyRes;
+
       return NextResponse.json(
         {
           error: {
@@ -38,6 +94,9 @@ export async function GET(request: NextRequest) {
     const payload = verifyJwt(token, jwtSecret);
 
     if (!payload || !payload.uid) {
+      const therapyRes = await checkTherapyClient();
+      if (therapyRes) return therapyRes;
+
       return NextResponse.json(
         {
           error: {
@@ -91,6 +150,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!session) {
+      const therapyRes = await checkTherapyClient();
+      if (therapyRes) return therapyRes;
+
       return NextResponse.json(
         {
           error: {
