@@ -38,6 +38,7 @@ import ClientTherapyCareJourneyView from './ClientTherapyCareJourneyView';
 import ClientTherapyBillingView from './ClientTherapyBillingView';
 import ClientTherapyNotificationsView from './ClientTherapyNotificationsView';
 import ClientTherapeuticProfileView from './ClientTherapeuticProfileView';
+import ClientTherapyConsentSharingView from './ClientTherapyConsentSharingView';
 import TherapyBookingFlow from '../../components/therapy/TherapyBookingFlow';
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
 import { getSessionMeetingWindow, MEETING_POST_SESSION_BUFFER_MS } from '../../utils/sessionMeetingUtils';
@@ -56,11 +57,34 @@ export default function ClientTherapyDashboard({
   pendingRequest,
   history = [],
 }) {
-  const [activeTab, setActiveTab] = useState('overview'); // overview | therapeutic_profile | sessions | therapist | journey | homework | billing | support
+  const [activeTab, setActiveTab] = useState('overview'); // overview | therapeutic_profile | sessions | therapist | journey | homework | billing | sharing | support
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [overviewImgFailed, setOverviewImgFailed] = useState(false);
   const moreMenuRef = useRef(null);
+
+  // Sync tab from URL query if provided (e.g. /therapy?tab=sharing)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      const validTabs = [
+        'overview',
+        'sessions',
+        'therapist',
+        'therapeutic_profile',
+        'homework',
+        'journey',
+        'billing',
+        'sharing',
+        'notifications',
+        'support',
+      ];
+      if (tabParam && validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!moreMenuOpen) return;
@@ -608,15 +632,17 @@ export default function ClientTherapyDashboard({
               );
             })}
 
-            {/* Secondary Utilities Dropdown: My Journey, Billing, Support */}
+            {/* Secondary Utilities Dropdown: My Journey, Billing, Sharing, Support */}
             <div className="relative" ref={moreMenuRef}>
               {(() => {
-                const secondaryActive = ['journey', 'billing', 'support'].includes(activeTab);
+                const secondaryActive = ['journey', 'billing', 'sharing', 'support'].includes(activeTab);
                 const secondaryLabel =
                   activeTab === 'journey'
                     ? 'My Journey'
                     : activeTab === 'billing'
                     ? 'Billing'
+                    : activeTab === 'sharing'
+                    ? 'Consent & Sharing'
                     : activeTab === 'support'
                     ? 'Support'
                     : 'More';
@@ -658,6 +684,12 @@ export default function ClientTherapyDashboard({
                             label: 'Billing & Invoices',
                             sub: 'Session payments & receipts',
                             icon: CreditCard,
+                          },
+                          {
+                            id: 'sharing',
+                            label: 'Consent & Sharing',
+                            sub: 'Data & insight sharing permissions',
+                            icon: Sparkles,
                           },
                           {
                             id: 'security',
@@ -793,6 +825,7 @@ export default function ClientTherapyDashboard({
               { id: 'homework', label: 'Self-Work / Homework', count: pendingHomeworkList.length },
               { id: 'journey', label: 'My Journey' },
               { id: 'billing', label: 'Billing & Invoices' },
+              { id: 'sharing', label: 'Consent & Sharing' },
               { id: 'notifications', label: 'Notifications', count: unreadNotificationsCount },
               { id: 'support', label: 'Support & Helplines' },
             ].map((tab) => (
@@ -1437,6 +1470,7 @@ export default function ClientTherapyDashboard({
             onNavigateSessions={() => setActiveTab('sessions')}
             onStartRematch={onStartRematch}
             onNavigateSupport={() => setActiveTab('support')}
+            onNavigateSharing={() => setActiveTab('sharing')}
             onRefresh={onRefreshRelationship}
           />
         )}
@@ -1862,6 +1896,17 @@ export default function ClientTherapyDashboard({
               </div>
             </div>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 9: CONSENT & INSIGHT SHARING                                          */}
+        {/* ========================================================================= */}
+        {activeTab === 'sharing' && (
+          <ClientTherapyConsentSharingView
+            therapist={therapist}
+            relationship={relationship}
+            onNavigateTherapist={() => setActiveTab('therapist')}
+          />
         )}
       </main>
 

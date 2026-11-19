@@ -92,6 +92,19 @@ export class ClientInsightConsentService {
     }
 
     try {
+      const userIds = [clientId];
+      try {
+        const { data: clientAcc } = await supabase
+          .from('therapy_client_accounts')
+          .select('id, user_id')
+          .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+          .maybeSingle();
+        if (clientAcc) {
+          if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+          if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+        }
+      } catch {}
+
       const { data, error } = await supabase
         .from('therapy_care_relationships')
         .select(`
@@ -106,7 +119,7 @@ export class ClientInsightConsentService {
             )
           )
         `)
-        .eq('user_id', clientId)
+        .in('user_id', userIds)
         .order('started_at', { ascending: false });
 
       const activeOrLatestRel = (data || []).find((r: any) => r.status === 'active') || (data || [])[0];
@@ -157,12 +170,34 @@ export class ClientInsightConsentService {
       };
     }
 
+    const userIds = [clientId];
+    try {
+      const { data: clientAcc } = await supabase
+        .from('therapy_client_accounts')
+        .select('id, user_id')
+        .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+        .maybeSingle();
+      if (clientAcc) {
+        if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+        if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+      }
+    } catch {}
+
+    for (const uid of userIds) {
+      if (this.inMemoryConsents.has(uid)) {
+        return {
+          consent: this.inMemoryConsents.get(uid)!,
+          activeTherapist,
+        };
+      }
+    }
+
     // 2. Query database
     try {
       const { data, error } = await supabase
         .from('client_insight_sharing_consents')
         .select('*')
-        .eq('client_id', clientId)
+        .in('client_id', userIds)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -187,7 +222,9 @@ export class ClientInsightConsentService {
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
-        this.inMemoryConsents.set(clientId, consentObj);
+        for (const uid of userIds) {
+          this.inMemoryConsents.set(uid, consentObj);
+        }
         return { consent: consentObj, activeTherapist };
       }
     } catch (err: any) {
@@ -239,6 +276,21 @@ export class ClientInsightConsentService {
       throw new Error('clientId is required to update sharing consent');
     }
 
+    const userIds = [clientId];
+    let targetClientId = clientId;
+    try {
+      const { data: clientAcc } = await supabase
+        .from('therapy_client_accounts')
+        .select('id, user_id')
+        .or(`id.eq.${clientId},user_id.eq.${clientId}`)
+        .maybeSingle();
+      if (clientAcc) {
+        if (clientAcc.user_id) targetClientId = clientAcc.user_id;
+        if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+        if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+      }
+    } catch {}
+
     const activeTherapist = await this.getActiveRelationship(clientId);
     const therapistAccountId =
       params.therapistAccountId !== undefined
@@ -263,7 +315,7 @@ export class ClientInsightConsentService {
 
     const consentRecord: ClientInsightSharingConsent = {
       id: `consent-${clientId}-${Date.now()}`,
-      client_id: clientId,
+      client_id: targetClientId,
       therapist_account_id: therapistAccountId || null,
       relationship_id: relationshipId || null,
       is_enabled: effectiveIsEnabled,
@@ -285,14 +337,18 @@ export class ClientInsightConsentService {
     };
 
     // 1. Update in-memory store immediately
-    this.inMemoryConsents.set(clientId, consentRecord);
+    for (const uid of userIds) {
+      this.inMemoryConsents.set(uid, consentRecord);
+    }
 
     // 2. Persist to DB table
     try {
       const { data: existing } = await supabase
         .from('client_insight_sharing_consents')
         .select('id')
-        .eq('client_id', clientId)
+        .in('client_id', userIds)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (existing) {

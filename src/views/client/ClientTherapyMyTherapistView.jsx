@@ -47,6 +47,7 @@ export default function ClientTherapyMyTherapistView({
   onNavigateSessions,
   onStartRematch,
   onNavigateSupport,
+  onNavigateSharing,
   onRefresh,
 }) {
   const [connectionData, setConnectionData] = useState({
@@ -976,14 +977,16 @@ export default function ClientTherapyMyTherapistView({
           <button
             type="button"
             onClick={() => {
-              if (typeof window !== 'undefined') {
-                if (window.navigateTo) window.navigateTo('/settings?tab=sharing');
-                else window.location.href = '/settings?tab=sharing';
+              if (onNavigateSharing) {
+                onNavigateSharing();
+              } else if (typeof window !== 'undefined') {
+                if (window.navigateTo) window.navigateTo('/therapy?tab=sharing');
+                else window.location.href = '/therapy?tab=sharing';
               }
             }}
             className="px-3.5 py-1.5 rounded-lg bg-white border border-[#263238]/15 text-[#132A24] text-xs font-medium hover:bg-gray-50 transition-colors shrink-0 cursor-pointer shadow-xs"
           >
-            Manage in Privacy &amp; Sharing &rarr;
+            Manage in Consent &amp; Sharing &rarr;
           </button>
         </div>
 
