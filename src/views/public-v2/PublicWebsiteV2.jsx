@@ -107,7 +107,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
 
             {/* Subtitle from user reference */}
             <p className="font-zen text-base sm:text-lg md:text-xl text-[#5C6873] max-w-2xl sm:max-w-3xl mx-auto leading-relaxed text-center">
-              A continuous psychological growth ecosystem that brings together self-guided learning, therapist support and AI guidance, all in one place.
+              A continuous mental health ecosystem that brings together self-guided learning, therapist support and AI guidance, all in one place.
             </p>
 
             {/* Dual Action CTAs: 2 Types Only */}
@@ -3254,7 +3254,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
           </div>
 
           <h1 className="font-editorial text-4xl sm:text-5xl lg:text-6xl text-[#162723] font-normal leading-[1.12] max-w-3xl sm:max-w-4xl mx-auto">
-            One place for the different ways people work on their psychological health.
+            One place for the different ways people work on their mental health.
           </h1>
 
           <p className="font-zen text-base sm:text-lg text-[#5C6873] leading-relaxed max-w-2xl sm:max-w-3xl mx-auto">

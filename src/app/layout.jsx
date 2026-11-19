@@ -53,13 +53,13 @@ export const metadata = {
     ...(bingVerification ? { other: { 'msvalidate.01': bingVerification } } : {}),
   },
   title: {
-    default: 'A Continuous Psychological Journey | Ingress Within',
+    default: 'A Continuous Mental Health Journey | Ingress Within',
     template: '%s'
   },
   description: 'Start on your own, work with a therapist, or move between the two. Ingress Within is one connected space for self-guided work and professional support.',
   keywords: [
     'Ingress Within',
-    'Psychological Journey',
+    'Mental Health',
     'Mental Wellness',
     'Self-Guided Work',
     'Therapist Support',
@@ -84,7 +84,7 @@ export const metadata = {
     },
   },
   openGraph: {
-    title: 'A Continuous Psychological Journey | Ingress Within',
+    title: 'A Continuous Mental Health Journey | Ingress Within',
     description: 'Start on your own, work with a therapist, or move between the two. Ingress Within is one connected space for self-guided work and professional support.',
     url: 'https://ingresswithin.com/',
     siteName: 'Ingress Within',
@@ -95,13 +95,13 @@ export const metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Ingress Within — A Continuous Psychological Journey',
+        alt: 'Ingress Within — A Continuous Mental Health Journey',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'A Continuous Psychological Journey | Ingress Within',
+    title: 'A Continuous Mental Health Journey | Ingress Within',
     description: 'Start on your own, work with a therapist, or move between the two. Ingress Within is one connected space for self-guided work and professional support.',
     images: ['/og-image.png'],
     creator: '@ingresswithin',

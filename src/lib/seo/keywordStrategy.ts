@@ -85,7 +85,7 @@ export const KEYWORD_CLUSTERS: Record<string, KeywordCluster> = {
  */
 export const ROUTE_INTENT_MAP: Record<string, { title: string; description: string; clusterId: string }> = {
   home: {
-    title: 'A Continuous Psychological Journey | Ingress Within',
+    title: 'A Continuous Mental Health Journey | Ingress Within',
     description: 'Start on your own, work with a therapist, or move between the two. Ingress Within is one connected space for self-guided work and professional support.',
     clusterId: 'psychologyInformed'
   },
