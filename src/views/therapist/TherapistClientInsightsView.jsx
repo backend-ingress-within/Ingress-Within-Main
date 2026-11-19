@@ -15,6 +15,40 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+/**
+ * Adapts second-person phrasing ("You have...", "your focus") into clinical third-person phrasing
+ * ("Client has...", "client's focus") for practitioner viewing.
+ */
+function formatForTherapistView(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/\bYou have\b/g, 'Client has')
+    .replace(/\bYou don't have\b/g, "Client doesn't have")
+    .replace(/\bYou do not have\b/g, 'Client does not have')
+    .replace(/\bYou are\b/g, 'Client is')
+    .replace(/\bYou're\b/g, 'Client is')
+    .replace(/\bYou were\b/g, 'Client was')
+    .replace(/\bYou've\b/g, 'Client has')
+    .replace(/\bYou showed\b/g, 'Client showed')
+    .replace(/\bYou wrote\b/g, 'Client wrote')
+    .replace(/\bYou kept\b/g, 'Client kept')
+    .replace(/\bYou stayed\b/g, 'Client stayed')
+    .replace(/\bYou felt\b/g, 'Client felt')
+    .replace(/\bYou noticed\b/g, 'Client noticed')
+    .replace(/\bWhere This Leaves You\b/gi, 'Where This Leaves The Client')
+    .replace(/\byour current focus\b/gi, "client's current focus")
+    .replace(/\byour recent writing\b/gi, "client's recent writing")
+    .replace(/\byour writing\b/gi, "client's writing")
+    .replace(/\byour focus\b/gi, "client's focus")
+    .replace(/\byour practice\b/gi, "client's practice")
+    .replace(/\byour reflections?\b/gi, "client's reflection")
+    .replace(/\byour\b/g, "client's")
+    .replace(/\bYour\b/g, "Client's")
+    .replace(/\b(to|for|with|about|around|except|against|from) you\b/gi, '$1 the client')
+    .replace(/\bYou\b/g, 'Client')
+    .replace(/\byou\b/g, 'the client');
+}
+
 export default function TherapistClientInsightsView({ clientId }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -179,7 +213,7 @@ export default function TherapistClientInsightsView({ clientId }) {
             patternSummary.isAvailable ? (
               <div className="space-y-3">
                 <p className="text-xs text-[#132A24] leading-relaxed italic bg-[#FAFBFB] p-3 rounded-lg border border-[#132A24]/5">
-                  "{patternSummary.summary?.sentence || 'Summary of recurring themes across practice cycles.'}"
+                  "{formatForTherapistView(patternSummary.summary?.sentence) || 'Client has no patterns identified yet in self-reflection practice.'}"
                 </p>
                 <div className="flex flex-wrap gap-2 text-[11px]">
                   <span className="px-2.5 py-1 bg-[#132A24]/5 rounded-md text-[#132A24] font-medium">
@@ -204,7 +238,7 @@ export default function TherapistClientInsightsView({ clientId }) {
               </div>
             ) : (
               <div className="py-6 text-center text-xs text-[#132A24]/50">
-                No patterns identified yet in client's practice history.
+                Client has no patterns identified yet in self-reflection practice.
               </div>
             )
           ) : (
@@ -470,7 +504,7 @@ export default function TherapistClientInsightsView({ clientId }) {
                     Weekly Synthesis
                   </div>
                   <p className="text-xs text-[#132A24]/85 leading-relaxed whitespace-pre-line font-sans">
-                    {selectedWeeklyReport.body || selectedWeeklyReport.why || selectedWeeklyReport.report_data?.what_we_saw}
+                    {formatForTherapistView(selectedWeeklyReport.body || selectedWeeklyReport.why || selectedWeeklyReport.report_data?.what_we_saw)}
                   </p>
                 </div>
               )}
@@ -683,12 +717,12 @@ export default function TherapistClientInsightsView({ clientId }) {
                     </div>
                     {whatShowed.openingObs && (
                       <p className="font-medium text-xs text-[#132A24] leading-relaxed whitespace-pre-line">
-                        {whatShowed.openingObs}
+                        {formatForTherapistView(whatShowed.openingObs)}
                       </p>
                     )}
                     {whatShowed.narrative && (
                       <p className="text-xs text-[#132A24]/80 leading-relaxed font-sans">
-                        {whatShowed.narrative}
+                        {formatForTherapistView(whatShowed.narrative)}
                       </p>
                     )}
                     {whatShowed.pulledQuote && (
@@ -769,12 +803,12 @@ export default function TherapistClientInsightsView({ clientId }) {
                   <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-600/15 space-y-2">
                     {whereLeavesYou?.title && (
                       <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                        {whereLeavesYou.title}
+                        {formatForTherapistView(whereLeavesYou.title)}
                       </div>
                     )}
                     {whereLeavesYou?.body && (
                       <p className="text-xs text-[#132A24]/85 leading-relaxed">
-                        {whereLeavesYou.body}
+                        {formatForTherapistView(whereLeavesYou.body)}
                       </p>
                     )}
                     {closingQuote?.quote && (

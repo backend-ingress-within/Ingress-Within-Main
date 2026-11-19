@@ -40,6 +40,40 @@ export interface ConsentVerificationResult {
   relationshipId?: string;
 }
 
+/**
+ * Transforms second-person self-reflection sentences ("You have...", "your focus")
+ * into clinical third-person phrasing ("Client has...", "client's focus") for practitioner viewing.
+ */
+export function formatTherapistInsightSentence(sentence: string): string {
+  if (!sentence || typeof sentence !== 'string') return sentence;
+  return sentence
+    .replace(/\bYou have\b/g, 'Client has')
+    .replace(/\bYou don't have\b/g, "Client doesn't have")
+    .replace(/\bYou do not have\b/g, 'Client does not have')
+    .replace(/\bYou are\b/g, 'Client is')
+    .replace(/\bYou're\b/g, 'Client is')
+    .replace(/\bYou were\b/g, 'Client was')
+    .replace(/\bYou've\b/g, 'Client has')
+    .replace(/\bYou showed\b/g, 'Client showed')
+    .replace(/\bYou wrote\b/g, 'Client wrote')
+    .replace(/\bYou kept\b/g, 'Client kept')
+    .replace(/\bYou stayed\b/g, 'Client stayed')
+    .replace(/\bYou felt\b/g, 'Client felt')
+    .replace(/\bYou noticed\b/g, 'Client noticed')
+    .replace(/\bWhere This Leaves You\b/gi, 'Where This Leaves The Client')
+    .replace(/\byour current focus\b/gi, "client's current focus")
+    .replace(/\byour recent writing\b/gi, "client's recent writing")
+    .replace(/\byour writing\b/gi, "client's writing")
+    .replace(/\byour focus\b/gi, "client's focus")
+    .replace(/\byour practice\b/gi, "client's practice")
+    .replace(/\byour reflections?\b/gi, "client's reflection")
+    .replace(/\byour\b/g, "client's")
+    .replace(/\bYour\b/g, "Client's")
+    .replace(/\b(to|for|with|about|around|except|against|from) you\b/gi, '$1 the client')
+    .replace(/\bYou\b/g, 'Client')
+    .replace(/\byou\b/g, 'the client');
+}
+
 export class ClientInsightConsentService {
   // In-memory fallback map for environments or test suites without table migrations
   private static inMemoryConsents: Map<string, ClientInsightSharingConsent> = new Map();
@@ -679,10 +713,15 @@ export class ClientInsightConsentService {
     if (consent.share_pattern_summary) {
       try {
         const patternOverview = await PatternIntelligenceService.getPatternOverview(resolvedClientId);
+        const originalSentence = patternOverview.summary?.sentence || '';
+        const clinicalSentence = formatTherapistInsightSentence(originalSentence);
         patternSummary = {
           consented: true,
           isAvailable: patternOverview.isAvailable,
-          summary: patternOverview.summary,
+          summary: {
+            ...patternOverview.summary,
+            sentence: clinicalSentence,
+          },
           totalCyclesObserved: patternOverview.totalCyclesObserved,
           updatedAt: (patternOverview as any).updatedAt || consent.updated_at,
         };
@@ -869,9 +908,23 @@ export class ClientInsightConsentService {
       throw err;
     }
 
+    const sanitizedReport = {
+      ...report,
+      body: report.body ? formatTherapistInsightSentence(report.body) : report.body,
+      why: report.why ? formatTherapistInsightSentence(report.why) : report.why,
+      report_data: report.report_data
+        ? {
+            ...report.report_data,
+            what_we_saw: report.report_data.what_we_saw
+              ? formatTherapistInsightSentence(report.report_data.what_we_saw)
+              : report.report_data.what_we_saw,
+          }
+        : report.report_data,
+    };
+
     return {
       success: true,
-      report,
+      report: sanitizedReport,
       disclaimer: 'This weekly report reflects the client’s self-journaling activity.',
     };
   }
