@@ -637,28 +637,61 @@ export default function TherapistClientModal({
                 )}
 
                 <div className="flex items-center gap-2 pt-1 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleGenerateMagicLink}
-                    disabled={isGeneratingMagicLink}
-                    className="px-3.5 py-2 rounded-lg bg-[#162723] text-white text-xs font-semibold hover:bg-[#203631] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                  >
-                    <KeyRound size={13} />
-                    <span>{isGeneratingMagicLink ? 'Generating…' : magicLink ? (magicLinkCopied ? 'Link Copied!' : 'Copy Setup Link') : 'Generate Setup Link'}</span>
-                  </button>
+                  {profile.accountClaim?.isClaimed ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled
+                        className="px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed opacity-90 shadow-xs"
+                        title="Account already created. Therapists cannot reset client credentials."
+                      >
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        <span>Account Already Created</span>
+                      </button>
 
-                  {magicLink && profile.client?.phone && (
-                    <a
-                      href={`https://wa.me/${profile.client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hi ${profile.client.name || 'there'}, here is your secure setup link to create your password and access your Ingress Within Therapy portal: ${magicLink}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20ba59] transition-all flex items-center gap-1.5 shadow-xs"
-                    >
-                      <MessageCircle size={13} />
-                      <span>Share Setup Link on WhatsApp</span>
-                    </a>
+                      {profile.client?.phone && (
+                        <a
+                          href={`https://wa.me/${profile.client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hi ${profile.client.name || 'there'}, here is the link to access your Ingress Within Therapy portal: https://ingresswithin.com/therapy/login`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20ba59] transition-all flex items-center gap-1.5 shadow-xs"
+                        >
+                          <MessageCircle size={13} />
+                          <span>Share Portal Login on WhatsApp</span>
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleGenerateMagicLink}
+                        disabled={isGeneratingMagicLink}
+                        className="px-3.5 py-2 rounded-lg bg-[#162723] text-white text-xs font-semibold hover:bg-[#203631] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                      >
+                        <KeyRound size={13} />
+                        <span>{isGeneratingMagicLink ? 'Generating…' : magicLink ? (magicLinkCopied ? 'Link Copied!' : 'Copy Setup Link') : 'Generate Setup Link'}</span>
+                      </button>
+
+                      {magicLink && profile.client?.phone && (
+                        <a
+                          href={`https://wa.me/${profile.client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hi ${profile.client.name || 'there'}, here is your secure setup link to create your password and access your Ingress Within Therapy portal: ${magicLink}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20ba59] transition-all flex items-center gap-1.5 shadow-xs"
+                        >
+                          <MessageCircle size={13} />
+                          <span>Share Setup Link on WhatsApp</span>
+                        </a>
+                      )}
+                    </>
                   )}
                 </div>
+                {profile.accountClaim?.isClaimed && (
+                  <p className="text-[11px] text-[#4F635E] italic">
+                    Client account is active. To protect client confidentiality and healthcare security, therapists and administrators cannot reset user accounts. The client can reset their account password directly from their therapy portal.
+                  </p>
+                )}
               </div>
 
               {/* Client Contact & Profile Overview */}

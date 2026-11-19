@@ -80,6 +80,11 @@ export class TherapyClientAuthService {
     }
 
     const currentMetadata = (client.metadata && typeof client.metadata === 'object') ? client.metadata : {};
+
+    if (currentMetadata.claimed_at || currentMetadata.password_hash) {
+      throw new Error('Account has already been created. Therapists and administrators cannot reset client accounts.');
+    }
+
     const updatedMetadata = {
       ...currentMetadata,
       claim_token_hash: tokenHash,
@@ -415,6 +420,150 @@ export class TherapyClientAuthService {
         status: client.status,
       },
     };
+  }
+
+  /**
+   * Resets password using phone verification OTP.
+   * Only the client who owns the phone number can perform this reset.
+   */
+  static async resetPasswordWithOtp(
+    rawPhone: string,
+    code: string,
+    newPassword: string
+  ): Promise<{
+    success: boolean;
+    token?: string;
+    client?: TherapyClientAuthUser;
+    error?: string;
+  }> {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters long.' };
+    }
+
+    const normalizedPhone = this.normalizePhoneNumber(rawPhone);
+    const provider = getOtpProvider();
+    const result = await provider.verifyOtp(normalizedPhone, code);
+
+    if (!result.success) {
+      return { success: false, error: result.message || 'Invalid or expired verification code.' };
+    }
+
+    const { data: client, error } = await supabase
+      .from('therapy_client_accounts')
+      .select('*')
+      .eq('phone_number', normalizedPhone)
+      .maybeSingle();
+
+    if (error || !client) {
+      return { success: false, error: 'No therapy account found for this phone number.' };
+    }
+
+    const passwordHash = this.hashPassword(newPassword);
+    const nowIso = new Date().toISOString();
+    const currentMeta = (client.metadata && typeof client.metadata === 'object') ? client.metadata : {};
+
+    const updatedMeta = {
+      ...currentMeta,
+      password_hash: passwordHash,
+      claimed_at: currentMeta.claimed_at || nowIso,
+      password_reset_at: nowIso,
+      claim_token_hash: null, // Clear any pending claim token
+    };
+
+    const { error: updateErr } = await supabase
+      .from('therapy_client_accounts')
+      .update({
+        metadata: updatedMeta,
+        last_active_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', client.id);
+
+    if (updateErr) {
+      return { success: false, error: 'Failed to update account password.' };
+    }
+
+    const token = this.issueClientJwt({
+      id: client.id,
+      userId: client.user_id || client.id,
+      fullName: client.full_name,
+      phoneNumber: client.phone_number,
+      email: client.email,
+      status: client.status,
+    });
+
+    return {
+      success: true,
+      token,
+      client: {
+        id: client.id,
+        userId: client.user_id || client.id,
+        fullName: client.full_name,
+        phoneNumber: client.phone_number,
+        email: client.email,
+        status: client.status,
+      },
+    };
+  }
+
+  /**
+   * Resets or changes password for an authenticated client.
+   * Can verify current password before updating.
+   */
+  static async changeAuthenticatedPassword(
+    clientAccountIdOrUserId: string,
+    newPassword: string,
+    currentPassword?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters long.' };
+    }
+
+    const { data: client, error } = await supabase
+      .from('therapy_client_accounts')
+      .select('*')
+      .or(`id.eq.${clientAccountIdOrUserId},user_id.eq.${clientAccountIdOrUserId}`)
+      .maybeSingle();
+
+    if (error || !client) {
+      return { success: false, error: 'Therapy client account not found.' };
+    }
+
+    const currentMeta = (client.metadata && typeof client.metadata === 'object') ? client.metadata : {};
+
+    // If current password is provided and client already had a password, verify it
+    if (currentPassword && currentMeta.password_hash) {
+      const isValid = this.verifyPassword(currentPassword, currentMeta.password_hash);
+      if (!isValid) {
+        return { success: false, error: 'Incorrect current password.' };
+      }
+    }
+
+    const passwordHash = this.hashPassword(newPassword);
+    const nowIso = new Date().toISOString();
+
+    const updatedMeta = {
+      ...currentMeta,
+      password_hash: passwordHash,
+      claimed_at: currentMeta.claimed_at || nowIso,
+      password_reset_at: nowIso,
+      claim_token_hash: null,
+    };
+
+    const { error: updateErr } = await supabase
+      .from('therapy_client_accounts')
+      .update({
+        metadata: updatedMeta,
+        last_active_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', client.id);
+
+    if (updateErr) {
+      return { success: false, error: 'Failed to update account password.' };
+    }
+
+    return { success: true };
   }
 
   /**

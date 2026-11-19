@@ -58,6 +58,7 @@ export interface RelationshipOverviewItem {
   careStage: string;
   
   createdAt: string;
+  isAccountClaimed?: boolean;
 }
 
 export interface RelationshipTimelineMilestone {
@@ -70,6 +71,12 @@ export interface RelationshipTimelineMilestone {
 }
 
 export interface RelationshipDetailPayload extends RelationshipOverviewItem {
+  accountClaim?: {
+    isClaimed: boolean;
+    hasPassword: boolean;
+    clientAccountId: string | null;
+    phoneNumber: string | null;
+  };
   clientDetails: {
     id: string;
     name: string;
@@ -196,6 +203,7 @@ export class AdminTherapyRelationshipService {
       { data: insightConsents },
       { data: appointments },
       { data: bookingLinks },
+      { data: clientAccounts },
     ] = await Promise.all([
       allUserIds.length > 0
         ? supabase.from('users').select('id, name, phone_number, created_at').in('id', allUserIds)
@@ -230,6 +238,9 @@ export class AdminTherapyRelationshipService {
       careRels.length > 0
         ? supabase.from('relationship_booking_links').select('id, relationship_id, status, revoked_at, created_at').in('relationship_id', careRels.map((r) => r.id))
         : Promise.resolve({ data: [] }),
+      allUserIds.length > 0
+        ? supabase.from('therapy_client_accounts').select('id, user_id, metadata').in('user_id', allUserIds)
+        : Promise.resolve({ data: [] }),
     ]);
 
     // Fast lookup dictionaries
@@ -237,6 +248,7 @@ export class AdminTherapyRelationshipService {
     const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
     const thAccountMap = new Map((therapistAccounts || []).map((a) => [a.id, a]));
     const thProfileMap = new Map((therapistProfiles || []).map((p) => [p.therapist_account_id, p]));
+    const clientAccountMap = new Map((clientAccounts || []).map((ca) => [ca.user_id, ca]));
     const bookingLinksMap = new Map<string, any[]>();
     ((bookingLinks as any)?.data || (bookingLinks as any) || []).forEach((b: any) => {
       if (!b?.relationship_id) return;
@@ -407,6 +419,10 @@ export class AdminTherapyRelationshipService {
         rawStatus: rel.status,
         careStage: rel.care_stage,
         createdAt: rel.created_at,
+        isAccountClaimed: Boolean(
+          clientAccountMap.get(rel.user_id)?.metadata?.claimed_at ||
+          clientAccountMap.get(rel.user_id)?.metadata?.password_hash
+        ),
       });
     }
 
@@ -469,6 +485,10 @@ export class AdminTherapyRelationshipService {
         rawStatus: 'awaiting_therapist_acceptance',
         careStage: 'intake',
         createdAt: match.created_at,
+        isAccountClaimed: Boolean(
+          clientAccountMap.get(match.user_id)?.metadata?.claimed_at ||
+          clientAccountMap.get(match.user_id)?.metadata?.password_hash
+        ),
       });
     }
 
@@ -630,6 +650,7 @@ export class AdminTherapyRelationshipService {
       { data: insightConsents },
       { data: appointments },
       { data: bookingLinks },
+      { data: clientAccount },
     ] = await Promise.all([
       supabase.from('users').select('*').eq('id', userId).maybeSingle(),
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
@@ -644,6 +665,11 @@ export class AdminTherapyRelationshipService {
       relRecord?.id
         ? supabase.from('relationship_booking_links').select('id, relationship_id, status, revoked_at, created_at').eq('relationship_id', relRecord.id)
         : Promise.resolve({ data: [] }),
+      supabase
+        .from('therapy_client_accounts')
+        .select('id, user_id, metadata, email, full_name, phone_number')
+        .or(`user_id.eq.${userId},id.eq.${userId}`)
+        .maybeSingle(),
     ]);
 
     // Authoritative intake selection
@@ -921,6 +947,12 @@ export class AdminTherapyRelationshipService {
         matchRank: match?.match_rank ? Number(match.match_rank) : null,
         matchReasons: Array.isArray(match?.match_reasons) ? match.match_reasons : [],
         matchedAt: match?.created_at || null,
+      },
+      accountClaim: {
+        isClaimed: Boolean(clientAccount?.metadata?.claimed_at || clientAccount?.metadata?.password_hash),
+        hasPassword: Boolean(clientAccount?.metadata?.password_hash),
+        clientAccountId: clientAccount?.id || null,
+        phoneNumber: clientAccount?.phone_number || null,
       },
       sessionsList,
       timeline,

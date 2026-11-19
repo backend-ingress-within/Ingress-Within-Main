@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { Lock, Phone, KeyRound, ArrowRight, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function TherapyLoginView() {
-  const [loginMode, setLoginMode] = useState('password'); // 'password' | 'otp'
+  const [loginMode, setLoginMode] = useState('password'); // 'password' | 'otp' | 'reset'
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // OTP state
@@ -130,6 +132,58 @@ export default function TherapyLoginView() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
+      setErrorMessage('Please enter your 10-digit mobile number.');
+      return;
+    }
+    if (!otpCode || otpCode.trim().length < 4) {
+      setErrorMessage('Please enter the verification code sent to your phone.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMessage('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const response = await fetch('/api/therapy/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          code: otpCode.trim(),
+          newPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        setErrorMessage(data.error?.message || data.error || 'Failed to reset password. Please check the code.');
+      } else {
+        setSuccessMessage('Password reset successfully! Opening your therapy portal…');
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/therapy';
+          }
+        }, 1000);
+      }
+    } catch {
+      setErrorMessage('Network error during password reset. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F6F1EA] text-[#162723] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
@@ -150,12 +204,13 @@ export default function TherapyLoginView() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-sm border border-[#162723]/10 rounded-2xl">
           {/* Mode Switcher Tabs */}
-          <div className="flex bg-[#FAF7F2] p-1 rounded-xl border border-[#162723]/10 mb-6">
+          <div className="flex bg-[#FAF7F2] p-1 rounded-xl border border-[#162723]/10 mb-4">
             <button
               type="button"
               onClick={() => {
                 setLoginMode('password');
                 setErrorMessage('');
+                setSuccessMessage('');
               }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 loginMode === 'password'
@@ -163,13 +218,14 @@ export default function TherapyLoginView() {
                   : 'text-[#7D8E87] hover:text-[#162723]'
               }`}
             >
-              Password Login
+              Password
             </button>
             <button
               type="button"
               onClick={() => {
                 setLoginMode('otp');
                 setErrorMessage('');
+                setSuccessMessage('');
               }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 loginMode === 'otp'
@@ -177,8 +233,31 @@ export default function TherapyLoginView() {
                   : 'text-[#7D8E87] hover:text-[#162723]'
               }`}
             >
-              OTP Login
+              OTP Code
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('reset');
+                setErrorMessage('');
+                setSuccessMessage('');
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                loginMode === 'reset'
+                  ? 'bg-white text-[#162723] shadow-xs'
+                  : 'text-[#7D8E87] hover:text-[#162723]'
+              }`}
+            >
+              Reset Password
+            </button>
+          </div>
+
+          {/* Clinical Privacy Callout */}
+          <div className="p-2.5 bg-[#FAF7F2] rounded-xl border border-[#162723]/8 text-[11px] text-[#4F635E] leading-relaxed mb-4 flex items-start gap-2">
+            <ShieldCheck size={14} className="text-[#4E7A66] shrink-0 mt-0.5" />
+            <span>
+              <strong>Clinical Privacy:</strong> Only you can manage or reset your therapy account password. Therapists and administrators cannot reset user accounts.
+            </span>
           </div>
 
           {errorMessage && (
@@ -222,12 +301,12 @@ export default function TherapyLoginView() {
                   <button
                     type="button"
                     onClick={() => {
-                      setLoginMode('otp');
-                      setErrorMessage('You can request a one-time code to sign in.');
+                      setLoginMode('reset');
+                      setErrorMessage('Enter your phone number to receive a verification code and reset your password.');
                     }}
                     className="text-[11px] text-[#795663] hover:underline"
                   >
-                    Forgot password? Sign in with OTP
+                    Forgot or Reset Password?
                   </button>
                 </div>
                 <div className="relative">
@@ -253,14 +332,14 @@ export default function TherapyLoginView() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50"
+                  className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   <Lock size={16} />
                   {loading ? 'Signing in…' : 'Sign In'}
                 </button>
               </div>
             </form>
-          ) : (
+          ) : loginMode === 'otp' ? (
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#162723] mb-1.5">
@@ -288,7 +367,7 @@ export default function TherapyLoginView() {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={otpSending}
-                    className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50"
+                    className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
                   >
                     <Phone size={16} />
                     {otpSending ? 'Sending Code…' : 'Send One-Time Code'}
@@ -323,10 +402,122 @@ export default function TherapyLoginView() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50"
+                      className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
                     >
                       <KeyRound size={16} />
                       {loading ? 'Verifying…' : 'Verify & Sign In'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : (
+            /* Reset Password Mode */
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#162723] mb-1.5">
+                  Registered Mobile Number
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-[#7D8E87] font-mono">
+                    🇮🇳 +91
+                  </span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                    placeholder="98765 43210"
+                    disabled={otpSent}
+                    required
+                    className="w-full pl-16 pr-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20 font-mono disabled:bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              {!otpSent ? (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={otpSending}
+                    className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    <Phone size={16} />
+                    {otpSending ? 'Sending Verification Code…' : 'Send Reset Code to Phone'}
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-xs font-semibold text-[#162723]">Enter 6-Digit Code</label>
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        disabled={otpSending}
+                        className="text-[11px] text-[#795663] hover:underline"
+                      >
+                        Resend Code
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••••"
+                      required
+                      className="w-full text-center tracking-widest text-lg font-mono px-3.5 py-2.5 rounded-xl border border-[#162723]/15 bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#162723] mb-1.5">
+                      New Password (Min 6 Characters)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Create your new password"
+                        required
+                        minLength={6}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7D8E87] hover:text-[#162723]"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#162723] mb-1.5">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat your new password"
+                      required
+                      minLength={6}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full inline-flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#162723] text-white text-sm font-semibold hover:bg-[#203631] transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                    >
+                      <Lock size={16} />
+                      {loading ? 'Resetting Password…' : 'Reset Password & Sign In'}
                     </button>
                   </div>
                 </form>

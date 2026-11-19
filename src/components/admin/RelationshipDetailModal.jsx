@@ -324,9 +324,15 @@ export default function RelationshipDetailModal({ relationshipId, onClose, showT
                         <KeyRound className="w-4 h-4 text-[#4E7A66]" />
                         <span>Client Magic Setup Link</span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        Password &amp; Portal Setup
-                      </span>
+                      {detailData.accountClaim?.isClaimed ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                          <Check className="w-3 h-3 text-emerald-600" /> Account Active
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          Password &amp; Portal Setup Pending
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-[#132A24]/70 leading-relaxed">
@@ -334,48 +340,81 @@ export default function RelationshipDetailModal({ relationshipId, onClose, showT
                     </p>
 
                     <div className="flex items-center gap-2 flex-wrap pt-1">
-                      <button
-                        type="button"
-                        onClick={handleGenerateMagicLink}
-                        disabled={isGeneratingMagicLink}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#203631] transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                      >
-                        {isGeneratingMagicLink ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Generating…</span>
-                          </>
-                        ) : magicLinkCopied ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-white" />
-                            <span>Copied Setup Link!</span>
-                          </>
-                        ) : (
-                          <>
-                            <KeyRound className="w-3.5 h-3.5" />
-                            <span>{magicLink ? 'Copy Setup Link' : 'Generate Setup Link'}</span>
-                          </>
-                        )}
-                      </button>
+                      {detailData.accountClaim?.isClaimed ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-not-allowed opacity-90 shadow-xs"
+                            title="Account already created. Administrators cannot reset client credentials."
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Account Already Created</span>
+                          </button>
 
-                      <a
-                        href={`https://wa.me/${(detailData.clientDetails?.phone || '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
-                          `Hi ${detailData.clientDetails?.name || 'there'}, here is your secure link to set your password and access your Ingress Within Therapy portal: ${magicLink || ''}`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          if (!magicLink) {
-                            e.preventDefault();
-                            handleGenerateMagicLink();
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#25D366] text-white hover:bg-[#20ba59] transition-all cursor-pointer shadow-xs"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Share on WhatsApp</span>
-                      </a>
+                          <a
+                            href={`https://wa.me/${(detailData.clientDetails?.phone || '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                              `Hi ${detailData.clientDetails?.name || 'there'}, here is the link to access your Ingress Within Therapy portal: https://ingresswithin.com/therapy/login`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#25D366] text-white hover:bg-[#20ba59] transition-all cursor-pointer shadow-xs"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Share Portal Login on WhatsApp</span>
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleGenerateMagicLink}
+                            disabled={isGeneratingMagicLink}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#132A24] text-white hover:bg-[#203631] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            {isGeneratingMagicLink ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Generating…</span>
+                              </>
+                            ) : magicLinkCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-white" />
+                                <span>Copied Setup Link!</span>
+                              </>
+                            ) : (
+                              <>
+                                <KeyRound className="w-3.5 h-3.5" />
+                                <span>{magicLink ? 'Copy Setup Link' : 'Generate Setup Link'}</span>
+                              </>
+                            )}
+                          </button>
+
+                          <a
+                            href={`https://wa.me/${(detailData.clientDetails?.phone || '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                              `Hi ${detailData.clientDetails?.name || 'there'}, here is your secure link to set your password and access your Ingress Within Therapy portal: ${magicLink || ''}`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              if (!magicLink) {
+                                e.preventDefault();
+                                handleGenerateMagicLink();
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#25D366] text-white hover:bg-[#20ba59] transition-all cursor-pointer shadow-xs"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Share on WhatsApp</span>
+                          </a>
+                        </>
+                      )}
                     </div>
+                    {detailData.accountClaim?.isClaimed && (
+                      <p className="text-[11px] text-[#132A24]/60 italic mt-1">
+                        Client account is active. Administrators and therapists cannot reset user credentials. Only the client can reset their password from their therapy portal.
+                      </p>
+                    )}
                   </div>
 
                   {/* Card 2: Telehealth Consent & First Session Booking Link */}

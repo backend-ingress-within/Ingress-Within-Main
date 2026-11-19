@@ -616,34 +616,46 @@ export default function TherapyRelationshipsView({ showToast }) {
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5 flex-wrap">
                         {/* Setup Link Quick Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleCopyMagicLink(rel.userId)}
-                          disabled={generatingMagicUserId === rel.userId}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
-                            copiedMagicUserId === rel.userId
-                              ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : 'bg-white border-[#132A24]/15 hover:bg-[#132A24]/5 text-[#132A24]'
-                          }`}
-                          title="Generate and copy client magic setup link for creating password"
-                        >
-                          {copiedMagicUserId === rel.userId ? (
-                            <>
-                              <Check className="w-3 h-3 text-white" />
-                              <span>Copied!</span>
-                            </>
-                          ) : generatingMagicUserId === rel.userId ? (
-                            <>
-                              <RefreshCw className="w-3 h-3 animate-spin text-[#132A24]/60" />
-                              <span>Setup...</span>
-                            </>
-                          ) : (
-                            <>
-                              <KeyRound className="w-3 h-3 text-[#4E7A66]" />
-                              <span>Setup Link</span>
-                            </>
-                          )}
-                        </button>
+                        {rel.isAccountClaimed ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border bg-emerald-50 border-emerald-200 text-emerald-800 cursor-not-allowed opacity-90 shadow-xs"
+                            title="Account already created by client. Only the client can reset their credentials."
+                          >
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>Account Created</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMagicLink(rel.userId)}
+                            disabled={generatingMagicUserId === rel.userId}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                              copiedMagicUserId === rel.userId
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'bg-white border-[#132A24]/15 hover:bg-[#132A24]/5 text-[#132A24]'
+                            }`}
+                            title="Generate and copy client magic setup link for creating password"
+                          >
+                            {copiedMagicUserId === rel.userId ? (
+                              <>
+                                <Check className="w-3 h-3 text-white" />
+                                <span>Copied!</span>
+                              </>
+                            ) : generatingMagicUserId === rel.userId ? (
+                              <>
+                                <RefreshCw className="w-3 h-3 animate-spin text-[#132A24]/60" />
+                                <span>Setup...</span>
+                              </>
+                            ) : (
+                              <>
+                                <KeyRound className="w-3 h-3 text-[#4E7A66]" />
+                                <span>Setup Link</span>
+                              </>
+                            )}
+                          </button>
+                        )}
 
                         {/* Booking Link Quick Button (when not yet booked) */}
                         {!rel.firstSessionBooked && (

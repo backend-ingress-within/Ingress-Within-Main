@@ -2271,7 +2271,9 @@ export class TherapistPlatformService {
       .or(`user_id.eq.${resolvedClientId},id.eq.${resolvedClientId}`)
       .maybeSingle();
 
-    const isAccountClaimed = Boolean(clientAccount?.metadata?.claimed_at);
+    const isAccountClaimed = Boolean(
+      clientAccount?.metadata?.claimed_at || clientAccount?.metadata?.password_hash
+    );
 
     const { data: userConsents } = await supabase
       .from('consents')

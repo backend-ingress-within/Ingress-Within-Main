@@ -173,8 +173,18 @@ export default function LeadPipelineView({ showToast }) {
       const clientId = lead.user_id || lead.id;
       const res = await fetch(`/api/admin/clients/${clientId}/magic-link`, { method: 'POST' });
       const data = await res.json();
-      const setupUrl = data.claimUrl || 'https://ingresswithin.com/therapy/login';
       const therapistName = lead.selected_therapist_name || 'your assigned therapist';
+
+      if (data.isAlreadyClaimed || data.error?.code === 'ACCOUNT_ALREADY_CREATED') {
+        const message = `Hi ${lead.full_name || 'there'}, your Ingress Within Therapy portal with ${therapistName} is active. You can sign in to view your sessions and clinical notes at:\nhttps://ingresswithin.com/therapy/login`;
+        await navigator.clipboard.writeText(message);
+        setCopiedCredentials(true);
+        setTimeout(() => setCopiedCredentials(false), 2000);
+        if (showToast) showToast('Portal login link copied (account is already active)!', 'success');
+        return;
+      }
+
+      const setupUrl = data.claimUrl || 'https://ingresswithin.com/therapy/login';
       const message = `Hi ${lead.full_name || 'there'}, your Ingress Within Therapy portal with ${therapistName} is ready. Use your secure setup link to create your password and access your therapy consultations and clinician notes:\n${setupUrl}`;
       await navigator.clipboard.writeText(message);
       setCopiedCredentials(true);

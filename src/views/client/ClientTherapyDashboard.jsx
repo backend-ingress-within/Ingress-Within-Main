@@ -125,6 +125,54 @@ export default function ClientTherapyDashboard({
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const [bookingTherapist, setBookingTherapist] = useState(null);
 
+  // Account Security & Password Reset state
+  const [securityModalOpen, setSecurityModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [passwordStatusMsg, setPasswordStatusMsg] = useState(null);
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordStatusMsg({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordStatusMsg({ type: 'error', text: 'Passwords do not match. Please verify.' });
+      return;
+    }
+
+    setPasswordUpdating(true);
+    setPasswordStatusMsg(null);
+
+    try {
+      const res = await fetch('/api/therapy/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setPasswordStatusMsg({ type: 'error', text: data.error?.message || data.error || 'Failed to update password.' });
+      } else {
+        setPasswordStatusMsg({ type: 'success', text: 'Password updated successfully! Your account credentials are secured.' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch {
+      setPasswordStatusMsg({ type: 'error', text: 'Network error updating password. Please try again.' });
+    } finally {
+      setPasswordUpdating(false);
+    }
+  };
+
   // Fetch sessions
   const fetchSessions = async () => {
     setLoadingSessions(true);
@@ -612,6 +660,16 @@ export default function ClientTherapyDashboard({
                             icon: CreditCard,
                           },
                           {
+                            id: 'security',
+                            label: 'Account Security',
+                            sub: 'Reset & manage password',
+                            icon: ShieldCheck,
+                            onAction: () => {
+                              setSecurityModalOpen(true);
+                              setMoreMenuOpen(false);
+                            },
+                          },
+                          {
                             id: 'support',
                             label: 'Support & Helplines',
                             sub: 'Care team & 24/7 crisis lines',
@@ -626,8 +684,12 @@ export default function ClientTherapyDashboard({
                               type="button"
                               role="menuitem"
                               onClick={() => {
-                                setActiveTab(item.id);
-                                setMoreMenuOpen(false);
+                                if (item.onAction) {
+                                  item.onAction();
+                                } else {
+                                  setActiveTab(item.id);
+                                  setMoreMenuOpen(false);
+                                }
                               }}
                               className={`w-full text-left px-3.5 py-2 flex items-start gap-2.5 transition-colors cursor-pointer ${
                                 isItemActive
@@ -761,6 +823,17 @@ export default function ClientTherapyDashboard({
                 )}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setSecurityModalOpen(true);
+              }}
+              className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors bg-white/70 text-[#263238] hover:bg-white font-medium cursor-pointer"
+            >
+              <ShieldCheck size={14} className="text-[#4E7A66] shrink-0" />
+              <span>Account Security / Reset Password</span>
+            </button>
             {onSignOut && (
               <button
                 type="button"
@@ -2084,6 +2157,129 @@ export default function ClientTherapyDashboard({
                 Close Notes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. MODAL: ACCOUNT SECURITY & RESET PASSWORD (CLIENT ONLY) */}
+      {securityModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 border border-[#263238]/10">
+            <div className="flex items-center justify-between pb-3 border-b border-[#263238]/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
+                  <Lock size={16} />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base text-[#132A24] font-semibold">Account &amp; Password Security</h3>
+                  <p className="text-[11px] text-[#66747A]">Reset or update your private password</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSecurityModalOpen(false);
+                  setPasswordStatusMsg(null);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Privacy Guarantee Banner */}
+            <div className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#162723]/10 text-xs text-[#4F635E] leading-relaxed flex items-start gap-2.5">
+              <ShieldCheck size={16} className="text-[#4E7A66] shrink-0 mt-0.5" />
+              <span>
+                <strong>End-to-End Privacy:</strong> Only you have authority to reset your therapy account password. To maintain clinical boundaries, neither therapists nor administrators have permission to reset user accounts.
+              </span>
+            </div>
+
+            {passwordStatusMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs font-medium flex items-start gap-2 ${
+                  passwordStatusMsg.type === 'success'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}
+              >
+                {passwordStatusMsg.type === 'success' ? (
+                  <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+                ) : (
+                  <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-600" />
+                )}
+                <span>{passwordStatusMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#162723] mb-1">
+                  Current Password (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password if known"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#162723] mb-1">
+                  New Password (Min 6 Characters) *
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new strong password"
+                  required
+                  minLength={6}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#162723] mb-1">
+                  Confirm New Password *
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  required
+                  minLength={6}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#162723]/15 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#162723]/20"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecurityModalOpen(false);
+                    setPasswordStatusMsg(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-[#162723]/15 text-[#66747A] hover:bg-gray-50 text-xs font-medium transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordUpdating}
+                  className="px-4 py-2.5 rounded-xl bg-[#132A24] text-white text-xs font-semibold hover:bg-[#1C3E35] transition-all disabled:opacity-50 cursor-pointer shadow-xs flex items-center gap-1.5"
+                >
+                  <Lock size={13} />
+                  <span>{passwordUpdating ? 'Updating…' : 'Update Password'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

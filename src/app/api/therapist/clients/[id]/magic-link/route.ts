@@ -71,6 +71,19 @@ export async function POST(
       return NextResponse.json({ error: { message: 'Failed to access client account.' } }, { status: 500 });
     }
 
+    if (clientAcc.metadata?.claimed_at || clientAcc.metadata?.password_hash) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'ACCOUNT_ALREADY_CREATED',
+            message: 'Client account has already been created. To protect client confidentiality and healthcare security, therapists cannot reset user accounts. The client can reset their account password directly from their therapy portal.',
+          },
+          isAlreadyClaimed: true,
+        },
+        { status: 400 }
+      );
+    }
+
     const claimResult = await TherapyClientAuthService.generateClaimToken(clientAcc.id);
 
     return NextResponse.json({
