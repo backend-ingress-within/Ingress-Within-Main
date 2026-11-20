@@ -24,6 +24,8 @@ import {
   MessageCircle,
   Smartphone,
   KeyRound,
+  Mail,
+  Trash2,
 } from 'lucide-react';
 
 /**
@@ -122,6 +124,99 @@ export default function ClientTherapyMyTherapistView({
     }
     return () => clearInterval(timer);
   }, [otpCooldown]);
+
+  // Email Summary State
+  const [isSendingEmailSummary, setIsSendingEmailSummary] = useState(false);
+  const [emailSummaryMessage, setEmailSummaryMessage] = useState(null);
+
+  // Profile Deletion Modal State
+  const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [isDeletingProfile, setIsDeletingProfile] = useState(false);
+  const [deleteProfileReason, setDeleteProfileReason] = useState('');
+  const [deleteProfileError, setDeleteProfileError] = useState(null);
+
+  const handleDirectQuit = async () => {
+    setTransitionError(null);
+    setIsSubmittingTransition(true);
+
+    try {
+      const res = await fetch('/api/therapy/client/relationship/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'quit',
+          reason: transitionReason,
+          notes: transitionNotes,
+          confirmQuit: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTransitionSuccess(data.message || 'Therapy care cycle concluded. Your account and past sessions remain preserved for 6 months.');
+        setTimeout(async () => {
+          closeTransitionModal();
+          await fetchTherapistDetails();
+          if (onRefresh) onRefresh();
+        }, 1200);
+      } else {
+        setTransitionError(data.error?.message || 'Failed to conclude therapy. Please try again.');
+      }
+    } catch (err) {
+      setTransitionError('Network error while processing request. Please try again.');
+    } finally {
+      setIsSubmittingTransition(false);
+    }
+  };
+
+  const handleSendEmailSummary = async () => {
+    setIsSendingEmailSummary(true);
+    setEmailSummaryMessage(null);
+    try {
+      const res = await fetch('/api/therapy/client/journey/email-summary', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmailSummaryMessage(data.message || 'Care summary sent to your email.');
+      } else {
+        setEmailSummaryMessage(data.error?.message || 'Failed to send summary email.');
+      }
+    } catch {
+      setEmailSummaryMessage('Network error sending care summary.');
+    } finally {
+      setIsSendingEmailSummary(false);
+      setTimeout(() => setEmailSummaryMessage(null), 6000);
+    }
+  };
+
+  const handleRequestProfileDeletion = async () => {
+    setIsDeletingProfile(true);
+    setDeleteProfileError(null);
+    try {
+      const res = await fetch('/api/therapy/client/profile/request-deletion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirm: true,
+          reason: deleteProfileReason,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      } else {
+        setDeleteProfileError(data.error?.message || 'Failed to process profile deletion request.');
+      }
+    } catch (err) {
+      setDeleteProfileError('Network error processing deletion request.');
+    } finally {
+      setIsDeletingProfile(false);
+    }
+  };
 
   const openTransitionModal = (action = 'change') => {
     setTransitionModal({
@@ -247,16 +342,12 @@ export default function ClientTherapyMyTherapistView({
           await fetchTherapistDetails();
           if (onRefresh) onRefresh();
         } else {
-          // For quit: conclude care and take client to the matching engine
+          // For quit: conclude care and retain records in portal for 6 months
           setTimeout(async () => {
             closeTransitionModal();
             await fetchTherapistDetails();
             if (onRefresh) onRefresh();
-            if (onStartRematch) {
-              // Continue to Rematch Intake / Matching Engine
-              onStartRematch('guided');
-            }
-          }, 900);
+          }, 1200);
         }
       } else {
         setTransitionError(data.error?.message || 'Verification failed. Please check the code and try again.');
@@ -639,6 +730,16 @@ export default function ClientTherapyMyTherapistView({
     const startedDate = formatCareDate(relationship?.startedAt || relationship?.started_at);
     const endedDate = formatCareDate(relationship?.endedAt || relationship?.ended_at);
 
+    const endedTimestamp = (relationship?.endedAt || relationship?.ended_at)
+      ? new Date(relationship.endedAt || relationship.ended_at).getTime()
+      : Date.now();
+    const retentionTimestamp = endedTimestamp + 180 * 24 * 60 * 60 * 1000;
+    const retentionEndDate = new Date(retentionTimestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#263238]/10 pb-4">
@@ -663,35 +764,79 @@ export default function ClientTherapyMyTherapistView({
         </div>
 
         {/* Distinct Historical Banner */}
-        <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300/50">
-                Relationship {statusLabel}
-              </span>
-              {(startedDate || endedDate) && (
-                <span className="text-xs text-amber-800 font-medium">
-                  Care Period: {startedDate || 'Start'} — {endedDate || 'Present'}
+        <div className="p-6 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 space-y-4 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded text-[10.5px] font-bold uppercase tracking-wider bg-amber-200/80 text-amber-900 border border-amber-300">
+                  Care {statusLabel}
                 </span>
-              )}
+                <span className="px-2.5 py-0.5 rounded text-[10.5px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300/60 flex items-center gap-1">
+                  <ShieldCheck size={11} /> 6-Month Record Retention Active
+                </span>
+                {(startedDate || endedDate) && (
+                  <span className="text-xs text-amber-900/80 font-medium">
+                    Care Period: {startedDate || 'Start'} — {endedDate || 'Present'}
+                  </span>
+                )}
+              </div>
+              <strong className="text-base font-semibold text-amber-950 block">
+                Care with {clinicianName} has concluded.
+              </strong>
+              <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-3xl">
+                Quitting therapy does not delete your account. All your previous consultations, clinical notes, homework, and care milestones remain fully preserved and accessible in your portal for <strong>6 months (until {retentionEndDate})</strong>.
+              </p>
             </div>
-            <strong className="text-sm font-semibold text-amber-950 block">
-              Care with {clinicianName} is currently {statusLabel.toLowerCase()}.
-            </strong>
-            <p className="text-xs text-amber-800/90 leading-relaxed">
-              Your historical session notes, completed self-work, and invoices remain securely
-              preserved in your account. You can request a new therapist at any time.
-            </p>
           </div>
 
-          {onStartRematch && (
-            <button
-              type="button"
-              onClick={onStartRematch}
-              className="shrink-0 bg-amber-900 text-white hover:bg-amber-950 px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
-            >
-              Find a New Therapist
-            </button>
+          {/* Action Row */}
+          <div className="pt-3 border-t border-amber-200/60 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleSendEmailSummary}
+                disabled={isSendingEmailSummary}
+                className="bg-white hover:bg-amber-100/60 text-amber-950 border border-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
+              >
+                {isSendingEmailSummary ? (
+                  <RefreshCw size={13} className="animate-spin text-amber-700" />
+                ) : (
+                  <Mail size={13} className="text-amber-800" />
+                )}
+                <span>Email Full Journey Summary</span>
+              </button>
+
+              {onStartRematch && (
+                <button
+                  type="button"
+                  onClick={onStartRematch}
+                  className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Find a New Therapist</span>
+                  <ArrowRight size={13} />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteProfileModal(true)}
+                className="text-red-700 hover:text-red-900 text-xs font-medium underline underline-offset-2 px-2 py-1 cursor-pointer"
+              >
+                Request Profile Deletion
+              </button>
+            </div>
+
+            <div className="text-[11px] text-amber-800/80 italic flex items-center gap-1">
+              <Lock size={11} className="shrink-0" />
+              <span>Therapist clinical records permanently preserved for legal compliance.</span>
+            </div>
+          </div>
+
+          {emailSummaryMessage && (
+            <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+              <span>{emailSummaryMessage}</span>
+            </div>
           )}
         </div>
 
@@ -1212,15 +1357,32 @@ export default function ClientTherapyMyTherapistView({
                   />
                 </div>
 
-                {/* Security Verification Notice */}
-                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2.5">
-                  <Lock size={15} className="shrink-0 text-amber-700 mt-0.5" />
-                  <p className="leading-relaxed">
-                    <strong>Security Verification Required:</strong> To protect your therapy care
-                    from accidental or unauthorized changes, a 6-digit OTP will be sent to your
-                    registered phone number.
-                  </p>
-                </div>
+                {/* Security Verification / Continuity Notice */}
+                {transitionModal.action === 'quit' ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2.5">
+                    <ShieldCheck size={16} className="shrink-0 text-emerald-700 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-emerald-900">
+                        Record Continuity Guaranteed · 6-Month Portal Access
+                      </p>
+                      <p className="leading-relaxed text-emerald-800">
+                        Quitting therapy will <strong>not delete your account</strong>. All your completed consultations, clinical notes, and milestones remain accessible here for 6 months. A full journey summary will be emailed to your registered address.
+                      </p>
+                      <p className="text-[11px] text-emerald-700/90 leading-tight">
+                        * Note: In compliance with statutory healthcare record guidelines, your therapist permanently retains confidential clinical notes in their professional archives.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2.5">
+                    <Lock size={15} className="shrink-0 text-amber-700 mt-0.5" />
+                    <p className="leading-relaxed">
+                      <strong>Security Verification Required:</strong> To protect your therapy care
+                      from accidental or unauthorized changes, a 6-digit OTP will be sent to your
+                      registered phone number.
+                    </p>
+                  </div>
+                )}
 
                 {/* Step 1 Actions */}
                 <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-[#263238]/8">
@@ -1229,30 +1391,47 @@ export default function ClientTherapyMyTherapistView({
                     onClick={closeTransitionModal}
                     className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] transition-all cursor-pointer"
                   >
-                    Cancel
+                    Keep Care Active
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleRequestOtp}
-                    disabled={isSendingOtp}
-                    className={`w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 ${
-                      transitionModal.action === 'change'
-                        ? 'bg-[#132A24] hover:bg-[#1C3E35]'
-                        : 'bg-red-800 hover:bg-red-900'
-                    }`}
-                  >
-                    {isSendingOtp ? (
-                      <>
-                        <RefreshCw size={13} className="animate-spin" />
-                        <span>Sending Code...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Request OTP to Continue</span>
-                        <ArrowRight size={13} />
-                      </>
-                    )}
-                  </button>
+                  {transitionModal.action === 'quit' ? (
+                    <button
+                      type="button"
+                      onClick={handleDirectQuit}
+                      disabled={isSubmittingTransition}
+                      className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-semibold text-white bg-red-800 hover:bg-red-900 transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                    >
+                      {isSubmittingTransition ? (
+                        <>
+                          <RefreshCw size={13} className="animate-spin" />
+                          <span>Concluding Care...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Conclude Therapy &amp; Retain 6-Month Access</span>
+                          <ArrowRight size={13} />
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestOtp}
+                      disabled={isSendingOtp}
+                      className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-semibold text-white bg-[#132A24] hover:bg-[#1C3E35] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                    >
+                      {isSendingOtp ? (
+                        <>
+                          <RefreshCw size={13} className="animate-spin" />
+                          <span>Sending Code...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Request OTP to Continue</span>
+                          <ArrowRight size={13} />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1534,6 +1713,89 @@ export default function ClientTherapyMyTherapistView({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* DELETE PROFILE REQUEST MODAL */}
+      {showDeleteProfileModal && (
+        <div className="fixed inset-0 z-50 bg-[#132A24]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#263238]/15 shadow-xl w-full max-w-md p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-[10.5px] uppercase font-bold tracking-wider text-red-800">
+                  Account Autonomy &amp; Privacy
+                </span>
+                <h3 className="font-serif text-xl text-[#132A24]">Request Profile Deletion</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteProfileModal(false)}
+                className="text-[#66747A] hover:text-[#132A24] p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200 text-xs text-red-950 space-y-2">
+              <p className="font-semibold text-red-900">
+                Are you sure you want to delete your client profile?
+              </p>
+              <p className="text-red-800 leading-relaxed">
+                Deleting your profile will remove your login credentials, personal account access, and disconnect your portal before the 6-month retention window ends.
+              </p>
+              <div className="p-2.5 rounded-lg bg-white/80 border border-red-200/80 text-[11px] text-red-900/90 leading-tight">
+                <strong>Important Legal Compliance Note:</strong> In compliance with mental healthcare laws and statutory medical record-keeping requirements, your therapist permanently retains confidential clinical notes, SOAP documentation, intake assessments, and consent records in their professional legal archives.
+              </div>
+            </div>
+
+            {deleteProfileError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2">
+                <AlertCircle size={15} className="shrink-0 text-red-600 mt-0.5" />
+                <span>{deleteProfileError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#132A24] block">
+                Reason for profile deletion (optional)
+              </label>
+              <textarea
+                rows={2}
+                value={deleteProfileReason}
+                onChange={(e) => setDeleteProfileReason(e.target.value)}
+                placeholder="Let us know if you'd like to share a reason..."
+                className="w-full text-xs p-2.5 rounded-xl border border-[#263238]/15 focus:outline-hidden focus:border-[#132A24] text-[#263238] resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#263238]/8">
+              <button
+                type="button"
+                onClick={() => setShowDeleteProfileModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-[#263238]/15 text-[#263238] hover:bg-[#FAF9F7] cursor-pointer"
+              >
+                Cancel &amp; Keep Records
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestProfileDeletion}
+                disabled={isDeletingProfile}
+                className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-red-800 hover:bg-red-900 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeletingProfile ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Processing Deletion...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={13} />
+                    <span>Confirm Profile Deletion</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

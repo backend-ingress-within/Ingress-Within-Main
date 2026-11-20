@@ -30,6 +30,7 @@ import {
   Lock,
   Bell,
   LogOut,
+  Mail,
 } from 'lucide-react';
 import ClientHomeworkModal from './ClientHomeworkModal';
 import ClientTherapyMyTherapistView from './ClientTherapyMyTherapistView';
@@ -148,6 +149,31 @@ export default function ClientTherapyDashboard({
   // Booking flow modal state
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
   const [bookingTherapist, setBookingTherapist] = useState(null);
+
+  // Email summary state for concluded care
+  const [isSendingEmailSummary, setIsSendingEmailSummary] = useState(false);
+  const [emailSummaryMessage, setEmailSummaryMessage] = useState(null);
+
+  const handleSendEmailSummary = async () => {
+    setIsSendingEmailSummary(true);
+    setEmailSummaryMessage(null);
+    try {
+      const res = await fetch('/api/therapy/client/journey/email-summary', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmailSummaryMessage(data.message || 'Care summary sent to your email.');
+      } else {
+        setEmailSummaryMessage(data.error?.message || 'Failed to send summary email.');
+      }
+    } catch {
+      setEmailSummaryMessage('Network error sending care summary.');
+    } finally {
+      setIsSendingEmailSummary(false);
+      setTimeout(() => setEmailSummaryMessage(null), 6000);
+    }
+  };
 
   // Account Security & Password Reset state
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
@@ -898,7 +924,7 @@ export default function ClientTherapyDashboard({
                   {isPastRelationship ? (
                     <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold uppercase tracking-wider">
                       <Clock size={13} className="text-amber-700" />
-                      <span>Historical Care Records · Completed or Concluded</span>
+                      <span>Care Concluded · 6-Month Record Retention Window Active</span>
                     </div>
                   ) : (
                     <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold uppercase tracking-wider">
@@ -907,12 +933,21 @@ export default function ClientTherapyDashboard({
                     </div>
                   )}
                   <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#132A24] tracking-tight">
-                    {isPastRelationship ? 'Care History & Records' : `Welcome to your care space, ${profile?.name || user?.name || 'Client'}.`}
+                    {isPastRelationship ? 'Care History & Records Preserved' : `Welcome to your care space, ${profile?.name || user?.name || 'Client'}.`}
                   </h1>
                   <p className="text-xs sm:text-sm text-[#66747A] leading-relaxed">
                     {isPastRelationship ? (
                       <>
-                        Viewing historical records for care with <strong className="text-[#263238]">{clinicianName}</strong>. Your session records and self-work remain archived. You can rematch or request a new clinician at any time.
+                        Viewing preserved records for care with <strong className="text-[#263238]">{clinicianName}</strong>. Quitting therapy does not delete your account. All your consultations ({sessions.length} sessions), notes, and milestones remain fully accessible in your portal for 6 months (until <strong>{(() => {
+                          const endedTimestamp = (relationship?.endedAt || relationship?.ended_at)
+                            ? new Date(relationship.endedAt || relationship.ended_at).getTime()
+                            : Date.now();
+                          return new Date(endedTimestamp + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          });
+                        })()}</strong>). Therapist-side clinical records remain permanently archived for statutory compliance.
                       </>
                     ) : (
                       <>
@@ -922,24 +957,55 @@ export default function ClientTherapyDashboard({
                       </>
                     )}
                   </p>
-                  {isPastRelationship && onStartRematch && (
-                    <div className="pt-2 flex items-center gap-3">
+                  {isPastRelationship && (
+                    <div className="pt-2 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
-                        onClick={onStartRematch}
-                        className="bg-[#132A24] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#1C3E35] transition-colors"
+                        onClick={handleSendEmailSummary}
+                        disabled={isSendingEmailSummary}
+                        className="bg-white hover:bg-gray-50 border border-[#263238]/20 text-[#132A24] px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        Find a New Therapist
+                        {isSendingEmailSummary ? (
+                          <RefreshCw size={12} className="animate-spin" />
+                        ) : (
+                          <Mail size={12} />
+                        )}
+                        <span>Email Care Summary</span>
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('sessions')}
+                        className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        View All Past Sessions ({sessions.length})
+                      </button>
+
+                      {onStartRematch && (
+                        <button
+                          type="button"
+                          onClick={onStartRematch}
+                          className="border border-[#263238]/20 text-[#263238] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#263238]/5 transition-colors cursor-pointer"
+                        >
+                          Find a New Therapist
+                        </button>
+                      )}
                       {onExitHistory && (
                         <button
                           type="button"
                           onClick={onExitHistory}
-                          className="border border-[#263238]/20 text-[#263238] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#263238]/5 transition-colors"
+                          className="border border-[#263238]/20 text-[#263238] px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#263238]/5 transition-colors cursor-pointer"
                         >
                           Exit History View
                         </button>
                       )}
+                    </div>
+                  )}
+
+                  {emailSummaryMessage && (
+                    <div className="mt-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-1.5">
+                      <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                      <span>{emailSummaryMessage}</span>
                     </div>
                   )}
                 </div>
@@ -1113,6 +1179,29 @@ export default function ClientTherapyDashboard({
                             Cancel appointment
                           </button>
                         )}
+                      </div>
+                    </div>
+                  ) : isPastRelationship ? (
+                    <div className="py-6 text-center space-y-2.5">
+                      <div className="inline-flex p-2 rounded-full bg-emerald-50 text-emerald-800">
+                        <CheckCircle2 size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#132A24]">
+                          All {sessions.length} Session{sessions.length === 1 ? '' : 's'} Preserved
+                        </p>
+                        <p className="text-xs text-[#66747A] mt-0.5 max-w-xs mx-auto">
+                          Your historical consultation records, milestones, and notes remain accessible for 6 months.
+                        </p>
+                      </div>
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('sessions')}
+                          className="bg-[#132A24] text-white hover:bg-[#1C3E35] px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          Review All Sessions →
+                        </button>
                       </div>
                     </div>
                   ) : (

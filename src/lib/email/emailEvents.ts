@@ -18,6 +18,7 @@ export const EmailEvents = {
   CLIENT_NO_SHOW: 'therapy.client_no_show',
   THERAPIST_NO_SHOW: 'therapy.therapist_no_show',
   GOOGLE_CALENDAR_CONNECTED: 'calendar.google_connected',
+  CARE_CONCLUDED_SUMMARY: 'therapy.care_concluded_summary',
 
   // Therapist Onboarding & Verification lifecycle
   THERAPIST_APPLICATION_SUBMITTED_ADMIN: 'therapist.application_submitted_admin',

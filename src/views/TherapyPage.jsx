@@ -3870,22 +3870,34 @@ export default function TherapyPage({ user, profile, onSignOut }) {
 
   const connectionStatus = connectionData?.connectionStatus || (connectionData?.connected ? 'connected' : 'no_therapist');
 
-  // STATE C: Connected therapist or authenticated therapy client -> Show Client Therapy Dashboard
-  if ((connectionStatus === 'connected' || user?.is_therapy_client || connectionData?.connection) && !showIntakeOverride && !journey) {
+  const hasHistoricalOrActiveRelationship =
+    connectionStatus === 'connected' ||
+    ['ended', 'paused', 'transferred', 'completed'].includes(connectionStatus) ||
+    Boolean(user?.is_therapy_client) ||
+    Boolean(connectionData?.connection) ||
+    Boolean(connectionData?.history && connectionData.history.length > 0);
+
+  // STATE C: Connected therapist, authenticated therapy client, or concluded/paused care client
+  if (hasHistoricalOrActiveRelationship && !showIntakeOverride && !journey) {
+    const isPast = ['ended', 'paused', 'transferred', 'completed'].includes(connectionStatus) || viewHistoryOnly;
+    const targetRelationship = connectionData?.connection || connectionData?.history?.[0] || null;
+
     return (
       <ClientTherapyDashboard
         user={user}
         profile={profile}
-        relationship={connectionData?.connection}
+        relationship={targetRelationship}
         therapist={connectionData?.therapist}
         onRefreshRelationship={checkConnection}
         onSignOut={onSignOut}
+        isPastRelationship={isPast}
         onStartRematch={(targetJourney = 'guided') => {
           setShowIntakeOverride(true);
           if (targetJourney) {
             setJourney(targetJourney);
           }
         }}
+        onExitHistory={() => setViewHistoryOnly(false)}
         connectionStatus={connectionStatus}
         pendingRequest={connectionData?.pendingRequest}
         history={connectionData?.history}

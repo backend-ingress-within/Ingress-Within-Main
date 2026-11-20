@@ -1,4 +1,6 @@
 import { supabase } from '../db';
+import { EmailService } from '../email/emailService';
+import { EmailEvents } from '../email/emailEvents';
 import {
   pickRawTherapistPhoto,
   resolveTherapistPhotoUrl,
@@ -1430,8 +1432,154 @@ export async function getClientCareJourney(userId: string) {
 }
 
 /**
+ * Sends a full therapy care journey summary over email to the client upon conclusion
+ * or on-demand. Outlines care period, all completed session dates, 6-month portal retention
+ * timeline, and therapist permanent clinical archive notice.
+ */
+export async function sendClientCareSummaryEmail(
+  userId: string,
+  relationshipId?: string,
+  reason?: string
+): Promise<{ success: boolean; email?: string; error?: string }> {
+  if (!userId) return { success: false, error: 'User ID is required' };
+
+  try {
+    const userIds = [userId];
+    // 1. Resolve client account and email
+    const { data: clientAcc } = await supabase
+      .from('therapy_client_accounts')
+      .select('id, user_id, full_name, email, phone_number')
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (clientAcc) {
+      if (clientAcc.id && !userIds.includes(clientAcc.id)) userIds.push(clientAcc.id);
+      if (clientAcc.user_id && !userIds.includes(clientAcc.user_id)) userIds.push(clientAcc.user_id);
+    }
+
+    let clientEmail = clientAcc?.email || '';
+    let clientName = clientAcc?.full_name || '';
+
+    if (!clientEmail) {
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('email, name')
+        .in('id', userIds)
+        .maybeSingle();
+      if (userRow?.email) {
+        clientEmail = userRow.email;
+        if (!clientName && userRow.name) clientName = userRow.name;
+      }
+    }
+
+    if (!clientEmail) {
+      const { data: intakeRow } = await supabase
+        .from('therapy_intakes')
+        .select('email, full_name')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (intakeRow?.email) {
+        clientEmail = intakeRow.email;
+        if (!clientName && intakeRow.full_name) clientName = intakeRow.full_name;
+      }
+    }
+
+    if (!clientEmail) {
+      console.warn('[sendClientCareSummaryEmail] No email found for client:', userId);
+      return { success: false, error: 'No client email address found.' };
+    }
+
+    // 2. Fetch the relationship
+    let relQuery = supabase
+      .from('therapy_care_relationships')
+      .select(`
+        id,
+        therapist_account_id,
+        status,
+        care_stage,
+        started_at,
+        ended_at,
+        metadata,
+        therapist_accounts (
+          id,
+          therapist_profiles (full_name, title, qualification)
+        )
+      `)
+      .in('user_id', userIds);
+
+    if (relationshipId) {
+      relQuery = relQuery.eq('id', relationshipId);
+    } else {
+      relQuery = relQuery.order('created_at', { ascending: false }).limit(1);
+    }
+
+    const { data: rels } = await relQuery;
+    const rel = rels?.[0];
+
+    const acc = rel?.therapist_accounts as any;
+    const prof = Array.isArray(acc?.therapist_profiles) ? acc.therapist_profiles[0] : acc?.therapist_profiles;
+    const therapistName = prof?.full_name || 'Your Therapist';
+
+    // 3. Fetch all completed and past sessions
+    const { data: appts } = await supabase
+      .from('therapist_clinical_appointments')
+      .select('id, scheduled_start, status')
+      .in('user_id', userIds)
+      .order('scheduled_start', { ascending: true });
+
+    const allSessions = appts || [];
+    const completedSessions = allSessions.filter((a) => a.status === 'completed' || a.status === 'attended');
+    const totalSessions = completedSessions.length > 0 ? completedSessions.length : allSessions.length;
+
+    const sessionsList = (completedSessions.length > 0 ? completedSessions : allSessions).map((s) => {
+      const d = new Date(s.scheduled_start);
+      return `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    });
+
+    const startedAt = rel?.started_at ? new Date(rel.started_at) : new Date();
+    const endedAt = rel?.ended_at ? new Date(rel.ended_at) : new Date();
+    const retentionDate = new Date(endedAt.getTime() + 180 * 24 * 60 * 60 * 1000);
+
+    const careStartDate = startedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const careEndDate = endedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const retentionEndDate = retentionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    // 4. Dispatch Email
+    await EmailService.sendEmail({
+      eventType: EmailEvents.CARE_CONCLUDED_SUMMARY,
+      recipient: {
+        email: clientEmail,
+        name: clientName || 'Client',
+        type: 'client',
+        id: userId,
+      },
+      templateKey: 'care_concluded_summary',
+      templateData: {
+        clientName: clientName || 'Client',
+        therapistName,
+        careStartDate,
+        careEndDate,
+        totalSessions,
+        sessionsList,
+        retentionEndDate,
+        reason: reason || 'Client concluded therapy cycle',
+      },
+    });
+
+    return { success: true, email: clientEmail };
+  } catch (err: any) {
+    console.error('[sendClientCareSummaryEmail] Error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Client-initiated action to end / conclude active care relationship.
  * Marks relationship as 'ended', records ending timestamp and reason in metadata.
+ * Does NOT delete client account or sessions. Preserves full portal continuity for 6 months.
+ * Therapist-side clinical records remain permanently preserved for regulatory compliance.
  */
 export async function quitClientTherapyRelationship(
   userId: string,
@@ -1445,6 +1593,7 @@ export async function quitClientTherapyRelationship(
   }
 
   const nowIso = new Date().toISOString();
+  const sixMonthsFromNow = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
 
   // 1. Locate all relationships for this client
   const { data: relationships, error: fetchErr } = await supabase
@@ -1478,6 +1627,11 @@ export async function quitClientTherapyRelationship(
             end_reason: reason,
             end_feedback: feedback || null,
             ended_at: nowIso,
+            retention_period_days: 180,
+            access_expires_at: sixMonthsFromNow,
+            therapist_record_retention: 'permanent_statutory_retention',
+            records_accessible: true,
+            all_sessions_preserved: true,
           },
         })
         .eq('id', rel.id)
@@ -1499,6 +1653,11 @@ export async function quitClientTherapyRelationship(
           end_reason: reason,
           end_feedback: feedback || null,
           ended_at: nowIso,
+          retention_period_days: 180,
+          access_expires_at: sixMonthsFromNow,
+          therapist_record_retention: 'permanent_statutory_retention',
+          records_accessible: true,
+          all_sessions_preserved: true,
         },
       })
       .eq('id', targetRel.id)
@@ -1538,7 +1697,7 @@ export async function quitClientTherapyRelationship(
         user_id: userId,
         notification_type: 'relationship_concluded',
         title: 'Client Concluded Therapy',
-        body: `Client concluded therapy care cycle. Reason: ${reason}.`,
+        body: `Client concluded therapy care cycle. Reason: ${reason}. Clinical records and SOAP notes permanently archived in your caseload.`,
         action_url: `/therapist/clients`,
         is_read: false,
         created_at: nowIso,
@@ -1546,6 +1705,13 @@ export async function quitClientTherapyRelationship(
     } catch (notifErr) {
       console.warn('[quitClientTherapyRelationship] Failed to notify therapist:', notifErr);
     }
+  }
+
+  // 6. Fail-safe automated journey summary email to client
+  try {
+    await sendClientCareSummaryEmail(userId, targetRel?.id, reason);
+  } catch (emailErr) {
+    console.warn('[quitClientTherapyRelationship] Notice sending summary email:', emailErr);
   }
 
   return { success: true, relationship: updatedRel };

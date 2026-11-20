@@ -1357,4 +1357,91 @@ export const EmailTemplates: Record<string, (data: Record<string, any>) => Email
       text: `New Callback Query from ${rawClientName}\nPhone: ${data.clientPhone || 'N/A'}\nEmail: ${data.clientEmail || 'N/A'}\nPreferred Time: ${data.callbackPreference || 'Anytime'}\nTriage: ${data.triageLevel || 'standard'}\nNotes: ${data.notes || 'None'}\n\nReview in Admin Portal:\n${adminUrl}`,
     };
   },
+
+  care_concluded_summary: (data) => {
+    const rawClientName = data.clientName || 'Client';
+    const clientName = escapeHtml(rawClientName);
+    const rawTherapistName = data.therapistName || 'Your Therapist';
+    const therapistName = escapeHtml(rawTherapistName);
+    const careStartDate = escapeHtml(data.careStartDate || 'Initial Intake');
+    const careEndDate = escapeHtml(data.careEndDate || 'Recently');
+    const totalSessions = Number(data.totalSessions || 0);
+    const retentionEndDate = escapeHtml(data.retentionEndDate || '6 months from today');
+    const portalUrl = data.portalUrl || APP_URLS.THERAPY_DASHBOARD;
+    const sessionsList = Array.isArray(data.sessionsList) ? data.sessionsList : [];
+
+    const sessionsHtml = sessionsList.length > 0
+      ? `<ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 13px; color: #334155; line-height: 1.6;">
+          ${sessionsList.map((s: string) => `<li>${escapeHtml(s)}</li>`).join('')}
+        </ul>`
+      : `<p style="margin: 4px 0 0 0; font-size: 13px; color: #64748b; font-style: italic;">All historical consultations recorded in your portal.</p>`;
+
+    const contentHtml = `
+      <p style="margin: 0 0 12px 0;">Dear <strong>${clientName}</strong>,</p>
+      <p style="margin: 0 0 16px 0; line-height: 1.6;">
+        This email confirms that your therapeutic care relationship with <strong>${therapistName}</strong> has been concluded at your request.
+      </p>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 18px 20px; margin: 20px 0; border-radius: 10px;">
+        <p style="margin: 0 0 10px 0; font-weight: 700; color: #132A24; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">
+          Your Care Journey Summary
+        </p>
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #64748b; width: 140px;">Clinician:</td>
+            <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${therapistName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #64748b;">Care Period:</td>
+            <td style="padding: 6px 0; color: #0f172a;">${careStartDate} &mdash; ${careEndDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #64748b;">Total Consultations:</td>
+            <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">${totalSessions} session${totalSessions === 1 ? '' : 's'} completed</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #64748b; vertical-align: top;">Completed Sessions:</td>
+            <td style="padding: 6px 0; color: #0f172a;">
+              ${sessionsHtml}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 18px; margin: 20px 0; border-radius: 6px;">
+        <strong style="color: #14532d; font-size: 13.5px; display: block; margin-bottom: 4px;">6-Month Portal Record Retention Window</strong>
+        <p style="margin: 0; font-size: 12.5px; color: #166534; line-height: 1.55;">
+          Quitting therapy does not delete your account. You retain continuous access to all your consultations, assigned homework, and care records in your client portal until <strong>${retentionEndDate}</strong> (6 months from conclusion).
+        </p>
+      </div>
+
+      <div style="background-color: #faf5ff; border-left: 4px solid #9333ea; padding: 14px 18px; margin: 20px 0; border-radius: 6px;">
+        <strong style="color: #581c87; font-size: 13.5px; display: block; margin-bottom: 4px;">Permanent Clinician Record Compliance</strong>
+        <p style="margin: 0; font-size: 12.5px; color: #6b21a8; line-height: 1.55;">
+          In accordance with mental health regulatory frameworks and statutory medical records standards, your therapist will permanently retain clinical session documentation, intake assessments, and SOAP notes in their professional archives.
+        </p>
+      </div>
+
+      <p style="margin: 18px 0 0 0; font-size: 13px; color: #64748b; line-height: 1.6;">
+        If you ever wish to resume therapy with a new practitioner or review your past notes, you can log in to your therapy space at any time.
+      </p>
+    `;
+
+    return {
+      subject: `Ingress Within: Your Therapy Care Summary with ${rawTherapistName}`,
+      html: renderBaseEmailLayout({
+        title: 'Therapy Care Summary',
+        badge: 'Care Concluded',
+        badgeVariant: 'default',
+        heading: 'Your Therapy Care Summary',
+        preheader: `Care summary for ${rawClientName} with ${rawTherapistName}. All ${totalSessions} sessions preserved for 6 months.`,
+        contentHtml,
+        ctaButton: {
+          label: 'View Care Records in Client Portal',
+          url: portalUrl,
+        },
+      }),
+      text: `Dear ${rawClientName},\n\nYour therapeutic care relationship with ${rawTherapistName} has been concluded at your request.\n\nCARE SUMMARY:\n- Clinician: ${rawTherapistName}\n- Care Period: ${data.careStartDate || 'Start'} to ${data.careEndDate || 'Present'}\n- Total Sessions: ${totalSessions}\n- Completed Sessions: ${(sessionsList || []).join(', ') || 'Archived in portal'}\n\n6-MONTH RECORD RETENTION:\nQuitting therapy does not delete your account. All your session records remain accessible in your portal until ${retentionEndDate} (6 months).\n\nTHERAPIST RECORD COMPLIANCE:\nYour therapist permanently retains clinical documentation and SOAP notes in their professional legal archives in accordance with healthcare regulations.\n\nAccess your portal:\n${portalUrl}\n\nWarm regards,\nThe Ingress Within Care Team`,
+    };
+  },
 };

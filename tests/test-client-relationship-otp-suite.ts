@@ -108,8 +108,8 @@ try {
   fail('Client UI Integration', e);
 }
 
-// --- SECTION 5: Change Shows Available Therapists & Quit Returns to Matching Engine ---
-console.log('\n--- SECTION 5: Change Shows Other Therapists & Quit Launches Matching Engine ---');
+// --- SECTION 5: Change Shows Available Therapists & Quit Preserves 6-Month Portal Continuity ---
+console.log('\n--- SECTION 5: Change Shows Other Therapists & Quit Preserves 6-Month Portal Continuity ---');
 try {
   // 1. Therapist change renders Step 3 with other available therapists and their details
   assert(myTherapistCode.includes('fetchAvailableTherapists'), 'Fetches available therapists upon change confirmation');
@@ -122,12 +122,15 @@ try {
   assert(myTherapistCode.includes('t.bio'), 'Displays therapist professional bio');
   assert(myTherapistCode.includes('onStartBooking(t)'), 'Provides one-click action to book with chosen clinician');
 
-  // 2. Quitting takes client back to matching engine
-  assert(myTherapistCode.includes("onStartRematch('guided')"), 'Takes client back to guided matching engine on quit');
-  assert(therapyPageCode.includes("setJourney(targetJourney)"), 'TherapyPage activates guided matching engine when requested');
-  pass('Change therapist displays full available therapist details and quit returns client to matching engine');
+  // 2. Quitting preserves continuity, 6-month retention, and provides rematch & email summary
+  assert(myTherapistCode.includes('onStartRematch'), 'Provides rematch action when client chooses to find a new therapist');
+  assert(myTherapistCode.includes('6-Month Record Retention'), 'Informs client of 6-month record retention window');
+  assert(myTherapistCode.includes('handleSendEmailSummary'), 'Provides email journey summary capability');
+  assert(myTherapistCode.includes('handleRequestProfileDeletion'), 'Provides client profile deletion request option');
+  assert(therapyPageCode.includes('hasHistoricalOrActiveRelationship'), 'TherapyPage keeps concluded clients in their dashboard preserving all sessions');
+  pass('Change therapist displays full available therapist details, and quit preserves 6-month portal continuity and all sessions');
 } catch (e) {
-  fail('Change Shows Other Therapists & Quit Launches Matching Engine', e);
+  fail('Change Shows Other Therapists & Quit Preserves 6-Month Portal Continuity', e);
 }
 
 console.log('\n================================================================');

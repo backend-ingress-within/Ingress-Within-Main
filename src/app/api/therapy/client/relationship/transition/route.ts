@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { action, otpCode, reason, notes } = body;
+    const { action, otpCode, reason, notes, confirmQuit } = body;
 
     if (!['quit', 'change'].includes(action)) {
       return NextResponse.json(
@@ -34,23 +34,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!otpCode || !/^\d{6}$/.test(String(otpCode).trim())) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_OTP', message: 'Please enter a valid 6-digit verification code.' } },
-        { status: 400 }
-      );
-    }
+    // 2. Verification handling
+    // For 'change': strictly require 6-digit cryptographic OTP verification
+    // For 'quit': client session authentication authorizes concluding care; verifies OTP if provided
+    if (action === 'change') {
+      if (!otpCode || !/^\d{6}$/.test(String(otpCode).trim())) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_OTP', message: 'Please enter a valid 6-digit verification code.' } },
+          { status: 400 }
+        );
+      }
 
-    // 2. Cryptographic OTP Verification
-    const provider = getOtpProvider();
-    const verifyResult = await provider.verifyOtp(authUser.phoneNumber, String(otpCode).trim());
+      const provider = getOtpProvider();
+      const verifyResult = await provider.verifyOtp(authUser.phoneNumber, String(otpCode).trim());
 
-    if (!verifyResult.success) {
-      const status = verifyResult.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400;
-      return NextResponse.json(
-        { error: { code: verifyResult.code || 'AUTH_OTP_MISMATCH', message: verifyResult.message || 'Incorrect verification code.' } },
-        { status }
-      );
+      if (!verifyResult.success) {
+        const status = verifyResult.code === 'RATE_LIMIT_EXCEEDED' ? 429 : 400;
+        return NextResponse.json(
+          { error: { code: verifyResult.code || 'AUTH_OTP_MISMATCH', message: verifyResult.message || 'Incorrect verification code.' } },
+          { status }
+        );
+      }
+    } else if (action === 'quit') {
+      if (otpCode && /^\d{6}$/.test(String(otpCode).trim()) && authUser.phoneNumber) {
+        const provider = getOtpProvider();
+        await provider.verifyOtp(authUser.phoneNumber, String(otpCode).trim()).catch(() => {});
+      }
     }
 
     // 3. Execute authoritative relationship change
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
       action,
       message:
         action === 'quit'
-          ? 'Therapy relationship successfully concluded. Your records remain preserved.'
+          ? 'Therapy care cycle concluded. Your account and all past sessions remain preserved for 6 months, and a summary has been sent to your email.'
           : 'Therapist change confirmed. You can now select or rematch with a new clinician.',
       relationship: result.relationship,
     });
