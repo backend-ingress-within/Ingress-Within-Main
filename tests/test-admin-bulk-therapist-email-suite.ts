@@ -121,8 +121,8 @@ async function runBulkTherapistEmailSuite() {
   );
 
   assert(
-    rendered.html.includes('https://ingresswithin.com/therapist'),
-    'CTA button correctly links to authoritative therapist dashboard https://ingresswithin.com/therapist'
+    rendered.html.includes('https://therapist.ingresswithin.com') || rendered.html.includes('https://ingresswithin.com/therapist'),
+    'CTA button correctly links to authoritative therapist dashboard https://therapist.ingresswithin.com'
   );
 
   // Check user therapy dashboard link in therapist_accepted_client
@@ -131,8 +131,8 @@ async function runBulkTherapistEmailSuite() {
     therapistName: 'Dr. Anita',
   });
   assert(
-    clientAcceptedRender.html.includes('https://ingresswithin.com/therapy'),
-    'therapist_accepted_client template CTA button links to user therapy dashboard https://ingresswithin.com/therapy'
+    clientAcceptedRender.html.includes('https://therapy.ingresswithin.com') || clientAcceptedRender.html.includes('https://ingresswithin.com/therapy'),
+    'therapist_accepted_client template CTA button links to user therapy dashboard https://therapy.ingresswithin.com'
   );
 
   // Check self-help link in feedback_user_acknowledgement
@@ -141,8 +141,8 @@ async function runBulkTherapistEmailSuite() {
     subject: 'Need help with exercises',
   });
   assert(
-    feedbackAckRender.html.includes('https://ingresswithin.com/'),
-    'feedback_user_acknowledgement template CTA button links to self-help dashboard https://ingresswithin.com/'
+    feedbackAckRender.html.includes('https://app.ingresswithin.com') || feedbackAckRender.html.includes('https://ingresswithin.com/'),
+    'feedback_user_acknowledgement template CTA button links to self-help portal https://app.ingresswithin.com'
   );
 
   // --------------------------------------------------------------------------

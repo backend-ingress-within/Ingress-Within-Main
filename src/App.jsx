@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PolicyModal from './components/PolicyModal';
+import { getSubdomain, getSubdomainUrl } from './config/subdomains';
 
 const LandingPage = lazy(() => import('./views/LandingPage'));
 const WhatItIsPage = lazy(() => import('./views/WhatItIsPage'));
@@ -149,15 +150,22 @@ const isUserAuthRoute = (path, currentRoute) => {
 };
 
 export default function App({ initialRoute = 'home' }) {
+  let effectiveInitial = initialRoute;
+  if (typeof window !== 'undefined' && (initialRoute === 'home' || initialRoute === '')) {
+    const activeSub = getSubdomain(window.location.hostname);
+    if (activeSub === 'therapy') effectiveInitial = 'therapy';
+    else if (activeSub === 'therapist') effectiveInitial = 'therapist';
+  }
+
   const normalizedInitialRoute = (
-    initialRoute === 'login' || 
-    initialRoute === 'signup' || 
-    initialRoute === 'user/login' || 
-    initialRoute === 'user/auth' || 
-    initialRoute === 'user/signup' ||
-    initialRoute === 'auth/login' ||
-    initialRoute === 'auth/signup'
-  ) ? 'auth' : initialRoute;
+    effectiveInitial === 'login' || 
+    effectiveInitial === 'signup' || 
+    effectiveInitial === 'user/login' || 
+    effectiveInitial === 'user/auth' || 
+    effectiveInitial === 'user/signup' ||
+    effectiveInitial === 'auth/login' ||
+    effectiveInitial === 'auth/signup'
+  ) ? 'auth' : effectiveInitial;
 
   const [currentRoute, setCurrentRoute] = useState(normalizedInitialRoute);
   const [policyModalOpen, setPolicyModalOpen] = useState(false);
@@ -609,19 +617,33 @@ export default function App({ initialRoute = 'home' }) {
         setCurrentRoute('terms');
         window.scrollTo(0, 0);
       } else if (path === '/' || path === '') {
-        setCurrentRoute('home');
-        // Handle section scroll deep link (e.g. /#auth -> scroll to auth section)
-        const hash = window.location.hash;
-        const anchor = hash.replace(/^#\/?/, '');
-        if (anchor && ['what', 'how', 'trust', 'pricing', 'faq', 'auth', 'problem', 'approach', 'who'].includes(anchor)) {
-          setTimeout(() => {
-            const el = document.getElementById(anchor);
-            if (el) {
-              const yOffset = -80;
-              const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-              window.scrollTo({ top: y, behavior: 'smooth' });
-            }
-          }, 150);
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        const activeSub = getSubdomain(host);
+
+        if (activeSub === 'therapy') {
+          setCurrentRoute('therapy');
+          window.scrollTo(0, 0);
+        } else if (activeSub === 'therapist') {
+          setCurrentRoute('therapist');
+          window.scrollTo(0, 0);
+        } else if (activeSub === 'app') {
+          setCurrentRoute(user ? 'dashboard' : 'auth');
+          window.scrollTo(0, 0);
+        } else {
+          setCurrentRoute('home');
+          // Handle section scroll deep link (e.g. /#auth -> scroll to auth section)
+          const hash = window.location.hash;
+          const anchor = hash.replace(/^#\/?/, '');
+          if (anchor && ['what', 'how', 'trust', 'pricing', 'faq', 'auth', 'problem', 'approach', 'who'].includes(anchor)) {
+            setTimeout(() => {
+              const el = document.getElementById(anchor);
+              if (el) {
+                const yOffset = -80;
+                const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+              }
+            }, 150);
+          }
         }
       } else {
         setCurrentRoute('not-found');
@@ -634,6 +656,41 @@ export default function App({ initialRoute = 'home' }) {
       if (!anchor) return;
       const href = anchor.getAttribute('href');
       if (!href) return;
+
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isProdHost = host.includes('ingresswithin.com');
+
+      if (isProdHost) {
+        const currentSub = getSubdomain(host);
+
+        // Cross-domain intercept for main domain (ingresswithin.com)
+        if (currentSub === 'main') {
+          if (href === '/therapy' || href.startsWith('/therapy/')) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('therapy', href.replace(/^\/therapy/, '') || '/');
+            return;
+          }
+          if (href === '/therapist' || href.startsWith('/therapist/')) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('therapist', href.replace(/^\/therapist/, '') || '/');
+            return;
+          }
+          if (
+            href === '/dashboard' ||
+            href.startsWith('/dashboard/') ||
+            href === '/write' ||
+            href.startsWith('/write/') ||
+            href === '/patterns' ||
+            href === '/reports' ||
+            href === '/vocab' ||
+            href === '/modules'
+          ) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('app', href);
+            return;
+          }
+        }
+      }
 
       // If it's a local path or hash link (excluding backend API endpoints)
       if (

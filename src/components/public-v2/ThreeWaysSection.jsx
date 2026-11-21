@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 import { getCardEmergence } from '../../utils/cardEmergence';
+import { getSubdomainUrl } from '../../config/subdomains';
 
 /**
  * Section 02 · Choose Your Starting Point
@@ -109,6 +110,12 @@ export default function ThreeWaysSection({ onSelectTab }) {
                 {...getCardEmergence(idx, 3)}
                 onClick={() => {
                   if (card.href) {
+                    if (card.href === '/therapy') {
+                      if (typeof window !== 'undefined') {
+                        window.location.href = getSubdomainUrl('therapy');
+                      }
+                      return;
+                    }
                     if (typeof window !== 'undefined' && window.navigateTo) {
                       window.navigateTo(card.href);
                     } else if (typeof window !== 'undefined') {

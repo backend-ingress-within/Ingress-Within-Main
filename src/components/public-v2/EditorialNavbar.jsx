@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getSubdomainUrl } from '../../config/subdomains';
 
 /**
  * Editorial Navbar matching the screenshot visual design.
@@ -77,8 +78,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
     setMobileMenuOpen(false);
     if (item.id === 'therapy' || item.path === '/therapy') {
       if (typeof window !== 'undefined') {
-        if (window.navigateTo) window.navigateTo('/therapy');
-        else window.location.href = '/therapy';
+        window.location.href = getSubdomainUrl('therapy');
       }
       return;
     }
@@ -97,11 +97,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
       ? (profile && !profile.onboarding_completed ? '/onboarding' : '/dashboard')
       : (path || '/login');
     if (typeof window !== 'undefined') {
-      if (window.navigateTo) {
-        window.navigateTo(destination);
-      } else {
-        window.location.href = destination;
-      }
+      window.location.href = getSubdomainUrl('app', destination);
     }
   };
 
@@ -217,7 +213,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           {user ? (
             <>
               <a
-                href="/dashboard"
+                href={getSubdomainUrl('app', '/dashboard')}
                 onClick={(e) => handleAuthClick('/dashboard', e)}
                 className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
@@ -229,12 +225,11 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                 <span className="text-[13px]">→</span>
               </a>
               <a
-                href="/therapy"
+                href={getSubdomainUrl('therapy')}
                 onClick={(e) => {
                   e.preventDefault();
                   if (typeof window !== 'undefined') {
-                    if (window.navigateTo) window.navigateTo('/therapy');
-                    else window.location.href = '/therapy';
+                    window.location.href = getSubdomainUrl('therapy');
                   }
                 }}
                 className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
@@ -250,7 +245,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           ) : (
             <>
               <a
-                href="/login"
+                href={getSubdomainUrl('app', '/login')}
                 onClick={(e) => handleAuthClick('/login', e)}
                 className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
                   isOnBlue
@@ -262,12 +257,11 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
                 <span className="text-[13px]">→</span>
               </a>
               <a
-                href="/therapy"
+                href={getSubdomainUrl('therapy')}
                 onClick={(e) => {
                   e.preventDefault();
                   if (typeof window !== 'undefined') {
-                    if (window.navigateTo) window.navigateTo('/therapy');
-                    else window.location.href = '/therapy';
+                    window.location.href = getSubdomainUrl('therapy');
                   }
                 }}
                 className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-full shadow-2xs hover:shadow-xs transition-all duration-200 hover:scale-[1.01] cursor-pointer whitespace-nowrap ${
@@ -286,7 +280,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
         {/* Mobile Header Quick Actions & Menu Toggle Button */}
         <div className="flex items-center gap-1.5 sm:hidden">
           <a
-            href="/login"
+            href={getSubdomainUrl('app', '/login')}
             onClick={(e) => handleAuthClick('/login', e)}
             className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors ${
               isOnBlue
@@ -297,12 +291,11 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
             Self-help
           </a>
           <a
-            href="/therapy"
+            href={getSubdomainUrl('therapy')}
             onClick={(e) => {
               e.preventDefault();
               if (typeof window !== 'undefined') {
-                if (window.navigateTo) window.navigateTo('/therapy');
-                else window.location.href = '/therapy';
+                window.location.href = getSubdomainUrl('therapy');
               }
             }}
             className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors ${
@@ -402,7 +395,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
           </div>
           <div className={`pt-4 border-t flex flex-col gap-2.5 ${isOnBlue ? 'border-white/10' : 'border-[#E7DECF]'}`}>
             <a
-              href={user ? '/dashboard' : '/login'}
+              href={getSubdomainUrl('app', user ? '/dashboard' : '/login')}
               onClick={(e) => handleAuthClick(user ? '/dashboard' : '/login', e)}
               className={`w-full text-center py-2.5 text-xs font-semibold rounded-full shadow-xs transition-all ${
                 isOnBlue ? 'bg-white text-[#011627]' : 'bg-[#162723] hover:bg-[#203631] text-white'
@@ -411,13 +404,12 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
               {user ? 'Go to Dashboard →' : 'Start self help →'}
             </a>
             <a
-              href="/therapy"
+              href={getSubdomainUrl('therapy')}
               onClick={(e) => {
                 e.preventDefault();
                 setMobileMenuOpen(false);
                 if (typeof window !== 'undefined') {
-                  if (window.navigateTo) window.navigateTo('/therapy');
-                  else window.location.href = '/therapy';
+                  window.location.href = getSubdomainUrl('therapy');
                 }
               }}
               className={`w-full text-center py-2.5 text-xs font-semibold rounded-full shadow-xs transition-all ${

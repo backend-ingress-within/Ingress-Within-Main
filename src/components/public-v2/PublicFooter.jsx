@@ -1,4 +1,5 @@
 import { SUPPORT_CONFIG } from '../../config/supportConfig';
+import { getSubdomainUrl } from '../../config/subdomains';
 
 /**
  * Editorial Dark Ink Footer matching source HTML content.
@@ -89,8 +90,27 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
             <div className="font-editorial text-sm text-white font-medium">Explore</div>
             <ul className="space-y-2 text-xs font-zen text-[#8D98A3]">
               <li>
-                <a href="/therapy" onClick={(e) => { e.preventDefault(); if (typeof window !== 'undefined' && window.navigateTo) window.navigateTo('/therapy'); else window.location.href = '/therapy'; }} className="hover:text-white transition-colors">
-                  Therapy Intake
+                <a
+                  href={getSubdomainUrl('therapy')}
+                  className="hover:text-white transition-colors"
+                >
+                  Therapy Care
+                </a>
+              </li>
+              <li>
+                <a
+                  href={getSubdomainUrl('app', '/dashboard')}
+                  className="hover:text-white transition-colors"
+                >
+                  Self-Help App
+                </a>
+              </li>
+              <li>
+                <a
+                  href={getSubdomainUrl('therapist')}
+                  className="hover:text-white transition-colors"
+                >
+                  Therapist Portal
                 </a>
               </li>
               <li>

@@ -8,9 +8,10 @@ export { escapeHtml };
  * Authoritative platform route URLs for all user and therapist actions.
  */
 export const APP_URLS = {
-  SELF_HELP: 'https://ingresswithin.com/',
-  THERAPY_DASHBOARD: 'https://ingresswithin.com/therapy',
-  THERAPIST_DASHBOARD: 'https://ingresswithin.com/therapist',
+  LANDING: 'https://ingresswithin.com',
+  SELF_HELP: 'https://app.ingresswithin.com',
+  THERAPY_DASHBOARD: 'https://therapy.ingresswithin.com',
+  THERAPIST_DASHBOARD: 'https://therapist.ingresswithin.com',
   ADMIN_PORTAL: 'https://ingresswithin.com/admin',
 } as const;
 
