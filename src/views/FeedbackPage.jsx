@@ -296,7 +296,7 @@ export default function FeedbackPage({ user, profile, onOpenPolicy }) {
             )}
 
             {/* FORM CONTAINER */}
-            <form onSubmit={handleSubmit} className="bg-white border border-[#1E2A2E]/10 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+            <form onSubmit={handleSubmit} toolname="submit_feedback" tooldescription="Submit user experience feedback, bug reports, or technical issues to the Ingress Within team" className="bg-white border border-[#1E2A2E]/10 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
               
               {/* Submission Type Segmented Selector */}
               <div>

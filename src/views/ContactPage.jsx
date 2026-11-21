@@ -162,7 +162,7 @@ export default function ContactPage({ onOpenPolicy }) {
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} toolname="submit_contact_message" tooldescription="Send a direct inquiry or question to the Ingress Within team" className="space-y-5">
                   <div className="flex flex-col gap-1.5">
                     <label className="font-sans text-[11px] font-medium tracking-[0.08em] uppercase text-muted-text" htmlFor="name">
                       Name

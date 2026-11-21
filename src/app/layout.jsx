@@ -2,6 +2,7 @@ import { Instrument_Sans, Lora, Zen_Maru_Gothic, IBM_Plex_Mono, Kalam } from "ne
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import StructuredData from "../components/seo/StructuredData";
+import WebMcpTools from "../components/seo/WebMcpTools";
 import '../index.css';
 import '../v2/styles/v2.css';
 
@@ -143,6 +144,7 @@ export default function RootLayout({ children }) {
         <StructuredData />
       </head>
       <body className="selection:bg-accent/40 selection:text-primary font-sans">
+        <WebMcpTools />
         <div id="root">
           {children}
         </div>

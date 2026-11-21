@@ -197,6 +197,38 @@ async function runSuite() {
     'public/.well-known/mcp.json SEP-2127 static file exists'
   );
 
+  // 8. WebMCP in-browser tools registered & declarative forms annotated
+  console.log('\n--- 8. Goal: Site Exposes WebMCP Tools to In-Browser Agents ---');
+  const webMcpCode = readFileSync(
+    join(process.cwd(), 'src', 'components', 'seo', 'WebMcpTools.jsx'),
+    'utf-8'
+  );
+  assert(
+    webMcpCode.includes('registerTool') && webMcpCode.includes('navigator.modelContext'),
+    'WebMcpTools calls navigator.modelContext.registerTool() on page load'
+  );
+  assert(
+    webMcpCode.includes('document.modelContext'),
+    'WebMcpTools supports document.modelContext.registerTool() for W3C draft spec'
+  );
+  assert(
+    webMcpCode.includes('toolname="search_care_pathways"') &&
+    webMcpCode.includes('tooldescription="'),
+    'WebMcpTools renders declarative HTML forms annotated with toolname and tooldescription'
+  );
+  assert(
+    webMcpCode.includes('inputSchema:') && webMcpCode.includes('execute:'),
+    'Registered WebMCP tools specify name, description, inputSchema, and execute callback'
+  );
+  const layoutCode = readFileSync(
+    join(process.cwd(), 'src', 'app', 'layout.jsx'),
+    'utf-8'
+  );
+  assert(
+    layoutCode.includes('<WebMcpTools'),
+    'Root layout mounts WebMcpTools globally on all pages'
+  );
+
   console.log('\n================================================================');
   console.log(` RESULTS: ${passed} passed, ${failed} failed (${passed + failed} total)`);
   console.log('================================================================\n');
