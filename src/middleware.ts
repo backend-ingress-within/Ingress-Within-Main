@@ -87,7 +87,12 @@ function isMarketingPath(pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const acceptHeader = request.headers.get('accept') || '';
-  const host = (request.headers.get('host') || request.nextUrl.hostname || '').toLowerCase();
+  const host = (
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host') ||
+    request.nextUrl.hostname ||
+    ''
+  ).toLowerCase();
   const subdomain = getSubdomain(host);
 
   // 1. Content Negotiation: Agent requesting Markdown representation (RFC 7763)
@@ -283,6 +288,7 @@ export function middleware(request: NextRequest) {
         const response = NextResponse.rewrite(url);
         response.headers.set('Link', RFC_8288_LINK_HEADER);
         response.headers.set('x-subdomain', 'app');
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         return response;
       } else {
         const url = request.nextUrl.clone();

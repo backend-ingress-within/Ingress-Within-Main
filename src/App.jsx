@@ -155,6 +155,7 @@ export default function App({ initialRoute = 'home' }) {
     const activeSub = getSubdomain(window.location.hostname);
     if (activeSub === 'therapy') effectiveInitial = 'therapy';
     else if (activeSub === 'therapist') effectiveInitial = 'therapist';
+    else if (activeSub === 'app') effectiveInitial = 'dashboard';
   }
 
   const normalizedInitialRoute = (
@@ -301,13 +302,15 @@ export default function App({ initialRoute = 'home' }) {
       return;
     }
 
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
-
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const currentSub = getSubdomain(host);
+    const isAppRootDashboard = currentSub === 'app' && (path === '/' || path === '');
+    const isProtectedRoute = isAppRootDashboard || path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/interventions') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
 
     if (isProtectedRoute) {
       if (!user) {
-        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /auth. Reason: SESSION_INVALID');
-        window.navigateTo('/auth');
+        console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /login. Reason: SESSION_INVALID');
+        window.navigateTo('/login');
       } else if (profile) {
         console.log('[App.jsx] Redirect Engine: Authenticated user with profile on protected route. Onboarding state:', {
           consent_completed: profile.consent_completed,
@@ -551,6 +554,12 @@ export default function App({ initialRoute = 'home' }) {
         path === '/therapy/portal' ||
         path === '/therapy/portal/'
       ) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        const currentSub = getSubdomain(host);
+        if (currentSub === 'app') {
+          window.location.href = getSubdomainUrl('therapy', path.replace(/^\/therapy/, '') || '/');
+          return;
+        }
         setCurrentRoute('therapy');
         window.scrollTo(0, 0);
       } else if (path === '/settings' || path === '/settings/') {
@@ -680,7 +689,7 @@ export default function App({ initialRoute = 'home' }) {
           setCurrentRoute('therapist');
           window.scrollTo(0, 0);
         } else if (activeSub === 'app') {
-          setCurrentRoute(user ? 'dashboard' : 'auth');
+          setCurrentRoute('dashboard');
           window.scrollTo(0, 0);
         } else {
           setCurrentRoute('home');
