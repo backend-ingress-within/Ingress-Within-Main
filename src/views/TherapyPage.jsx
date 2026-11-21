@@ -17,6 +17,7 @@ import {
   FileText,
   Activity,
   BookOpen,
+  Lock,
 } from 'lucide-react';
 import TherapyBookingFlow from '../components/therapy/TherapyBookingFlow';
 import TherapyMatchResultsView from '../components/therapy/TherapyMatchResultsView';
@@ -3940,6 +3941,34 @@ export default function TherapyPage({ user, profile, onSignOut }) {
               <ArrowLeft size={15} /> {user ? 'Dashboard' : 'Home'}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {!user && (
+                <a
+                  href="/therapy/login"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/therapy/login';
+                    }
+                  }}
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: '#132A24',
+                    background: '#ffffff',
+                    border: '1px solid rgba(38,50,56,0.2)',
+                    borderRadius: 8,
+                    padding: '6px 14px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <Lock size={13} /> Client Login
+                </a>
+              )}
               {showIntakeOverride && connectionStatus === 'connected' && (
                 <button
                   type="button"
@@ -4219,6 +4248,59 @@ export default function TherapyPage({ user, profile, onSignOut }) {
             <p className="iw-intake-fine">
               Confidential. Sessions are on Google Meet and added to your Google Calendar.
             </p>
+
+            {!user && (
+              <div
+                style={{
+                  marginTop: 28,
+                  padding: '18px 22px',
+                  borderRadius: 14,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid rgba(19, 42, 36, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                  boxShadow: '0 2px 8px rgba(19, 42, 36, 0.04)',
+                }}
+              >
+                <div>
+                  <strong style={{ color: '#132A24', display: 'block', fontSize: 14, marginBottom: 2 }}>
+                    Already have therapy credentials or completed account setup?
+                  </strong>
+                  <span style={{ color: '#5C6873', fontSize: 12.5 }}>
+                    Sign in to your Therapy Portal to view upcoming consultations, join video calls, and access care notes.
+                  </span>
+                </div>
+                <a
+                  href="/therapy/login"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/therapy/login';
+                    }
+                  }}
+                  style={{
+                    backgroundColor: '#132A24',
+                    color: '#ffffff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '9px 18px',
+                    borderRadius: 8,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(19, 42, 36, 0.15)',
+                  }}
+                >
+                  <Lock size={13} /> Client Login →
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -316,7 +316,7 @@ export default function App({ initialRoute = 'home' }) {
           onboarding_completed: profile.onboarding_completed
         });
         if (!profile.onboarding_completed) {
-          if (!path.startsWith('/onboarding') && !path.startsWith('/dashboard')) {
+          if (!path.startsWith('/onboarding') && !path.startsWith('/dashboard') && path !== '/') {
             console.log('[App.jsx] Redirect Engine: onboarding_completed is false. Redirecting to /onboarding. Reason: ONBOARDING_INCOMPLETE');
             window.navigateTo('/onboarding');
           } else {
@@ -347,9 +347,11 @@ export default function App({ initialRoute = 'home' }) {
         const currentSub = getSubdomain(window.location.hostname);
 
         if (redirectParam && (redirectParam.startsWith('/dashboard') || redirectParam.startsWith('/write') || redirectParam.startsWith('/patterns') || redirectParam.startsWith('/reports'))) {
-          targetDestination = redirectParam;
+          targetDestination = (currentSub === 'app' && (redirectParam === '/dashboard' || redirectParam === '/dashboard/')) ? '/' : redirectParam;
         } else if (currentSub === 'therapy') {
           targetDestination = '/therapy';
+        } else if (currentSub === 'app') {
+          targetDestination = '/';
         } else {
           targetDestination = '/dashboard';
         }
@@ -406,45 +408,50 @@ export default function App({ initialRoute = 'home' }) {
       const currentSub = getSubdomain(host);
       const isProdHost = host.includes('ingresswithin.com');
 
+      let targetPath = path;
+      if (currentSub === 'app' && (path === '/dashboard' || path === '/dashboard/')) {
+        targetPath = '/';
+      }
+
       if (isProdHost) {
         // If on app.ingresswithin.com and navigating to therapy or therapist
         if (currentSub === 'app') {
-          if (path === '/therapy' || path.startsWith('/therapy/')) {
-            window.location.href = getSubdomainUrl('therapy', path.replace(/^\/therapy/, '') || '/');
+          if (targetPath === '/therapy' || targetPath.startsWith('/therapy/')) {
+            window.location.href = getSubdomainUrl('therapy', targetPath.replace(/^\/therapy/, '') || '/');
             return;
           }
-          if (path === '/therapist' || path.startsWith('/therapist/')) {
-            window.location.href = getSubdomainUrl('therapist', path.replace(/^\/therapist/, '') || '/');
+          if (targetPath === '/therapist' || targetPath.startsWith('/therapist/')) {
+            window.location.href = getSubdomainUrl('therapist', targetPath.replace(/^\/therapist/, '') || '/');
             return;
           }
         }
 
         // If on therapy.ingresswithin.com and navigating to self-help
         if (currentSub === 'therapy') {
-          if (path === '/dashboard' || path.startsWith('/dashboard/') || path === '/write' || path === '/auth' || path === '/settings') {
-            window.location.href = getSubdomainUrl('app', path);
+          if (targetPath === '/dashboard' || targetPath.startsWith('/dashboard/') || targetPath === '/write' || targetPath === '/auth' || targetPath === '/settings') {
+            window.location.href = getSubdomainUrl('app', targetPath);
             return;
           }
         }
 
         // If on main domain and navigating to app, therapy, or therapist
         if (currentSub === 'main') {
-          if (path === '/therapy' || path.startsWith('/therapy/')) {
-            window.location.href = getSubdomainUrl('therapy', path.replace(/^\/therapy/, '') || '/');
+          if (targetPath === '/therapy' || targetPath.startsWith('/therapy/')) {
+            window.location.href = getSubdomainUrl('therapy', targetPath.replace(/^\/therapy/, '') || '/');
             return;
           }
-          if (path === '/therapist' || path.startsWith('/therapist/')) {
-            window.location.href = getSubdomainUrl('therapist', path.replace(/^\/therapist/, '') || '/');
+          if (targetPath === '/therapist' || targetPath.startsWith('/therapist/')) {
+            window.location.href = getSubdomainUrl('therapist', targetPath.replace(/^\/therapist/, '') || '/');
             return;
           }
-          if (path === '/dashboard' || path.startsWith('/dashboard/') || path === '/write' || path === '/auth' || path === '/settings') {
-            window.location.href = getSubdomainUrl('app', path);
+          if (targetPath === '/dashboard' || targetPath.startsWith('/dashboard/') || targetPath === '/write' || targetPath === '/auth' || targetPath === '/settings') {
+            window.location.href = getSubdomainUrl('app', targetPath);
             return;
           }
         }
       }
 
-      window.history.pushState({}, '', path);
+      window.history.pushState({}, '', targetPath);
       handleLocationChange();
       window.dispatchEvent(new PopStateEvent('popstate'));
     };
@@ -529,6 +536,11 @@ export default function App({ initialRoute = 'home' }) {
         setCurrentRoute('onboarding');
         window.scrollTo(0, 0);
       } else if (path === '/dashboard' || path === '/dashboard/') {
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        const activeSub = getSubdomain(host);
+        if (activeSub === 'app') {
+          window.history.replaceState({}, '', '/');
+        }
         setCurrentRoute('dashboard');
         window.scrollTo(0, 0);
       } else if (
@@ -787,7 +799,8 @@ export default function App({ initialRoute = 'home' }) {
         }
 
         e.preventDefault();
-        window.history.pushState({}, '', href);
+        const targetHref = (currentSub === 'app' && (href === '/dashboard' || href === '/dashboard/')) ? '/' : href;
+        window.history.pushState({}, '', targetHref);
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
     };
@@ -806,7 +819,10 @@ export default function App({ initialRoute = 'home' }) {
     const path = typeof window !== 'undefined' 
       ? window.location.pathname 
       : (currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`);
-    const isProtectedRoute = path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const currentSub = getSubdomain(host);
+    const isAppRootDashboard = currentSub === 'app' && (path === '/' || currentRoute === 'dashboard');
+    const isProtectedRoute = isAppRootDashboard || path.startsWith('/onboarding') || path.startsWith('/dashboard') || path.startsWith('/settings') || path.startsWith('/write') || path.startsWith('/reports') || path.startsWith('/patterns') || path.startsWith('/vocab') || path.startsWith('/support') || path.startsWith('/session') || path.startsWith('/thread') || path.startsWith('/entry') || path.startsWith('/knowledge') || path.startsWith('/kb') || path.startsWith('/modules');
     const isAuthRoute = isUserAuthRoute(path, currentRoute);
 
     if (isProtectedRoute && (!authChecked || isLoading)) {

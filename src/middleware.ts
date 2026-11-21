@@ -162,6 +162,11 @@ export function middleware(request: NextRequest) {
     }
 
     // D. Cross-portal redirects: Self-help paths -> app.ingresswithin.com
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      if (isProduction) {
+        return NextResponse.redirect(`https://${DOMAINS.APP}/${search}`, 307);
+      }
+    }
     if (isSelfHelpPath(pathname) && pathname !== '/login') {
       if (isProduction) {
         return NextResponse.redirect(`https://${DOMAINS.APP}${pathname}${search}`, 307);
@@ -226,6 +231,11 @@ export function middleware(request: NextRequest) {
     }
 
     // D. Cross-portal redirects: Self-help paths -> app.ingresswithin.com
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      if (isProduction) {
+        return NextResponse.redirect(`https://${DOMAINS.APP}/${search}`, 307);
+      }
+    }
     if (isSelfHelpPath(pathname) && pathname !== '/login' && pathname !== '/auth') {
       if (isProduction) {
         return NextResponse.redirect(`https://${DOMAINS.APP}${pathname}${search}`, 307);
@@ -252,9 +262,16 @@ export function middleware(request: NextRequest) {
   // SUBDOMAIN ROUTING: app.ingresswithin.com (Self-Help Web Application)
   // =========================================================================
   if (subdomain === 'app') {
-    // A. Root / on self-help app:
+    // A. /dashboard or /dashboard/ -> redirect to root / (dashboard lives strictly at https://app.ingresswithin.com/)
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url, 307);
+    }
+
+    // B. Root / on self-help app:
     // If authenticated (cookie present), rewrite to /dashboard.
-    // If unauthenticated, redirect to /auth.
+    // If unauthenticated, redirect to /login.
     if (pathname === '/') {
       const hasAuthCookie =
         request.cookies.has('__Host-iw-access') ||
@@ -269,7 +286,7 @@ export function middleware(request: NextRequest) {
         return response;
       } else {
         const url = request.nextUrl.clone();
-        url.pathname = '/auth';
+        url.pathname = '/login';
         return NextResponse.redirect(url, 307);
       }
     }
@@ -302,7 +319,11 @@ export function middleware(request: NextRequest) {
   // MAIN DOMAIN: ingresswithin.com (Landing & Marketing Website)
   // =========================================================================
   if (subdomain === 'main' && isProduction) {
-    // A. Cross-portal redirects: Self-help routes -> app.ingresswithin.com
+    // A. Cross-portal redirects: Self-help routes -> app.ingresswithin.com (root for dashboard)
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      return NextResponse.redirect(`https://${DOMAINS.APP}/${search}`, 307);
+    }
+
     if (isSelfHelpPath(pathname)) {
       return NextResponse.redirect(`https://${DOMAINS.APP}${pathname}${search}`, 307);
     }

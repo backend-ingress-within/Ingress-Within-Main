@@ -47,8 +47,8 @@ async function runSubdomainSuite() {
     'Main URL resolves to https://ingresswithin.com/'
   );
   test(
-    getSubdomainUrl('app', '/dashboard', 'ingresswithin.com') === 'https://app.ingresswithin.com/dashboard',
-    'Self-help URL resolves to https://app.ingresswithin.com/dashboard'
+    getSubdomainUrl('app', '/dashboard', 'ingresswithin.com') === 'https://app.ingresswithin.com/',
+    'Self-help dashboard URL resolves to https://app.ingresswithin.com/'
   );
   test(
     getSubdomainUrl('therapy', '/', 'ingresswithin.com') === 'https://therapy.ingresswithin.com/',
@@ -96,8 +96,8 @@ async function runSubdomainSuite() {
   const reqMainDashboard = new NextRequest('https://ingresswithin.com/dashboard');
   const resMainDashboard = middleware(reqMainDashboard);
   test(
-    resMainDashboard.status === 307 && resMainDashboard.headers.get('location') === 'https://app.ingresswithin.com/dashboard',
-    'ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/dashboard'
+    resMainDashboard.status === 307 && resMainDashboard.headers.get('location') === 'https://app.ingresswithin.com/',
+    'ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/'
   );
 
   const reqMainWrite = new NextRequest('https://ingresswithin.com/write');
@@ -170,8 +170,8 @@ async function runSubdomainSuite() {
   const reqTherapyDashboard = new NextRequest('https://therapy.ingresswithin.com/dashboard');
   const resTherapyDashboard = middleware(reqTherapyDashboard);
   test(
-    resTherapyDashboard.status === 307 && resTherapyDashboard.headers.get('location') === 'https://app.ingresswithin.com/dashboard',
-    'therapy.ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/dashboard'
+    resTherapyDashboard.status === 307 && resTherapyDashboard.headers.get('location') === 'https://app.ingresswithin.com/',
+    'therapy.ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/'
   );
 
   // Cross-portal redirect from therapy -> therapist
@@ -223,8 +223,8 @@ async function runSubdomainSuite() {
   const reqTherapistDashboard = new NextRequest('https://therapist.ingresswithin.com/dashboard');
   const resTherapistDashboard = middleware(reqTherapistDashboard);
   test(
-    resTherapistDashboard.status === 307 && resTherapistDashboard.headers.get('location') === 'https://app.ingresswithin.com/dashboard',
-    'therapist.ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/dashboard'
+    resTherapistDashboard.status === 307 && resTherapistDashboard.headers.get('location') === 'https://app.ingresswithin.com/',
+    'therapist.ingresswithin.com/dashboard redirects (307) to https://app.ingresswithin.com/'
   );
 
   // Cross-portal redirect from therapist -> therapy
@@ -248,12 +248,12 @@ async function runSubdomainSuite() {
   // --------------------------------------------------------------------------
   console.log('\nTEST 7: Middleware on Self-Help Subdomain (app.ingresswithin.com)');
 
-  // Root / unauthenticated redirects to /auth
+  // Root / unauthenticated redirects to /login
   const reqAppUnauth = new NextRequest('https://app.ingresswithin.com/');
   const resAppUnauth = middleware(reqAppUnauth);
   test(
-    resAppUnauth.status === 307 && resAppUnauth.headers.get('location')?.endsWith('/auth') === true,
-    'app.ingresswithin.com/ unauthenticated redirects (307) to /auth'
+    resAppUnauth.status === 307 && resAppUnauth.headers.get('location')?.endsWith('/login') === true,
+    'app.ingresswithin.com/ unauthenticated redirects (307) to /login'
   );
 
   // Root / authenticated (with __Host-iw-access cookie) rewrites to /dashboard

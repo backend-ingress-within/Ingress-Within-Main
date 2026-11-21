@@ -73,7 +73,9 @@ export function getSubdomainUrl(
   path: string = '',
   currentHost?: string
 ): string {
-  const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
+  // Normalize app dashboard path to root '/'
+  const normalizedPath = (subdomain === 'app' && (path === '/dashboard' || path === 'dashboard' || path === '')) ? '/' : path;
+  const cleanPath = normalizedPath ? (normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`) : '';
 
   // Detect runtime host
   const isBrowser = typeof window !== 'undefined';
@@ -89,7 +91,7 @@ export function getSubdomainUrl(
       return `/therapist${cleanPath === '/' ? '' : cleanPath}`;
     }
     if (subdomain === 'app') {
-      return cleanPath || '/dashboard';
+      return cleanPath || '/';
     }
     return cleanPath || '/';
   }

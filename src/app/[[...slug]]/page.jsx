@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { generatePageMetadata } from '../../lib/seo/metadata';
+import { getSubdomain } from '../../config/subdomains';
 import AppClient from './AppClient';
 
 const KNOWN_PUBLIC_ROUTES = new Set([
@@ -121,6 +123,31 @@ export async function generateMetadata({ params }) {
     ? slug.join('/').toLowerCase()
     : (typeof slug === 'string' ? slug.toLowerCase() : '');
 
+  try {
+    const headerList = await headers();
+    const host = headerList.get('host') || headerList.get('x-forwarded-host') || '';
+    const sub = getSubdomain(host);
+
+    if (sub === 'app' && (!rawPath || rawPath === 'dashboard')) {
+      return {
+        title: 'Dashboard | Ingress Within',
+        description: 'Your continuous self-help practice, journal entries, and longitudinal patterns.',
+      };
+    }
+    if (sub === 'therapy' && (!rawPath || rawPath === 'therapy')) {
+      return {
+        title: 'Clinical Therapy Care | Ingress Within',
+        description: 'Connect with verified clinical psychologists and psychotherapists.',
+      };
+    }
+    if (sub === 'therapist' && (!rawPath || rawPath === 'therapist')) {
+      return {
+        title: 'Practitioner Workspace | Ingress Within Clinicians',
+        description: 'Clinical practitioner workspace, client records, and appointment management.',
+      };
+    }
+  } catch {}
+
   if (!isKnownRoute(rawPath)) {
     return {
       title: 'Page Not Found | Ingress Within',
@@ -227,36 +254,52 @@ export default async function CatchAllPage({ params }) {
 
   let initialRoute = 'home';
 
-  if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
-  else if (rawPath === 'guided-journaling') initialRoute = 'guided-journaling';
-  else if (rawPath === 'self-reflection') initialRoute = 'self-reflection';
-  else if (rawPath === 'emotional-patterns') initialRoute = 'emotional-patterns';
-  else if (rawPath === 'self-awareness') initialRoute = 'self-awareness';
-  else if (rawPath === 'journaling-prompts-for-self-discovery') initialRoute = 'journaling-prompts-for-self-discovery';
-  else if (rawPath === 'how-to-start-journaling') initialRoute = 'how-to-start-journaling';
-  else if (rawPath === 'how-to-practice-self-reflection') initialRoute = 'how-to-practice-self-reflection';
-  else if (rawPath === 'how-it-works') initialRoute = 'how-it-works';
-  else if (rawPath === 'about') initialRoute = 'about';
-  else if (rawPath === 'pricing') initialRoute = 'pricing';
-  else if (rawPath === 'faq') initialRoute = 'faq';
-  else if (rawPath === 'contact') initialRoute = 'contact';
-  else if (rawPath === 'ai-data') initialRoute = 'ai-data';
-  else if (rawPath === 'therapy') initialRoute = 'therapy';
-  else if (
-    rawPath === 'auth' ||
-    rawPath === 'login' ||
-    rawPath === 'signup' ||
-    rawPath === 'auth/login' ||
-    rawPath === 'auth/signup' ||
-    rawPath === 'user/login' ||
-    rawPath === 'user/auth' ||
-    rawPath === 'user/signup'
-  ) initialRoute = 'auth';
-  else if (rawPath === 'therapist' || rawPath.startsWith('therapist/')) initialRoute = rawPath;
-  else if (rawPath === 'admin' || (rawPath.startsWith('admin/') && !rawPath.startsWith('admin/psychoeducation-lab'))) initialRoute = rawPath;
-  else if (rawPath === 'v2') initialRoute = 'v2-home';
-  else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
-  else if (rawPath) initialRoute = rawPath;
+  try {
+    const headerList = await headers();
+    const host = headerList.get('host') || headerList.get('x-forwarded-host') || '';
+    const sub = getSubdomain(host);
+
+    if (sub === 'app' && (!rawPath || rawPath === 'dashboard')) {
+      initialRoute = 'dashboard';
+    } else if (sub === 'therapy' && (!rawPath || rawPath === 'therapy')) {
+      initialRoute = 'therapy';
+    } else if (sub === 'therapist' && (!rawPath || rawPath === 'therapist')) {
+      initialRoute = 'therapist';
+    }
+  } catch {}
+
+  if (initialRoute === 'home') {
+    if (rawPath === 'what-it-is') initialRoute = 'what-it-is';
+    else if (rawPath === 'guided-journaling') initialRoute = 'guided-journaling';
+    else if (rawPath === 'self-reflection') initialRoute = 'self-reflection';
+    else if (rawPath === 'emotional-patterns') initialRoute = 'emotional-patterns';
+    else if (rawPath === 'self-awareness') initialRoute = 'self-awareness';
+    else if (rawPath === 'journaling-prompts-for-self-discovery') initialRoute = 'journaling-prompts-for-self-discovery';
+    else if (rawPath === 'how-to-start-journaling') initialRoute = 'how-to-start-journaling';
+    else if (rawPath === 'how-to-practice-self-reflection') initialRoute = 'how-to-practice-self-reflection';
+    else if (rawPath === 'how-it-works') initialRoute = 'how-it-works';
+    else if (rawPath === 'about') initialRoute = 'about';
+    else if (rawPath === 'pricing') initialRoute = 'pricing';
+    else if (rawPath === 'faq') initialRoute = 'faq';
+    else if (rawPath === 'contact') initialRoute = 'contact';
+    else if (rawPath === 'ai-data') initialRoute = 'ai-data';
+    else if (rawPath === 'therapy') initialRoute = 'therapy';
+    else if (
+      rawPath === 'auth' ||
+      rawPath === 'login' ||
+      rawPath === 'signup' ||
+      rawPath === 'auth/login' ||
+      rawPath === 'auth/signup' ||
+      rawPath === 'user/login' ||
+      rawPath === 'user/auth' ||
+      rawPath === 'user/signup'
+    ) initialRoute = 'auth';
+    else if (rawPath === 'therapist' || rawPath.startsWith('therapist/')) initialRoute = rawPath;
+    else if (rawPath === 'admin' || (rawPath.startsWith('admin/') && !rawPath.startsWith('admin/psychoeducation-lab'))) initialRoute = rawPath;
+    else if (rawPath === 'v2') initialRoute = 'v2-home';
+    else if (rawPath.startsWith('v2/')) initialRoute = `v2-${rawPath.slice(3)}`;
+    else if (rawPath) initialRoute = rawPath;
+  }
 
   return <AppClient initialRoute={initialRoute} />;
 }
