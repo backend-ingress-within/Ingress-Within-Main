@@ -144,6 +144,7 @@ export function middleware(request: NextRequest) {
       const response = NextResponse.rewrite(url);
       response.headers.set('Link', RFC_8288_LINK_HEADER);
       response.headers.set('x-subdomain', 'therapy');
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       return response;
     }
 
@@ -158,12 +159,16 @@ export function middleware(request: NextRequest) {
     if (pathname === '/login') {
       const url = request.nextUrl.clone();
       url.pathname = '/therapy/login';
-      return NextResponse.rewrite(url);
+      const response = NextResponse.rewrite(url);
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      return response;
     }
     if (pathname === '/claim-account') {
       const url = request.nextUrl.clone();
       url.pathname = '/therapy/claim-account';
-      return NextResponse.rewrite(url);
+      const response = NextResponse.rewrite(url);
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      return response;
     }
 
     // D. Cross-portal redirects: Self-help paths -> app.ingresswithin.com
@@ -205,6 +210,7 @@ export function middleware(request: NextRequest) {
       const response = NextResponse.rewrite(url);
       response.headers.set('Link', RFC_8288_LINK_HEADER);
       response.headers.set('x-subdomain', 'therapist');
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       return response;
     }
 
@@ -232,7 +238,9 @@ export function middleware(request: NextRequest) {
     if (therapistSubroutes.some((sr) => pathname === sr || pathname.startsWith(sr + '/'))) {
       const url = request.nextUrl.clone();
       url.pathname = `/therapist${pathname}`;
-      return NextResponse.rewrite(url);
+      const response = NextResponse.rewrite(url);
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      return response;
     }
 
     // D. Cross-portal redirects: Self-help paths -> app.ingresswithin.com

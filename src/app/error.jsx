@@ -16,7 +16,8 @@ export default function ErrorBoundary({ error, reset }) {
       const hasReloaded = sessionStorage.getItem('chunk_reload_attempted');
       if (!hasReloaded) {
         sessionStorage.setItem('chunk_reload_attempted', 'true');
-        window.location.reload();
+        const cleanUrl = window.location.pathname;
+        window.location.href = cleanUrl + (cleanUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
       }
     }
   }, [error]);
@@ -24,7 +25,8 @@ export default function ErrorBoundary({ error, reset }) {
   const handleReload = () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('chunk_reload_attempted');
-      window.location.reload();
+      const cleanUrl = window.location.pathname;
+      window.location.href = cleanUrl + (cleanUrl.includes('?') ? '&' : '?') + '_r=' + Date.now();
     } else if (reset) {
       reset();
     }
