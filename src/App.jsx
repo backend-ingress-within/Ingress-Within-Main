@@ -308,9 +308,6 @@ export default function App({ initialRoute = 'home' }) {
       if (!user) {
         console.warn('[App.jsx] Redirect Engine: User is not authenticated on protected route. Redirecting to /auth. Reason: SESSION_INVALID');
         window.navigateTo('/auth');
-      } else if (user?.is_therapy_client) {
-        console.log('[App.jsx] Redirect Engine: Authenticated therapy client on self-help protected route. Redirecting to /therapy.');
-        window.navigateTo('/therapy');
       } else if (profile) {
         console.log('[App.jsx] Redirect Engine: Authenticated user with profile on protected route. Onboarding state:', {
           consent_completed: profile.consent_completed,
@@ -347,13 +344,15 @@ export default function App({ initialRoute = 'home' }) {
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         const redirectParam = urlParams.get('redirect');
-        if (redirectParam && (redirectParam.startsWith('/therapy') || redirectParam.startsWith('/dashboard'))) {
+        const currentSub = getSubdomain(window.location.hostname);
+
+        if (redirectParam && (redirectParam.startsWith('/dashboard') || redirectParam.startsWith('/write') || redirectParam.startsWith('/patterns') || redirectParam.startsWith('/reports'))) {
           targetDestination = redirectParam;
-        } else if (user?.is_therapy_client) {
+        } else if (currentSub === 'therapy') {
           targetDestination = '/therapy';
+        } else {
+          targetDestination = '/dashboard';
         }
-      } else if (user?.is_therapy_client) {
-        targetDestination = '/therapy';
       }
       window.navigateTo(targetDestination);
     } else {
@@ -403,6 +402,48 @@ export default function App({ initialRoute = 'home' }) {
     // Define global navigate function so pages/components can trigger programmatically
     window.navigateTo = (path) => {
       console.log('[App.jsx] window.navigateTo called with path:', path);
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const currentSub = getSubdomain(host);
+      const isProdHost = host.includes('ingresswithin.com');
+
+      if (isProdHost) {
+        // If on app.ingresswithin.com and navigating to therapy or therapist
+        if (currentSub === 'app') {
+          if (path === '/therapy' || path.startsWith('/therapy/')) {
+            window.location.href = getSubdomainUrl('therapy', path.replace(/^\/therapy/, '') || '/');
+            return;
+          }
+          if (path === '/therapist' || path.startsWith('/therapist/')) {
+            window.location.href = getSubdomainUrl('therapist', path.replace(/^\/therapist/, '') || '/');
+            return;
+          }
+        }
+
+        // If on therapy.ingresswithin.com and navigating to self-help
+        if (currentSub === 'therapy') {
+          if (path === '/dashboard' || path.startsWith('/dashboard/') || path === '/write' || path === '/auth' || path === '/settings') {
+            window.location.href = getSubdomainUrl('app', path);
+            return;
+          }
+        }
+
+        // If on main domain and navigating to app, therapy, or therapist
+        if (currentSub === 'main') {
+          if (path === '/therapy' || path.startsWith('/therapy/')) {
+            window.location.href = getSubdomainUrl('therapy', path.replace(/^\/therapy/, '') || '/');
+            return;
+          }
+          if (path === '/therapist' || path.startsWith('/therapist/')) {
+            window.location.href = getSubdomainUrl('therapist', path.replace(/^\/therapist/, '') || '/');
+            return;
+          }
+          if (path === '/dashboard' || path.startsWith('/dashboard/') || path === '/write' || path === '/auth' || path === '/settings') {
+            window.location.href = getSubdomainUrl('app', path);
+            return;
+          }
+        }
+      }
+
       window.history.pushState({}, '', path);
       handleLocationChange();
       window.dispatchEvent(new PopStateEvent('popstate'));
@@ -662,6 +703,38 @@ export default function App({ initialRoute = 'home' }) {
 
       if (isProdHost) {
         const currentSub = getSubdomain(host);
+
+        // Cross-domain intercept for app domain (app.ingresswithin.com)
+        if (currentSub === 'app') {
+          if (href === '/therapy' || href.startsWith('/therapy/')) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('therapy', href.replace(/^\/therapy/, '') || '/');
+            return;
+          }
+          if (href === '/therapist' || href.startsWith('/therapist/')) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('therapist', href.replace(/^\/therapist/, '') || '/');
+            return;
+          }
+        }
+
+        // Cross-domain intercept for therapy domain (therapy.ingresswithin.com)
+        if (currentSub === 'therapy') {
+          if (
+            href === '/dashboard' ||
+            href.startsWith('/dashboard/') ||
+            href === '/write' ||
+            href.startsWith('/write/') ||
+            href === '/patterns' ||
+            href === '/reports' ||
+            href === '/vocab' ||
+            href === '/modules'
+          ) {
+            e.preventDefault();
+            window.location.href = getSubdomainUrl('app', href);
+            return;
+          }
+        }
 
         // Cross-domain intercept for main domain (ingresswithin.com)
         if (currentSub === 'main') {
