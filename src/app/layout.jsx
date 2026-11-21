@@ -138,6 +138,8 @@ export default function RootLayout({ children }) {
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        <link rel="describedby" href="/llms.txt" type="text/markdown" />
+        <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLMs Index" />
         <StructuredData />
       </head>
       <body className="selection:bg-accent/40 selection:text-primary font-sans">

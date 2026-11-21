@@ -136,6 +136,11 @@ export default function PublicFooter({ onSelectTab, onOpenPolicy }) {
                 </a>
               </li>
               <li>
+                <a href="/contact" onClick={(e) => handleNav('contact', e)} className="hover:text-white transition-colors">
+                  Contact
+                </a>
+              </li>
+              <li>
                 <a href="/feedback" className="hover:text-white transition-colors">
                   Feedback &amp; Bug Reports
                 </a>

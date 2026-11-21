@@ -68,6 +68,7 @@ export default function EditorialNavbar({ user, profile, activeTab = 'home', onS
     { id: 'ai', label: 'AI & Data', path: '/ai-data' },
     { id: 'evidence', label: 'Evidence', path: '/evidence' },
     { id: 'about', label: 'About', path: '/about' },
+    { id: 'contact', label: 'Contact', path: '/contact' },
     { id: 'crisis', label: 'In Crisis?', path: '/crisis', highlight: true }
   ];
 

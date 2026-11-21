@@ -1,0 +1,24 @@
+# Ingress Within
+> One connected platform for self-guided psychological inquiry, emotional pattern discovery, and licensed clinical therapy.
+
+Ingress Within bridges independent psychological practice and professional psychotherapy. Individuals can practice structured self-reflection, uncover repeating emotional cycles, and work directly with verified, licensed mental health professionals in a continuous care ecosystem.
+
+## Core Sections
+- [Homepage](https://ingresswithin.com/): Unified entry point for self-guided practice and therapist care.
+- [Therapy Care](https://ingresswithin.com/therapy): Telehealth sessions with licensed clinical psychologists and psychotherapists.
+- [Our Solution](https://ingresswithin.com/solution): The integrated mental health model connecting self-inquiry with clinical practice.
+- [How It Works](https://ingresswithin.com/how-it-works): Overview of guided reflection rhythm, emotional vocabulary, and clinician collaboration.
+- [Pricing](https://ingresswithin.com/pricing): Transparent pricing for self-guided modules and individual therapy sessions.
+- [AI & Data Philosophy](https://ingresswithin.com/ai-data): Privacy-first architecture with strict boundaries, user consent controls, and no AI model training on personal reflection data.
+- [Evidence & Theoretical Basis](https://ingresswithin.com/evidence): Foundation in CBT, Acceptance and Commitment Therapy (ACT), and narrative psychology.
+- [About Ingress Within](https://ingresswithin.com/about): Mission, clinical governance, and ethical standards.
+- [Contact Support](https://ingresswithin.com/contact): Inquiries, feedback, and customer support.
+
+## Trust & Safety
+- [Privacy Policy](https://ingresswithin.com/privacy-policy): Comprehensive data protection, HIPAA/DPDP alignment, and consent withdrawal protocols.
+- [Terms of Service](https://ingresswithin.com/terms-of-service): Terms governing self-directed tools and professional teleconsultations.
+- [Feedback & Issue Reporting](https://ingresswithin.com/feedback): Submit bug reports, user feedback, or feature requests.
+- [Emergency Crisis Resources](https://ingresswithin.com/crisis): 24/7 emergency helplines (Tele-MANAS: 14416, AASRA, Vandrevala Foundation) for individuals in crisis.
+
+## Optional
+- [MCP Server Card](https://ingresswithin.com/.well-known/mcp/server-card.json): SEP-1649 / SEP-2127 Model Context Protocol discovery card for autonomous AI agents.

@@ -733,8 +733,9 @@ export default function App({ initialRoute = 'home' }) {
       case 'terms-of-service':
         return <TermsOfServiceView />;
       case 'start':
-      case 'contact':
         return <PublicWebsiteV2 user={user} profile={profile} initialTab="start" onOpenPolicy={handleOpenPolicy} />;
+      case 'contact':
+        return <PublicWebsiteV2 user={user} profile={profile} initialTab="contact" onOpenPolicy={handleOpenPolicy} />;
       case 'crisis':
         return <PublicWebsiteV2 user={user} profile={profile} initialTab="crisis" onOpenPolicy={handleOpenPolicy} />;
       case 'faq':

@@ -4307,7 +4307,7 @@ export default function PublicWebsiteV2({ user, profile, initialTab = 'home', on
             {activeTab === 'evidence' && renderEvidence()}
             {activeTab === 'about' && renderAbout()}
             {activeTab === 'policies' && renderPolicies()}
-            {activeTab === 'start' && renderStart()}
+            {(activeTab === 'start' || activeTab === 'contact') && renderStart()}
             {activeTab === 'crisis' && renderCrisis()}
           </motion.div>
         </AnimatePresence>
